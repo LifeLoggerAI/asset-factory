@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.admin == true;
+    }
+
+    // Replay outputs are stored by render ID.
+    // These are the final video files.
+    match /replays/{renderId}/{allPaths=**} {
+      // Public read access for final videos.
+      allow read: if true;
+
+      // Writes are restricted to the backend service.
+      allow write: if isAdmin();
+    }
+  }
+}
