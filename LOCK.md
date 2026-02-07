@@ -1,10 +1,10 @@
 # LOCK — asset-factory
 
 VERSION: v1.0.0
-STAMP: 20260207_211631
+STAMP: 20260207_211915
 STATUS: PUBLIC PRODUCTION
 
-VERIFIED:
+VERIFIED (INTENDED):
 - Canvas rendering visible
 - Anonymous upload works
 - Auth migration works

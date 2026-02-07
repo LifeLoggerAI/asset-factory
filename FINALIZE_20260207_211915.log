@@ -1,0 +1,28 @@
+========================================
+ ASSET FACTORY FINALIZER — v1.0.0
+========================================
+Started in: /home/user/asset-factory
+
+==> Locating app root (package.json + firebase.json)
+⚠️ Could not auto-detect app root (missing package.json + firebase.json)
+⚠️ Continuing in current directory
+ M FINALIZE_20260207_211631.log
+?? FINALIZE_20260207_211915.log
+⚠️ Git tree dirty — continuing
+==> Installing dependencies
+ ERR_PNPM_NO_PKG_MANIFEST  No package.json found in /home/user/asset-factory
+ ERR_PNPM_NO_PKG_MANIFEST  No package.json found in /home/user/asset-factory
+⚠️ install failed
+ ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND  No package.json (or package.yaml, or package.json5) was found in "/home/user/asset-factory".
+⚠️ typecheck failed
+ ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND  No package.json (or package.yaml, or package.json5) was found in "/home/user/asset-factory".
+⚠️ build failed
+
+Error: Failed to authenticate, have you run firebase login?
+⚠️ Firebase not authenticated or project unavailable
+Failed to fetch Firebase Project from current Studio Workspace: Unable to refresh auth: not yet authenticated.
+
+Error: Not in a Firebase app directory (could not locate firebase.json)
+⚠️ firebase deploy failed
+curl: (6) Could not resolve host: assetfactory.app
+⚠️ smoke test failed (DNS or hosting not live yet)
