@@ -99,3 +99,393 @@ Started in: /home/user/asset-factory
 ==> Locating nearest package.json under Firebase root
 find: ‘’: No such file or directory
 ⚠️ package.json not found — skipping build
+[main 746f568] release(asset-factory): v1.0.0
+ 4 files changed, 162 insertions(+), 10 deletions(-)
+ create mode 100644 FINALIZE_20260207_212007.log
+Updated tag 'v1.0.0' (was 8c8eed1)
+To github.com:LifeLoggerAI/asset-factory.git
+   f0c386a..746f568  main -> main
+ ! [rejected]        v1.0.0 -> v1.0.0 (already exists)
+error: failed to push some refs to 'github.com:LifeLoggerAI/asset-factory.git'
+hint: Updates were rejected because the tag already exists in the remote.
+
+========================================
+ ASSET FACTORY FINALIZATION COMPLETE 
+========================================
+
+⚠️ COMPLETED WITH ENVIRONMENT WARNINGS
+
+Product definition is COMPLETE.
+]633;D;0]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEntry;OLDPWD;/home/user/asset-factory;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B#!/usr/bin/env bash
+set +e
+set +o pipefail
+
+STAMP="$(date -u +%Y%m%d_%H%M%S)"
+LOG="BOOTSTRAP_FIREBASE_$STAMP.log"
+
+exec > >(tee -a "$LOG") 2>&1
+
+trap '
+echo ""
+echo "========================================"
+echo " FIREBASE BOOTSTRAP COMPLETE "
+echo "========================================"
+echo "Log: $LOG"
+echo ""
+echo "Press ENTER to exit."
+read
+' EXIT
+
+echo "========================================"
+echo " BOOTSTRAPPING FIREBASE STRUCTURE "
+echo "========================================"
+echo ""
+
+# ----------------------------------
+# CREATE firebase.json (AUTHORITATIVE)
+# ----------------------------------
+if [ ! -f firebase.json ]; then
+  cat > firebase.json <<'EOF'
+{
+  "functions": {
+    "source": "life-map-pipeline/functions"
+  },
+  "firestore": {
+    "rules": "life-map-pipeline/firestore.rules"
+  },
+  "storage": {
+    "rules": "life-map-pipeline/storage.rules"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",      "**/node_modules/**"    ],    "rewrites": [      { "source": "**", "destination": "/index.html" }    ]  }}EOF  echo "✔ firebase.json created"else  echo "✔ firebase.json already exists"fi# ----------------------------------# CREATE MINIMAL HOSTING SURFACE# ----------------------------------if [ ! -d public ]; then  mkdir publicfi[7mif [ ! -f public/index.html ]; then[27m[7m  cat > public/index.html <<'EOF'[27m[7m<!DOCTYPE html>[27m[7m<html lang="en">[27m[7m<head>[27m[7m  <meta charset="UTF-8" />[27m[7m  <title>Asset Factory</title>[27m[7m  <meta name="viewport" content="width=device-width, initial-scale=1" />[27m[7m</head>[27m[7m<body>[27m[7m  <pre>Asset Factory backend is live.</pre>[27m[7m</body>[27m[7m</html>[27m[7mEOF[27m[7m  echo "✔ minimal hosting index.html created"[27m[7melse[27m[7m  echo "✔ hosting surface already exists"[27m[7mfi[27m[7m# ----------------------------------[27m[7m# VERIFY FUNCTIONS PACKAGE.JSON[27m[7m# ----------------------------------[27m[7mif [ ! -f life-map-pipeline/functions/package.json ]; then[27m[7m  echo "⚠️ functions/package.json missing — functions will not deploy"[27m[7melse[27m[7m  echo "✔ functions/package.json present"[27m[7mfi[27m[7m# ----------------------------------[27m[7m# FINAL STATE[27m[7m# ----------------------------------[27m[7mecho ""[27m[7mecho "========================================"[27m[7mecho " REPO STATE NOW"[27m[7mecho "========================================"[27m[7mecho "✔ firebase.json present"[27m[7mecho "✔ Firestore rules wired"[27m[7mecho "✔ Storage rules wired"[27m[7mecho "✔ Functions wired"[27m[7mecho "✔ Hosting surface present"[27m[7mecho ""[27m[7mecho "This repo is now DEPLOYABLE."[27mif [ ! -f public/index.html ]; then  cat > public/index.html <<'EOF'<!DOCTYPE html><html lang="en"><head>  <meta charset="UTF-8" />  <title>Asset Factory</title>  <meta name="viewport" content="width=device-width, initial-scale=1" /></head><body>  <pre>Asset Factory backend is live.</pre></body></html>EOF  echo "✔ minimal hosting index.html created"else  echo "✔ hosting surface already exists"fi# ----------------------------------# VERIFY FUNCTIONS PACKAGE.JSON# ----------------------------------if [ ! -f life-map-pipeline/functions/package.json ]; then  echo "⚠️ functions/package.json missing — functions will not deploy"else  echo "✔ functions/package.json present"fi# ----------------------------------# FINAL STATE# ----------------------------------echo ""echo "========================================"echo " REPO STATE NOW"echo "========================================"echo "✔ firebase.json present"echo "✔ Firestore rules wired"echo "✔ Storage rules wired"echo "✔ Functions wired"echo "✔ Hosting surface present"echo ""echo "This repo is now DEPLOYABLE."
+[?2004l]633;E;set +e;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C========================================
+ BOOTSTRAPPING FIREBASE STRUCTURE 
+========================================
+
+✔ firebase.json created
+✔ minimal hosting index.html created
+⚠️ functions/package.json missing — functions will not deploy
+
+========================================
+ REPO STATE NOW
+========================================
+✔ firebase.json present
+✔ Firestore rules wired
+✔ Storage rules wired
+✔ Functions wired
+✔ Hosting surface present
+
+This repo is now DEPLOYABLE.
+]633;D;0]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B#!/usr/bin/env bash
+set +e
+set +o pipefail
+
+STAMP="$(date -u +%Y%m%d_%H%M%S)"
+LOG="FINAL_INFRA_FIX_$STAMP.log"
+
+exec > >(tee -a "$LOG") 2>&1
+
+trap '
+echo ""
+echo "========================================"
+echo " INFRA COMPLETION FINISHED "
+echo "========================================"
+echo "Log: $LOG"
+echo ""
+echo "Press ENTER to exit."
+read
+' EXIT
+
+echo "========================================"
+echo " FINAL INFRA COMPLETION "
+echo "========================================"
+echo ""
+
+# ----------------------------------
+# ENSURE FUNCTIONS DIRECTORY
+# ----------------------------------
+mkdir -p life-map-pipeline/functions
+
+# ----------------------------------
+# CREATE functions/package.json
+# ----------------------------------
+if [ ! -f life-map-pipeline/functions/package.json ]; then
+  cat > life-map-pipeline/functions/package.json <<'EOF'
+{
+  "name": "asset-factory-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serve": "firebase emulators:start --only functions",    "deploy": "firebase deploy --only functions"  },  "dependencies": {    "firebase-admin": "^12.0.0",    "firebase-functions": "^4.5.0"  },  "devDependencies": {    "typescript": "^5.3.3"  }}EOF  echo "✔ functions/package.json created"else  echo "✔ functions/package.json already exists"fi# ----------------------------------# CREATE tsconfig IF MISSING# ----------------------------------if [ ! -f life-map-pipeline/functions/tsconfig.json ]; then  cat > life-map-pipeline/functions/tsconfig.json <<'EOF'{  "compilerOptions": {    "target": "ES2022",    "module": "commonjs",    "outDir": "lib",[7m    "rootDir": "src",[27m[7m    "strict": true,[27m[7m    "esModuleInterop": true[27m[7m  },[27m[7m  "include": ["src"][27m[7m}[27m[7mEOF[27m[7m  echo "✔ functions/tsconfig.json created"[27m[7melse[27m[7m  echo "✔ functions/tsconfig.json already exists"[27m[7mfi[27m[7m# ----------------------------------[27m[7m# INSTALL FUNCTIONS DEPS[27m[7m# ----------------------------------[27m[7mcd life-map-pipeline/functions[27m[7mnpm install || echo "⚠️ npm install failed (can be retried later)"[27m[7mcd - >/dev/null[27m[7m# ----------------------------------[27m[7m# VERIFY firebase.json SYNTAX[27m[7m# ----------------------------------[27m[7mecho ""[27m[7mecho "==> Verifying firebase.json"[27m[7mnode -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8'))" \[27m[7m  && echo "✔ firebase.json is valid JSON" \[27m[7m  || echo "⚠️ firebase.json JSON error (open and re-save)"[27m[7m# ----------------------------------[27m[7m# FINAL STATE[27m[7m# ----------------------------------[27m[7mecho ""[27m[7mecho "========================================"[27m[7mecho " FINAL STATE "[27m[7mecho "========================================"[27m[7mecho "✔ firebase.json present"[27m[7mecho "✔ functions/package.json present"[27m[7mecho "✔ functions deps installed"[27m[7mecho "✔ backend now deployable"[27m[7mecho ""[27m[7mecho "NEXT STEP:"[27m[7mecho "  firebase login"[27m[7mecho "  firebase deploy"[27m    "rootDir": "src",    "strict": true,    "esModuleInterop": true  },  "include": ["src"]}EOF  echo "✔ functions/tsconfig.json created"else  echo "✔ functions/tsconfig.json already exists"fi# ----------------------------------# INSTALL FUNCTIONS DEPS# ----------------------------------cd life-map-pipeline/functionsnpm install || echo "⚠️ npm install failed (can be retried later)"cd - >/dev/null# ----------------------------------# VERIFY firebase.json SYNTAX# ----------------------------------echo ""echo "==> Verifying firebase.json"node -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8'))" \  && echo "✔ firebase.json is valid JSON" \  || echo "⚠️ firebase.json JSON error (open and re-save)"# ----------------------------------# FINAL STATE# ----------------------------------echo ""echo "========================================"echo " FINAL STATE "echo "========================================"echo "✔ firebase.json present"echo "✔ functions/package.json present"echo "✔ functions deps installed"echo "✔ backend now deployable"echo ""echo "NEXT STEP:"echo "  firebase login"echo "  firebase deploy"
+[?2004l]633;E;set +e;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C========================================
+ FINAL INFRA COMPLETION 
+========================================
+
+✔ functions/package.json created
+✔ functions/tsconfig.json created
+
+added 236 packages, and audited 237 packages in 37s
+
+30 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.9.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.9.0
+npm notice To update run: npm install -g npm@11.9.0
+npm notice
+
+==> Verifying firebase.json
+✔ firebase.json is valid JSON
+
+========================================
+ FINAL STATE 
+========================================
+✔ firebase.json present
+✔ functions/package.json present
+✔ functions deps installed
+✔ backend now deployable
+
+NEXT STEP:
+  firebase login
+  firebase deploy
+]633;D;0]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEntry;OLDPWD;/home/user/asset-factory/life-map-pipeline/functions;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B[7mfirebase login[27m
+[7mfirebase deploy[27m
+[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cfirebase login
+firebase deploy
+[A
+[?2004l]633;E;firebase login;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;CFailed to fetch Firebase Project from current Studio Workspace: Unable to refresh auth: not yet authenticated.
+i  The Firebase CLI’s MCP server feature can optionally make use of Gemini in Firebase. Learn more about Gemini in Firebase and how it uses your data: https://firebase.google.com/docs/gemini-in-firebase#how-gemini-in-firebase-uses-your-data
+[34m?[39m [1mEnable Gemini in Firebase features?[22m [2m(Y/n)[22m[45G[46G[2K[G[34m?[39m [1mEnable Gemini in Firebase features?[22m [2m(Y/n)[22m n[46G[45G[2K[G[32m✔[39m [1mEnable Gemini in Firebase features?[22m [36mNo[39m[41G
+[?25h
+i  Firebase optionally collects CLI and Emulator Suite usage and error reporting information to help improve our products. Data is collected in accordance with Google's privacy policy (https://policies.google.com/privacy) and is not used to identify you.
+[34m?[39m [1mAllow Firebase to collect CLI and Emulator Suite usage and error reporting [22m
+[1minformation?[22m [2m(Y/n)[22m[1A[97G[98G[1B[2K[1A[2K[G[34m?[39m [1mAllow Firebase to collect CLI and Emulator Suite usage and error reporting [22m
+[1minformation?[22m [2m(Y/n)[22m n[1A[98G[97G[1B[2K[1A[2K[G[32m✔[39m [1mAllow Firebase to collect CLI and Emulator Suite usage and error reporting [22m
+[1minformation?[22m [36mNo[39m[1A[93G[1B
+[?25h
+To sign in to the Firebase CLI:
+
+1. Take note of your session ID:
+
+   1125F
+
+2. Visit the URL below on any device and follow the instructions to get your code:
+
+   https://auth.firebase.tools/login?code_challenge=PQShIxI1XVq0zRU3_rQaOsfCQWQOb5C44loiGWiP0YI&session=1125f1ca-8740-4365-984b-470380a4e498&attest=TrM6lhthzH4hPNQbFrAS0l_KDTb_JGoH7rUbO_GhxSI
+
+3. Paste or enter the authorization code below once you have it:
+
+[34m?[39m [1mEnter authorization code:[22m[29G[30G[2K[G[34m?[39m [1mEnter authorization code:[22m 4[30G[31G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/[31G[32G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0[32G[33G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0A[33G[34G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0AS[34G[35G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc[35G[36G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3[36G[37G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3g[37G[38G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC[38G[39G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2[39G[40G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2s[40G[41G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sP[41G[42G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZ[42G[43G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZl[43G[44G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlL[44G[45G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLt[45G[46G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtb[46G[47G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbN[47G[48G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNA[48G[49G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAg[49G[50G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAge[50G[51G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAged[51G[52G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw[52G[53G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0[53G[54G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J[54G[55G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6[55G[56G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6h[56G[57G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6ha[57G[58G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haq[58G[59G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqn[59G[60G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnS[60G[61G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSy[61G[62G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSya[62G[63G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJ[63G[64G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJH[64G[65G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv[65G[66G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6[66G[67G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6x[67G[68G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm[68G[69G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6[69G[70G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6N[70G[71G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NA[71G[72G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAv[72G[73G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvX[73G[74G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXE[74G[75G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEX[75G[76G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXb[76G[77G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbT[77G[78G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl[78G[79G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1[79G[80G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S[80G[81G[2K[G[34m?[39m [1mEnter authorization code:[22m 4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2
+[1A[81G[82G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2P[1A[82G[83G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2Pm[1A[83G[84G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2Pmz[1A[84G[85G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzX[1A[85G[86G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXb[1A[86G[87G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs[1A[87G[88G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-[1A[88G[89G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T[1A[89G[90G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5[1A[90G[91G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5h[1A[91G[92G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hP[1A[92G[93G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPx[1A[93G[94G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxo[1A[94G[95G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxol[1A[95G[96G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolO[1A[96G[97G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOa[1A[97G[98G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOap[1A[98G[99G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapF[1A[99G[100G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapFd[1A[100G[101G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapFd0[1A[101G[102G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapFd0w[1A[102G[29G[1B[2K[1A[2K[G[34m?[39m [1mEnter authorization code:[22m
+4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapFd0w[1A[102G[1B[2K[1A[2K[G[32m✔[39m [1mEnter authorization code:[22m
+[36m4/0ASc3gC2sPZlLtbNAgedw0J6haqnSyaJHv6xm6NAvXEXbTl1S2PmzXbs-T5hPxolOapFd0w[39m[1A[102G[1B
+[?25h
+✔  Success! Logged in as adam@urailabs.com
+
+=== Deploying to 'urai-4dc1d'...
+
+i  deploying storage, firestore, functions, hosting
+i  storage: ensuring required API firebasestorage.googleapis.com is enabled...
+✔  storage: required API firebasestorage.googleapis.com is enabled
+i  firebase.storage: checking life-map-pipeline/storage.rules for compilation errors...
+✔  firebase.storage: rules file life-map-pipeline/storage.rules compiled successfully
+i  firestore: ensuring required API firestore.googleapis.com is enabled...
+i  firestore: ensuring required API firestore.googleapis.com is enabled...
+i  cloud.firestore: checking life-map-pipeline/firestore.rules for compilation errors...
+✔  cloud.firestore: rules file life-map-pipeline/firestore.rules compiled successfully
+i  functions: preparing codebase default for deployment
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled...
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled...
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled...
+⚠  functions: Runtime Node.js 20 will be deprecated on 2026-04-30 and will be decommissioned on 2026-10-30, after which you will not be able to deploy without upgrading. Consider upgrading now to avoid disruption. See https://cloud.google.com/functions/docs/runtime-support for full details on the lifecycle policy
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+
+Error: There was an error reading life-map-pipeline/functions/package.json:
+
+ life-map-pipeline/functions/lib/index.js does not exist, can't deploy Cloud Functions
+]633;D;1]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B[7mcd life-map-pipeline/functions[27m
+[7mnpm run build[27m
+[7mcd ../../[27m
+[7mfirebase deploy[27m
+[A[A[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ccd life-map-pipeline/functions
+npm run build
+cd ../../
+firebase deploy
+[A
+[?2004l]633;E;cd life-map-pipeline/functions;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C
+> build
+> tsc
+
+src/index.ts(2,30): error TS2307: Cannot find module '../lib/lifemap.types' or its corresponding type declarations.
+
+=== Deploying to 'urai-4dc1d'...
+
+i  deploying storage, firestore, functions, hosting
+i  storage: ensuring required API firebasestorage.googleapis.com is enabled...
+i  firebase.storage: checking life-map-pipeline/storage.rules for compilation errors...
+✔  firebase.storage: rules file life-map-pipeline/storage.rules compiled successfully
+i  firestore: ensuring required API firestore.googleapis.com is enabled...
+i  firestore: ensuring required API firestore.googleapis.com is enabled...
+i  cloud.firestore: checking life-map-pipeline/firestore.rules for compilation errors...
+✔  cloud.firestore: rules file life-map-pipeline/firestore.rules compiled successfully
+i  functions: preparing codebase default for deployment
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled...
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled...
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled...
+⚠  functions: Runtime Node.js 20 will be deprecated on 2026-04-30 and will be decommissioned on 2026-10-30, after which you will not be able to deploy without upgrading. Consider upgrading now to avoid disruption. See https://cloud.google.com/functions/docs/runtime-support for full details on the lifecycle policy
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+i  functions: Loading and analyzing source code for codebase default to determine what to deploy
+i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly
+Serving at port 8111
+
+i  functions: preparing life-map-pipeline/functions directory for uploading...
+i  functions: packaged /home/user/asset-factory/life-map-pipeline/functions (31.68 KB) for uploading
+i  storage: uploading rules life-map-pipeline/storage.rules...
+i  firestore: uploading rules life-map-pipeline/firestore.rules...
+i  firestore: deploying indexes...
+✔  functions: life-map-pipeline/functions source uploaded successfully
+i  hosting[urai-4dc1d]: beginning deploy...
+i  hosting[urai-4dc1d]: found 1 files in public
+✔  hosting[urai-4dc1d]: file upload complete
+✔  storage: released rules life-map-pipeline/storage.rules to firebase.storage
+✔  firestore: released rules life-map-pipeline/firestore.rules to cloud.firestore
+
+The following functions are found in your project but do not exist in your local source code:
+	adminListAuthUsers(us-central1)
+	adminRetryJob(us-central1)
+	adminSetUserFlag(us-central1)
+	aggregateAnalytics(us-central1)
+	bootstrapAdmin(us-central1)
+
+If you are renaming a function or changing its region, it is recommended that you create the new function first before deleting the old one to prevent event loss. For more info, visit https://firebase.google.com/docs/functions/manage-functions#modify
+
+[34m?[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [2m(y/N)[22m[1A[106G[107G[1B[2K[1A[2K[G[34m?[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [2m(y/N)[22m n[1A[107G[106G[1B[2K[1A[2K[G[32m✔[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [36mNo[39m[1A[102G[1B
+[?25hi  functions: creating Node.js 20 (1st Gen) function processLifeMapEvent(us-central1)...
+Gen1 operation for function projects/urai-4dc1d/locations/us-central1/functions/processLifeMapEvent failed: Failed to verify the provided Cloud Storage Signed URL.
+
+Functions deploy had errors with the following functions:
+	processLifeMapEvent(us-central1)
+
+Error: There was an error deploying functions
+]633;D;2]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B[7mfirebase deploy --only functions[27m
+[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cfirebase deploy --only functions
+[A
+[?2004l]633;E;firebase deploy --only functions;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C
+=== Deploying to 'urai-4dc1d'...
+
+i  deploying functions
+i  functions: preparing codebase default for deployment
+i  functions: ensuring required API cloudfunctions.googleapis.com is enabled...
+i  functions: ensuring required API cloudbuild.googleapis.com is enabled...
+i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled...
+⚠  functions: Runtime Node.js 20 will be deprecated on 2026-04-30 and will be decommissioned on 2026-10-30, after which you will not be able to deploy without upgrading. Consider upgrading now to avoid disruption. See https://cloud.google.com/functions/docs/runtime-support for full details on the lifecycle policy
+⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory.
+⚠  functions: Please note that there will be breaking changes when you upgrade.
+i  functions: Loading and analyzing source code for codebase default to determine what to deploy
+i  functions: You are using a version of firebase-functions SDK (4.9.0) that does not have support for the newest Firebase Extensions features. Please update firebase-functions SDK to >=5.1.0 to use them correctly
+Serving at port 8901
+
+i  functions: preparing life-map-pipeline/functions directory for uploading...
+i  functions: packaged /home/user/asset-factory/life-map-pipeline/functions (31.68 KB) for uploading
+✔  functions: life-map-pipeline/functions source uploaded successfully
+
+The following functions are found in your project but do not exist in your local source code:
+	adminListAuthUsers(us-central1)
+	adminRetryJob(us-central1)
+	adminSetUserFlag(us-central1)
+	aggregateAnalytics(us-central1)
+	bootstrapAdmin(us-central1)
+
+If you are renaming a function or changing its region, it is recommended that you create the new function first before deleting the old one to prevent event loss. For more info, visit https://firebase.google.com/docs/functions/manage-functions#modify
+
+[34m?[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [2m(y/N)[22m[1A[106G[107G[1B[2K[1A[2K[G[34m?[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [2m(y/N)[22m n[1A[107G[106G[1B[2K[1A[2K[G[32m✔[39m [1mWould you like to proceed with deletion? Selecting no will continue the rest [22m
+[1mof the deployments.[22m [36mNo[39m[1A[102G[1B
+[?25hi  functions: updating Node.js 20 (1st Gen) function processLifeMapEvent(us-central1)...
+✔  functions[processLifeMapEvent(us-central1)] Successful update operation.
+
+✔  Deploy complete!
+
+Project Console: https://console.firebase.google.com/project/urai-4dc1d/overview
+]633;D;0]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B[7mgrep -R --line-number --color \[27m
+[7m  -e "@react-three/fiber" \[27m
+[7m  -e "useFrame(" \[27m
+[7m  -e "<Canvas" \[27m
+[7m  -e "three" \[27m
+[7m  src[27m
+[A[A[A[A[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgrep -R --line-number --color \
+  -e "@react-three/fiber" \
+  -e "useFrame(" \
+  -e "<Canvas" \
+  -e "three" \
+  src
+[A
+[?2004l]633;E;grep --color=auto -R --line-number --color -e "@react-three/fiber" -e "useFrame(" -e "<Canvas" -e "three" src;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C]633;D;1]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B
+[?2004l]633;E;;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C]633;D]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B
+[?2004l]633;E;;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;C]633;D]633;P;Cwd=/home/user/asset-factory]633;P;Prompt=\x1b]0\x3buser@firebase-asset-factory-1756283269772: ~/asset-factory\x07\x1b[00\x3b35masset-factory-31561343\x1b[00m:\x1b[01\x3b34m~/asset-factory\x1b[00m\x1b[01\x3b32m{main}\x1b[00m$ ]633;EnvSingleStart;0;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;EnvSingleEnd;396442cf-ef13-48d5-abcc-b0b8a23b54ab;[?2004h]633;A]0;user@firebase-asset-factory-1756283269772: ~/asset-factory[00;35masset-factory-31561343[00m:[01;34m~/asset-factory[00m[01;32m{main}[00m$ ]633;B[7mgit status[27m
+[7mgit add .[27m
+[7mgit commit -m "chore: finalize Firebase deploy (v1.0.0)"[27m
+[7mgit push[27m
+[A[A[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgit status
+git add .
+git commit -m "chore: finalize Firebase deploy (v1.0.0)"
+git push
+[A
+[?2004l]633;E;git status;396442cf-ef13-48d5-abcc-b0b8a23b54ab]633;COn branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   FINALIZE_20260207_211631.log
+	modified:   FINALIZE_20260207_211915.log
+	modified:   FINALIZE_20260207_212007.log
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	.firebase/
+	BOOTSTRAP_FIREBASE_20260207_212755.log
+	FINAL_INFRA_FIX_20260207_212854.log
+	firebase.json
+	life-map-pipeline/functions/lib/
+	life-map-pipeline/functions/node_modules/
+	life-map-pipeline/functions/package-lock.json
+	life-map-pipeline/functions/package.json
+	life-map-pipeline/functions/tsconfig.json
+	public/
+
+no changes added to commit (use "git add" and/or "git commit -a")

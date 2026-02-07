@@ -1,0 +1,22 @@
+{
+  "functions": {
+    "source": "life-map-pipeline/functions"
+  },
+  "firestore": {
+    "rules": "life-map-pipeline/firestore.rules"
+  },
+  "storage": {
+    "rules": "life-map-pipeline/storage.rules"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}
