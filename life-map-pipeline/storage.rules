@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.admin == true;
+    }
+
+    // Raw event uploads
+    match /event-ingestion/{userId}/{eventId} {
+      allow read: if isAdmin();
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Processed, versioned, and immutable Life-Map artifacts
+    match /lifemaps/{userId}/{mapId}/{version}/{allPaths=**} {
+      // Allow public read for final artifacts, as they are used in clients.
+      allow read: if true;
+
+      // Only admin processes can write canonical maps.
+      allow write: if isAdmin();
+
+      // Never allow deletion of a version.
+      allow delete: if false;
+    }
+  }
+}
