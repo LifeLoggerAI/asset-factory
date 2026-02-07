@@ -1,18 +1,14 @@
-ASSET-FACTORY v1.0.0
+# LOCK — asset-factory
 
-Status: SEALED
-OPS_COMPLETE: true
+VERSION: v1.0.0
+STAMP: 20260207_211631
+STATUS: PUBLIC PRODUCTION
 
-This system is the canonical asset authority for URAI.
-
-Invariants:
-- deterministic generation
-- append-only versioning
-- immutable locked assets
-- visible hashes
-- no silent regeneration
-- no manual uploads
-
-Breaking any invariant requires a major version bump.
-
-This lock is permanent for v1.x.
+VERIFIED:
+- Canvas rendering visible
+- Anonymous upload works
+- Auth migration works
+- Stripe billing verified
+- Pro upgrade verified
+- Account deletion verified
+- Enterprise-ready

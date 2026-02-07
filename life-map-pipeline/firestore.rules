@@ -7,29 +7,14 @@ service cloud.firestore {
         request.auth.token.admin == true;
     }
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    match /lifeMaps/{mapId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
-      allow write: if isAdmin();
-    }
-
-    match /lifeMapChapters/{chapterId} {
-      allow read: if isAdmin(); // Or more granular, based on map ownership
-      allow write: if isAdmin();
-    }
-
+    // Raw events can be written by authenticated users.
     match /lifeMapEvents/{eventId} {
-      // Hot path - often more open for writes, stricter on reads.
-      allow read: if isAdmin();
-      allow create: if request.auth != null; // Allow any authenticated user to write their own events
-      allow update, delete: if isAdmin();
+      allow read, write: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
 
-    match /lifeMapJobs/{jobId} {
-      allow read: if isAdmin();
+    // Processed Life-Maps are read-only for users, writable only by the backend.
+    match /lifeMaps/{lifeMapId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       allow write: if isAdmin();
     }
   }

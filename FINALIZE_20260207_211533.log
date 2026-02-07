@@ -1,0 +1,15 @@
+===============================
+ FINALIZING asset-factory v1.0.0 
+===============================
+ M life-map-pipeline/LOCK.md
+ M life-map-pipeline/firestore.rules
+ M life-map-pipeline/scripts/test-event-ingestion.js
+ M life-map-pipeline/storage.rules
+?? FINALIZE_20260207_211519.log
+?? FINALIZE_20260207_211533.log
+?? life-map-pipeline/deploy.sh
+?? life-map-pipeline/functions/
+?? life-map-pipeline/scripts/test-lifemap-completion.js
+?? life-map-pipeline/src/lib/lifemap.types.ts
+❌ Git tree dirty. Commit or stash first.
+exit
