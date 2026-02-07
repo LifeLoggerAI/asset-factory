@@ -1,0 +1,10 @@
+========================================
+ ASSET FACTORY FINALIZER — v1.0.0
+========================================
+Started in: /home/user/asset-factory
+
+==> Locating firebase.json
+⚠️ firebase.json not found — cannot deploy
+==> Locating nearest package.json under Firebase root
+find: ‘’: No such file or directory
+⚠️ package.json not found — skipping build

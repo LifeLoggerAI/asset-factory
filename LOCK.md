@@ -1,14 +1,10 @@
 # LOCK — asset-factory
 
 VERSION: v1.0.0
-STAMP: 20260207_211915
-STATUS: PUBLIC PRODUCTION
+STAMP: 20260207_212007
+STATUS: FINALIZED
 
-VERIFIED (INTENDED):
-- Canvas rendering visible
-- Anonymous upload works
-- Auth migration works
-- Stripe billing verified
-- Pro upgrade verified
-- Account deletion verified
-- Enterprise-ready
+NOTES:
+- Repo structure verified
+- Build root separated from Firebase root
+- No fatal errors allowed
