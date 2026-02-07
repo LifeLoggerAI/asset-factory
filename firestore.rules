@@ -1,0 +1,38 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.admin == true;
+    }
+
+    match /assetDefinitions/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /assetVersions/{id} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /assetJobs/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+    }
+
+    match /assetPacks/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow write: if true;
+    }
+  }
+}
