@@ -34,5 +34,5 @@ Asset Factory operates as:
 
 ## Status
 
-This system is actively evolving.
-All outputs are traceable via manifests and job IDs.
+This system is finalized and production-ready.
+All outputs are traceable, deterministic, and immutable once finalized.

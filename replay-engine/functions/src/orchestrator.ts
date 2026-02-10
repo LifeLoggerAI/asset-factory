@@ -12,17 +12,22 @@ export const orchestrateReplay = functions.firestore
 
     console.log(`🚀 Starting orchestration for ReplayJob: ${jobId}`);
 
-    // 1. Validate the ReplayJob and its scenes.
-    // TODO: Implement validation logic.
+    try {
+      // 1. Validate the ReplayJob and its scenes.
+      // TODO: Implement validation logic.
 
-    // 2. For each scene, trigger a 'renderScene' job.
-    // TODO: Dispatch scene rendering tasks (e.g., to Cloud Run or a task queue).
+      // 2. For each scene, trigger a 'renderScene' job.
+      // TODO: Dispatch scene rendering tasks (e.g., to Cloud Run or a task queue).
 
-    // 3. Once all scenes are rendered, trigger a 'stitchReplay' job.
-    // TODO: Implement logic to wait for scene completion and then dispatch stitching task.
+      // 3. Once all scenes are rendered, trigger a 'stitchReplay' job.
+      // TODO: Implement logic to wait for scene completion and then dispatch stitching task.
 
-    // 4. Update the ReplayJob status to 'rendering'.
-    await snap.ref.update({ 'render.status': 'rendering' });
+      // 4. Update the ReplayJob status to 'rendering'.
+      await snap.ref.update({ 'render.status': 'rendering' });
 
-    console.log(`✅ Orchestration started for ReplayJob: ${jobId}`);
+      console.log(`✅ Orchestration started for ReplayJob: ${jobId}`);
+    } catch (error) {
+      console.error(`🚨 Error orchestrating ReplayJob: ${jobId}`, error);
+      await snap.ref.update({ 'render.status': 'failed' });
+    }
   });

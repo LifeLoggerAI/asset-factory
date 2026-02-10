@@ -1,3 +1,4 @@
+
 export type ReplayScene = {
   sceneId: string;
   lifeMapChapterId: string;
@@ -31,7 +32,6 @@ export type ReplayRender = {
 
 export type ReplayJob = {
   jobId: string;
-  userId: string;
   lifeMapVersion: string;
   style: 'cinematic_short' | 'highlight_reel' | 'deep_dive';
   scenes: ReplayScene[];
