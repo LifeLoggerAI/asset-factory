@@ -18,10 +18,6 @@ export type EnrichedEvent = LifeMapEvent & {
     condition: string;
     temperature: number;
   };
-  sentiment?: {
-    score: number;
-    label: string;
-  };
 };
 
 export type LifeMapChapter = {
@@ -40,4 +36,5 @@ export type LifeMap = {
   createdAt: number;
   updatedAt: number;
   chapters: LifeMapChapter[];
+  contentHash: string;
 };

@@ -1,30 +1,86 @@
 import * as functions from 'firebase-functions';
-import { LifeMapEvent } from '../lib/lifemap.types';
+import * as admin from 'firebase-admin';
+import { LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter } from '../lib/lifemap.types';
+import { deterministicHash } from './hash';
 
-/**
- * Triggered by the creation of a new LifeMapEvent document.
- * This function orchestrates the entire Life-Map generation pipeline:
- * 1. Ingests the raw event.
- * 2. Enriches it with additional context (location, weather, etc.).
- * 3. Structures the event into the correct chapter.
- * 4. Updates and versions the user's LifeMap.
- * 5. Triggers the Replay Engine if the LifeMap is complete.
- */
+admin.initializeApp();
+const db = admin.firestore();
+
 export const processLifeMapEvent = functions.firestore
   .document('lifeMapEvents/{eventId}')
   .onCreate(async (snap, context) => {
     const event = snap.data() as LifeMapEvent;
     const { eventId } = context.params;
+    const { userId } = event;
 
-    console.log(`[${eventId}] Processing new LifeMapEvent for user ${event.userId}...`);
+    console.log(`[${eventId}] Processing new LifeMapEvent for user ${userId}...`);
 
-    // TODO: Implement the full pipeline:
-    // 1. Enrich event
-    // 2. Find or create LifeMap
-    // 3. Add to correct Chapter
-    // 4. Save and version LifeMap
-    // 5. Trigger Replay Engine
+    const lifeMapRef = db.collection('lifeMaps').doc(userId);
 
-    console.log(`[${eventId}] Successfully processed event.`);
-    return null;
+    try {
+        await db.runTransaction(async (transaction) => {
+            const lifeMapDoc = await transaction.get(lifeMapRef);
+
+            let lifeMap: LifeMap;
+
+            if (!lifeMapDoc.exists) {
+                console.log(`[${eventId}] No existing LifeMap found for user ${userId}. Creating a new one.`);
+                lifeMap = {
+                    lifeMapId: userId,
+                    userId,
+                    version: 0,
+                    status: 'processing',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    chapters: [],
+                    contentHash: '',
+                };
+            } else {
+                lifeMap = lifeMapDoc.data() as LifeMap;
+                console.log(`[${eventId}] Found existing LifeMap for user ${userId} at version ${lifeMap.version}.`);
+            }
+
+            if (lifeMap.chapters.some(c => c.events.some(e => e.eventId === eventId))) {
+                console.warn(`[${eventId}] Event already processed. Skipping.`);
+                return;
+            }
+
+            const enrichedEvent: EnrichedEvent = {
+                ...event,
+            };
+
+            const newChapter: LifeMapChapter = {
+                chapterId: eventId,
+                title: `Event at ${event.timestamp}`,
+                startTime: event.timestamp,
+                endTime: event.timestamp,
+                events: [enrichedEvent],
+            };
+            lifeMap.chapters.push(newChapter);
+            
+            lifeMap.chapters.sort((a, b) => a.startTime - b.startTime);
+
+            lifeMap.version = (lifeMap.version || 0) + 1;
+            lifeMap.updatedAt = Date.now();
+            lifeMap.status = 'processing';
+
+            lifeMap.contentHash = deterministicHash(lifeMap.chapters);
+
+            transaction.set(lifeMapRef, lifeMap);
+            console.log(`[${eventId}] Transaction successfully committed. LifeMap version is now ${lifeMap.version}.`);
+        });
+
+        console.log(`[${eventId}] LifeMap for user ${userId} updated. A Replay Job can now be triggered.`);
+
+        return null;
+
+    } catch (error) {
+        console.error(`[${eventId}] CRITICAL: Failed to process event for user ${userId}.`, error);
+        
+        await lifeMapRef.update({ status: 'failed', updatedAt: Date.now() }).catch(err => {
+            console.error(`[${eventId}] FATAL: Could not even set LifeMap status to failed.`, err);
+        });
+
+        return null;
+    }
   });

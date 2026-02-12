@@ -1,7 +1,12 @@
-.bak/
-.tools/
-asset-factory/chrome/
+node_modules
+.DS_Store
+.firebase
+build
+logs
+engine/logs
+firebase-debug.log
+.nvmrc
+engine/serviceAccountKey.json
+engine/outputs
 *.tgz
 *.zip
-*.bin
-*.iso

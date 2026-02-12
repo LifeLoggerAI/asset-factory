@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Asset Factory Login</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
+        #token { word-break: break-all; max-width: 800px; background: #eee; padding: 10px; margin-top: 20px; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Asset Factory - Get Test Token</h1>
+    <p>Open the developer console (Ctrl+Shift+I or Cmd+Opt+I) to see login status.</p>
+    <button onclick="signIn()">Sign in with Google</button>
+    <div id="status">Please sign in.</div>
+    <h3>Your ID Token:</h3>
+    <pre id="token">Sign in to get a token.</pre>
+
+    <script>
+        let auth;
+        function signIn() {
+            if (!auth) {
+                console.error("Firebase Auth is not initialized. Check your firebaseConfig.");
+                document.getElementById('status').innerText = 'ERROR: Firebase not initialized. Check console.';
+                return;
+            }
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(error => {
+                console.error("Sign-in error", error);
+                document.getElementById('status').innerText = 'Sign-in failed: ' + error.message;
+            });
+        }
+
+        try {
+            // Correct Firebase configuration
+            const firebaseConfig = {
+  apiKey: "AIzaSyCSzmYkJ13USsnS4ki_QrvcxWUVnQd2LGY",
+  authDomain: "asset-factory-dev-id.firebaseapp.com",
+  projectId: "asset-factory-dev-id",
+  storageBucket: "asset-factory-dev-id.firebasestorage.app",
+  messagingSenderId: "1042953383820",
+  appId: "1:1042953383820:web:f5b57d354bbe9ae25930a9"
+};
+
+
+
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    document.getElementById('status').innerText = 'Signed in as: ' + user.email;
+                    user.getIdToken().then(idToken => {
+                        console.log("ID TOKEN:", idToken);
+                        document.getElementById('token').innerText = idToken;
+                    });
+                } else {
+                    document.getElementById('status').innerText = 'Signed out.';
+                    document.getElementById('token').innerText = 'No token.';
+                }
+            });
+
+        } catch (e) {
+            console.error("FATAL: Error during Firebase initialization.", e);
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "FATAL ERROR during Firebase initialization: " + e.message;
+            statusDiv.classList.add('error');
+        }
+    </script>
+</body>
+</html>
