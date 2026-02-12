@@ -1,55 +1,66 @@
-export type AssetDefinition = {
-  assetId: string
-  name: string
-  category: string
-  type: 'visual' | 'motion' | 'audio' | 'cinematic' | 'bundle'
-  formats: string[]
-  generatorVersion: string
-  inputParamsSchema: Record<string, unknown>
-  deterministicSeed: string
-  deprecated: boolean
-  createdAt: number
+
+export type JobMode = "standard" | "deterministic";
+export type JobStatus = "queued" | "processing" | "completed" | "failed";
+export type AssetType = "video" | "image" | "audio" | "kit";
+export type Style = "cinematic" | "minimal" | "marketing" | "documentary";
+export type AspectRatio = "9:16" | "16:9" | "1:1";
+export type VoiceTone = "neutral" | "energetic" | "calm";
+export type OutputFormat = "mp4" | "srt" | "pdf" | "jpeg" | "png";
+export type Platform = "tiktok" | "youtube" | "instagram" | "custom";
+
+export interface ModelVersions {
+  video_model?: string;
+  image_model?: string;
+  tts_model?: string;
+  render_engine?: string;
 }
 
-export type AssetVersion = {
-  assetId: string
-  version: string
-  hash: string
-  files: {
-    path: string
-    format: string
-    bytes: number
-  }[]
-  previewUrls: string[]
-  generationTimeMs: number
-  locked: boolean
-  createdAt: number
+export interface JobInput {
+  prompt: string;
+  style: Style;
+  duration?: number;
+  aspect_ratio?: AspectRatio;
+  voice?: {
+    enabled: boolean;
+    tone: VoiceTone;
+    language: string;
+  };
 }
 
-export type AssetJob = {
-  jobId: string
-  assetId: string
-  status: 'queued' | 'running' | 'validating' | 'hashing' | 'complete' | 'failed'
-  progress: number
-  logs: string[]
-  startedAt: number
-  finishedAt?: number
+export interface JobOutput {
+  formats: OutputFormat[];
+  platform: Platform;
 }
 
-export type AssetPack = {
-  packId: string
-  name: string
-  assets: { assetId: string; version: string }[]
-  targetUse: string
-  version: string
-  exportedAt: number
+export interface JobMetadata {
+  client_reference_id?: string;
+  tags?: string[];
 }
 
-export type AuditLog = {
-  id: string
-  action: string
-  actor: string
-  targetId: string
-  timestamp: number
-  meta?: Record<string, unknown>
+export interface Job {
+  job_id: string;
+  api_key_id: string;
+  mode: JobMode;
+  
+  type: AssetType;
+  input: JobInput;
+  output: JobOutput;
+  metadata?: JobMetadata;
+  
+  normalized_input_json?: string;
+  input_hash?: string;
+  
+  seed?: number;
+  pipeline_version: string;
+  
+  model_versions: ModelVersions;
+  
+  status: JobStatus;
+  
+  compute_seconds?: number;
+  storage_bytes?: number;
+  
+  output_hash?: string;
+  created_at: number;
+  completed_at?: number;
 }

@@ -1,12 +1,45 @@
-node_modules
-.DS_Store
-.firebase
-build
-logs
-engine/logs
-firebase-debug.log
-.nvmrc
+
+# Node
+node_modules/
+_modules/
+
+# Engine
+engine/node_modules/
+engine/logs/
+engine/outputs/
+
+# Firebase
+.firebase/
+serviceAccountKey.json
 engine/serviceAccountKey.json
-engine/outputs
-*.tgz
-*.zip
+
+# Build
+dist/
+build/
+coverage/
+.next/
+out/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Lock
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Cache
+.pnpm-store/
+.cache/
+
+# Misc
+*.log
+*.tsbuildinfo
