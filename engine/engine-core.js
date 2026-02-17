@@ -1,47 +1,78 @@
-const { v4: uuidv4 } = require('uuid')
-const CryptoJS = require('crypto-js')
-const { buildShort, buildLong, buildThread } = require('./formats')
 
-const VERSION = "v1.2.0"
+const { v4: uuidv4 } = require('uuid');
+const CryptoJS = require('crypto-js');
+const { buildShort, buildLong, buildThread } = require('./formats');
+const { audit, log, LogLevel } = require('./logger'); // Assuming logger is available
 
-function selectFormat(topic, format) {
-  if (format === "long") return buildLong(topic)
-  if (format === "thread") return buildThread(topic)
-  return buildShort(topic)
+// This version should be managed via a formal config/pipeline.json in a real system
+const PIPELINE_VERSION = "v2.0.0-hardened";
+
+function selectFormat(input) {
+  // Logic to select format based on rich input, not just a simple string
+  if (input.duration_seconds > 120) return buildLong(input.story_structure);
+  if (input.platform_targets.includes('linkedin_video')) return buildThread(input.story_structure);
+  return buildShort(input.story_structure);
 }
 
-function generateBundle(topic, format) {
-  const id = uuidv4()
-  const timestamp = new Date().toISOString()
+/**
+ * Generates a deterministic, auditable, and secure asset bundle.
+ * @param {import('./schema').AssetFactoryInput_V1} input - The validated input schema.
+ * @param {import('./schema').User} user - The user requesting the job.
+ * @returns {object} The generated asset bundle with manifest.
+ */
+function generateBundle(input, user) {
+  const generationTimestamp = new Date().toISOString();
 
-  const preset = selectFormat(topic, format)
+  // 1. Create a deterministic payload. This object contains ONLY what influences the output.
+  // The timestamp is EXCLUDED from this object.
+  const deterministicPayload = {
+    pipelineVersion: PIPELINE_VERSION,
+    input, // The full, validated input schema
+  };
 
+  // 2. Generate a truly deterministic hash from the payload.
+  const deterministicHash = CryptoJS.SHA256(JSON.stringify(deterministicPayload)).toString();
+
+  // Use a portion of the hash to create a deterministic seed for the generation process.
+  const seed = parseInt(deterministicHash.substring(0, 8), 16);
+
+  log(LogLevel.INFO, 'Starting bundle generation', { userId: user.id, deterministicHash, seed });
+
+  const preset = selectFormat(input);
+
+  // 3. The main asset bundle now includes all necessary metadata for audit and billing.
   const bundle = {
-    id,
-    timestamp,
-    version: VERSION,
-    topic,
+    id: uuidv4(), // The job ID is unique, not part of the deterministic hash.
+    timestamp: generationTimestamp,
+    userId: user.id,
+    version: PIPELINE_VERSION,
+    input,
     format: preset.type,
     durationTarget: preset.durationTarget,
     hooks: preset.hooks,
     structure: preset.structure,
-    thumbnail: `Cinematic lighting, bold text: "${topic}", high contrast`,
+    // The rest of the generation logic would use the 'seed' for deterministic outputs
+    thumbnail: `Cinematic lighting, bold text: "${input.call_to_action || 'URAI'}", high contrast, seed: ${seed}`,
     captions: [
-      `${topic} is evolving.`,
+      `${input.tone} content is evolving.`,
       `This changes everything.`,
       `The shift has started.`,
       `Follow for more.`
     ]
-  }
+  };
 
-  const hash = CryptoJS.SHA256(JSON.stringify(bundle)).toString()
-
-  return {
-    manifestVersion: VERSION,
-    generatedAt: timestamp,
-    hash,
+  const finalManifest = {
+    manifestVersion: PIPELINE_VERSION,
+    generatedAt: generationTimestamp,
+    deterministicHash,
+    seed,
+    jobId: bundle.id,
     bundle
-  }
+  };
+
+  audit({ id: bundle.id, userId: user.id }, 'BundleGenerated', { hash: deterministicHash, preset: preset.type });
+
+  return finalManifest;
 }
 
-module.exports = { generateBundle }
+module.exports = { generateBundle };

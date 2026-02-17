@@ -2,49 +2,46 @@
 
 This document defines the data structures for inputs and outputs of the Asset-Factory pipeline.
 
-## Input Schema
+## Input Schema (v1.ts)
 
-A job request to the Asset-Factory should be a JSON object with the following structure:
+A job request to the Asset-Factory should be a JSON object conforming to the `AssetFactoryInputV1` interface.
 
 ```json
 {
-  "story_input": {
-    "title": "The Little Star That Could",
-    "scenes": [
-      {
-        "scene_number": 1,
-        "prompt": "A small, timid star hiding behind a large, colorful nebula.",
-        "narration": "In a quiet corner of the galaxy, there was a little star who was afraid of the dark."
-      },
-      {
-        "scene_number": 2,
-        "prompt": "The little star peeking out, watching other stars twinkle and dance.",
-        "narration": "He watched the other stars shine brightly, wishing he could be as brave as them."
-      }
-    ]
-  },
-  "mood": "inspirational",
-  "audience": "kids",
-  "duration_target": 60,
-  "platform_targets": ["youtube_shorts", "instagram_reels"]
+  "storyStructure": "hero_journey",
+  "audienceType": "gen-z",
+  "tone": "inspirational",
+  "durationSeconds": 90,
+  "platformTargets": ["tiktok", "youtube_shorts"],
+  "visualStyle": "cinematic_anime",
+  "voiceProfile": "deep_male_narrator",
+  "pacing": "fast",
+  "callToAction": "Visit our website to learn more!",
+  "brandGuidelines": {
+    "colors": ["#FFFFFF", "#000000", "#FF0000"],
+    "fonts": ["Montserrat", "Lato"],
+    "logoUrl": "https://storage.googleapis.com/urai-assets/logo.png"
+  }
 }
 ```
 
 ### Fields:
 
--   `story_input` (object, required): The core narrative content.
-    -   `title` (string, required): The title of the story.
-    -   `scenes` (array of objects, required): The scenes of the story.
-        -   `scene_number` (integer, required): The order of the scene.
-        -   `prompt` (string, required): The visual prompt for the scene's image/video generation.
-        -   `narration` (string, required): The narration text for the scene.
--   `mood` (string, required): The desired mood of the generated assets.
-    -   Enum: `"inspirational"`, `"playful"`, `"educational"`, `"mysterious"`, `"comedic"`.
--   `audience` (string, required): The target audience.
-    -   Enum: `"kids"`, `"adults"`, `"brands"`, `"gen-z"`.
--   `duration_target` (integer): The desired total duration of video assets in seconds.
--   `platform_targets` (array of strings, required): The target platforms for asset optimization.
-    -   Enum values: `"youtube_shorts"`, `"instagram_reels"`, `"tiktok"`, `"urai_storytime"`.
+-   `storyStructure` (string, required): The narrative structure of the content.
+    -   Enum: `"problem_solution"`, `"hero_journey"`, `"listicle"`, `"cinematic"`.
+-   `audienceType` (string, required): The target audience for the content.
+-   `tone` (string, required): The desired emotional tone of the content.
+-   `durationSeconds` (number, required): The target duration of the video output in seconds.
+-   `platformTargets` (array of strings, required): A list of target platforms for asset optimization.
+-   `visualStyle` (string, required): The desired visual style of the generated assets.
+-   `voiceProfile` (string, required): The desired voice profile for narration.
+-   `pacing` (string, required): The pacing of the video edits.
+    -   Enum: `"slow"`, `"medium"`, `"fast"`.
+-   `callToAction` (string, optional): A call to action to be included at the end.
+-   `brandGuidelines` (object, optional): An object containing brand-specific assets and guidelines.
+    -   `colors` (array of strings, required): Primary brand colors.
+    -   `fonts` (array of strings, required): Brand fonts.
+    -   `logoUrl` (string, optional): A URL to the brand's logo.
 
 ## Output Schema
 

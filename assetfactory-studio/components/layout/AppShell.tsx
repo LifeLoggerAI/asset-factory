@@ -1,41 +1,46 @@
 
 import React from 'react';
+import { Flex, Box, Text, Heading, Button } from '@radix-ui/themes';
 
 const AppShell = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <Flex direction="row" style={{ height: '100vh' }}>
       {/* Sidebar Navigation */}
-      <aside className="w-64 flex-shrink-0 bg-gray-800 p-4">
-        <div className="text-2xl font-bold mb-8">Asset Factory</div>
-        <nav>
-          <ul>
-            <li className="mb-4"><a href="/" className="hover:text-gray-300">Dashboard</a></li>
-            <li className="mb-4"><a href="/jobs" className="hover:text-gray-300">Jobs</a></li>
-            <li className="mb-4"><a href="/billing" className="hover:text-gray-300">Billing</a></li>
-            <li className="mb-4"><a href="/settings" className="hover:text-gray-300">Settings</a></li>
-            <li className="mb-4"><a href="/docs" className="hover:text-gray-300">Docs</a></li>
-          </ul>
-        </nav>
-      </aside>
+      <Box width="256px" style={{ flexShrink: 0, backgroundColor: 'var(--gray-2)', padding: 'var(--space-4)' }}>
+        <Heading size="6" mb="6">Asset Factory</Heading>
+        <Flex direction="column" asChild>
+          <nav>
+            <ul>
+              <li style={{ marginBottom: 'var(--space-3)' }}><a href="/"><Text>Dashboard</Text></a></li>
+              <li style={{ marginBottom: 'var(--space-3)' }}><a href="/jobs"><Text>Jobs</Text></a></li>
+              <li style={{ marginBottom: 'var(--space-3)' }}><a href="/billing"><Text>Billing</Text></a></li>
+              <li style={{ marginBottom: 'var(--space-3)' }}><a href="/settings"><Text>Settings</Text></a></li>
+              <li style={{ marginBottom: 'var(--space-3)' }}><a href="/docs"><Text>Docs</Text></a></li>
+            </ul>
+          </nav>
+        </Flex>
+        <Box style={{ marginTop: 'auto' }}>
+          <Button onClick={() => window.location.href = '/jobs/new'}>New Job</Button>
+        </Box>
+      </Box>
 
-      <div className="flex flex-col flex-1">
+      <Flex direction="column" style={{ flexGrow: 1 }}>
         {/* Top Status Bar */}
-        <header className="bg-gray-800 p-4 flex justify-between items-center">
-          <div>
-            <span className="font-semibold">User Tier:</span> <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm">Pro</span>
-          </div>
-          <div>
-            <span className="font-semibold">Usage:</span> <span>[Mini Usage Meter]</span>
-          </div>
-          <button className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">Logout</button>
-        </header>
+        <Box style={{ backgroundColor: 'var(--gray-2)', padding: 'var(--space-3)', borderBottom: '1px solid var(--gray-5)' }}>
+          <Flex justify="between" align="center">
+            <Flex gap="4" align="center">
+              <Text weight="bold">User Tier:</Text> <Text color="blue">Pro</Text>
+            </Flex>
+            <Button color="red" variant="soft">Logout</Button>
+          </Flex>
+        </Box>
 
         {/* Main Content */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <Box style={{ flexGrow: 1, padding: 'var(--space-6)', overflowY: 'auto' }}>
           {children}
-        </main>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Flex>
   );
 };
 
