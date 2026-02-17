@@ -1,0 +1,25 @@
+
+[
+  {
+    "id": "user_1",
+    "apiKey": "test-key-123",
+    "usage": {
+      "jobsThisMonth": 0,
+      "lastReset": "2026-02-16T00:00:00Z"
+    },
+    "quota": {
+      "jobsPerMonth": 100
+    }
+  },
+  {
+    "id": "user_2",
+    "apiKey": "super_secret_api_key_2",
+    "usage": {
+      "jobsThisMonth": 5,
+      "lastReset": "2026-02-01T00:00:00Z"
+    },
+    "quota": {
+      "jobsPerMonth": 50
+    }
+  }
+]

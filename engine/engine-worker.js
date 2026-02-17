@@ -1,100 +1,70 @@
-
-const fs = require('fs-extra');
+const fs = require('fs/promises');
 const path = require('path');
-const archiver = require('archiver');
 
-// --- CONSTANTS ---
-const JOBS_DIR = path.join(__dirname, 'jobs');
-const OUTPUT_DIR = path.join(__dirname, 'outputs');
+// This function simulates the asset generation process
+async function generateAssets(job) {
+  console.log(`[Worker] Generating assets for job ${job.id}`);
+  // Simulate a delay for asset generation
+  await new Promise(resolve => setTimeout(resolve, 5000)); 
 
-// --- MOCK ASSET GENERATION ---
-// In a real system, this would involve complex logic:
-// 1. Hashing input to ensure determinism.
-// 2. Calling external services (AI models, rendering engines).
-// 3. Verifying outputs against a manifest.
-// 4. Failing the build if determinism is violated.
-const generateAssets = async (job) => {
-    console.log(`[Worker ${process.pid}] Starting asset generation for job: ${job.jobId}`);
-    const jobOutputDir = path.join(OUTPUT_DIR, job.jobId);
-    await fs.ensureDir(jobOutputDir);
+  // In a real scenario, this would involve complex logic to create videos, images, etc.
+  // For now, we'll just create a dummy output file.
+  const outputDir = path.join(__dirname, '..', 'outputs', job.id);
+  await fs.mkdir(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, 'final_asset.txt');
+  await fs.writeFile(outputPath, `Asset for prompt: \"${job.prompt}\"`);
 
-    // Simulate creating assets by writing dummy files.
-    await fs.writeFile(path.join(jobOutputDir, 'video.mp4'), `Mock video for: ${job.input.topic}`);
-    await fs.writeFile(path.join(jobOutputDir, 'audio.mp3'), `Mock audio for: ${job.input.topic}`);
-    await fs.writeFile(path.join(jobOutputDir, 'subtitles.srt'), `1\n00:00:01,000 --> 00:00:05,000\nMock subtitles for: ${job.input.topic}`);
-    await fs.writeFile(path.join(jobOutputDir, 'thumb.png'), `Mock thumbnail image`);
+  console.log(`[Worker] Finished generating assets for job ${job.id}`);
+  return [{ type: 'text', path: `/outputs/${job.id}/final_asset.txt` }];
+}
 
-    console.log(`[Worker ${process.pid}] Asset generation complete for job: ${job.jobId}`);
-    return {
-        videoUrl: `/outputs/${job.jobId}/video.mp4`,
-        audioUrl: `/outputs/${job.jobId}/audio.mp3`,
-        subtitlesUrl: `/outputs/${job.jobId}/subtitles.srt`,
-        thumbUrl: `/outputs/${job.jobId}/thumb.png`
-    };
-};
+async function processJob(jobId, dbPath) {
+  console.log(`[Worker] Processing job ${jobId}`);
+  const dbData = await fs.readFile(dbPath, 'utf8');
+  const db = JSON.parse(dbData);
+  const job = db.jobs.find(j => j.id === jobId);
 
-// --- BUNDLE CREATION ---
-const createBundle = (jobId) => {
-    return new Promise((resolve, reject) => {
-        const jobOutputDir = path.join(OUTPUT_DIR, jobId);
-        const bundlePath = path.join(jobOutputDir, 'bundle.zip');
-        const output = fs.createWriteStream(bundlePath);
-        const archive = archiver('zip');
+  if (!job) {
+    console.error(`[Worker] Job ${jobId} not found in database.`);
+    return;
+  }
 
-        output.on('close', () => {
-            console.log(`[Worker ${process.pid}] ZIP bundle created for job: ${jobId}`);
-            resolve(bundlePath);
-        });
+  try {
+    // 1. Mark job as running
+    job.status = 'running';
+    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+    console.log(`[Worker] Job ${jobId} status updated to 'running'.`);
 
-        archive.on('error', (err) => {
-            reject(err);
-        });
+    // 2. Generate the assets
+    const assets = await generateAssets(job);
 
-        archive.pipe(output);
-        archive.directory(jobOutputDir, false);
-        archive.finalize();
-    });
-};
+    // 3. Mark job as completed
+    const finalDbData = await fs.readFile(dbPath, 'utf8');
+    const finalDb = JSON.parse(finalDbData);
+    const finalJob = finalDb.jobs.find(j => j.id === jobId);
 
-// --- JOB PROCESSING LOGIC ---
-const processJob = async (job) => {
-    const jobFilePath = path.join(JOBS_DIR, job.jobId, 'job.json');
+    finalJob.status = 'completed';
+    finalJob.completedAt = new Date().toISOString();
+    finalJob.assets = assets;
 
-    try {
-        // 1. Mark job as running
-        job.status = 'running';
-        job.startedAt = new Date().toISOString();
-        await fs.writeJson(jobFilePath, job);
+    await fs.writeFile(dbPath, JSON.stringify(finalDb, null, 2));
+    console.log(`[Worker] Job ${jobId} completed successfully.`);
 
-        // 2. Perform the core work
-        const assets = await generateAssets(job);
+  } catch (error) {
+    // 4. Handle failures
+    console.error(`[Worker] Job ${jobId} failed. Error: ${error.message}`);
+    const errorDbData = await fs.readFile(dbPath, 'utf8');
+    const errorDb = JSON.parse(errorDbData);
+    const errorJob = errorDb.jobs.find(j => j.id === jobId);
 
-        // 3. Create the ZIP bundle
-        await createBundle(job.jobId);
+    errorJob.status = 'failed';
+    errorJob.failedAt = new Date().toISOString();
+    errorJob.error = error.message;
+    await fs.writeFile(dbPath, JSON.stringify(errorDb, null, 2));
+  }
+}
 
-        // 4. Mark job as complete
-        job.status = 'completed';
-        job.completedAt = new Date().toISOString();
-        job.assets = assets;
-        job.export_bundle_url = `/outputs/${job.jobId}/bundle.zip`;
-        await fs.writeJson(jobFilePath, job);
-
-        console.log(`[Worker ${process.pid}] Successfully completed job: ${job.jobId}`);
-
-    } catch (error) {
-        console.error(`[Worker ${process.pid}] CRITICAL: Failed to process job ${job.jobId}:`, error);
-        // Mark job as failed
-        job.status = 'failed';
-        job.failedAt = new Date().toISOString();
-        job.error = error.message;
-        await fs.writeJson(jobFilePath, job);
-    } finally {
-        process.exit(0); // Ensure the worker process terminates
-    }
-};
-
-// --- WORKER INITIALIZATION ---
-process.on('message', (job) => {
-    console.log(`[Worker ${process.pid}] Received job: ${job.jobId}`);
-    processJob(job);
+process.on('message', async ({ jobId, dbPath }) => {
+  await processJob(jobId, dbPath);
+  process.exit();
 });

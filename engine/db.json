@@ -1,0 +1,34 @@
+{
+  "jobs": [
+    {
+      "id": "job_1771242649854",
+      "status": "completed",
+      "prompt": "cult",
+      "template": "video",
+      "createdAt": "2026-02-16T11:50:49.854Z",
+      "userId": "user_1",
+      "completedAt": "2026-02-16T11:50:55.083Z",
+      "assets": [
+        {
+          "type": "text",
+          "path": "/outputs/job_1771242649854/final_asset.txt"
+        }
+      ]
+    },
+    {
+      "id": "job_1771242733278",
+      "status": "completed",
+      "prompt": "cult",
+      "template": "voiceover",
+      "createdAt": "2026-02-16T11:52:13.278Z",
+      "userId": "user_1",
+      "completedAt": "2026-02-16T11:52:18.480Z",
+      "assets": [
+        {
+          "type": "text",
+          "path": "/outputs/job_1771242733278/final_asset.txt"
+        }
+      ]
+    }
+  ]
+}

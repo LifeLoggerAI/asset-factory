@@ -1,21 +1,5 @@
 {
-  "name": "asset-factory-engine-v1-restored",
-  "version": "1.0.1",
-  "description": "The restored, headless, API-driven core of the Asset Factory.",
-  "main": "engine/server.js",
-  "packageManager": "pnpm@8.15.5",
-  "scripts": {
-    "start": "npx foreman start",
-    "server": "node engine/server.js",
-    "worker": "node engine/worker.js"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "fs-extra": "^11.1.0",
-    "uuid": "^9.0.0",
-    "archiver": "^5.3.1",
-    "foreman": "^3.0.1"
-  }
+  "name": "asset-factory",
+  "private": true,
+  "packageManager": "pnpm@9.1.0"
 }
