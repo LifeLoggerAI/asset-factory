@@ -1,38 +1,110 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAdmin() {
-      return request.auth != null &&
-        request.auth.token.admin == true;
+    // --- HELPER FUNCTIONS ---
+    function isTenantMember(tenantId) {
+      return exists(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid));
     }
 
-    match /assetDefinitions/{id} {
+    function getTenantRole(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid)).data.role;
+    }
+
+    // --- LAYER A: TENANT LAYER ---
+    match /tenants/{tenantId} {
+      allow read: if isTenantMember(tenantId);
+      // Writes are restricted to admins via the function below.
+      allow write: if getTenantRole(tenantId) == 'admin' || getTenantRole(tenantId) == 'enterprise_admin';
+    }
+
+    match /tenants/{tenantId}/settings/{docId} {
+      allow read: if isTenantMember(tenantId);
+      allow write: if getTenantRole(tenantId) == 'admin' || getTenantRole(tenantId) == 'enterprise_admin';
+    }
+
+    match /tenants/{tenantId}/members/{userId} {
+      allow read: if isTenantMember(tenantId);
+      // Allow admins to manage members. Allow users to manage their own membership (e.g., leave a tenant).
+      allow write: if getTenantRole(tenantId) == 'admin' || request.auth.uid == userId;
+    }
+
+    // --- LAYER B & C: ASSET & DETERMINISTIC ENGINE ---
+    match /assets/{assetId} {
+      // Allow read if user is a member of the asset's tenant.
+      allow read: if isTenantMember(resource.data.tenantId);
+      // All writes must be mediated by Cloud Functions.
+      allow write: if false;
+    }
+
+    match /assets/{assetId}/versions/{versionId} {
+      // Allow read if user is a member of the asset's tenant.
+      allow read: if isTenantMember(get(/databases/$(database)/documents/assets/$(assetId)).data.tenantId);
+      // Asset versions are immutable.
+      allow write: if false;
+    }
+
+    match /assetTemplates/{templateId} {
+      allow read: if isTenantMember(resource.data.tenantId);
+      // Creators and admins can manage templates.
+      allow write: if getTenantRole(resource.data.tenantId) in ['creator', 'admin', 'enterprise_admin'];
+    }
+
+    // --- LAYER D: JOB ORCHESTRATION ---
+    match /renderJobs/{jobId} {
+      allow read: if isTenantMember(resource.data.tenantId);
+      // Allow tenant members to create jobs. Updates are handled by Cloud Functions.
+      allow create: if isTenantMember(request.resource.data.tenantId);
+      allow update: if false;
+      allow delete: if getTenantRole(resource.data.tenantId) in ['admin', 'enterprise_admin'];
+    }
+
+    match /jobLogs/{logId} {
+      allow read: if isTenantMember(resource.data.tenantId);
+      // Logs are immutable and written by Cloud Functions.
+      allow write: if false;
+    }
+
+    // --- LAYER F: MONETIZATION ---
+    match /usageLogs/{logId} {
+      allow read: if getTenantRole(resource.data.tenantId) in ['admin', 'enterprise_admin'];
+      allow write: if false; // Written by Cloud Functions
+    }
+
+    match /billingProfiles/{tenantId} {
+      allow read: if getTenantRole(tenantId) in ['admin', 'enterprise_admin'];
+      allow write: if getTenantRole(tenantId) in ['admin', 'enterprise_admin'];
+    }
+    
+    match /subscriptionTiers/{tierId} {
+      // Publicly readable tiers
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false; // Admin-only via backend
+    }
+    
+    match /licenseGrants/{grantId} {
+      allow read: if isTenantMember(resource.data.tenantId);
+      allow write: if false; // Written by Cloud Functions
     }
 
-    match /assetVersions/{id} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update, delete: if false;
+    // --- LAYER G: SECURITY & COMPLIANCE ---
+    match /auditLogs/{logId} {
+      // Only admins can read audit logs.
+      allow read: if getTenantRole(resource.data.tenantId) in ['admin', 'enterprise_admin'];
+      // Logs are immutable and written by Cloud Functions.
+      allow write: if false;
     }
-
-    match /assetJobs/{id} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+    
+    match /ipOwnership/{ownerId} {
+        allow read: if isTenantMember(resource.data.tenantId);
+        allow write: if false;
     }
-
-    match /assetPacks/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /auditLog/{id} {
-      allow read: if isAdmin();
-      allow write: if true;
+    
+    match /complianceFlags/{flagId} {
+        allow read: if isTenantMember(resource.data.tenantId);
+        allow write: if getTenantRole(resource.data.tenantId) in ['admin', 'enterprise_admin'];
     }
   }
 }
