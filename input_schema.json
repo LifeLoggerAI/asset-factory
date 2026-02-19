@@ -1,0 +1,60 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Asset Factory Job Input Schema",
+    "description": "Defines the structured input for a job submitted to the Asset Factory API.",
+    "type": "object",
+    "properties": {
+        "prompt": {
+            "description": "The primary creative instruction for the asset generation.",
+            "type": "string"
+        },
+        "output_format": {
+            "description": "The desired output format for the final asset.",
+            "type": "string",
+            "enum": [
+                "video/mp4",
+                "image/png",
+                "audio/mp3",
+                "text/srt",
+                "application/pdf",
+                "text/plain"
+            ]
+        },
+        "mood": {
+            "description": "The desired mood or tone of the generated asset.",
+            "type": "string",
+            "enum": [
+                "cinematic",
+                "upbeat",
+                "corporate",
+                "dramatic",
+                "comedic"
+            ]
+        },
+        "duration_in_seconds": {
+            "description": "The target duration for video or audio assets, in seconds.",
+            "type": "integer",
+            "minimum": 1
+        },
+        "platform_target": {
+            "description": "The social media platform the asset is being created for.",
+            "type": "string",
+            "enum": [
+                "tiktok",
+                "instagram_reels",
+                "youtube_shorts",
+                "linkedin"
+            ]
+        },
+        "estimatedProcessingMs": {
+            "description": "An estimated processing time in milliseconds, used for the cost shield.",
+            "type": "integer",
+            "minimum": 1000
+        }
+    },
+    "required": [
+        "prompt",
+        "output_format"
+    ],
+    "additionalProperties": false
+}

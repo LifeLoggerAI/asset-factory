@@ -1,119 +1,154 @@
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs-extra');
-const path = require('path');
+const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const archiver = require('archiver');
+const { db } = require('../assetfactory-studio/lib/firebase');
+const rateLimit = require('express-rate-limit');
 
-// --- MODULES ---
-// engine-core is not used in this version, as we are restoring the job-based architecture.
+// IMPORTANT: This secret MUST match the one used in the token-issuing service.
+const JWT_SECRET = process.env.JWT_SECRET || 'your-default-super-secret-key-that-is-long-and-secure';
 
-// --- API KEY AUTHENTICATION ---
-const V1_API_KEY = process.env.ASSET_FACTORY_API_KEY;
+// --- RATE LIMITING (SOC2 Compliance) ---
+const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 requests per windowMs
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+});
 
-if (!V1_API_KEY) {
-  console.error("CRITICAL: ASSET_FACTORY_API_KEY is not set. The server will not start.");
-  process.exit(1);
+// --- AUTHENTICATION LAYER (V2 - JWT Hardened) ---
+async function authenticateAndAuthorize(req, res, next) {
+    const authHeader = req.get('Authorization');
+    if (!authHeader) {
+        return res.status(401).json({ error: 'Authorization header is missing.' });
+    }
+
+    const [type, token] = authHeader.split(' ');
+    if (type !== 'Bearer' || !token) {
+        return res.status(401).json({ error: 'Invalid authorization format. Use "Bearer <token>".' });
+    }
+
+    try {
+        // Verify the token using the shared secret.
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // The payload of the token now securely identifies the tenant.
+        const { tenantId } = decoded;
+
+        if (!tenantId) {
+            return res.status(403).json({ error: 'Forbidden: Token is missing tenant information.' });
+        }
+
+        // Attach the validated tenantId to the request object.
+        req.tenantId = tenantId;
+        console.log(`[Auth] JWT validated. Request authorized for tenant: ${tenantId}`);
+        next();
+
+    } catch (error) {
+        if (error instanceof jwt.TokenExpiredError) {
+            return res.status(401).json({ error: 'Unauthorized: Token has expired.' });
+        } else if (error instanceof jwt.JsonWebTokenError) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid token.' });
+        }
+        console.error("[Auth] An unexpected error occurred during token validation:", error);
+        return res.status(500).json({ error: 'Internal server error during authentication.' });
+    }
 }
 
-function verifyApiKey(req, res, next) {
-  const apiKey = req.get('X-API-Key');
-  if (!apiKey || apiKey !== V1_API_KEY) {
-    return res.status(401).json({ error: 'Invalid or missing API key' });
-  }
-  next();
-}
 
 // --- EXPRESS APP ---
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(apiLimiter);
 
-const PORT = 8080;
-const JOBS_DIR = path.join(__dirname, 'jobs');
-const OUTPUTS_DIR = path.join(__dirname, 'outputs');
+const PORT = process.env.PORT || 8080;
 
-// --- V1 ENDPOINTS ---
+// --- V2 ENDPOINTS ---
 
-// Health check - does not require API key
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.0.1-restored' });
+  res.json({ status: 'ok', version: '2.0.0-jwt-auth' });
 });
 
-// Create a new job
-app.post('/v1/jobs', verifyApiKey, async (req, res) => {
-  const jobId = uuidv4();
-  const jobFilePath = path.join(JOBS_DIR, `${jobId}.json`);
+app.post('/v1/jobs', authenticateAndAuthorize, async (req, res) => {
+    const tenantId = req.tenantId;
+    const idempotencyKey = req.get('Idempotency-Key');
 
-  const jobData = {
-    jobId,
-    status: 'queued',
-    createdAt: new Date().toISOString(),
-    input: req.body,
-  };
+    if (!idempotencyKey) {
+        return res.status(400).json({ error: 'Idempotency-Key header is missing.' });
+    }
 
-  await fs.ensureDir(JOBS_DIR);
-  await fs.writeJson(jobFilePath, jobData, { spaces: 2 });
+    const idempotencyRef = db.collection('idempotency_keys').doc(idempotencyKey);
 
-  // This is where the worker would be triggered in a real implementation.
-  // For now, we will manually create a dummy output for demonstration.
-  const outputDir = path.join(OUTPUTS_DIR, jobId);
-  await fs.ensureDir(outputDir);
-  await fs.writeFile(path.join(outputDir, 'asset.txt'), 'This is a dummy asset.');
+    try {
+        const jobData = await db.runTransaction(async (transaction) => {
+            const idempotencyDoc = await transaction.get(idempotencyRef);
 
-  res.status(202).json({ jobId, status: 'queued' });
+            if (idempotencyDoc.exists) {
+                console.log(`[Idempotency] Request already processed: ${idempotencyKey}`);
+                const { jobId } = idempotencyDoc.data();
+                const jobDoc = await db.collection('jobs').doc(jobId).get();
+                return jobDoc.data();
+            }
+
+            const jobId = uuidv4();
+            const newJobData = {
+                jobId,
+                tenantId,
+                status: 'queued',
+                createdAt: new Date().toISOString(),
+                input: req.body,
+            };
+
+            transaction.set(db.collection('jobs').doc(jobId), newJobData);
+            transaction.set(idempotencyRef, { jobId, createdAt: new Date().toISOString() });
+
+            return newJobData;
+        });
+
+        res.status(jobData.status === 'queued' ? 202 : 200).json(jobData);
+
+    } catch (error) {
+        console.error(`[Transaction Error] Failed to create job for key ${idempotencyKey}:`, error);
+        res.status(500).json({ error: 'Failed to queue job due to a server conflict or error.' });
+    }
 });
 
-// Get job status
-app.get('/v1/jobs/:jobId', verifyApiKey, async (req, res) => {
+app.get('/v1/jobs/:jobId', authenticateAndAuthorize, async (req, res) => {
   const { jobId } = req.params;
-  const jobFilePath = path.join(JOBS_DIR, `${jobId}.json`);
+  const tenantId = req.tenantId;
 
   try {
-    const jobData = await fs.readJson(jobFilePath);
+    const jobDoc = await db.collection('jobs').doc(jobId).get();
+    if (!jobDoc.exists) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const jobData = jobDoc.data();
+    if (jobData.tenantId !== tenantId) {
+        return res.status(404).json({ error: 'Job not found' });
+    }
+
     res.status(200).json(jobData);
   } catch (error) {
-    res.status(404).json({ error: 'Job not found' });
+    res.status(500).json({ error: 'Failed to fetch job status.' });
   }
 });
 
-// Download job output
-app.get('/v1/jobs/:jobId/download', verifyApiKey, async (req, res) => {
-  const { jobId } = req.params;
-  const outputDir = path.join(OUTPUTS_DIR, jobId);
-  const zipFilePath = path.join(OUTPUTS_DIR, `${jobId}.zip`);
-
-  if (!fs.existsSync(outputDir)) {
-    return res.status(404).json({ error: 'Output not found for this job.' });
-  }
-
-  const output = fs.createWriteStream(zipFilePath);
-  const archive = archiver('zip');
-
-  output.on('close', () => {
-    res.download(zipFilePath, (err) => {
-      if (err) {
-        console.error('Error sending zip file:', err);
-      }
-      // Clean up the zip file after download
-      fs.remove(zipFilePath);
+app.get('/v1/jobs/:jobId/download', authenticateAndAuthorize, async (req, res) => {
+    res.status(501).json({ 
+        error: 'Not Implemented',
+        message: 'Asset download must be done via the URLs in the job manifest after job completion.'
     });
-  });
-
-  archive.on('error', (err) => {
-    throw err;
-  });
-
-  archive.pipe(output);
-  archive.directory(outputDir, false);
-  archive.finalize();
 });
-
 
 // --- SERVER START ---
 app.listen(PORT, () => {
-  console.log(`✅ Asset Factory V1 Server (Restored) running on port ${PORT}`);
-  console.log('🔑 API Key authentication is active.');
-  console.log('API endpoints are available at /v1/jobs, /v1/jobs/:jobId, and /v1/jobs/:jobId/download');
+  console.log(`✅ Asset Factory V2 Server (JWT Hardened) running on port ${PORT}`);
+  console.log('🔐 API authentication now requires a valid JWT Bearer token.');
+  console.log('📈 Rate limiting is now active on all API endpoints.');
+  console.log('✔️ Idempotency is now enforced on job creation.');
 });

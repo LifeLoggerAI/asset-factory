@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Job-v1",
+  "description": "Defines the structure of a single asset generation job, version 1.",
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "description": "Unique identifier for the job.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "tenantId": {
+      "description": "The tenant who owns this job.",
+      "type": "string"
+    },
+    "status": {
+      "description": "The current lifecycle status of the job.",
+      "type": "string",
+      "enum": ["queued", "processing", "complete", "failed"]
+    },
+    "createdAt": {
+      "description": "The ISO 8601 timestamp of when the job was created.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "startedAt": {
+      "description": "The ISO 8601 timestamp of when processing started.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "description": "The ISO 8601 timestamp of when the job was completed.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "input": {
+      "description": "The input parameters for the job.",
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string"
+        }
+      },
+      "required": ["prompt"]
+    },
+    "outputManifestId": {
+      "description": "The ID of the manifest document for a completed job.",
+      "type": "string"
+    },
+    "cost": {
+      "description": "The calculated cost of the job.",
+      "type": "number",
+      "minimum": 0
+    },
+    "processingTimeMs": {
+      "description": "The total time in milliseconds spent processing the job.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "retryCount": {
+      "description": "The number of times this job has been retried.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "lastError": {
+      "description": "The error message from the last failed attempt.",
+      "type": "string"
+    }
+  },
+  "required": ["jobId", "tenantId", "status", "createdAt", "input"]
+}

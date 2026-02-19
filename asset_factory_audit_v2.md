@@ -8,4 +8,8 @@ Not yet implemented (future work): Roadmap items for V1.5 (“Productise”) and
 
 Live/deployed/locked: Based on a review of the operational logs, the `asset-factory` project was finalized on February 7, 2026. The log file `FINALIZE_20260207_211631.log` contains the entry "Product is LIVE." The `LOCK.md` file further confirms this, showing a lock date of February 8, 2026, at 00:55:11 UTC. This verifies the project is live and deployed. It should be noted that the finalization log reported completion with warnings, which may warrant a separate review.
 
+**Disaster Recovery Objectives (Added as part of 30-Day Hardening):**
+*   **Recovery Time Objective (RTO):** 4 hours. This is the maximum acceptable time for the service to be unavailable following a disaster-level event in our primary region.
+*   **Recovery Point Objective (RPO):** 1 hour. This is the maximum acceptable amount of data loss, measured in time. All database and storage changes should be replicated to a secondary region within this timeframe.
+
 In summary, asset‑factory is an essential production engine for URAI that is operational today, with a solid core pipeline. Completing the missing input schemas, adding deterministic guarantees and shipping the V1.5/V2 roadmap items are the key next steps to unlock its full value and turn it into a standalone, monetisable product.

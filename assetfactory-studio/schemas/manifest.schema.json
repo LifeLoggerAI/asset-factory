@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Manifest-v1",
+  "description": "Defines the structure of a job's output manifest, version 1.",
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "description": "The ID of the job that produced this manifest.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "tenantId": {
+      "description": "The tenant who owns the job and manifest.",
+      "type": "string"
+    },
+    "outputFiles": {
+      "description": "An array of files produced by the job.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "hash": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "url", "hash"]
+      }
+    },
+    "fullOutputHash": {
+      "description": "A combined hash of all output files.",
+      "type": "string"
+    },
+    "modelVersions": {
+      "description": "The versions of the AI models used in generation.",
+      "type": "object"
+    }
+  },
+  "required": ["jobId", "tenantId", "outputFiles", "fullOutputHash"]
+}

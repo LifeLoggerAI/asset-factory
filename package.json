@@ -3,6 +3,10 @@
   "private": true,
   "packageManager": "pnpm@9.1.0",
   "dependencies": {
-    "@radix-ui/themes": "^3.3.0"
+    "@radix-ui/themes": "^3.3.0",
+    "pm2": "^6.0.14"
+  },
+  "scripts": {
+    "start": "pm2-runtime start Procfile"
   }
 }

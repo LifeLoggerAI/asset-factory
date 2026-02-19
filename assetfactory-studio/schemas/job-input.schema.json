@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JobInput-v1",
+  "description": "Defines the structure of the input for a generation job, version 1.",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "description": "The primary text prompt for the asset generation.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "assetType": {
+      "description": "The type of asset to be generated.",
+      "type": "string",
+      "enum": ["text", "image", "audio"]
+    },
+    "parameters": {
+      "description": "Additional, type-specific parameters for the generation.",
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        }
+      }
+    }
+  },
+  "required": ["prompt", "assetType"]
+}

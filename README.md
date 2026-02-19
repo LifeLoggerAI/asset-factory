@@ -1,60 +1,71 @@
-# Asset Factory V1.5
 
-This is the restored, headless, API-driven core of the Asset Factory, now with a user-friendly front-end studio for job submission and management.
+# Asset Factory
+
+This project is a web-based application for generating assets, leveraging a decoupled architecture with a web server, a job queue, and a worker process. The system has been recently hardened to meet enterprise-grade security and reliability standards.
 
 ## Architecture
 
-The system is composed of three main components:
+The system is composed of three main parts:
 
-*   **API Server (`engine/server.js`)**: A lightweight Express.js server that exposes a RESTful API for creating and managing asset generation jobs.
-*   **Background Worker (`engine/worker.js`)**: A simple Node.js process that polls for new jobs, processes them, and updates their status.
-*   **Asset Factory Studio (`assetfactory-studio/`)**: A Next.js application that provides a user interface for interacting with the Asset Factory API.
+*   **Asset Factory Studio (`assetfactory-studio`)**: A Next.js application that provides the user interface for submitting and tracking asset generation jobs.
+*   **Engine (`engine`)**: A Node.js application containing the core business logic:
+    *   **API Server (`engine/server.js`)**: An Express server that exposes endpoints for creating and managing jobs. It is responsible for authentication, validation, and queuing jobs.
+    *   **Worker (`engine/worker.js`)**: A process that polls a Firestore-based job queue and executes the asset generation tasks.
+*   **Firebase (`lib/firebase`)**: Provides the backend infrastructure, including Firestore for the job queue and authentication.
 
-### Data Flow
+## Getting Started
 
-1.  A user interacts with the **Asset Factory Studio** to create and submit a new job.
-2.  The studio sends a `POST` request to the `/api/jobs` endpoint, which in turn calls the core engine's `/v1/jobs` endpoint.
-3.  The API server creates a new job file in the `jobs` directory with a `queued` status.
-4.  The background worker polls the `jobs` directory for new jobs.
-5.  When a `queued` job is found, the worker "generates" the asset (in this implementation, it creates a dummy text file) and places it in the `outputs` directory.
-6.  The worker updates the job file's status to `completed` or `failed`.
-7.  The user can view the status of their jobs on the **Asset Factory Studio**'s job history page.
+### Prerequisites
 
-## V1.5 Features
+*   Node.js (v18 or later)
+*   `pnpm` package manager
+*   Firebase account and project
 
-*   **Job Submission UI:** A user-friendly web interface for submitting and tracking jobs.
-*   **Brand-Safe Presets:** A system for creating and using predefined job templates for consistent, brand-aligned content.
-*   **Strengthened Backend:** Improved validation and schema enforcement for a more robust API.
+### Installation
 
-## Roadmap
+1.  **Clone the repository:**
 
-*   **V1 (Complete):** Headless API-driven core for asset generation.
-*   **V1.5 (Complete):**
-    *   [x] Productise: Create a user interface for submitting jobs.
-    *   [x] Productise: Implement a "presets" feature.
-    *   [x] Harden: Strengthen backend schema and validation.
-*   **V2 (Upcoming):**
-    *   [ ] Advanced UI: Implement a more dynamic and interactive user interface.
-    *   [ ] Complex Presets: Allow for more complex and conditional preset logic.
-    *   [ ] Billing & Metering: Integrate a billing and metering system.
-
-
-## Running the System
-
-1.  **Install dependencies:** `npm install`
-2.  **Create a `.env` file** in the root of the project with the following content:
-
-    ```
-    ASSET_FACTORY_API_KEY=your_long_random_secret
+    ```bash
+    git clone <repository-url>
     ```
 
-3.  **Start the server and worker:** `npm start`
+2.  **Install dependencies:**
 
-This will use `foreman` to run both the API server and the background worker concurrently. To run the studio, navigate to the `assetfactory-studio` directory and run `npm run dev`.
+    ```bash
+    pnpm install
+    ```
 
-## API Endpoints
+3.  **Configure Firebase:**
 
-*   `GET /health`: Health check endpoint. No authentication required.
-*   `POST /v1/jobs`: Create a new asset generation job. Requires a valid `X-API-Key` header.
-*   `GET /v1/jobs/:jobId`: Get the status of a job. Requires a valid `X-API-Key` header.
-*   `GET /v1/jobs/:jobId/download`: Download the output of a completed job as a ZIP archive. Requires a valid `X-API-Key` header.
+    *   Create a Firebase project.
+    *   Set up Firestore and create a service account.
+    *   Copy the service account key to `engine/service-account.json`.
+
+### Running the Application
+
+The application is configured to run using `pm2`, a production-grade process manager for Node.js.
+
+```bash
+# Start the API server and the worker
+pnpm start
+```
+
+To run the Next.js frontend:
+
+```bash
+cd assetfactory-studio
+pnpm dev
+```
+
+## Security & Enterprise Readiness
+
+This project has undergone a significant hardening process to address initial security vulnerabilities and to prepare it for enterprise adoption. Key improvements include:
+
+*   **JWT-Based Authentication**: All sensitive endpoints are now protected by a robust JWT authentication system.
+*   **Tenant Isolation**: The API enforces strict tenant isolation, ensuring that users can only access their own data.
+*   **API Rate Limiting**: To prevent abuse and ensure service stability, the API now implements rate limiting (100 requests per 15 minutes per IP). This is a key measure for SOC2 compliance.
+*   **Monetization & Auditing**: A billing and usage tracking system has been implemented using an event-sourcing pattern. This creates an immutable, auditable log of all billable events, ensuring every job is tracked from creation to completion with full traceability. A granular ledger system provides clear cost attribution for each tenant, forming the foundation for future monetization. The platform's integrity is further guaranteed by version-locked generation pipelines and cryptographic hashing of all output manifests. To ensure robust governance, we enforce formal security policies and conduct quarterly access reviews, maintaining the principle of least privilege.
+*   **Improved User Experience**: The frontend now provides real-time updates on job status.
+*   **Production-Ready**: The application now uses `pm2` for process management, ensuring greater reliability and uptime.
+*   **Trust & Security Page**: A new page has been added to the application to provide a transparent overview of the system's security and reliability features.
+

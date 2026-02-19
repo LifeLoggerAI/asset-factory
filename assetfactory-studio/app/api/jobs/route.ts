@@ -1,79 +1,120 @@
 
-import { NextResponse } from 'next/server';
-import path from 'path';
-import { fork } from 'child_process';
-import fs from 'fs/promises';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '../../../lib/firebase';
+import { authenticateAndAuthorize } from '../../../lib/auth';
 
-// THIS IS THE CORRECT PATH TO THE ENGINE DIRECTORY
-const enginePath = path.resolve(process.cwd(), '../engine');
-const dbPath = path.join(enginePath, 'db.json');
-const workerPath = path.join(enginePath, 'engine-worker.js');
+// --- Rate Limiting (In-Memory) ---
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_REQUESTS_PER_WINDOW = 100; // 100 requests per 15 minutes per user
 
-async function readDb() {
-  try {
-    const data = await fs.readFile(dbPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    // If the file doesn't exist, return a default structure
-    if (error.code === 'ENOENT') {
-      return { jobs: [] };
+interface RequestLog {
+    [ip: string]: number[];
+}
+const requestLog: RequestLog = {};
+
+function isRateLimited(ip: string): boolean {
+    const now = Date.now();
+    const userRequests = requestLog[ip] || [];
+
+    // Filter out requests that are outside the time window
+    const requestsInWindow = userRequests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW_MS);
+
+    if (requestsInWindow.length >= MAX_REQUESTS_PER_WINDOW) {
+        return true; // Rate limit exceeded
     }
-    throw error;
-  }
+
+    // Log the new request
+    requestsInWindow.push(now);
+    requestLog[ip] = requestsInWindow;
+
+    return false;
 }
+// --- End Rate Limiting ---
 
-async function writeDb(data) {
-  await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf8');
-}
 
-export async function POST(request: Request) {
-  try {
-    const inputData = await request.json();
-
-    const db = await readDb();
-
-    const newJob = {
-      id: `job_${Date.now()}`,
-      status: "queued",
-      createdAt: new Date().toISOString(),
-      input: inputData,
-    };
-
-    db.jobs.push(newJob);
-    await writeDb(db);
-
-    // Fork the worker process to handle the job
-    fork(workerPath, [newJob.id]);
-
-    return NextResponse.json({
-      message: 'Job submitted successfully',
-      jobId: newJob.id,
-      status: 'queued'
-    }, { status: 202 });
-
-  } catch (error: any) {
-    console.error('Error submitting job:', error);
-    return NextResponse.json({ message: 'An internal error occurred.', error: error.message }, { status: 500 });
-  }
-}
-
-export async function GET(request: Request) {
+export async function POST(req: NextRequest) {
     try {
-        const { searchParams } = new URL(request.url);
-        const jobId = searchParams.get('jobId');
-        const db = await readDb();
-
-        if (jobId) {
-            const job = db.jobs.find(j => j.id === jobId);
-            if (job) {
-                return NextResponse.json(job);
-            }
-            return NextResponse.json({ message: "Job not found" }, { status: 404 });
-        } else {
-            return NextResponse.json(db.jobs);
+        // --- Rate Limiting Check ---
+        const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+        if (isRateLimited(ip)) {
+            console.warn(`[API/JOBS] Rate limit exceeded for IP: ${ip}`);
+            return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
         }
-    } catch (error) {
-        console.error('Error fetching jobs:', error);
-        return NextResponse.json({ message: "An internal error occurred." }, { status: 500 });
+
+        const { tenantId } = await authenticateAndAuthorize(req);
+        if (!tenantId) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        const inputData = await req.json();
+
+        // --- Basic Input Validation ---
+        if (!inputData.prompt || typeof inputData.prompt !== 'string') {
+            return NextResponse.json({ error: 'Invalid input: "prompt" is required and must be a string.' }, { status: 400 });
+        }
+        
+        const newJob = {
+            tenantId,
+            status: "queued",
+            createdAt: new Date().toISOString(),
+            input: inputData,
+            retryCount: 0,
+        };
+
+        const jobRef = await db.collection('jobs').add(newJob);
+
+        console.log(`[API/JOBS] Job submitted successfully for tenant ${tenantId}. Job ID: ${jobRef.id}`);
+
+        return NextResponse.json({
+            message: 'Job submitted successfully',
+            jobId: jobRef.id,
+            status: 'queued'
+        }, { status: 202 });
+
+    } catch (error: any) {
+        console.error('[API/JOBS] Error submitting job:', error);
+        if (error.message.includes('Authorization') || error.message.includes('Forbidden')) {
+            return NextResponse.json({ error: error.message }, { status: 401 });
+        }
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function GET(req: NextRequest) {
+    try {
+        const { tenantId } = await authenticateAndAuthorize(req);
+        if (!tenantId) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+        
+        const { searchParams } = new URL(req.url);
+        const jobId = searchParams.get('jobId');
+        
+        if (jobId) {
+            const jobDoc = await db.collection('jobs').doc(jobId).get();
+            if (!jobDoc.exists || jobDoc.data()?.tenantId !== tenantId) {
+                return NextResponse.json({ error: "Job not found" }, { status: 404 });
+            }
+            return NextResponse.json({ id: jobDoc.id, ...jobDoc.data() }, { status: 200 });
+        } else {
+             const jobsSnapshot = await db.collection('jobs')
+                .where('tenantId', '==', tenantId)
+                .orderBy('createdAt', 'desc')
+                .limit(25)
+                .get();
+
+            if (jobsSnapshot.empty) {
+                return NextResponse.json([], { status: 200 });
+            }
+
+            const jobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return NextResponse.json(jobs, { status: 200 });
+        }
+    } catch (error: any) {
+        console.error('[API/JOBS] Error fetching jobs:', error);
+         if (error.message.includes('Authorization') || error.message.includes('Forbidden')) {
+            return NextResponse.json({ error: error.message }, { status: 401 });
+        }
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
