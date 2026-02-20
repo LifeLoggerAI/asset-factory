@@ -1,2 +1,3 @@
-web: pm2-runtime start engine/server.js --name api
-worker: pm2-runtime start engine/worker.js --name worker
+api: node engine/server.js
+worker_v2: node engine/worker_v2.js
+validator: node validator/validator.js

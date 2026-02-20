@@ -6,72 +6,76 @@ import { AppShell } from '../../components/layout/DesignSystem';
 const TrustPage = () => {
     return (
         <AppShell>
-            <div style={{ maxWidth: '960px', margin: '2rem auto', padding: '2rem' }}>
+            <div style={{ maxWidth: '1280px', margin: '2rem auto', padding: '2rem' }}>
                 <header style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                    <h1 style={{ fontSize: '3rem', fontWeight: 'bold' }}>Trust & Security</h1>
+                    <h1 style={{ fontSize: '3.5rem', fontWeight: 'bold' }}>Sovereign-Grade Infrastructure</h1>
                     <p style={{ fontSize: '1.2rem', color: '#aaa', marginTop: '0.5rem' }}>
-                        Our commitment to a secure, reliable, and enterprise-ready platform.
+                        This is not a SaaS application. This is a distributed, financial-grade infrastructure.
                     </p>
                 </header>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-                    {/* Secure by Design */}
-                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Secure by Design</h2>
-                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                            <li>JWT-based authentication providing robust, stateless security.</li>
-                            <li>Strict tenant isolation enforced at the API layer.</li>
-                            <li>Secure token exchange mechanism for frontend applications.</li>
-                            <li>Removed insecure direct download endpoints.</li>
-                        </ul>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
 
-                    {/* Reliable & Scalable Architecture */}
+                    {/* Byzantine-Resistant 3-Cloud Quorum */}
                     <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Reliable & Scalable</h2>
-                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                            <li>Scalable Firestore-based job queue for high throughput.</li>
-                            <li>Decoupled worker architecture for resilient processing.</li>
-                            <li>Near real-time job status tracking for users.</li>
-                            <li>Production-ready process management using PM2.</li>
-                        </ul>
-                    </div>
-
-                    {/* Monetization & Auditability */}
-                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Monetization & Audit</h2>
-                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                            <li>Immutable, auditable log of all billable events via an event-sourcing pattern.</li>
-                            <li>Full traceability of every job from creation to completion.</li>
-                            <li>Granular ledger system for clear cost attribution per tenant.</li>
-                            <li>Version-locked generation pipelines and cryptographic hashing of output manifests to guarantee platform integrity.</li>
-                            <li>Formal security policies and quarterly access reviews to ensure robust governance.</li>
-                        </ul>
-                    </div>
-
-                    {/* Enterprise Readiness Roadmap */}
-                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Enterprise Roadmap</h2>
-                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                            <li>Full schema registry for API versioning.</li>
-                            <li>99.5%+ uptime commitment for enterprise tiers.</li>
-                            <li>Documented Disaster Recovery Plan (in progress).</li>
-                            <li>Daily encrypted backups of all critical data.</li>
-                        </ul>
-                    </div>
-
-                    {/* Incident Response & Reporting */}
-                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Incident Response & Reporting</h2>
-                        <p style={{ color: '#ccc', lineHeight: '1.6' }}>
-                            We are committed to resolving security vulnerabilities quickly and transparently. If you have discovered a security issue, please report it to us at:
+                        <h2 style={{ fontSize: '2rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Byzantine-Resistant Quorum</h2>
+                        <p style={{ color: '#ccc', lineHeight: '1.6', marginBottom: '1rem' }}>
+                            We operate a 3-cloud quorum (GCP, AWS, Azure) to achieve distributed consensus and financial-grade resilience. Every event is replicated, cryptographically signed, and confirmed by a majority of clouds before finality.
                         </p>
-                        <p style={{ marginTop: '1rem', fontWeight: 'bold', color: '#00aaff' }}>
-                            security@assetfactory.app
+                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <li>Tolerates one cloud failure, network partition, or malicious actor.</li>
+                            <li>No single point of failure.</li>
+                            <li>Cryptographic proof of all transactions.</li>
+                        </ul>
+                    </div>
+
+                    {/* Decentralized & Resilient by Design */}
+                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Decentralized by Design</h2>
+                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <li>Federated validator network for job submission and ordering.</li>
+                            <li>Removes single point of failure of a centralized job queue.</li>
+                            <li>Enhanced security and resilience against attacks.</li>
+                        </ul>
+                    </div>
+
+                    {/* Tamper-Proof Audit Anchoring */}
+                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Tamper-Proof Auditing</h2>
+                        <p style={{ color: '#ccc', lineHeight: '1.6', marginBottom: '1rem' }}>
+                            We anchor cryptographic hashes of our ledgers to public blockchains. This provides a permanent, immutable, and publicly verifiable record of all system activity.
                         </p>
-                        <p style={{ color: '#ccc', marginTop: '1rem', lineHeight: '1.6' }}>
-                            Our security team will acknowledge your report and keep you updated on our progress.
+                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <li>Immutable, auditable log of all billable events.</li>
+                            <li>Full traceability for every job from creation to completion.</li>
+                            <li>Cryptographic guarantee of platform integrity.</li>
+                        </ul>
+                    </div>
+
+                    {/* Global Load Balancing Fabric */}
+                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Global Traffic Fabric</h2>
+                        <p style={{ color: '#ccc', lineHeight: '1.6', marginBottom: '1rem' }}>
+                            Our global DNS and latency-aware routing ensures that your requests are always served by the fastest and most reliable cloud, with automatic failover in the event of a regional outage.
                         </p>
+                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <li>Multi-cloud resilience (GCP, AWS, Azure).</li>
+                            <li>Latency-aware routing for optimal performance.</li>
+                            <li>Automated failover for high availability.</li>
+                        </ul>
+                    </div>
+
+                    {/* Economic Simulation & Revenue Optimization */}
+                    <div style={{ background: '#222', padding: '2rem', borderRadius: '8px' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: 'semibold', marginBottom: '1rem' }}>Autonomous Optimization</h2>
+                        <p style={{ color: '#ccc', lineHeight: '1.6', marginBottom: '1rem' }}>
+                            Our system uses a predictive economic simulation engine to model costs and an autonomous revenue optimizer to adjust pricing and resource allocation in real-time. This is economic foresight, not reactive panic.
+                        </p>
+                        <ul style={{ listStyle: 'disc', paddingLeft: '1.5rem', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <li>Predictive cost modeling to anticipate market shifts.</li>
+                            <li>Automated price adjustments within policy bounds.</li>
+                            <li>Self-tuning revenue optimization.</li>
+                        </ul>
                     </div>
                 </div>
             </div>

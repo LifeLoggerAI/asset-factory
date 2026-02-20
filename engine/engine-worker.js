@@ -1,70 +1,96 @@
+
 const fs = require('fs/promises');
 const path = require('path');
+const admin = require('firebase-admin');
 
-// This function simulates the asset generation process
+// --- Initialize Firebase Admin SDK ---
+// This assumes the service account credentials are set in the environment
+// (e.g., GOOGLE_APPLICATION_CREDENTIALS)
+try {
+  admin.initializeApp();
+} catch (e) {
+  console.log('[Worker] Firebase Admin SDK already initialized.');
+}
+const db = admin.firestore();
+console.log('[Worker] Connected to Firestore database.');
+
+// --- Simulated Asset Generation (Unchanged) ---
+// This function simulates the asset generation process. It remains a placeholder.
 async function generateAssets(job) {
   console.log(`[Worker] Generating assets for job ${job.id}`);
   // Simulate a delay for asset generation
   await new Promise(resolve => setTimeout(resolve, 5000)); 
 
-  // In a real scenario, this would involve complex logic to create videos, images, etc.
-  // For now, we'll just create a dummy output file.
   const outputDir = path.join(__dirname, '..', 'outputs', job.id);
   await fs.mkdir(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, 'final_asset.txt');
-  await fs.writeFile(outputPath, `Asset for prompt: \"${job.prompt}\"`);
+  // Use the actual prompt from the job data
+  await fs.writeFile(outputPath, `Asset for prompt: \"${job.input.prompt}\"`);
 
   console.log(`[Worker] Finished generating assets for job ${job.id}`);
   return [{ type: 'text', path: `/outputs/${job.id}/final_asset.txt` }];
 }
 
-async function processJob(jobId, dbPath) {
-  console.log(`[Worker] Processing job ${jobId}`);
-  const dbData = await fs.readFile(dbPath, 'utf8');
-  const db = JSON.parse(dbData);
-  const job = db.jobs.find(j => j.id === jobId);
 
-  if (!job) {
-    console.error(`[Worker] Job ${jobId} not found in database.`);
-    return;
-  }
+// --- Real Job Processing Logic ---
+async function processJob(jobId) {
+    console.log(`[Worker] Processing job ${jobId} from Firestore.`);
+    const jobRef = db.collection('jobs').doc(jobId);
+    
+    try {
+        const jobDoc = await jobRef.get();
+        if (!jobDoc.exists) {
+            console.error(`[Worker] CRITICAL: Job ${jobId} not found in Firestore.`);
+            return;
+        }
 
-  try {
-    // 1. Mark job as running
-    job.status = 'running';
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
-    console.log(`[Worker] Job ${jobId} status updated to 'running'.`);
+        // 1. Mark job as 'running' in Firestore
+        await jobRef.update({ status: 'running', startedAt: new Date().toISOString() });
+        console.log(`[Worker] Job ${jobId} status updated to 'running'.`);
 
-    // 2. Generate the assets
-    const assets = await generateAssets(job);
+        // 2. Generate the assets (using the existing simulation)
+        const assets = await generateAssets({ id: jobId, ...jobDoc.data() });
 
-    // 3. Mark job as completed
-    const finalDbData = await fs.readFile(dbPath, 'utf8');
-    const finalDb = JSON.parse(finalDbData);
-    const finalJob = finalDb.jobs.find(j => j.id === jobId);
+        // 3. Mark job as 'completed' in Firestore
+        await jobRef.update({
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            assets: assets,
+        });
+        console.log(`[Worker] ✅ Job ${jobId} completed successfully.`);
 
-    finalJob.status = 'completed';
-    finalJob.completedAt = new Date().toISOString();
-    finalJob.assets = assets;
-
-    await fs.writeFile(dbPath, JSON.stringify(finalDb, null, 2));
-    console.log(`[Worker] Job ${jobId} completed successfully.`);
-
-  } catch (error) {
-    // 4. Handle failures
-    console.error(`[Worker] Job ${jobId} failed. Error: ${error.message}`);
-    const errorDbData = await fs.readFile(dbPath, 'utf8');
-    const errorDb = JSON.parse(errorDbData);
-    const errorJob = errorDb.jobs.find(j => j.id === jobId);
-
-    errorJob.status = 'failed';
-    errorJob.failedAt = new Date().toISOString();
-    errorJob.error = error.message;
-    await fs.writeFile(dbPath, JSON.stringify(errorDb, null, 2));
-  }
+    } catch (error) {
+        // 4. Handle failures and update Firestore
+        console.error(`[Worker] ❌ Job ${jobId} failed. Error: ${error.message}`);
+        await jobRef.update({
+            status: 'failed',
+            failedAt: new Date().toISOString(),
+            error: error.message,
+        });
+    }
 }
 
-process.on('message', async ({ jobId, dbPath }) => {
-  await processJob(jobId, dbPath);
-  process.exit();
-});
+// --- Firestore Real-time Listener ---
+// This function listens for new documents in the 'jobs' collection where the status is 'queued'.
+function listenForJobs() {
+    console.log('[Worker] Listening for queued jobs in Firestore...');
+    const query = db.collection('jobs').where('status', '==', 'queued');
+
+    query.onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                const job = change.doc.data();
+                console.log(`[Worker] Detected new queued job: ${change.doc.id}`);
+                // Process the job. No 'await' here, to allow multiple jobs to be processed concurrently.
+                processJob(change.doc.id);
+            }
+        });
+    }, err => {
+        console.error('[Worker] CRITICAL: Snapshot listener failed:', err);
+        // In a production system, this should trigger a restart or an alert.
+        process.exit(1);
+    });
+}
+
+// Start the worker's main listener.
+listenForJobs();

@@ -1,24 +1,24 @@
-PROJECT_NAME="asset-factory"
-VERSION="v1.0.0-final"
-STAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-set +e
+#!/bin/bash
 
-pushd life-map-pipeline/functions
-pnpm install || true
-pnpm build || true
-popd
-firebase use --add || true
-firebase deploy || true
+# Basic CI/CD Pipeline for Asset Factory
 
-URL="https://asset-factory.web.app"
-curl -s "$URL" | grep -q "Asset" || { echo "FAIL"; read; exit 1; }
+set -e # Exit immediately if a command exits with a non-zero status.
 
-cat > LOCK.md <<EOF
-ASSET FACTORY LOCKED
-$STAMP
-EOF
+echo "CI/CD: Installing dependencies..."
+pnpm install
 
-git add .; git commit -m "lock(asset-factory)" || true
-git tag "asset-factory-$VERSION" || true
-git push --tags || true
-read
+echo "CI/CD: Linting codebase..."
+pnpm lint
+
+echo "CI/CD: Running tests..."
+pnpm test
+
+echo "CI/CD: Building application..."
+cd assetfactory-studio
+pnpm build
+cd ..
+
+echo "CI/CD: Deploying to Firebase..."
+firebase deploy --only hosting,functions
+
+echo "CI/CD: Deployment complete!"

@@ -45,4 +45,25 @@ async function recordBillingEvent(tenantId, jobId, costEstimate, computeUnits) {
     }
 }
 
-module.exports = { recordBillingEvent };
+async function getSubscriptionStatus(tenantId) {
+    const subscription = await db.collection('subscriptions').where('tenantId', '==', tenantId).limit(1).get();
+    if (subscription.empty) {
+        return { status: 'inactive', tier: 'free' };
+    }
+    return subscription.docs[0].data();
+}
+
+async function getCurrentUsage(tenantId) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const isoStartOfMonth = startOfMonth.toISOString();
+
+    const jobsSnapshot = await db.collection('jobs')
+        .where('tenantId', '==', tenantId)
+        .where('createdAt', '>=', isoStartOfMonth)
+        .get();
+
+    return jobsSnapshot.size;
+}
+
+module.exports = { recordBillingEvent, getSubscriptionStatus, getCurrentUsage };

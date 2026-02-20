@@ -2,21 +2,21 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Match any file in the assets directory
+    match /assets/{ownerId}/{jobId}/{filePath=**} {
+      // Only the user who owns the job can write to the job's folder.
+      allow write: if request.auth != null && request.auth.uid == ownerId;
 
-    function isAdmin() {
-      return request.auth != null &&
-        request.auth.token.admin == true;
+      // Anyone can read the output assets. This is required for the app to display them.
+      // In a more advanced scenario, you might use signed URLs to provide temporary, secure access.
+      allow read: if true; 
     }
 
-    match /assets/{assetId}/{version}/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAdmin();
-      allow delete: if false;
-    }
-
-    match /exports/{packId}/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAdmin();
+    // Security for other paths can be added here
+    // For example, you might have a 'user_profiles' directory
+    match /user_profiles/{userId}/profile_picture.jpg {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

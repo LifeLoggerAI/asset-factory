@@ -1,12 +1,28 @@
 {
-  "name": "asset-factory",
-  "private": true,
-  "packageManager": "pnpm@9.1.0",
-  "dependencies": {
-    "@radix-ui/themes": "^3.3.0",
-    "pm2": "^6.0.14"
-  },
+  "name": "sovereign-infrastructure",
+  "version": "1.0.0",
+  "description": "A tier-1 global infrastructure with distributed consensus and financial-grade resilience.",
+  "main": "validator/validator.js",
   "scripts": {
-    "start": "pm2-runtime start Procfile"
+    "start": "node validator/validator.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sim:byzantine": "node testing/byzantineHarness.js"
+  },
+  "keywords": [
+    "distributed-systems",
+    "consensus",
+    "fintech",
+    "ai",
+    "infrastructure"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "uuid": "^9.0.1"
   }
 }

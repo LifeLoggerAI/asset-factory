@@ -1,212 +1,154 @@
 
-const { db } = require('../assetfactory-studio/lib/firebase');
-const { hashFile, combineHashes } = require('../assetfactory-studio/lib/hashing');
-const { logUsage } = require('../assetfactory-studio/lib/usage');
-const fs = require('fs-extra');
-const path = require('path');
+import { db } from '../assetfactory-studio/lib/firebase';
+import { hashFile, combineHashes } from '../assetfactory-studio/lib/hashing';
+import { logger } from '../assetfactory-studio/lib/logger';
+import fs from 'fs-extra';
+import path from 'path';
+import crypto from 'crypto';
+import { Storage } from '@google-cloud/storage';
+import config from './config.json';
+
+const storage = new Storage();
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'asset-factory-outputs';
 
 const OUTPUTS_DIR = path.join(__dirname, 'outputs');
-const MAX_RETRIES = 3;
-const INITIAL_BACKOFF_MS = 1000;
-const COST_PER_MS = 0.00001;
-const MAX_JOB_COST = 1.00; // $1.00 cost ceiling
+const WORKER_ID = `worker_${crypto.randomBytes(8).toString('hex')}`;
 
-// --- Event Sourcing Helper ---
-async function logJobEvent(jobId, tenantId, eventType, payload = {}) {
-    try {
-        await db.collection('job_events').add({
-            jobId,
-            tenantId,
-            eventType,
-            timestamp: new Date().toISOString(),
-            ...payload,
+export async function getDeterministicNarrative(prompt, seed) {
+    const seedBuffer = Buffer.from(seed, 'hex');
+    const promptBuffer = Buffer.from(prompt);
+    const combinedBuffer = Buffer.concat([seedBuffer, promptBuffer]);
+    const outputHash = crypto.createHash('sha256').update(combinedBuffer).digest('hex');
+    const sceneCount = (parseInt(outputHash.substring(0, 2), 16) % 3) + 2;
+    const scenes = [];
+    for (let i = 0; i < sceneCount; i++) {
+        const sceneHash = crypto.createHash('sha256').update(`${outputHash}:${i}`).digest('hex');
+        scenes.push({
+            scene: i + 1,
+            description: `A scene derived from hash segment ${sceneHash.substring(i, i + 10)}.`,
+            duration: (parseInt(sceneHash.substring(10, 12), 16) % 4) + 2,
         });
-    } catch (error) {
-        console.error(`[Worker] Failed to log event ${eventType} for job ${jobId}:`, error);
     }
-}
-
-// --- Mock LLM Call ---
-async function getNarrativeFromLLM(prompt) {
-    // In a real scenario, this would be a call to a large language model (e.g., Gemini)
-    // For now, we'll simulate the output.
-    return new Promise(resolve => {
-        setTimeout(() => {
-            resolve({
-                theme: "Corporate Explainer",
-                scenes: [
-                    { scene: 1, description: "A logo appears on a clean, white background.", duration: 2 },
-                    { scene: 2, description: "A team of diverse professionals collaborates in a modern office.", duration: 5 },
-                    { scene: 3, description: "A user smiles while using the product on their tablet.", duration: 3 },
-                ],
-                music: {
-                    style: "Uplifting and optimistic corporate track.",
-                    tempo: "120bpm"
-                }
-            });
-        }, 200);
+    return Promise.resolve({
+        theme: "Corporate Explainer (Deterministic)",
+        scenes,
+        music: {
+            style: "Uplifting and optimistic corporate track.",
+            tempo: `${(parseInt(outputHash.substring(12, 14), 16) % 40) + 100}bpm`,
+        }
     });
 }
 
-function watchForJobs() {
-    const query = db.collection('jobs').where('status', '==', 'queued');
-
-    query.onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-            if (change.type === 'added') {
-                const job = change.doc.data();
-                const jobId = change.doc.id;
-                if (!job.tenantId) {
-                    console.warn(`[Worker] Job ${jobId} is missing a tenantId. Skipping.`);
-                    return;
-                }
-                console.log(`[Worker] Detected new job: ${jobId} for tenant: ${job.tenantId}`);
-                logJobEvent(jobId, job.tenantId, 'JOB_QUEUED');
-                
-                // --- Cost Shield Check ---
-                const estimatedCost = (job.input?.estimatedProcessingMs || 10000) * COST_PER_MS;
-                if (estimatedCost > MAX_JOB_COST) {
-                    console.warn(`[Worker] Job ${jobId} rejected due to exceeding cost ceiling. Est: $${estimatedCost.toFixed(4)}`);
-                    logJobEvent(jobId, job.tenantId, 'JOB_REJECTED', { reason: 'Exceeds cost ceiling' });
-                    db.collection('jobs').doc(jobId).update({ status: 'failed', lastError: 'Exceeds cost ceiling' });
-                    return;
-                }
-
-                processJob(jobId, job);
+async function claimAndProcessJob(jobId, jobData) {
+    const jobRef = db.collection('jobs').doc(jobId);
+    try {
+        const result = await db.runTransaction(async (transaction) => {
+            const jobDoc = await transaction.get(jobRef);
+            if (!jobDoc.exists) {
+                logger.warn(`Job ${jobId} no longer exists.`, { workerId: WORKER_ID, jobId });
+                return null;
             }
+            if (jobDoc.data().status !== 'queued') {
+                logger.info(`Job ${jobId} was already claimed.`, { workerId: WORKER_ID, jobId, status: jobDoc.data().status });
+                return null;
+            }
+            transaction.update(jobRef, {
+                status: 'processing',
+                workerId: WORKER_ID,
+                claimedAt: new Date().toISOString()
+            });
+            return jobDoc.data();
         });
-    }, err => {
-        console.error("[Worker] Error listening for jobs:", err);
-    });
+        if (result) {
+            logger.info(`Successfully claimed job ${jobId}.`, { workerId: WORKER_ID, jobId });
+            await processJob(jobId, result);
+        }
+    } catch (error) {
+        logger.error(`Transaction to claim job ${jobId} failed.`, { workerId: WORKER_ID, jobId, error: error.message });
+    }
 }
 
 async function processJob(jobId, job) {
     const { tenantId } = job;
     const jobRef = db.collection('jobs').doc(jobId);
-    const outputDir = path.join(OUTPUTS_DIR, tenantId, jobId);
+    const localOutputDir = path.join(OUTPUTS_DIR, tenantId, jobId);
     const startTime = Date.now();
 
     try {
-        await jobRef.update({ status: 'processing', startedAt: new Date().toISOString() });
-        await logJobEvent(jobId, tenantId, 'JOB_PROCESSING_STARTED');
+        await fs.ensureDir(localOutputDir);
 
-        await fs.ensureDir(outputDir);
-
-        if (Math.random() < 0.2) {
-            throw new Error('Simulated transient processing error');
+        let seed = job.input?.seed || crypto.randomBytes(32).toString('hex');
+        if (!job.input?.seed) {
+             logger.info(`No seed provided for job. Generated new seed.`, { workerId: WORKER_ID, jobId, seed });
         }
-
         const prompt = job.input?.prompt || 'No prompt provided.';
-        const narrative = await getNarrativeFromLLM(prompt);
 
-        const fileContent = `Generated asset for job ${jobId}, tenant ${tenantId}.\nPrompt: "${prompt}"`;
-        const outputFilePath = path.join(outputDir, 'asset.txt');
-        await fs.writeFile(outputFilePath, fileContent);
+        const narrative = await getDeterministicNarrative(prompt, seed);
 
-        const storagePath = `https://storage.googleapis.com/asset-factory-outputs/${tenantId}/${jobId}`;
-        const fileBuffer = await fs.readFile(outputFilePath);
-        const fileHash = hashFile(fileBuffer);
+        const fileContent = JSON.stringify(narrative, null, 2);
+        const localOutputFilePath = path.join(localOutputDir, 'narrative.json');
+        await fs.writeFile(localOutputFilePath, fileContent);
 
-        const outputFiles = [
-            {
-                type: 'text',
-                url: `${storagePath}/asset.txt`,
-                hash: fileHash,
+        const gcsFilePath = `${tenantId}/${jobId}/narrative.json`;
+        const bucket = storage.bucket(BUCKET_NAME);
+        await bucket.upload(localOutputFilePath, {
+            destination: gcsFilePath,
+            metadata: {
+                contentType: 'application/json',
+                cacheControl: 'public, max-age=31536000',
             },
-        ];
-
+        });
+        logger.info('Successfully uploaded asset to GCS.', { workerId: WORKER_ID, jobId, bucket: BUCKET_NAME, path: gcsFilePath });
+        
+        const fileBuffer = await fs.readFile(localOutputFilePath);
+        const fileHash = hashFile(fileBuffer);
+        const gcsUri = `gs://${BUCKET_NAME}/${gcsFilePath}`;
+        const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${gcsFilePath}`;
+        const outputFiles = [{ 
+            type: 'json', 
+            hash: fileHash,
+            gcsUri, 
+            publicUrl
+        }];
         const fullOutputHash = combineHashes(outputFiles.map(f => f.hash));
 
         const manifest = {
-            jobId,
-            tenantId,
-            narrative, // Add the narrative to the manifest
-            outputFiles,
-            fullOutputHash,
-            modelVersions: { 
-                textModel: 'text-gen-v1.0.0',
-                narrativeModel: 'narrative-gen-v1.2.0' // Added narrative model version
-            }
+            jobId, tenantId,
+            input: { prompt: job.input?.prompt, seed },
+            outputFiles, fullOutputHash,
+            modelVersions: { narrativeModel: config.narrativeModel.version }
         };
         const manifestRef = await db.collection('manifests').add(manifest);
 
         const processingTimeMs = Date.now() - startTime;
-        const cost = processingTimeMs * COST_PER_MS;
-
-        const batch = db.batch();
-
-        batch.update(jobRef, {
+        await jobRef.update({
             status: 'complete',
             outputManifestId: manifestRef.id,
             completedAt: new Date().toISOString(),
-            cost: cost,
-            processingTimeMs: processingTimeMs,
+            processingTimeMs,
         });
 
-        const debitRef = db.collection('ledger').doc();
-        batch.set(debitRef, {
-            tenantId,
-            jobId,
-            type: 'DEBIT',
-            account: 'TENANT_USAGE',
-            amount: cost,
-            currency: 'USD',
-            createdAt: new Date().toISOString(),
-            description: `Asset generation job ${jobId}`
-        });
-
-        const creditRef = db.collection('ledger').doc();
-        batch.set(creditRef, {
-            tenantId,
-            jobId,
-            type: 'CREDIT',
-            account: 'PLATFORM_REVENUE',
-            amount: cost,
-            currency: 'USD',
-            createdAt: new Date().toISOString(),
-            description: `Revenue from job ${jobId}`
-        });
-
-        await batch.commit();
-        await logJobEvent(jobId, tenantId, 'JOB_COMPLETED', { cost, processingTimeMs });
-
-        await logUsage(tenantId, jobId, Math.max(1, Math.floor(processingTimeMs / 1000)), cost);
-
-        console.log(`[Worker] Successfully completed job: ${jobId} for tenant: ${tenantId} (Cost: $${cost.toFixed(4)}, Ledger entries created)`);
+        logger.info(`✅ Successfully completed deterministic job.`, { workerId: WORKER_ID, jobId, tenantId, processingTimeMs, gcsUri });
 
     } catch (error) {
-        console.error(`[Worker] FAILURE processing job ${jobId} for tenant ${tenantId}:`, error.message);
-        await logJobEvent(jobId, tenantId, 'JOB_FAILED', { error: error.message });
-        handleJobFailure(jobId, job, error);
+        logger.error(`❌ FAILURE processing job.`, { workerId: WORKER_ID, jobId, tenantId, error: error.message });
+        await jobRef.update({ status: 'failed', lastError: error.message });
+    } finally {
+        await fs.remove(localOutputDir);
+        logger.info('Cleaned up local temporary directory.', { workerId: WORKER_ID, jobId, path: localOutputDir });
     }
 }
 
-async function handleJobFailure(jobId, job, error) {
-    const jobRef = db.collection('jobs').doc(jobId);
-    const retryCount = (job.retryCount || 0) + 1;
-
-    if (retryCount > MAX_RETRIES) {
-        console.error(`[Worker] Job ${jobId} has exceeded max retries. Moving to dead-letter queue.`);
-        await logJobEvent(jobId, job.tenantId, 'JOB_MOVED_TO_DLQ', { finalError: error.message });
-        await db.collection('dead_letter_jobs').doc(jobId).set({
-            ...job,
-            finalError: error.message,
-            failedAt: new Date().toISOString(),
+function watchForJobs() {
+    db.collection('jobs').where('status', '==', 'queued').onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                logger.info(`Detected new job.`, { workerId: WORKER_ID, jobId: change.doc.id });
+                claimAndProcessJob(change.doc.id, change.doc.data());
+            }
         });
-        await jobRef.delete();
-    } else {
-        const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, retryCount - 1);
-        console.log(`[Worker] Retrying job ${jobId} in ${backoffMs}ms (attempt ${retryCount})`);
-        await logJobEvent(jobId, job.tenantId, 'JOB_RETRY_QUEUED', { retryCount, backoffMs });
-        await jobRef.update({
-            status: 'queued',
-            retryCount,
-            lastError: error.message,
-        });
-    }
+    });
 }
 
-// --- Main ---
-console.log('[Worker] Worker started with event sourcing, cost shield, and ledger logic.');
-console.log('🔥 Listening for jobs in Firestore collection: jobs');
+logger.info(`🔥 Idempotent Deterministic Worker started.`, { workerId: WORKER_ID, config });
 watchForJobs();

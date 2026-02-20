@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySnapshotIntegrity } from '../../../../engine/integrity-checker.js';
+import { verifySnapshotIntegrity } from '../../../../../engine/integrity-checker.js';
 
 // This is a simplified cron endpoint. In a real-world scenario, 
 // you would protect this with a secret header or an IP whitelist.
