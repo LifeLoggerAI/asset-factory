@@ -1,4 +1,3 @@
-
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -17,6 +16,12 @@ const COST_TABLE = {
 };
 const USD_PER_COST_UNIT = 0.02;
 
+// --- Structured Logger ---
+const log = (severity, jobId, message, context = {}) => {
+    console.log(JSON.stringify({ severity, jobId, message, ...context }));
+};
+
+
 exports.processAssetJob = functions
   .runWith({ maxInstances: MAX_WORKER_CONCURRENCY.value() })
   .firestore.document("jobs/{jobId}")
@@ -24,6 +29,8 @@ exports.processAssetJob = functions
 
     const { jobId } = context.params;
     const jobRef = snap.ref;
+
+    log('INFO', jobId, 'Job processing initiated.');
 
     // 🔐 TRANSACTIONAL STATUS LOCK
     let job;
@@ -43,17 +50,19 @@ exports.processAssetJob = functions
           });
         });
     } catch (error) {
-        console.error(`[Job ${jobId}] Transactional lock failed.`, error);
+        log('ERROR', jobId, 'Transactional lock failed.', { errorMessage: error.message });
         return;
     }
 
     if (!job) {
-        console.log(`[Job ${jobId}] Skipping execution: Job not in 'pending' or 'retrying' state.`);
+        log('WARNING', jobId, 'Skipping execution: Job not in a processable state.');
         return;
     }
 
+    log('INFO', jobId, 'Job processing started.', { ownerId: job.ownerId, type: job.type });
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 500)); 
+      await new Promise(resolve => setTimeout(resolve, 500));
       const generatedBuffer = Buffer.from(`Asset for job ${jobId} of type ${job.type}`);
 
       const outputHash = crypto.createHash("sha256").update(generatedBuffer).digest("hex");
@@ -69,12 +78,14 @@ exports.processAssetJob = functions
       };
 
       await bucket.file(`${basePath}/manifest.json`).save(JSON.stringify(manifest, null, 2), { metadata: { contentType: "application/json" } });
-      
+
       await jobRef.update({
         status: "completed",
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
         outputHash
       });
+
+      log('INFO', jobId, 'Job processing completed successfully.');
 
       // 💰 ATOMIC FINANCIAL UPDATE
       const usageLedgerColRef = db.collection("usage_ledger");
@@ -88,7 +99,7 @@ exports.processAssetJob = functions
             throw new Error(`CRITICAL: Tenant ${job.ownerId} not found for job ${jobId}.`);
         }
         const tenantData = tenantSnap.data();
-        
+
         const weightedCost = COST_TABLE[job.type] || COST_TABLE.default;
         const costUSD = weightedCost * USD_PER_COST_UNIT;
         const stripePeriod = tenantData.currentPeriodEnd || null;
@@ -110,15 +121,16 @@ exports.processAssetJob = functions
         });
 
         await batch.commit();
+        log('INFO', jobId, 'Billing write successful.', { costUSD, costUnits: weightedCost });
       } else {
-        console.warn(`[Job ${jobId}] Duplicate billing attempt detected and prevented.`);
+        log('WARNING', jobId, 'Duplicate billing attempt detected and prevented.');
       }
 
     } catch (err) {
-        console.error(`[Job ${jobId}] Processing failed. Error: ${err.message}`);
         const retryCount = (job.retryCount || 0);
 
         if (retryCount < MAX_RETRIES) {
+          log('WARNING', jobId, 'Job processing failed. Scheduling retry.', { retryCount, errorMessage: err.message });
           await jobRef.update({
             status: "retrying",
             retryCount: admin.firestore.FieldValue.increment(1),
@@ -126,6 +138,7 @@ exports.processAssetJob = functions
             lastError: err.message,
           });
         } else {
+            log('ERROR', jobId, 'Job failed after max retries.', { errorMessage: err.message });
             await db.collection("dead_jobs").doc(jobId).set({
               ...job,
               failedAt: admin.firestore.FieldValue.serverTimestamp(),

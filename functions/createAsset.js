@@ -1,8 +1,21 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const db = admin.firestore();
+const { defineString, defineBoolean } = require('firebase-functions/params');
+
+db = admin.firestore();
+
+// --- Production Safety Controls ---
+const SYSTEM_LOCKDOWN = defineBoolean('SYSTEM_LOCKDOWN', false);
+const BETA_ACCESS_REQUIRED = defineBoolean('BETA_ACCESS_REQUIRED', true);
+const MONTHLY_USAGE_LIMIT = defineString('MONTHLY_USAGE_LIMIT', '100');
+const RATE_LIMIT_PER_MINUTE = defineString('RATE_LIMIT_PER_MINUTE', '10');
 
 exports.createAssetJob = functions.https.onCall(async (data, context) => {
+
+  // Global Kill Switch
+  if (SYSTEM_LOCKDOWN.value()) {
+      throw new functions.https.HttpsError("unavailable", "The system is currently undergoing maintenance. Please try again later.");
+  }
 
   // 1. Authentication Check
   if (!context.auth) {
@@ -10,33 +23,43 @@ exports.createAssetJob = functions.https.onCall(async (data, context) => {
   }
   const ownerId = context.auth.uid;
 
-  // 2. Subscription Gating Check
+  // 2. Subscription & Access Control
   const tenantRef = db.collection("tenants").doc(ownerId);
   const tenantSnap = await tenantRef.get();
+  const tenant = tenantSnap.data();
 
-  if (!tenantSnap.exists || tenantSnap.data().subscriptionStatus !== "active") {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "An active subscription is required to create assets."
-    );
+  if (!tenantSnap.exists) {
+      throw new functions.https.HttpsError("permission-denied", "Tenant account not found.");
+  }
+
+  // Enforce Beta Access if Required
+  if (BETA_ACCESS_REQUIRED.value() && tenant.betaAccess !== true) {
+      throw new functions.https.HttpsError("permission-denied", "This feature is currently in private beta.");
+  }
+  
+  // Enforce Active Subscription
+  if (tenant.subscriptionStatus !== "active") {
+    throw new functions.https.HttpsError("permission-denied", "An active subscription is required.");
+  }
+
+  // Enforce Billing Period
+  const now = admin.firestore.Timestamp.now();
+  if (!tenant.currentPeriodEnd || tenant.currentPeriodEnd <= now) {
+      throw new functions.https.HttpsError("permission-denied", "Your billing period has expired. Please update your subscription.");
   }
 
   // 3. Monthly Usage Limit Check
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfMonthTimestamp = admin.firestore.Timestamp.fromDate(startOfMonth);
+  const periodStart = new Date(tenant.currentPeriodEnd.toDate());
+  periodStart.setMonth(periodStart.getMonth() - 1);
+  const periodStartTimestamp = admin.firestore.Timestamp.fromDate(periodStart);
 
-  const usageSnap = await db.collection("usage")
+  const usageSnap = await db.collection("usage_ledger")
     .where("ownerId", "==", ownerId)
-    .where("createdAt", ">=", startOfMonthTimestamp)
+    .where("createdAt", ">=", periodStartTimestamp)
     .get();
 
-  // TODO: Make this limit configurable from admin settings (e.g., system/config)
-  if (usageSnap.size >= 100) {
-    throw new functions.https.HttpsError(
-      "resource-exhausted",
-      "You have reached your monthly asset generation limit."
-    );
+  if (usageSnap.size >= parseInt(MONTHLY_USAGE_LIMIT.value())) {
+    throw new functions.https.HttpsError("resource-exhausted", "You have reached your monthly usage limit.");
   }
 
   // 4. Rate Limiting (per minute)
@@ -45,8 +68,7 @@ exports.createAssetJob = functions.https.onCall(async (data, context) => {
     .where("createdAt", ">", admin.firestore.Timestamp.fromMillis(Date.now() - 60000))
     .get();
 
-  // TODO: Make this configurable
-  if (recentJobs.size > 10) { 
+  if (recentJobs.size > parseInt(RATE_LIMIT_PER_MINUTE.value())) {
     throw new functions.https.HttpsError("resource-exhausted", "Rate limit exceeded. Please try again in a minute.");
   }
 

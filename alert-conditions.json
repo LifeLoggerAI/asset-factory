@@ -1,0 +1,59 @@
+{
+  "displayName": "Asset Factory Production Alerts",
+  "conditions": [
+    {
+      "displayName": "Job Failure Spike",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/job_failure\" AND resource.type=\"cloud_function\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 10,
+        "duration": "600s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "displayName": "Dead Letter Queue Spike",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/dead_job\" AND resource.type=\"cloud_function\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5,
+        "duration": "1800s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "displayName": "P95 Processing Latency Spike",
+      "conditionThreshold": {
+        "filter": "metric.type=\"cloudfunctions.googleapis.com/function/execution_times\" AND resource.labels.function_name=\"processAssetJob\"",
+        "aggregation": {
+          "alignmentPeriod": "300s",
+          "perSeriesAligner": "ALIGN_PERCENTILE_95"
+        },
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 60000,
+        "duration": "900s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "displayName": "Negative Margin Alert",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/negative_margin\" AND resource.type=\"cloud_function\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "86400s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true
+}

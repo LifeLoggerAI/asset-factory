@@ -78,7 +78,7 @@ const StudioPage = () => {
             const data = await response.json();
             setJobs(data);
         } catch (error) {
-            console.error('Error fetching jobs:', error);
+            setStatus(`Error fetching jobs: ${error.message}`);
         }
     }, [jwt]);
 

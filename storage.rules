@@ -7,9 +7,8 @@ service firebase.storage {
       // Only the user who owns the job can write to the job's folder.
       allow write: if request.auth != null && request.auth.uid == ownerId;
 
-      // Anyone can read the output assets. This is required for the app to display them.
-      // In a more advanced scenario, you might use signed URLs to provide temporary, secure access.
-      allow read: if true; 
+      // Only the user who owns the job can read their assets.
+      allow read: if request.auth != null && request.auth.uid == ownerId;
     }
 
     // Security for other paths can be added here
