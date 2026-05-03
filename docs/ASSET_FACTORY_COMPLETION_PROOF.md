@@ -1,6 +1,7 @@
 # ASSET_FACTORY_COMPLETION_PROOF
 
-## Files changed (this pass)
+## Files changed this pass
+
 - assetfactory-studio/lib/server/assetFactoryTypes.ts
 - assetfactory-studio/lib/server/assetFactoryValidation.ts
 - assetfactory-studio/app/api/generate/route.ts
@@ -15,20 +16,41 @@
 - scripts/test-asset-factory-local.mjs
 
 ## Command evidence
-- `cd assetfactory-studio && npm run typecheck` PASS (asset-factory scoped TS config)
-- `cd assetfactory-studio && npm test` PASS (local static checks)
-- `cd assetfactory-studio && npm run build` FAIL due unresolved packages/imports in legacy app paths; no Google font fetch dependency remains in layout
+
+- `cd assetfactory-studio && npm run typecheck` PASS using the asset-factory scoped TypeScript config.
+- `cd assetfactory-studio && npm test` PASS using local static checks.
+- `cd assetfactory-studio && npm run build` FAIL due to unresolved packages/imports in legacy app paths.
+- No Google font fetch dependency remains in `assetfactory-studio/app/layout.tsx`.
 
 ## Route hardening evidence
+
 - `/api/generate` validates required fields and returns 400 on bad input.
-- `/api/generated-assets/:file` validates filename and blocks path traversal via strict filename validation.
+- `/api/generated-assets/:file` validates filenames and blocks path traversal via strict filename validation.
+- Canonical store-backed routes remain in place under:
+  - `/api/system/*`
+  - `/api/generate`
+  - `/api/generated-assets/:file`
 
-## Persistence mode
-- `GET /api/system/manifest` returns `persistenceMode`, `fallbackActive`, `rendererMode`, `firebaseProjectId`, `storageBucket` from canonical store diagnostics.
+## Store and persistence evidence
 
-## Verdict (current pass)
-- standalone working: PARTIAL (local fallback server layer + typed validation + hardened routes)
+- Local fallback behavior remains available through the canonical asset factory store layer.
+- `GET /api/system/manifest` returns store diagnostics including:
+  - `persistenceMode`
+  - `fallbackActive`
+  - `rendererMode`
+  - `firebaseProjectId`
+  - `storageBucket`
+
+## Current implementation status
+
+Implemented the core asset factory server layer, typed validation, deterministic proof rendering, hardened generated-asset file serving, local fallback behavior, and Firebase Admin diagnostics.
+
+Full live readiness is still blocked by unresolved legacy dependency/import issues outside the hardened asset factory route layer.
+
+## Verdict current pass
+
+- standalone working: PARTIAL
 - integrated contract working: PARTIAL
-- live-ready: NO (build still blocked by unresolved legacy dependency/import issues)
-- production persistence: PARTIAL (Firebase Admin diagnostics implemented, credentials not provided)
-- all planned asset categories supported: PARTIAL (manifest taxonomy + deterministic proof renderer)
+- live-ready: NO
+- production persistence: PARTIAL
+- all planned asset categories supported: PARTIAL
