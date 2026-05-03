@@ -7,7 +7,9 @@ const firestoreClient = new FirestoreAdminClient();
 admin.initializeApp();
 
 const db = admin.firestore();
-const stripe = functions.config().stripe ? require("stripe")(functions.config().stripe.secret) : null;
+const stripeSecret = functions.config().stripe?.secret || process.env.STRIPE_SECRET_KEY || null;
+const stripeWebhookSecret = functions.config().stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET || null;
+const stripe = stripeSecret ? require("stripe")(stripeSecret) : null;
 const { getCostForJobType } = require("./cost-model");
 const { createDeterministicZip } = require("../assetfactory-studio/lib/packaging");
 
@@ -297,8 +299,16 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
       res.status(500).send("Stripe not configured.");
       return;
   }
-  const event = req.body;
+  let event = req.body;
   try {
+    if (stripeWebhookSecret) {
+      const signature = req.headers["stripe-signature"];
+      if (!signature) {
+        res.status(400).send("Missing Stripe signature header.");
+        return;
+      }
+      event = stripe.webhooks.constructEvent(req.rawBody, signature, stripeWebhookSecret);
+    }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const uid = session.client_reference_id;
