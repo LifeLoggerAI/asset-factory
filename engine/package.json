@@ -8,7 +8,7 @@
     "harden": "npm audit fix --production",
     "lock": "npm shrinkwrap",
     "check-unused": "npx depcheck",
-    "test": "echo \"No tests defined for core engine\" && exit 0"
+    "test": "node --test test/*.test.js"
   },
   "author": "URAI Restoration Team",
   "license": "UNLICENSED",

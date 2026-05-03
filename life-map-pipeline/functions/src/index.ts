@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter } from '../lib/lifemap.types';
+import { LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter } from './lifemap.types';
 import { deterministicHash } from './hash';
 
 admin.initializeApp();
