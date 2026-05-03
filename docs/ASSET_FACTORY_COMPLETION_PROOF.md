@@ -1,37 +1,37 @@
-# Asset Factory Completion Proof
+# ASSET_FACTORY_COMPLETION_PROOF
 
-## Validation Commands (May 3, 2026)
+## Files changed this pass
 
-- `cd assetfactory-studio && npm run typecheck` ✅
-- `cd assetfactory-studio && npm test` ✅
-- `cd assetfactory-studio && npm run build` ✅
-- `cd assetfactory-studio && npm run e2e` ✅
-- `cd assetfactory-studio && npm run check` ✅
+- `assetfactory-studio/lib/server/assetFactoryTypes.ts`
+- `assetfactory-studio/lib/server/assetFactoryValidation.ts`
+- `assetfactory-studio/lib/server/assetFactoryStore.ts`
+- `assetfactory-studio/lib/server/localAssetFactoryStore.ts`
+- `assetfactory-studio/lib/server/assetRenderer.ts`
+- `assetfactory-studio/app/api/generate/route.ts`
+- `assetfactory-studio/app/api/generated-assets/[file]/route.ts`
+- `assetfactory-studio/app/api/assets/[jobId]/route.ts`
+- `assetfactory-studio/app/api/jobs/[jobId]/route.ts`
+- `assetfactory-studio/app/api/jobs/[jobId]/approve/route.ts`
+- `assetfactory-studio/app/api/jobs/[jobId]/materialize/route.ts`
+- `assetfactory-studio/app/api/jobs/[jobId]/publish/route.ts`
+- `assetfactory-studio/app/api/jobs/[jobId]/rollback/route.ts`
+- `assetfactory-studio/app/api/metrics/route.ts`
+- `assetfactory-studio/app/layout.tsx`
+- `assetfactory-studio/app/system/page.tsx`
+- `assetfactory-studio/app/assets/page.tsx`
+- `assetfactory-studio/app/admin/dashboard/page.tsx`
+- `assetfactory-studio/tsconfig.asset-factory.json`
+- `assetfactory-studio/package.json`
+- `scripts/test-asset-factory-local.mjs`
 
-## E2E Flow Proof
-The E2E script completed a full local fallback lifecycle:
-1. GET `/api/system/health`
-2. GET `/api/system/manifest`
-3. POST `/api/generate`
-4. POST `/api/jobs/:jobId/materialize`
-5. GET `/api/jobs/:jobId`
-6. GET `/api/assets/:jobId`
-7. GET `/api/generated-assets/:jobId.svg`
-8. GET `/api/generated-assets/:jobId.json`
-9. POST `/api/jobs/:jobId/publish`
-10. POST `/api/jobs/:jobId/approve`
+## Validation commands
 
-Result: `PASS E2E`.
-
-## Persistence and Renderer Proof
-- `persistenceMode` and `fallbackActive` are returned via `/api/system/manifest` in local mode.
-- Local JSON fallback remains active without Firebase credentials.
-- Materialization writes deterministic SVG + JSON manifest artifacts.
-- Canonical renderer mode remains `svg-proof`.
-
-## Deploy Readiness
-Final deploy command:
+Run these from the repository root:
 
 ```bash
-firebase deploy --only hosting,functions
-```
+cd assetfactory-studio
+npm run typecheck
+npm test
+npm run build
+npm run e2e
+npm run check
