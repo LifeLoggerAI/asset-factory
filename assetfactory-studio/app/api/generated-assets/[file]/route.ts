@@ -1,0 +1,2 @@
+import { NextRequest, NextResponse } from 'next/server'; import { readGeneratedAsset } from '@/lib/server/assetFactoryStore';
+export async function GET(_req:NextRequest,{params}:{params:{file:string}}){const b=await readGeneratedAsset(params.file); if(!b) return NextResponse.json({error:'not found'},{status:404}); const ct=params.file.endsWith('.json')?'application/json':'image/svg+xml'; return new NextResponse(b,{headers:{'content-type':ct}});}
