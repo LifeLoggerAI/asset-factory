@@ -1,22 +1,7 @@
-import { z } from 'zod';
-
-export const AssetJobRequestValidator = z.object({
-  version: z.literal('1.0'),
-  preset: z.enum(['marketing-kit', 'story-video', 'capcut-pack', 'social-carousel']).optional(),
-  prompt: z.object({
-    title: z.string().optional(),
-    description: z.string(),
-    tone: z.string().optional(),
-    duration: z.number().optional(),
-    platform: z.enum(['tiktok', 'instagram', 'youtube', 'capcut']).optional(),
-    language: z.string().optional(),
-  }),
-  assets: z.object({
-    video: z.boolean().optional(),
-    images: z.boolean().optional(),
-    audio: z.boolean().optional(),
-    storyboard: z.boolean().optional(),
-    subtitles: z.boolean().optional(),
-  }),
-  deterministic: z.boolean().optional(),
-});
+export type AssetJobRequest = { version: '1.0'; prompt: string; tenantId?: string; presetId?: string; type?: string };
+export const AssetJobRequestValidator = {
+  safeParse(input: any) {
+    const ok = input && input.version === '1.0' && typeof input.prompt === 'string' && input.prompt.trim().length > 0;
+    return ok ? { success: true, data: input as AssetJobRequest } : { success: false, error: { message: 'Invalid asset job request' } };
+  }
+};
