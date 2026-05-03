@@ -4,21 +4,23 @@ import { validateFileName } from '@/lib/server/assetFactoryValidation';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { file: string } }
+  { params }: { params: Promise<{ file: string }> }
 ) {
-  if (!validateFileName(params.file)) {
+  const { file } = await params;
+
+  if (!validateFileName(file)) {
     return NextResponse.json({ error: 'invalid file' }, { status: 400 });
   }
 
-  const asset = await readGeneratedAsset(params.file);
+  const asset = await readGeneratedAsset(file);
 
   if (!asset) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  const contentType = params.file.endsWith('.json')
+  const contentType = file.endsWith('.json')
     ? 'application/json'
-    : params.file.endsWith('.svg')
+    : file.endsWith('.svg')
       ? 'image/svg+xml'
       : 'application/octet-stream';
 

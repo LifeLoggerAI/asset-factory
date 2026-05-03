@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { getSubscriptionStatus, getCurrentUsage } from './billing.js';
+import { getSubscriptionStatus, getCurrentUsage } from './billing';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-default-super-secret-key-that-is-long-and-secure';
 

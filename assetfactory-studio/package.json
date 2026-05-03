@@ -6,8 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test": "node ../scripts/e2e-asset-factory.mjs"
+    "lint": "eslint lib/server app/api/generate app/api/generated-assets app/api/jobs app/api/system app/api/assets app/api/usage app/api/dashboard --max-warnings=0",
+    "test": "node ../scripts/test-asset-factory-local.mjs",
+    "typecheck": "tsc -p tsconfig.asset-factory.json",
+    "e2e": "node ../scripts/e2e-asset-factory.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
