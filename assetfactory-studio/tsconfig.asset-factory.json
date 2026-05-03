@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {"noEmit": true},
+  "include": [
+    "lib/server/**/*.ts",
+    "app/api/generate/route.ts",
+    "app/api/generated-assets/[file]/route.ts",
+    "app/api/jobs/[jobId]/**/*.ts",
+    "app/api/system/**/*.ts",
+    "app/api/assets/**/*.ts"
+  ]
+}

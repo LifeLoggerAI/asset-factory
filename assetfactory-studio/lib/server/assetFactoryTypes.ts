@@ -1,0 +1,15 @@
+export type StoreMode = 'firestore-storage' | 'local-json';
+export type RendererMode = 'svg-proof'|'png-export'|'webp-export'|'manifest-only'|'visual-renderer'|'spatial-renderer'|'audio-renderer';
+export type AssetFactoryJob = { jobId:string; tenantId:string; type:string; prompt:string; status:string; createdAt:string; presetId?:string; metadata?:Record<string,unknown>; [k:string]:unknown };
+export type AssetFactoryManifest = { jobId:string; tenantId:string; type:string; presetId?:string|null; prompt:string; rendererMode:RendererMode; generatedAt:string; formats:string[]; dimensions:{width:number;height:number}; transparentBackground:boolean; storagePaths:Record<string,string>; previewPath:string|null; metadata:Record<string,unknown>; provenance:Record<string,unknown>; approvalStatus:string; version:number; targetModules:string[]; dependencies:string[] };
+export type AssetFactoryAsset = { jobId:string; tenantId:string; fileName:string; manifestFile:string; manifest:AssetFactoryManifest; createdAt:string; published:boolean; publishedAt?:string };
+export type AssetFactoryVersion = { jobId:string; versionId:string; createdAt:string; patch:Record<string,unknown> };
+export type AssetFactoryApproval = { approvalId:string; jobId:string; status:string; reviewer?:string; note?:string; createdAt:string };
+export type AssetFactoryEvent = { eventId:string; type:string; jobId?:string; createdAt:string; payload?:Record<string,unknown> };
+export type AssetFactoryUsageEvent = { eventId:string; action:string; createdAt:string; tenantId:string; jobId?:string };
+export type AssetFactoryPreset = { id:string; name:string; type:string; description?:string };
+export type AssetFactoryCapability = { name:string; version:string; routes:string[]; integrations:string[] };
+export type AssetFactoryIntegrationContract = { service:string; routes:string[]; auth:'none'|'token'; notes?:string };
+export type AssetFactoryStoreDiagnostics = { mode:StoreMode; fallbackActive:boolean; firebase:{available:boolean; initError:string|null; projectId:string|null; storageBucket:string|null}; runtimePath?:string };
+export type AssetRendererInput = { jobId:string; tenantId:string; presetId?:string; type:string; prompt:string; aspectRatio?:string; input?:unknown; format?:string; variant?:string; targetModule?:string; size?:{width:number;height:number}; transparentBackground?:boolean; stylePack?:string; metadata?:Record<string,unknown> };
+export type AssetRendererResult = { ok:true; assetBuffer:Buffer; assetMimeType:string; assetFileName:string; manifest:AssetFactoryManifest; mode:RendererMode };
