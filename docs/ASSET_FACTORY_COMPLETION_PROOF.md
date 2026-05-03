@@ -1,23 +1,50 @@
-# ASSET FACTORY COMPLETION PROOF (Current Iteration)
+# ASSET_FACTORY_COMPLETION_PROOF
 
-## Files changed
-- assetfactory-studio/app/api/jobs/route.ts
-- assetfactory-studio/app/api/assets/[jobId]/route.ts
+## Files changed this pass
+- assetfactory-studio/lib/server/assetFactoryTypes.ts
+- assetfactory-studio/lib/server/assetFactoryValidation.ts
+- assetfactory-studio/app/api/generate/route.ts
+- assetfactory-studio/app/api/generated-assets/[file]/route.ts
+- assetfactory-studio/app/layout.tsx
+- assetfactory-studio/app/api/cron/integrity-check/route.ts
+- assetfactory-studio/app/system/page.tsx
+- assetfactory-studio/app/assets/page.tsx
+- assetfactory-studio/app/admin/dashboard/page.tsx
+- assetfactory-studio/tsconfig.asset-factory.json
 - assetfactory-studio/package.json
+- scripts/test-asset-factory-local.mjs
 
-## Route wiring verified by source
-- `/api/jobs` now uses the canonical local/Firebase-capable store facade and preserves the existing public endpoint shape: `message`, `jobId`, and `status` on POST.
-- `/api/assets/:jobId` now resolves from the canonical store and returns 404 when absent.
+## Command evidence
+- `cd assetfactory-studio && npm run typecheck` PASS using the asset-factory scoped TypeScript config.
+- `cd assetfactory-studio && npm test` PASS using local static checks.
+- `cd assetfactory-studio && npm run build` FAIL due to unresolved packages/imports in legacy app paths.
+- No Google font fetch dependency remains in `assetfactory-studio/app/layout.tsx`.
 
-## Commands run
-- `npm install --ignore-scripts` at repo root -> FAILED: `Cannot read properties of null (reading 'matches')`
-- `cd engine && npm install --ignore-scripts && npm test` -> incomplete/hung in environment; warnings emitted
-- `cd life-map-pipeline/functions && npm install --ignore-scripts && npm run build` -> FAILED: 403 fetching package
-- `cd assetfactory-studio && npm install --ignore-scripts && npm run lint` -> FAILED: 403 fetching package `firebase`
+## Route hardening evidence
+- `/api/generate` validates required fields and returns 400 on bad input.
+- `/api/generated-assets/:file` validates filenames and blocks path traversal via strict filename validation.
+- Canonical store-backed routes remain in place under:
+  - `/api/system/*`
+  - `/api/generate`
+  - `/api/generated-assets/:file`
 
-## Current status
-Implemented core store, renderer, routes, and local fallback wiring in the studio runtime.
+## Store and persistence evidence
+- Local fallback behavior remains available through the canonical asset factory store layer.
+- `GET /api/system/manifest` returns store diagnostics including:
+  - `persistenceMode`
+  - `fallbackActive`
+  - `rendererMode`
+  - `firebaseProjectId`
+  - `storageBucket`
 
-- Local fallback behavior remains available through `assetfactory-studio/lib/server/localAssetFactoryStore.ts`.
-- Canonical store routes remain in place under `/api/system/*`, `/api/generate`, `/api/jobs/:jobId/*`, `/api/assets`, and `/api/generated-assets/:file`.
-- Environment package policy/network restrictions currently block full dependency installation and full build/test completion in this run.
+## Current implementation status
+Implemented the core asset factory server layer, typed validation, deterministic proof rendering, hardened generated-asset file serving, local fallback behavior, and Firebase Admin diagnostics.
+
+Full live readiness is still blocked by unresolved legacy dependency/import issues outside the hardened asset factory route layer.
+
+## Verdict current pass
+- standalone working: PARTIAL
+- integrated contract working: PARTIAL
+- live-ready: NO
+- production persistence: PARTIAL
+- all planned asset categories supported: PARTIAL
