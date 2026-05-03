@@ -1,12 +1,17 @@
 import { spawn } from 'node:child_process';
 
-const base = process.env.BASE_URL || 'http://127.0.0.1:3000';
-const shouldSpawnDevServer = !process.env.BASE_URL;
+const base =
+  process.env.ASSET_FACTORY_BASE_URL ||
+  process.env.BASE_URL ||
+  'http://127.0.0.1:3000';
+
+const shouldSpawnDevServer =
+  !process.env.ASSET_FACTORY_BASE_URL && !process.env.BASE_URL;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const requestJson = async (path, options) => {
-  const response = await fetch(base + path, options);
+async function requestJson(path, options) {
+  const response = await fetch(`${base}${path}`, options);
   const text = await response.text();
 
   let body;
@@ -17,82 +22,119 @@ const requestJson = async (path, options) => {
   }
 
   if (!response.ok) {
-    throw new Error(`${path} -> ${response.status} ${text}`);
+    throw new Error(
+      `${path} -> ${response.status} ${
+        typeof body === 'string' ? body : JSON.stringify(body)
+      }`
+    );
   }
 
   return body;
-};
+}
 
-const dev = shouldSpawnDevServer
-  ? spawn('bash', ['-lc', 'cd assetfactory-studio && npm run dev'], {
-      stdio: 'ignore',
-    })
-  : null;
+async function waitForServer(timeoutMs = 120000) {
+  const start = Date.now();
 
-try {
-  let serverReady = false;
-
-  for (let i = 0; i < 50; i += 1) {
+  while (Date.now() - start < timeoutMs) {
     try {
       await requestJson('/api/system/health');
-      serverReady = true;
-      break;
+      return true;
     } catch {
-      await sleep(500);
+      await sleep(1000);
     }
   }
 
-  if (!serverReady) {
-    throw new Error('server failed to boot');
-  }
+  return false;
+}
 
-  const jobId = `e2e-${Date.now()}`;
+async function run() {
+  let dev;
+  let startedByScript = false;
 
-  await requestJson('/api/system/manifest');
+  try {
+    const alreadyUp = await waitForServer(2000);
 
-  await requestJson('/api/generate', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      jobId,
-      tenantId: 'e2e',
-      prompt: 'e2e prompt',
-      type: 'body/neutral',
-    }),
-  });
+    if (!alreadyUp && shouldSpawnDevServer) {
+      startedByScript = true;
 
-  await requestJson(`/api/jobs/${jobId}/materialize`, {
-    method: 'POST',
-  });
+      const studioDir = process.cwd().endsWith('assetfactory-studio')
+        ? '.'
+        : 'assetfactory-studio';
 
-  await requestJson(`/api/jobs/${jobId}`);
-  await requestJson(`/api/assets/${jobId}`);
-  await requestJson(`/api/generated-assets/${jobId}.svg`);
-  await requestJson(`/api/generated-assets/${jobId}.json`);
+      dev = spawn(
+        'bash',
+        ['-lc', `cd ${studioDir} && npm run dev -- --hostname 127.0.0.1 --port 3000`],
+        {
+          stdio: 'inherit',
+        }
+      );
 
-  await requestJson(`/api/jobs/${jobId}/publish`, {
-    method: 'POST',
-  });
+      const up = await waitForServer(120000);
 
-  await requestJson(`/api/jobs/${jobId}/approve`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      status: 'approved',
-    }),
-  });
+      if (!up) {
+        throw new Error('server failed to boot');
+      }
+    }
 
-  console.log('PASS E2E');
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error('FAIL', message);
-  process.exitCode = 1;
-} finally {
-  if (dev && !dev.killed) {
-    dev.kill('SIGTERM');
+    if (!alreadyUp && !shouldSpawnDevServer) {
+      const up = await waitForServer(120000);
+
+      if (!up) {
+        throw new Error(`server failed to respond at ${base}`);
+      }
+    }
+
+    const requestedJobId = `e2e-${Date.now()}`;
+
+    await requestJson('/api/system/manifest');
+
+    const generateResult = await requestJson('/api/generate', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        jobId: requestedJobId,
+        tenantId: 'e2e',
+        prompt: 'e2e prompt',
+        type: 'body/neutral',
+      }),
+    });
+
+    const jobId = generateResult?.jobId || requestedJobId;
+
+    await requestJson(`/api/jobs/${jobId}/materialize`, {
+      method: 'POST',
+    });
+
+    await requestJson(`/api/jobs/${jobId}`);
+    await requestJson(`/api/assets/${jobId}`);
+    await requestJson(`/api/generated-assets/${jobId}.svg`);
+    await requestJson(`/api/generated-assets/${jobId}.json`);
+
+    await requestJson(`/api/jobs/${jobId}/publish`, {
+      method: 'POST',
+    });
+
+    await requestJson(`/api/jobs/${jobId}/approve`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        status: 'approved',
+      }),
+    });
+
+    console.log('PASS E2E');
+  } catch (error) {
+    console.error('FAIL', error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  } finally {
+    if (startedByScript && dev && !dev.killed) {
+      dev.kill('SIGTERM');
+    }
   }
 }
+
+await run();
