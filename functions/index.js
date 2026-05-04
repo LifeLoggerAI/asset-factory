@@ -12,7 +12,7 @@ const stripeSecret = functions.config().stripe?.secret || process.env.STRIPE_SEC
 const stripeWebhookSecret = functions.config().stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET || null;
 const stripe = stripeSecret ? require("stripe")(stripeSecret) : null;
 const { getCostForJobType } = require("./cost-model");
-const { createDeterministicZip } = require("../assetfactory-studio/lib/packaging");
+const { createDeterministicZip } = require("./packaging");
 
 const COLLECTIONS = Object.freeze({
   tenants: "tenants",
