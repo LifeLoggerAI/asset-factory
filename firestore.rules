@@ -18,8 +18,8 @@ service cloud.firestore {
       return signedIn() && request.resource.data.ownerId == request.auth.uid;
     }
 
-    function isServiceOnly() {
-      return false;
+    function jobOwner(jobId) {
+      return get(/databases/$(database)/documents/assetJobs/$(jobId)).data.ownerId;
     }
 
     match /users/{userId} {
@@ -42,7 +42,7 @@ service cloud.firestore {
       allow create: if ownsIncoming() && request.resource.data.status == 'PENDING';
       allow update, delete: if false;
       match /verifications/{verificationId} {
-        allow read: if owns(/databases/$(database)/documents/assetJobs/$(jobId)).data.ownerId;
+        allow read: if owns(jobOwner(jobId));
         allow write: if false;
       }
     }
