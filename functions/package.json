@@ -2,16 +2,16 @@
   "name": "functions",
   "description": "Cloud Functions for Asset Factory",
   "scripts": {
-    "serve": "firebase emulators:start --only functions",
+    "serve": "firebase emulators:start --only functions,firestore,storage,auth",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "deploy": "firebase deploy --only functions,firestore:rules,firestore:indexes,storage",
     "logs": "firebase functions:log",
     "build": "node --check index.js",
     "test": "npm run build"
   },
   "engines": {
-    "node": "18"
+    "node": ">=20"
   },
   "main": "index.js",
   "dependencies": {
