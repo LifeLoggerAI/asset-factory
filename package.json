@@ -1,7 +1,7 @@
 {
   "name": "asset-factory-root",
   "version": "1.0.0",
-  "description": "Root dependencies for testing",
+  "description": "Root orchestration for the URAI Asset Factory monorepo",
   "dependencies": {
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.3.1",
@@ -12,7 +12,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test",
-    "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build"
+    "lint": "npm run check:runtime && npm run check:docs",
+    "check:runtime": "node scripts/ci/check-runtime-consistency.mjs",
+    "check:docs": "node scripts/ci/check-doc-claims.mjs",
+    "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test && npm run check:runtime && npm run check:docs",
+    "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
+    "verify": "npm run lint && npm run test && npm run build"
   }
 }
