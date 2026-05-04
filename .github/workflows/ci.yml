@@ -1,27 +1,54 @@
-
-name: CI
+name: Asset Factory CI
 
 on:
+  pull_request:
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  verify:
+    name: Verify canonical build
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Install root dependencies
+        run: npm ci || npm install
 
-    - name: Lint
-      run: npm run lint
+      - name: Install functions dependencies
+        run: npm --prefix functions ci || npm --prefix functions install
 
-    - name: Test
-      run: npm test
+      - name: Install LifeMap adapter dependencies
+        run: npm --prefix life-map-pipeline/functions ci || npm --prefix life-map-pipeline/functions install
+
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio ci || npm --prefix assetfactory-studio install
+
+      - name: Runtime and documentation guards
+        run: npm run lint
+
+      - name: Functions checks
+        run: npm --prefix functions test
+
+      - name: LifeMap adapter build
+        run: npm --prefix life-map-pipeline/functions run build
+
+      - name: Studio typecheck
+        run: npm --prefix assetfactory-studio run typecheck
+
+      - name: Studio local tests
+        run: npm --prefix assetfactory-studio test
+
+      - name: Studio build
+        run: npm --prefix assetfactory-studio run build
