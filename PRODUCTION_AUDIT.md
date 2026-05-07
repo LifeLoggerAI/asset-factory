@@ -2,14 +2,15 @@
 
 ## Executive summary
 
-Asset Factory is a production-oriented monorepo for deterministic asset generation and Firebase processing pipelines. The current architecture is close to a commercial launch foundation, but several pieces were previously wired as local/demo-safe implementations rather than production persistence and billing integrations.
+Asset Factory is a production-oriented monorepo for deterministic asset generation and Firebase processing pipelines. The current architecture is now a stronger commercial launch foundation, with the Studio path hardened around persistence, tenant scoping, authenticated mutations, verified Stripe webhooks, safer system diagnostics, and broader route validation coverage.
 
-This pass hardens the Studio path by wiring the canonical generation flow to Firestore and Cloud Storage when Firebase Admin credentials are available, preserving local JSON as a safe development fallback, documenting production environment requirements, improving the Studio UI flow, expanding health/manifest diagnostics, and making unconfigured Stripe webhooks fail closed.
+This pass hardens the Studio path by wiring the canonical generation flow to Firestore and Cloud Storage when Firebase Admin credentials are available, preserving local JSON as a safe development fallback, documenting production environment requirements, improving the Studio UI flow, expanding and redacting health/manifest diagnostics, protecting operational routes, verifying Stripe webhook signatures, and aligning public contract metadata with the API surface.
 
 ## Architecture map
 
 ### Root
 - `package.json`: root orchestration for tests and builds across `engine`, `life-map-pipeline/functions`, and `functions`.
+- `.github/workflows/ci.yml`: package-level Node 20 validation for root orchestration, Studio, engine, Firebase functions, and LifeMap functions.
 - `README.md`: top-level quick start and repo structure.
 
 ### `engine/`
@@ -20,19 +21,32 @@ This pass hardens the Studio path by wiring the canonical generation flow to Fir
 ### `assetfactory-studio/`
 - Next.js 16 + React 19 studio app.
 - Primary API routes include:
+  - `/api/presets`
   - `/api/generate`
   - `/api/jobs`
   - `/api/jobs/:jobId`
+  - `/api/jobs/:jobId/queue`
   - `/api/jobs/:jobId/materialize`
+  - `/api/jobs/:jobId/publish`
+  - `/api/jobs/:jobId/approve`
+  - `/api/jobs/:jobId/rollback`
   - `/api/assets`
+  - `/api/assets/:jobId`
   - `/api/generated-assets/:file`
+  - `/api/usage`
+  - `/api/dashboard`
   - `/api/system/health`
   - `/api/system/manifest`
+  - `/api/system/openapi`
+  - `/api/system/integration-contract`
+  - `/api/cron/integrity-check`
   - `/api/stripe/webhooks`
 - Server layer:
   - `lib/server/assetFactoryStore.ts`
   - `lib/server/localAssetFactoryStore.ts`
   - `lib/server/firebaseAdmin.ts`
+  - `lib/server/apiAuth.ts`
+  - `lib/server/assetAuth.ts`
   - `lib/server/assetRenderer.ts`
   - `lib/server/assetFactoryValidation.ts`
 
@@ -49,6 +63,7 @@ This pass hardens the Studio path by wiring the canonical generation flow to Fir
 ## Frameworks and build system
 
 - Monorepo package orchestration with npm scripts.
+- GitHub Actions CI validates root, Studio, engine, root functions, and LifeMap functions.
 - Next.js 16 / React 19 for Studio.
 - Firebase Admin / Firebase Functions for backend deployment paths.
 - TypeScript for Studio and LifeMap functions.
@@ -61,14 +76,21 @@ This pass hardens the Studio path by wiring the canonical generation flow to Fir
 - Generated assets were always written to local filesystem storage.
 - Studio homepage called a missing token endpoint and did not use the canonical validated generation contract.
 - Stripe webhook route returned success even when no Stripe secret or verification existed.
+- Job execution routes, generated downloads, usage aggregates, dashboard aggregates, cron endpoints, and full diagnostics had incomplete production guards.
 
 ### After this pass
 - Studio persistence uses Firestore collections when Firebase Admin is available.
 - Generated assets and manifests write to Cloud Storage when Firebase Admin and a bucket are configured.
 - Local JSON remains available for local development and forced fallback via `ASSET_FACTORY_FORCE_LOCAL=true`.
 - Studio homepage calls `/api/generate`, then materializes through `/api/jobs/:jobId/materialize`.
-- Health and manifest endpoints expose persistence mode, fallback status, collection names, storage prefix, Firebase diagnostics, and capability status.
-- Stripe webhook path fails closed until `STRIPE_WEBHOOK_SECRET` is configured and real signature verification is implemented.
+- Mutating generation and lifecycle routes are API-key guarded when API-key enforcement is enabled.
+- Job execution routes validate tenant ownership before queueing, materializing, publishing, approving, or rolling back.
+- Generated asset downloads require matching asset metadata before serving file bytes.
+- Usage and dashboard aggregates are tenant-scoped when a tenant is present.
+- Health and manifest endpoints return public-safe summaries by default; full diagnostics require `?full=true` and the configured Asset Factory API key.
+- Stripe webhook requests are verified with raw-body HMAC signature checks before processing.
+- Cron integrity route requires `CRON_SECRET`.
+- OpenAPI and integration-contract endpoints document the current route/auth contract.
 
 ## Current production readiness status
 
@@ -78,76 +100,84 @@ This pass hardens the Studio path by wiring the canonical generation flow to Fir
 | Local dev fallback | Ready | Local JSON mode remains intact. |
 | Firestore persistence | Improved | Wired for jobs/assets using Firebase Admin. |
 | Cloud Storage persistence | Improved | Generated assets/manifests write to configured bucket. |
-| Auth | Partial | Env placeholders documented; endpoint-level enforcement still needs final policy. |
-| Billing | Blocked | Stripe webhook now fails closed until verified handler is implemented. |
-| Queue/worker | Partial | Current flow materializes synchronously from Studio; production should move heavy rendering to Cloud Tasks/Pub/Sub. |
-| AI/media providers | Blocked by credentials | Provider env variables documented. Renderer remains deterministic SVG proof mode. |
-| CI/CD | Partial | Package scripts exist; GitHub Actions should be added if not already present. |
+| Auth | Improved | API-key helper, tenant helper, and configured-key full diagnostics helper are in place; final production identity provider/JWT policy still needs deployment configuration. |
+| Billing | Improved | Studio Stripe webhook route verifies signatures and records receipt events; entitlement persistence still needs plan-specific implementation. |
+| Queue/worker | Partial | Current flow can enqueue/dispatch but proof rendering remains suitable for synchronous/local execution; production AI/media generation should move to Cloud Tasks/Pub/Sub or worker services. |
+| AI/media providers | Blocked by credentials | Provider env variables documented. Renderer remains deterministic proof mode unless provider-backed adapters are configured. |
+| CI/CD | Improved | GitHub Actions validates package-level root, Studio, engine, root functions, and LifeMap functions checks. |
 | Observability | Partial | Env placeholders documented; Sentry/PostHog wiring still optional. |
-| Security | Improved | Path traversal protection exists; billing fail-closed added; auth/rate limits still need full enforcement on mutating Studio endpoints. |
+| Security | Improved | Tenant scoping, protected mutations, protected cron, redacted diagnostics, verified Stripe signatures, stricter IDs/files, and generated-download metadata checks are in place. Rate limiting/WAF and final production IAM/rules review remain. |
 
-## Files changed in this pass
+## Key hardening completed
 
-- `assetfactory-studio/lib/server/assetFactoryStore.ts`
-- `assetfactory-studio/app/api/system/health/route.ts`
-- `assetfactory-studio/.env.example`
-- `assetfactory-studio/app/page.tsx`
-- `assetfactory-studio/app/api/stripe/webhooks/route.ts`
-- `assetfactory-studio/app/api/system/manifest/route.ts`
-- `PRODUCTION_AUDIT.md`
+- Protected mutating generation/job lifecycle routes with API-key and tenant checks.
+- Scoped jobs, assets, usage, dashboard, and queue reads through tenant authorization.
+- Required generated asset metadata before file downloads.
+- Tightened job ID and generated filename validation to single safe path segments.
+- Verified Stripe webhook signatures before recording receipt events.
+- Protected cron integrity endpoint with `CRON_SECRET`.
+- Redacted public health/manifest diagnostics and moved full diagnostics behind configured API-key auth.
+- Expanded OpenAPI and integration-contract system routes.
+- Added presets, cron, and Stripe route coverage to Studio lint/typecheck scopes.
+- Fixed root CI dependency installation for nested packages.
 
 ## Remaining blockers requiring credentials or external services
 
 - Firebase project/service account credentials.
 - Firebase Storage bucket name.
-- API auth policy and production API key/JWT issuer details.
-- Stripe secret and webhook secret.
+- Production API key/JWT issuer/JWKS/audience details.
+- Stripe secret and webhook secret in deployed environment.
+- Stripe entitlement persistence and plan mapping.
 - AI/media provider credentials for real image/video/audio generation.
 - Production observability DSNs/keys.
 - Hosting target decision for Studio and worker separation.
+- Firebase rules/IAM verification against the target project.
 
 ## Security concerns to resolve before public launch
 
-1. Enforce API authentication on all mutating endpoints.
+1. Finalize production identity provider policy and JWT claims model.
 2. Add rate limiting and/or WAF protection at edge or middleware level.
-3. Implement verified Stripe webhook handling with raw body signature verification.
-4. Add tenant-level authorization checks so users only access their own jobs/assets.
-5. Replace any contract-only approval/rollback responses with persisted audit-log records.
-6. Confirm Firebase security rules and Storage IAM policies.
-7. Add structured logging with request IDs and tenant/job correlation.
+3. Persist plan entitlements from verified Stripe events.
+4. Replace any remaining contract-only approval/rollback semantics with persisted audit-log records if product workflows require formal approvals.
+5. Confirm Firebase security rules and Storage IAM policies against the production project.
+6. Add structured logging with request IDs and tenant/job correlation.
+7. Add staging smoke tests that prove cross-tenant reads and generated file access are blocked.
 
 ## Scalability concerns
 
-1. Current Studio materialization path is synchronous and suitable for proof rendering, not long-running media generation.
+1. Current Studio materialization path is suitable for proof rendering, not long-running provider-backed media generation.
 2. Move heavy AI/video/audio rendering to a worker backed by Cloud Tasks, Pub/Sub, or a managed queue.
 3. Add job leases, retries, retry limits, dead-letter queues, and idempotency keys.
 4. Store job status transitions in append-only events for auditability.
 5. Add pagination/cursors to job and asset listing APIs.
-6. Use signed URLs for private generated asset downloads.
+6. Use short-lived signed URLs for private generated asset downloads when moving beyond proxy-served downloads.
 7. Add cleanup/retention jobs for abandoned intermediate files.
 
 ## Commands to run locally
 
 ```bash
 npm install
+npm --prefix engine install
+npm --prefix functions install
+npm --prefix life-map-pipeline/functions install
+npm --prefix assetfactory-studio install
+
 npm run build
 npm test
 
 cd assetfactory-studio
-npm install
 npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run e2e
 npm run dev
 
 cd ../engine
-npm install
 npm test
 npm start
 
 cd ../life-map-pipeline/functions
-npm install
 npm run build
 npm run serve
 ```
@@ -194,11 +224,11 @@ firebase deploy --only functions
 
 ## Next milestones
 
-1. Add middleware/API helper enforcing auth and tenant scoping.
-2. Implement Stripe webhook verification and entitlement persistence.
-3. Extract rendering into a queue-backed worker service.
-4. Add signed asset download URLs and private bucket access controls.
-5. Add GitHub Actions CI for root, Studio, engine, and functions validation.
-6. Add persisted job events, retries, DLQ, and cleanup cron.
-7. Add real AI/media provider adapters behind a provider interface.
-8. Add E2E tests for generate → materialize → preview/download → publish.
+1. Configure production secrets and auth provider values.
+2. Implement Stripe entitlement persistence and plan-specific quota mapping.
+3. Extract provider-backed rendering into a queue-backed worker service.
+4. Add signed asset URL issuance for private bucket access if direct downloads are needed.
+5. Add persisted job transition events, retries, DLQ, and cleanup cron.
+6. Add real AI/media provider adapters behind the provider interface.
+7. Add staging smoke tests for generate -> materialize -> preview/download -> publish plus cross-tenant denial cases.
+8. Review or replace stale draft PR #9 with small fresh PRs only where its docs/rules still match the current architecture.
