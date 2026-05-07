@@ -81,7 +81,7 @@ async function quotaFromStripe(tenantId: string, fallback: TenantQuota): Promise
   if (!stripeCustomerId && !stripeSubscriptionId) return fallback;
 
   const stripe = await import('stripe');
-  const client = new stripe.default(secretKey, { apiVersion: '2025-08-27.basil' });
+  const client = new stripe.default(secretKey);
   const subscription = stripeSubscriptionId
     ? await client.subscriptions.retrieve(stripeSubscriptionId, { expand: ['items.data.price'] })
     : (await client.subscriptions.list({ customer: stripeCustomerId, status: 'active', limit: 1, expand: ['data.items.data.price'] })).data[0];
