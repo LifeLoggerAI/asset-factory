@@ -13,6 +13,10 @@ type StripeLikeEvent = {
   };
 };
 
+type StripeSignatureVerificationResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 function parseStripeSignature(header: string) {
   return header.split(',').reduce(
     (acc, part) => {
@@ -41,7 +45,7 @@ function verifyStripeSignature(input: {
   signatureHeader: string;
   webhookSecret: string;
   now?: number;
-}) {
+}): StripeSignatureVerificationResult {
   const parsed = parseStripeSignature(input.signatureHeader);
   const timestamp = Number(parsed.timestamp);
 
