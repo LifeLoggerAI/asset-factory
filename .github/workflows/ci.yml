@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, production-hardening-asset-factory]
   pull_request:
@@ -32,9 +33,6 @@ jobs:
   engine:
     name: Engine tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: engine
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -42,16 +40,13 @@ jobs:
         with:
           node-version: '20'
       - name: Install engine dependencies
-        run: npm install
+        run: npm --prefix engine install
       - name: Test engine
-        run: npm test
+        run: npm --prefix engine test
 
   studio:
     name: Asset Factory Studio checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assetfactory-studio
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -59,27 +54,47 @@ jobs:
         with:
           node-version: '20'
       - name: Install Studio dependencies
-        run: npm install
+        run: npm --prefix assetfactory-studio install
       - name: Lint Studio
-        run: npm run lint
+        run: npm --prefix assetfactory-studio run lint
       - name: Typecheck Studio
-        run: npm run typecheck
+        run: npm --prefix assetfactory-studio run typecheck
       - name: Test Studio
-        run: npm test
+        run: npm --prefix assetfactory-studio test
       - name: Build Studio
-        run: npm run build
+        run: npm --prefix assetfactory-studio run build
       - name: E2E Studio local fallback
-        run: npm run e2e
+        run: npm --prefix assetfactory-studio run e2e
         env:
           ASSET_FACTORY_FORCE_LOCAL: 'true'
           ASSET_FACTORY_MEDIA_PROVIDER: local-proof
 
+  studio-emulator:
+    name: Asset Factory emulator smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+      - name: Run Firestore and Storage emulator smoke test
+        run: |
+          firebase emulators:exec --only firestore,storage --project demo-asset-factory "node scripts/test-asset-factory-emulator.mjs"
+        env:
+          FIREBASE_PROJECT_ID: demo-asset-factory
+          FIREBASE_STORAGE_BUCKET: demo-asset-factory.appspot.com
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
+          FIREBASE_STORAGE_EMULATOR_HOST: 127.0.0.1:9199
+          ASSET_FACTORY_FORCE_LOCAL: 'false'
+
   functions:
     name: Firebase functions checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: functions
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -87,29 +102,24 @@ jobs:
         with:
           node-version: '20'
       - name: Install functions dependencies
-        run: npm install
+        run: npm --prefix functions install
       - name: Build functions
-        run: npm run build
+        run: npm --prefix functions run build
       - name: Test functions
-        run: npm test
+        run: npm --prefix functions test
 
   lifemap:
     name: LifeMap functions checks
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: life-map-pipeline/functions
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: life-map-pipeline/functions/package-lock.json
       - name: Install LifeMap dependencies
-        run: npm install
+        run: npm --prefix life-map-pipeline/functions install
       - name: Build LifeMap functions
-        run: npm run build
+        run: npm --prefix life-map-pipeline/functions run build
       - name: Test LifeMap functions
-        run: npm test
+        run: npm --prefix life-map-pipeline/functions test
