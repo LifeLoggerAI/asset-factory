@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 function apiKeyRequired() {
-  return process.env.ASSET_FACTORY_REQUIRE_API_KEY === 'true' || process.env.NODE_ENV === 'production';
+  return process.env.ASSET_FACTORY_REQUIRE_API_KEY === 'true';
 }
 
 export function requireAssetFactoryApiKey(req: NextRequest) {
