@@ -1,16 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
 import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
 import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
 import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
+import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const diagnostics = getStoreDiagnostics();
   const supportedAssetTypes = listAssetTypeDefinitions();
   const providers = getProviderDiagnostics();
   const queue = getQueueDiagnostics();
+  const fullDiagnostics = new URL(req.url).searchParams.get('full') === 'true';
 
-  return NextResponse.json({
+  if (fullDiagnostics) {
+    const authError = requireConfiguredAssetFactoryApiKey(req);
+    if (authError) return authError;
+  }
+
+  const publicPayload = {
     ok: true,
     service: 'asset-factory-studio',
     checkedAt: new Date().toISOString(),
@@ -19,13 +26,6 @@ export async function GET() {
     rendererMode: 'svg-proof',
     rendererModes: [...new Set(supportedAssetTypes.map((type) => type.rendererMode))],
     supportedAssetTypes,
-    providers,
-    queue,
-    firebase: diagnostics.firebase,
-    firebaseProjectId: diagnostics.firebase.projectId,
-    storageBucket: diagnostics.firebase.storageBucket,
-    collections: diagnostics.collections,
-    generatedPrefix: diagnostics.generatedPrefix,
     capabilities: {
       queue: true,
       deterministicProofRenderer: true,
@@ -38,6 +38,21 @@ export async function GET() {
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       providerBackedRendering: providers.some((provider) => provider.configured),
     },
+  };
+
+  if (!fullDiagnostics) {
+    return NextResponse.json(publicPayload);
+  }
+
+  return NextResponse.json({
+    ...publicPayload,
+    providers,
+    queue,
+    firebase: diagnostics.firebase,
+    firebaseProjectId: diagnostics.firebase.projectId,
+    storageBucket: diagnostics.firebase.storageBucket,
+    collections: diagnostics.collections,
+    generatedPrefix: diagnostics.generatedPrefix,
     requiredProductionEnv: [
       'FIREBASE_PROJECT_ID',
       'FIREBASE_CLIENT_EMAIL',
