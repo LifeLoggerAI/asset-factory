@@ -18,6 +18,12 @@ jobs:
           node-version: '20'
       - name: Install root dependencies
         run: npm install
+      - name: Install engine dependencies
+        run: npm --prefix engine install
+      - name: Install functions dependencies
+        run: npm --prefix functions install
+      - name: Install LifeMap dependencies
+        run: npm --prefix life-map-pipeline/functions install
       - name: Build root packages
         run: npm run build
       - name: Test root packages
