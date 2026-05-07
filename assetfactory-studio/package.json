@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint lib/server app/api/generate app/api/generated-assets app/api/jobs app/api/system app/api/assets app/api/usage app/api/dashboard app/api/stripe app/api/cron --max-warnings=0",
+    "lint": "eslint lib/server app/api/generate app/api/generated-assets app/api/jobs app/api/system app/api/assets app/api/usage app/api/dashboard app/api/stripe app/api/cron app/api/presets --max-warnings=0",
     "test": "node ../scripts/test-asset-factory-local.mjs && node ../scripts/test-asset-factory-multimodal.mjs",
     "typecheck": "tsc -p tsconfig.asset-factory.json",
     "e2e": "node ../scripts/e2e-asset-factory.mjs",

@@ -14,6 +14,9 @@ export async function GET() {
       stripeSignatureHeader: 'stripe-signature',
     },
     routes: {
+      presets: {
+        list: 'GET /api/presets',
+      },
       generation: {
         create: 'POST /api/generate',
         createJob: 'POST /api/jobs',
