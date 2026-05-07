@@ -56,7 +56,13 @@ function validateSize(value: unknown) {
   const size = value as Record<string, unknown>;
   for (const key of ['width', 'height']) {
     const dimension = size[key];
-    if (dimension !== undefined && (!Number.isFinite(dimension) || Number(dimension) <= 0 || Number(dimension) > 8192)) {
+    if (
+      dimension !== undefined &&
+      (typeof dimension !== 'number' ||
+        !Number.isFinite(dimension) ||
+        dimension <= 0 ||
+        dimension > 8192)
+    ) {
       return `invalid size.${key}`;
     }
   }
