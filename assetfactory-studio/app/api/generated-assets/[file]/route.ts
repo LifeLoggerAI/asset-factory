@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readGeneratedAsset } from '@/lib/server/assetFactoryStore';
 import { validateFileName } from '@/lib/server/assetFactoryValidation';
 
+const contentTypes: Record<string, string> = {
+  json: 'application/json; charset=utf-8',
+  svg: 'image/svg+xml; charset=utf-8',
+  gltf: 'model/gltf+json; charset=utf-8',
+  glb: 'model/gltf-binary',
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+function contentTypeFor(fileName: string) {
+  const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return contentTypes[extension] ?? 'application/octet-stream';
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ file: string }> }
@@ -18,15 +34,10 @@ export async function GET(
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  const contentType = file.endsWith('.json')
-    ? 'application/json'
-    : file.endsWith('.svg')
-      ? 'image/svg+xml'
-      : 'application/octet-stream';
-
   return new NextResponse(asset, {
     headers: {
-      'content-type': contentType,
+      'content-type': contentTypeFor(file),
+      'cache-control': 'private, max-age=60',
     },
   });
 }
