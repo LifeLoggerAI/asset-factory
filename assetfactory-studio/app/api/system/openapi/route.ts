@@ -38,6 +38,9 @@ export async function GET() {
       },
     },
     paths: {
+      '/api/presets': {
+        get: { summary: 'List public generation presets.' },
+      },
       '/api/generate': {
         get: { summary: 'List jobs visible to the current tenant.' },
         post: { summary: 'Create a validated generation job.', security: bearerSecurity },
