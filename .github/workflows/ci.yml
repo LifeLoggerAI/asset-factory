@@ -15,8 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: engine/package-lock.json
       - name: Install engine dependencies
         run: npm --prefix engine install
       - name: Test engine
@@ -30,8 +28,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: assetfactory-studio/package-lock.json
       - name: Install Studio dependencies
         run: npm --prefix assetfactory-studio install
       - name: Lint Studio
@@ -56,8 +52,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
       - name: Install functions dependencies
         run: npm --prefix functions install
       - name: Build functions
@@ -73,8 +67,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: life-map-pipeline/functions/package-lock.json
       - name: Install LifeMap dependencies
         run: npm --prefix life-map-pipeline/functions install
       - name: Build LifeMap functions
