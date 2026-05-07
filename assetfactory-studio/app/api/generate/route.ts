@@ -7,9 +7,20 @@ import {
 import { validateGenerateRequest, type GenerateRequest } from '@/lib/server/assetFactoryValidation';
 import { evaluateGenerationPolicy } from '@/lib/server/assetGenerationPolicy';
 import { resolveAssetType } from '@/lib/server/assetTypeCatalog';
+import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 
-export async function GET() {
-  return NextResponse.json(await readJobs());
+export async function GET(req: NextRequest) {
+  const auth = authorizeAssetRequest(req);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  const jobs = await readJobs();
+  if (auth.tenantId) {
+    return NextResponse.json(
+      (jobs as Record<string, unknown>[]).filter((job) => job.tenantId === auth.tenantId)
+    );
+  }
+
+  return NextResponse.json(jobs);
 }
 
 export async function POST(req: NextRequest) {
@@ -22,6 +33,9 @@ export async function POST(req: NextRequest) {
     }
 
     const request = body as GenerateRequest;
+    const auth = authorizeAssetRequest(req, request.tenantId ?? 'default');
+    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
     const policy = evaluateGenerationPolicy(request);
     if (!policy.ok) {
       return NextResponse.json({ error: policy.error, policy }, { status: 422 });
@@ -30,6 +44,7 @@ export async function POST(req: NextRequest) {
     const definition = resolveAssetType(request.type);
     const job = {
       ...request,
+      tenantId: auth.tenantId ?? request.tenantId ?? 'default',
       type: definition.canonicalType,
       requestedType: request.type,
       assetFamily: definition.family,
