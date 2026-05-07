@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getFirebaseDiagnostics, isFirebaseAdminAvailable } from './firebaseAdmin';
+import { getAdminBucket, getAdminDb, getFirebaseDiagnostics, isFirebaseAdminAvailable } from './firebaseAdmin';
 import {
   localAddJob,
   localFindAsset,
@@ -22,8 +22,24 @@ type RenderableAssetJob = GenericRecord & {
   tenantId?: string;
 };
 
+const JOBS_COLLECTION = process.env.ASSET_FACTORY_JOBS_COLLECTION ?? 'assetFactoryJobs';
+const ASSETS_COLLECTION = process.env.ASSET_FACTORY_ASSETS_COLLECTION ?? 'assetFactoryAssets';
+const GENERATED_PREFIX = (process.env.ASSET_FACTORY_GENERATED_PREFIX ?? 'asset-factory/generated').replace(/\/$/, '');
+
+function forceLocalStore() {
+  return process.env.ASSET_FACTORY_FORCE_LOCAL === 'true';
+}
+
+function useFirebaseStore() {
+  return !forceLocalStore() && isFirebaseAdminAvailable();
+}
+
+function generatedPath(fileName: string) {
+  return `${GENERATED_PREFIX}/${fileName}`;
+}
+
 export function getStoreMode() {
-  return isFirebaseAdminAvailable() ? 'firestore-storage' : 'local-json';
+  return useFirebaseStore() ? 'firestore-storage' : 'local-json';
 }
 
 export function getStoreDiagnostics() {
@@ -31,33 +47,129 @@ export function getStoreDiagnostics() {
 
   return {
     mode: getStoreMode(),
-    fallbackActive: !diagnostics.available,
+    fallbackActive: !useFirebaseStore(),
     firebase: diagnostics,
+    collections: {
+      jobs: JOBS_COLLECTION,
+      assets: ASSETS_COLLECTION,
+    },
+    generatedPrefix: GENERATED_PREFIX,
+  };
+}
+
+async function firestoreAddJob(job: GenericRecord) {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  await db.collection(JOBS_COLLECTION).doc(String(job.jobId)).set(job, { merge: true });
+  return job;
+}
+
+async function firestoreReadJobs() {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  const snapshot = await db.collection(JOBS_COLLECTION).orderBy('createdAt', 'desc').limit(250).get();
+  return snapshot.docs.map((doc) => doc.data() as GenericRecord);
+}
+
+async function firestoreFindJob(jobId: string) {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  const doc = await db.collection(JOBS_COLLECTION).doc(jobId).get();
+  return doc.exists ? (doc.data() as GenericRecord) : null;
+}
+
+async function firestoreUpdateJob(jobId: string, patch: GenericRecord) {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  const ref = db.collection(JOBS_COLLECTION).doc(jobId);
+  const existing = await ref.get();
+
+  if (!existing.exists) return null;
+
+  const updated = {
+    ...existing.data(),
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await ref.set(updated, { merge: true });
+  return updated;
+}
+
+async function firestoreListAssets() {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  const snapshot = await db.collection(ASSETS_COLLECTION).orderBy('createdAt', 'desc').limit(250).get();
+  return snapshot.docs.map((doc) => doc.data() as GenericRecord);
+}
+
+async function firestoreFindAsset(jobId: string) {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  const doc = await db.collection(ASSETS_COLLECTION).doc(jobId).get();
+  return doc.exists ? (doc.data() as GenericRecord) : null;
+}
+
+async function firestoreUpsertAsset(asset: GenericRecord) {
+  const db = getAdminDb();
+  if (!db) throw new Error('Firestore is not available');
+
+  await db.collection(ASSETS_COLLECTION).doc(String(asset.jobId)).set(asset, { merge: true });
+  return asset;
+}
+
+async function writeGenerated(fileName: string, buffer: Buffer, contentType?: string) {
+  if (!useFirebaseStore()) {
+    await localWriteGenerated(fileName, buffer);
+    return { storagePath: fileName, publicUrl: null };
+  }
+
+  const bucket = getAdminBucket();
+  if (!bucket) throw new Error('Cloud Storage bucket is not available');
+
+  const file = bucket.file(generatedPath(fileName));
+  await file.save(buffer, {
+    resumable: false,
+    metadata: {
+      cacheControl: 'public, max-age=31536000, immutable',
+      contentType: contentType ?? 'application/octet-stream',
+    },
+  });
+
+  return {
+    storagePath: file.name,
+    publicUrl: `gs://${bucket.name}/${file.name}`,
   };
 }
 
 export async function addJob(job: GenericRecord) {
-  return localAddJob(job);
+  return useFirebaseStore() ? firestoreAddJob(job) : localAddJob(job);
 }
 
 export async function readJobs() {
-  return localReadJobs();
+  return useFirebaseStore() ? firestoreReadJobs() : localReadJobs();
 }
 
 export async function findJob(jobId: string) {
-  return localFindJob(jobId);
+  return useFirebaseStore() ? firestoreFindJob(jobId) : localFindJob(jobId);
 }
 
 export async function updateJob(jobId: string, patch: GenericRecord) {
-  return localUpdateJob(jobId, patch);
+  return useFirebaseStore() ? firestoreUpdateJob(jobId, patch) : localUpdateJob(jobId, patch);
 }
 
 export async function listAssets() {
-  return localListAssets();
+  return useFirebaseStore() ? firestoreListAssets() : localListAssets();
 }
 
 export async function findAsset(jobId: string) {
-  return localFindAsset(jobId);
+  return useFirebaseStore() ? firestoreFindAsset(jobId) : localFindAsset(jobId);
 }
 
 export async function materializeAsset(jobId: string) {
@@ -67,32 +179,68 @@ export async function materializeAsset(jobId: string) {
     return null;
   }
 
-  const rendered = await renderAsset(job as RenderableAssetJob);
+  await updateJob(jobId, { status: 'processing', startedAt: new Date().toISOString() });
 
-  await localWriteGenerated(rendered.assetFileName, rendered.assetBuffer);
-  await localWriteGenerated(
-    `${jobId}.json`,
-    Buffer.from(JSON.stringify(rendered.manifest, null, 2))
-  );
+  try {
+    const rendered = await renderAsset(job as RenderableAssetJob);
+    const assetWrite = await writeGenerated(rendered.assetFileName, rendered.assetBuffer, rendered.assetMimeType);
+    const manifestFile = `${jobId}.json`;
+    const manifest = {
+      ...rendered.manifest,
+      storagePaths: {
+        asset: assetWrite.storagePath,
+        assetUrl: assetWrite.publicUrl,
+        manifest: useFirebaseStore() ? generatedPath(manifestFile) : manifestFile,
+      },
+      previewPath: assetWrite.publicUrl ?? `/api/generated-assets/${rendered.assetFileName}`,
+    };
 
-  const asset = {
-    jobId,
-    tenantId: String(job.tenantId ?? 'default'),
-    fileName: rendered.assetFileName,
-    manifestFile: `${jobId}.json`,
-    manifest: rendered.manifest,
-    createdAt: new Date().toISOString(),
-    published: false,
-  };
+    await writeGenerated(manifestFile, Buffer.from(JSON.stringify(manifest, null, 2)), 'application/json');
 
-  await localUpsertAsset(asset);
-  await updateJob(jobId, { status: 'materialized' });
+    const asset = {
+      jobId,
+      tenantId: String(job.tenantId ?? 'default'),
+      fileName: rendered.assetFileName,
+      manifestFile,
+      manifest,
+      createdAt: new Date().toISOString(),
+      published: false,
+      storageMode: getStoreMode(),
+    };
 
-  return asset;
+    if (useFirebaseStore()) {
+      await firestoreUpsertAsset(asset);
+    } else {
+      await localUpsertAsset(asset);
+    }
+
+    await updateJob(jobId, { status: 'materialized', completedAt: new Date().toISOString() });
+
+    return asset;
+  } catch (error) {
+    await updateJob(jobId, {
+      status: 'failed',
+      failedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown render failure',
+    });
+    throw error;
+  }
 }
 
 export async function readGeneratedAsset(fileName: string) {
-  return localReadGenerated(fileName);
+  if (!useFirebaseStore()) {
+    return localReadGenerated(fileName);
+  }
+
+  const bucket = getAdminBucket();
+  if (!bucket) throw new Error('Cloud Storage bucket is not available');
+
+  try {
+    const [buffer] = await bucket.file(generatedPath(fileName)).download();
+    return buffer;
+  } catch {
+    return null;
+  }
 }
 
 export async function searchAssets() {
@@ -112,7 +260,11 @@ export async function publishAsset(jobId: string) {
     publishedAt: new Date().toISOString(),
   };
 
-  await localUpsertAsset(updated);
+  if (useFirebaseStore()) {
+    await firestoreUpsertAsset(updated);
+  } else {
+    await localUpsertAsset(updated);
+  }
 
   return updated;
 }
