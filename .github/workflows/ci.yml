@@ -1,27 +1,83 @@
-
 name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
+  engine:
+    name: Engine tests
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: engine/package-lock.json
+      - name: Install engine dependencies
+        run: npm --prefix engine install
+      - name: Test engine
+        run: npm --prefix engine test
 
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+  studio:
+    name: Studio multimodal checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: assetfactory-studio/package-lock.json
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+      - name: Lint Studio
+        run: npm --prefix assetfactory-studio run lint
+      - name: Typecheck Studio
+        run: npm --prefix assetfactory-studio run typecheck
+      - name: Test Studio
+        run: npm --prefix assetfactory-studio test
+      - name: Build Studio
+        run: npm --prefix assetfactory-studio run build
+      - name: E2E Studio local fallback
+        run: npm --prefix assetfactory-studio run e2e
+        env:
+          ASSET_FACTORY_FORCE_LOCAL: 'true'
+          ASSET_FACTORY_MEDIA_PROVIDER: local-proof
 
-    - name: Install Dependencies
-      run: npm install
+  functions:
+    name: Firebase functions checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install functions dependencies
+        run: npm --prefix functions install
+      - name: Build functions
+        run: npm --prefix functions run build
+      - name: Test functions
+        run: npm --prefix functions test
 
-    - name: Lint
-      run: npm run lint
-
-    - name: Test
-      run: npm test
+  lifemap:
+    name: LifeMap functions checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: life-map-pipeline/functions/package-lock.json
+      - name: Install LifeMap dependencies
+        run: npm --prefix life-map-pipeline/functions install
+      - name: Build LifeMap functions
+        run: npm --prefix life-map-pipeline/functions run build
+      - name: Test LifeMap functions
+        run: npm --prefix life-map-pipeline/functions test
