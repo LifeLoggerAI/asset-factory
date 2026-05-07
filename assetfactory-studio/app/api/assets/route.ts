@@ -4,7 +4,7 @@ import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 import type { AssetFactoryAsset } from '@/lib/server/assetFactoryTypes';
 
 export async function GET(req: NextRequest) {
-  const auth = authorizeAssetRequest(req);
+  const auth = await authorizeAssetRequest(req);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const assets = await listAssets() as AssetFactoryAsset[];
