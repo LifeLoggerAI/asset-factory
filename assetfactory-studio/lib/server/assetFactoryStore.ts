@@ -124,6 +124,10 @@ async function firestoreUpsertAsset(asset: GenericRecord) {
   return asset;
 }
 
+async function upsertAsset(asset: GenericRecord) {
+  return useFirebaseStore() ? firestoreUpsertAsset(asset) : localUpsertAsset(asset);
+}
+
 async function writeGenerated(fileName: string, buffer: Buffer, contentType?: string) {
   if (!useFirebaseStore()) {
     await localWriteGenerated(fileName, buffer);
@@ -208,12 +212,7 @@ export async function materializeAsset(jobId: string) {
       storageMode: getStoreMode(),
     };
 
-    if (useFirebaseStore()) {
-      await firestoreUpsertAsset(asset);
-    } else {
-      await localUpsertAsset(asset);
-    }
-
+    await upsertAsset(asset);
     await updateJob(jobId, { status: 'materialized', completedAt: new Date().toISOString() });
 
     return asset;
@@ -260,35 +259,84 @@ export async function publishAsset(jobId: string) {
     publishedAt: new Date().toISOString(),
   };
 
-  if (useFirebaseStore()) {
-    await firestoreUpsertAsset(updated);
-  } else {
-    await localUpsertAsset(updated);
-  }
+  await upsertAsset(updated);
 
   return updated;
 }
 
 export async function rollbackAsset(jobId: string, versionId: string) {
-  return {
-    jobId,
+  const asset = await findAsset(jobId);
+
+  if (!asset) {
+    return null;
+  }
+
+  const rollback = {
+    rollbackId: randomUUID(),
     versionId,
-    rolledBack: true,
+    rolledBackAt: new Date().toISOString(),
   };
+
+  const updated = {
+    ...asset,
+    activeVersionId: versionId,
+    lastRollback: rollback,
+    rollbacks: [...((asset.rollbacks as GenericRecord[] | undefined) ?? []), rollback],
+  };
+
+  await upsertAsset(updated);
+  await updateJob(jobId, { status: 'rolled-back', activeVersionId: versionId, lastRollback: rollback });
+
+  return updated;
 }
 
 export async function approveAsset(jobId: string, approvalPatch: GenericRecord) {
-  return {
-    jobId,
-    ...approvalPatch,
+  const asset = await findAsset(jobId);
+
+  if (!asset) {
+    return null;
+  }
+
+  const approval = {
     approvalId: randomUUID(),
+    approvedAt: new Date().toISOString(),
+    ...approvalPatch,
   };
+
+  const updated = {
+    ...asset,
+    approvalStatus: 'approved',
+    approvedAt: approval.approvedAt,
+    approvals: [...((asset.approvals as GenericRecord[] | undefined) ?? []), approval],
+  };
+
+  await upsertAsset(updated);
+  await updateJob(jobId, { status: 'approved', approvalStatus: 'approved', lastApproval: approval });
+
+  return updated;
 }
 
 export async function createAssetVersion(jobId: string, versionPatch: GenericRecord) {
-  return {
-    jobId,
+  const asset = await findAsset(jobId);
+
+  if (!asset) {
+    return null;
+  }
+
+  const version = {
     versionId: randomUUID(),
+    createdAt: new Date().toISOString(),
     ...versionPatch,
   };
+
+  const updated = {
+    ...asset,
+    activeVersionId: version.versionId,
+    versions: [...((asset.versions as GenericRecord[] | undefined) ?? []), version],
+  };
+
+  await upsertAsset(updated);
+  await updateJob(jobId, { activeVersionId: version.versionId, lastVersion: version });
+
+  return updated;
 }
