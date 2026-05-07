@@ -4,7 +4,9 @@ import {
   getStoreDiagnostics,
   readJobs,
 } from '@/lib/server/assetFactoryStore';
-import { validateGenerateRequest } from '@/lib/server/assetFactoryValidation';
+import { validateGenerateRequest, type GenerateRequest } from '@/lib/server/assetFactoryValidation';
+import { evaluateGenerationPolicy } from '@/lib/server/assetGenerationPolicy';
+import { resolveAssetType } from '@/lib/server/assetTypeCatalog';
 
 export async function GET() {
   return NextResponse.json(await readJobs());
@@ -19,9 +21,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: err }, { status: 400 });
     }
 
+    const request = body as GenerateRequest;
+    const policy = evaluateGenerationPolicy(request);
+    if (!policy.ok) {
+      return NextResponse.json({ error: policy.error, policy }, { status: 422 });
+    }
+
+    const definition = resolveAssetType(request.type);
     const job = {
-      ...body,
+      ...request,
+      type: definition.canonicalType,
+      requestedType: request.type,
+      assetFamily: definition.family,
+      canonicalType: definition.canonicalType,
       status: 'queued',
+      queueStatus: 'pending-materialization',
+      estimatedUnits: policy.estimatedUnits,
+      estimatedCostCents: policy.estimatedCostCents,
       createdAt: new Date().toISOString(),
     };
 
@@ -34,6 +50,11 @@ export async function POST(req: NextRequest) {
         ok: true,
         jobId: job.jobId,
         status: job.status,
+        queueStatus: job.queueStatus,
+        canonicalType: job.canonicalType,
+        assetFamily: job.assetFamily,
+        estimatedUnits: job.estimatedUnits,
+        estimatedCostCents: job.estimatedCostCents,
         persistenceMode: diagnostics.mode,
         fallbackActive: diagnostics.fallbackActive,
       },
