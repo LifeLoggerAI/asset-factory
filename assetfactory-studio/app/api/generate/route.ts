@@ -4,6 +4,7 @@ import {
   getStoreDiagnostics,
   readJobs,
 } from '@/lib/server/assetFactoryStore';
+import { requireAssetFactoryApiKey } from '@/lib/server/apiAuth';
 import { validateGenerateRequest } from '@/lib/server/assetFactoryValidation';
 
 export async function GET() {
@@ -11,6 +12,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = requireAssetFactoryApiKey(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
 
