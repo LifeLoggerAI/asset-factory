@@ -6,6 +6,7 @@ import {
 } from '@/lib/server/assetFactoryStore';
 import { validateGenerateRequest, type GenerateRequest } from '@/lib/server/assetFactoryValidation';
 import { evaluateGenerationPolicy } from '@/lib/server/assetGenerationPolicy';
+import { evaluateTenantQuota } from '@/lib/server/assetBilling';
 import { resolveAssetType } from '@/lib/server/assetTypeCatalog';
 import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 
@@ -41,10 +42,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: policy.error, policy }, { status: 422 });
     }
 
+    const tenantId = auth.tenantId ?? request.tenantId ?? 'default';
+    const quota = await evaluateTenantQuota({
+      tenantId,
+      estimatedUnits: policy.estimatedUnits,
+      estimatedCostCents: policy.estimatedCostCents,
+    });
+    if (!quota.ok) {
+      return NextResponse.json({ error: quota.error, quota }, { status: 402 });
+    }
+
     const definition = resolveAssetType(request.type);
     const job = {
       ...request,
-      tenantId: auth.tenantId ?? request.tenantId ?? 'default',
+      tenantId,
       type: definition.canonicalType,
       requestedType: request.type,
       assetFamily: definition.family,
@@ -53,6 +64,7 @@ export async function POST(req: NextRequest) {
       queueStatus: 'pending-materialization',
       estimatedUnits: policy.estimatedUnits,
       estimatedCostCents: policy.estimatedCostCents,
+      quotaSnapshot: quota,
       createdAt: new Date().toISOString(),
     };
 
@@ -70,6 +82,7 @@ export async function POST(req: NextRequest) {
         assetFamily: job.assetFamily,
         estimatedUnits: job.estimatedUnits,
         estimatedCostCents: job.estimatedCostCents,
+        quota,
         persistenceMode: diagnostics.mode,
         fallbackActive: diagnostics.fallbackActive,
       },
