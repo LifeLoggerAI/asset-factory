@@ -1,7 +1,16 @@
 export type StoreMode = 'firestore-storage' | 'local-json';
-export type RendererMode = 'svg-proof'|'png-export'|'webp-export'|'manifest-only'|'visual-renderer'|'spatial-renderer'|'audio-renderer';
-export type AssetFactoryJob = { jobId:string; tenantId:string; type:string; prompt:string; status:string; createdAt:string; presetId?:string; metadata?:Record<string,unknown>; [k:string]:unknown };
-export type AssetFactoryManifest = { jobId:string; tenantId:string; type:string; presetId?:string|null; prompt:string; rendererMode:RendererMode; generatedAt:string; formats:string[]; dimensions:{width:number;height:number}; transparentBackground:boolean; storagePaths:Record<string,string>; previewPath:string|null; metadata:Record<string,unknown>; provenance:Record<string,unknown>; approvalStatus:string; version:number; targetModules:string[]; dependencies:string[] };
+export type RendererMode =
+  | 'svg-proof'
+  | 'png-export'
+  | 'webp-export'
+  | 'manifest-only'
+  | 'visual-renderer'
+  | 'spatial-renderer'
+  | 'audio-renderer';
+export type AssetFamily = 'graphic' | 'model' | 'audio' | 'bundle';
+export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';
+export type AssetFactoryJob = { jobId:string; tenantId:string; type:string; prompt:string; status:string; createdAt:string; presetId?:string; format?:string; variant?:string; targetModule?:string; assetFamily?:AssetFamily; canonicalType?:CanonicalAssetType; metadata?:Record<string,unknown>; [k:string]:unknown };
+export type AssetFactoryManifest = { jobId:string; tenantId:string; type:string; presetId?:string|null; prompt:string; rendererMode:RendererMode; generatedAt:string; formats:string[]; dimensions:{width:number;height:number}; transparentBackground:boolean; storagePaths:Record<string,string>; previewPath:string|null; metadata:Record<string,unknown> & { canonicalType?:CanonicalAssetType; assetFamily?:AssetFamily }; provenance:Record<string,unknown>; approvalStatus:string; version:number; targetModules:string[]; dependencies:string[] };
 export type AssetFactoryAsset = { jobId:string; tenantId:string; fileName:string; manifestFile:string; manifest:AssetFactoryManifest; createdAt:string; published:boolean; publishedAt?:string };
 export type AssetFactoryVersion = { jobId:string; versionId:string; createdAt:string; patch:Record<string,unknown> };
 export type AssetFactoryApproval = { approvalId:string; jobId:string; status:string; reviewer?:string; note?:string; createdAt:string };

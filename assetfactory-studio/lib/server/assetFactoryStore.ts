@@ -5,13 +5,16 @@ import {
   localFindAsset,
   localFindJob,
   localListAssets,
+  localListUsage,
   localReadGenerated,
   localReadJobs,
+  localRecordUsage,
   localUpdateJob,
   localUpsertAsset,
   localWriteGenerated,
 } from './localAssetFactoryStore';
 import { renderAsset } from './assetRenderer';
+import { attachStoragePathsToManifest, buildArtifactStoragePaths } from './assetStoragePaths';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -152,8 +155,32 @@ async function writeGenerated(fileName: string, buffer: Buffer, contentType?: st
   };
 }
 
+export async function recordUsage(event: GenericRecord) {
+  return localRecordUsage({
+    eventId: event.eventId ?? randomUUID(),
+    ...event,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+  });
+}
+
+export async function listUsageEvents() {
+  return localListUsage();
+}
+
 export async function addJob(job: GenericRecord) {
-  return useFirebaseStore() ? firestoreAddJob(job) : localAddJob(job);
+  const saved = useFirebaseStore() ? await firestoreAddJob(job) : await localAddJob(job);
+
+  await recordUsage({
+    action: 'job.created',
+    tenantId: job.tenantId ?? 'default',
+    jobId: job.jobId,
+    assetType: job.canonicalType ?? job.type,
+    assetFamily: job.assetFamily,
+    estimatedUnits: job.estimatedUnits ?? 0,
+    estimatedCostCents: job.estimatedCostCents ?? 0,
+  });
+
+  return saved;
 }
 
 export async function readJobs() {
@@ -183,23 +210,55 @@ export async function materializeAsset(jobId: string) {
     return null;
   }
 
-  await updateJob(jobId, { status: 'processing', startedAt: new Date().toISOString() });
+  await updateJob(jobId, {
+    status: 'rendering',
+    renderStartedAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
+  });
+
+  await recordUsage({
+    action: 'job.rendering',
+    tenantId: job.tenantId ?? 'default',
+    jobId,
+    assetType: job.canonicalType ?? job.type,
+    estimatedUnits: job.estimatedUnits ?? 0,
+    estimatedCostCents: job.estimatedCostCents ?? 0,
+  });
 
   try {
     const rendered = await renderAsset(job as RenderableAssetJob);
-    const assetWrite = await writeGenerated(rendered.assetFileName, rendered.assetBuffer, rendered.assetMimeType);
     const manifestFile = `${jobId}.json`;
-    const manifest = {
-      ...rendered.manifest,
-      storagePaths: {
-        asset: assetWrite.storagePath,
-        assetUrl: assetWrite.publicUrl,
-        manifest: useFirebaseStore() ? generatedPath(manifestFile) : manifestFile,
-      },
-      previewPath: assetWrite.publicUrl ?? `/api/generated-assets/${rendered.assetFileName}`,
-    };
 
-    await writeGenerated(manifestFile, Buffer.from(JSON.stringify(manifest, null, 2)), 'application/json');
+    const paths = buildArtifactStoragePaths({
+      tenantId: String(job.tenantId ?? 'default'),
+      jobId,
+      version: rendered.manifest.version,
+      fileName: rendered.assetFileName,
+      manifestFile,
+    });
+
+    const assetWrite = await writeGenerated(
+      rendered.assetFileName,
+      rendered.assetBuffer,
+      rendered.assetMimeType
+    );
+
+    const manifestWritePath = useFirebaseStore()
+      ? generatedPath(manifestFile)
+      : manifestFile;
+
+    const manifest = attachStoragePathsToManifest(rendered.manifest, {
+      ...paths,
+      asset: assetWrite.storagePath,
+      assetUrl: assetWrite.publicUrl ?? paths.assetUrl,
+      manifest: manifestWritePath,
+    });
+
+    await writeGenerated(
+      manifestFile,
+      Buffer.from(JSON.stringify(manifest, null, 2)),
+      'application/json'
+    );
 
     const asset = {
       jobId,
@@ -207,21 +266,59 @@ export async function materializeAsset(jobId: string) {
       fileName: rendered.assetFileName,
       manifestFile,
       manifest,
+      storagePaths: {
+        ...paths,
+        asset: assetWrite.storagePath,
+        assetUrl: assetWrite.publicUrl ?? paths.assetUrl,
+        manifest: manifestWritePath,
+      },
+      previewPath: assetWrite.publicUrl ?? `/api/generated-assets/${rendered.assetFileName}`,
       createdAt: new Date().toISOString(),
       published: false,
       storageMode: getStoreMode(),
     };
 
     await upsertAsset(asset);
-    await updateJob(jobId, { status: 'materialized', completedAt: new Date().toISOString() });
+
+    await updateJob(jobId, {
+      status: 'materialized',
+      renderCompletedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      assetFileName: rendered.assetFileName,
+      manifestFile,
+      rendererMode: rendered.mode,
+    });
+
+    await recordUsage({
+      action: 'asset.materialized',
+      tenantId: job.tenantId ?? 'default',
+      jobId,
+      assetType: manifest.metadata?.canonicalType ?? manifest.type,
+      rendererMode: rendered.mode,
+      fileName: rendered.assetFileName,
+      estimatedUnits: job.estimatedUnits ?? 0,
+      estimatedCostCents: job.estimatedCostCents ?? 0,
+    });
 
     return asset;
   } catch (error) {
+    const failureReason = error instanceof Error ? error.message : 'unknown render error';
+
     await updateJob(jobId, {
       status: 'failed',
       failedAt: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown render failure',
+      failureReason,
+      error: failureReason,
     });
+
+    await recordUsage({
+      action: 'job.failed',
+      tenantId: job.tenantId ?? 'default',
+      jobId,
+      assetType: job.canonicalType ?? job.type,
+      failureReason,
+    });
+
     throw error;
   }
 }
@@ -253,13 +350,23 @@ export async function publishAsset(jobId: string) {
     return null;
   }
 
+  const publishedAt = new Date().toISOString();
+
   const updated = {
     ...asset,
     published: true,
-    publishedAt: new Date().toISOString(),
+    publishedAt,
   };
 
   await upsertAsset(updated);
+  await updateJob(jobId, { status: 'published', publishedAt });
+
+  await recordUsage({
+    action: 'asset.published',
+    tenantId: (asset as GenericRecord).tenantId ?? 'default',
+    jobId,
+    assetType: ((asset as GenericRecord).manifest as GenericRecord | undefined)?.type,
+  });
 
   return updated;
 }
@@ -274,6 +381,7 @@ export async function rollbackAsset(jobId: string, versionId: string) {
   const rollback = {
     rollbackId: randomUUID(),
     versionId,
+    rolledBack: true,
     rolledBackAt: new Date().toISOString(),
   };
 
@@ -285,7 +393,18 @@ export async function rollbackAsset(jobId: string, versionId: string) {
   };
 
   await upsertAsset(updated);
-  await updateJob(jobId, { status: 'rolled-back', activeVersionId: versionId, lastRollback: rollback });
+  await updateJob(jobId, {
+    status: 'rolled-back',
+    activeVersionId: versionId,
+    lastRollback: rollback,
+  });
+
+  await recordUsage({
+    action: 'asset.rolled_back',
+    tenantId: (asset as GenericRecord).tenantId ?? 'default',
+    jobId,
+    versionId,
+  });
 
   return updated;
 }
@@ -300,18 +419,41 @@ export async function approveAsset(jobId: string, approvalPatch: GenericRecord) 
   const approval = {
     approvalId: randomUUID(),
     approvedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     ...approvalPatch,
   };
 
+  const approvalStatus = approvalPatch.status ?? 'approved';
+  const assetRecord = asset as GenericRecord;
+  const manifest = assetRecord.manifest as GenericRecord | undefined;
+
   const updated = {
-    ...asset,
-    approvalStatus: 'approved',
+    ...assetRecord,
+    manifest: manifest
+      ? { ...manifest, approvalStatus }
+      : manifest,
+    approvalStatus,
     approvedAt: approval.approvedAt,
-    approvals: [...((asset.approvals as GenericRecord[] | undefined) ?? []), approval],
+    lastApproval: approval,
+    approval,
+    approvals: [...((assetRecord.approvals as GenericRecord[] | undefined) ?? []), approval],
   };
 
   await upsertAsset(updated);
-  await updateJob(jobId, { status: 'approved', approvalStatus: 'approved', lastApproval: approval });
+
+  await updateJob(jobId, {
+    status: approvalStatus === 'approved' ? 'approved' : 'reviewed',
+    approvalStatus,
+    approvedAt: approval.approvedAt,
+    lastApproval: approval,
+  });
+
+  await recordUsage({
+    action: 'asset.approved',
+    tenantId: assetRecord.tenantId ?? 'default',
+    jobId,
+    approvalStatus,
+  });
 
   return updated;
 }
@@ -332,11 +474,22 @@ export async function createAssetVersion(jobId: string, versionPatch: GenericRec
   const updated = {
     ...asset,
     activeVersionId: version.versionId,
+    lastVersion: version,
     versions: [...((asset.versions as GenericRecord[] | undefined) ?? []), version],
   };
 
   await upsertAsset(updated);
-  await updateJob(jobId, { activeVersionId: version.versionId, lastVersion: version });
+  await updateJob(jobId, {
+    activeVersionId: version.versionId,
+    lastVersion: version,
+  });
+
+  await recordUsage({
+    action: 'asset.version_created',
+    tenantId: (asset as GenericRecord).tenantId ?? 'default',
+    jobId,
+    versionId: version.versionId,
+  });
 
   return updated;
 }
