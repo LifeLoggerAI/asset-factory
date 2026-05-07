@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { addJob, readJobs } from '@/lib/server/assetFactoryStore';
+import { requireAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
 type AssetFactoryJobLike = {
   jobId?: string;
 };
 
 export async function POST(req: NextRequest) {
+  const authError = requireAssetFactoryApiKey(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
 
