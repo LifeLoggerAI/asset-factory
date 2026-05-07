@@ -1,6 +1,6 @@
 import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';
 
-const safePathSegment = /^[a-zA-Z0-9._/-]+$/;
+const safeIdSegment = /^[a-zA-Z0-9._-]+$/;
 const safeTenant = /^[a-zA-Z0-9._:-]+$/;
 
 export type GenerateRequest = {
@@ -24,7 +24,7 @@ export function validateJobId(value: unknown): value is string {
     typeof value === 'string' &&
     value.length > 2 &&
     value.length < 128 &&
-    safePathSegment.test(value) &&
+    safeIdSegment.test(value) &&
     !value.includes('..')
   );
 }
@@ -40,7 +40,13 @@ export function validateTenantId(value: unknown): value is string {
 }
 
 export function validateFileName(value: unknown): value is string {
-  return typeof value === 'string' && safePathSegment.test(value) && !value.includes('..');
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length < 256 &&
+    safeIdSegment.test(value) &&
+    !value.includes('..')
+  );
 }
 
 function validateOptionalString(body: Record<string, unknown>, key: string) {
