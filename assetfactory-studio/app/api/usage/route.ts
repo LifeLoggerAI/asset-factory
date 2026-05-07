@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listAssets, readJobs } from '@/lib/server/assetFactoryStore';
+import type { AssetFactoryAsset, AssetFactoryJob } from '@/lib/server/assetFactoryTypes';
 
 type CountMap = Record<string, number>;
 
@@ -9,28 +10,29 @@ function increment(map: CountMap, key: unknown) {
 }
 
 export async function GET() {
-  const [jobs, assets] = await Promise.all([readJobs(), listAssets()]);
+  const [jobs, assets] = await Promise.all([
+    readJobs() as Promise<AssetFactoryJob[]>,
+    listAssets() as Promise<AssetFactoryAsset[]>,
+  ]);
   const jobsByStatus: CountMap = {};
   const jobsByType: CountMap = {};
   const assetsByType: CountMap = {};
   const assetsByRendererMode: CountMap = {};
   const assetsByFormat: CountMap = {};
 
-  for (const job of jobs as Record<string, unknown>[]) {
+  for (const job of jobs) {
     increment(jobsByStatus, job.status);
     increment(jobsByType, job.type);
   }
 
-  for (const asset of assets as Record<string, unknown>[]) {
-    const manifest = asset.manifest as Record<string, unknown> | undefined;
-    increment(assetsByType, manifest?.type ?? asset.type);
-    increment(assetsByRendererMode, manifest?.rendererMode);
+  for (const asset of assets) {
+    increment(assetsByType, asset.manifest?.metadata?.canonicalType ?? asset.manifest?.type);
+    increment(assetsByRendererMode, asset.manifest?.rendererMode);
 
-    const formats = Array.isArray(manifest?.formats) ? manifest?.formats : [];
-    for (const format of formats) increment(assetsByFormat, format);
+    for (const format of asset.manifest?.formats ?? []) increment(assetsByFormat, format);
   }
 
-  const publishedAssets = (assets as Record<string, unknown>[]).filter((asset) => asset.published).length;
+  const publishedAssets = assets.filter((asset) => asset.published).length;
 
   return NextResponse.json({
     ok: true,
