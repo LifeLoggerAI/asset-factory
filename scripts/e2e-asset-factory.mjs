@@ -10,7 +10,7 @@ const shouldSpawnDevServer =
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function requestJson(path, options) {
+async function request(path, options) {
   const response = await fetch(`${base}${path}`, options);
   const text = await response.text();
 
@@ -29,7 +29,11 @@ async function requestJson(path, options) {
     );
   }
 
-  return body;
+  return { response, body };
+}
+
+async function requestJson(path, options) {
+  return (await request(path, options)).body;
 }
 
 async function waitForServer(timeoutMs = 120000) {
@@ -45,6 +49,61 @@ async function waitForServer(timeoutMs = 120000) {
   }
 
   return false;
+}
+
+const cases = [
+  { type: 'graphic', extension: 'svg', prompt: 'e2e graphic proof' },
+  { type: 'model3d', extension: 'gltf', prompt: 'e2e model proof' },
+  { type: 'audio', extension: 'wav', prompt: 'e2e sound proof', metadata: { durationSeconds: 1 } },
+  { type: 'bundle', extension: 'json', prompt: 'e2e bundle proof', metadata: { assets: [] } },
+];
+
+async function exerciseCase(testCase) {
+  const requestedJobId = `e2e-${testCase.type}-${Date.now()}`;
+  const generateResult = await requestJson('/api/generate', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      jobId: requestedJobId,
+      tenantId: 'e2e',
+      prompt: testCase.prompt,
+      type: testCase.type,
+      metadata: testCase.metadata ?? {},
+    }),
+  });
+
+  const jobId = generateResult?.jobId || requestedJobId;
+
+  const materialized = await requestJson(`/api/jobs/${jobId}/materialize`, {
+    method: 'POST',
+  });
+
+  if (materialized?.asset?.manifest?.metadata?.canonicalType !== testCase.type) {
+    throw new Error(`${testCase.type} manifest canonicalType mismatch`);
+  }
+
+  await requestJson(`/api/jobs/${jobId}`);
+  await requestJson(`/api/assets/${jobId}`);
+  await request(`/api/generated-assets/${jobId}.${testCase.extension}`);
+  await requestJson(`/api/generated-assets/${jobId}.json`);
+
+  await requestJson(`/api/jobs/${jobId}/publish`, {
+    method: 'POST',
+  });
+
+  await requestJson(`/api/jobs/${jobId}/approve`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      status: 'approved',
+    }),
+  });
+
+  return jobId;
 }
 
 async function run() {
@@ -84,49 +143,20 @@ async function run() {
       }
     }
 
-    const requestedJobId = `e2e-${Date.now()}`;
+    const manifest = await requestJson('/api/system/manifest');
+    for (const testCase of cases) {
+      if (!manifest.supportedAssetTypes?.some((assetType) => assetType.canonicalType === testCase.type)) {
+        throw new Error(`system manifest missing ${testCase.type}`);
+      }
+      await exerciseCase(testCase);
+    }
 
-    await requestJson('/api/system/manifest');
+    const usage = await requestJson('/api/usage');
+    if (!usage?.assetsByType?.graphic || !usage?.assetsByType?.audio || !usage?.assetsByType?.model3d) {
+      throw new Error('usage metrics missing multimodal asset counts');
+    }
 
-    const generateResult = await requestJson('/api/generate', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        jobId: requestedJobId,
-        tenantId: 'e2e',
-        prompt: 'e2e prompt',
-        type: 'body/neutral',
-      }),
-    });
-
-    const jobId = generateResult?.jobId || requestedJobId;
-
-    await requestJson(`/api/jobs/${jobId}/materialize`, {
-      method: 'POST',
-    });
-
-    await requestJson(`/api/jobs/${jobId}`);
-    await requestJson(`/api/assets/${jobId}`);
-    await requestJson(`/api/generated-assets/${jobId}.svg`);
-    await requestJson(`/api/generated-assets/${jobId}.json`);
-
-    await requestJson(`/api/jobs/${jobId}/publish`, {
-      method: 'POST',
-    });
-
-    await requestJson(`/api/jobs/${jobId}/approve`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        status: 'approved',
-      }),
-    });
-
-    console.log('PASS E2E');
+    console.log('PASS E2E multimodal assets');
   } catch (error) {
     console.error('FAIL', error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
