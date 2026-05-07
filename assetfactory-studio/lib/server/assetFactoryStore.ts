@@ -1,23 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { getAdminBucket, getAdminDb, getFirebaseDiagnostics, isFirebaseAdminAvailable } from './firebaseAdmin';
-import {
-  localAddJob,
-  localFindAsset,
-  localFindJob,
-  localListAssets,
-  localListUsage,
-  localReadGenerated,
-  localReadJobs,
-  localRecordUsage,
-  localUpdateJob,
-  localUpsertAsset,
-  localWriteGenerated,
-} from './localAssetFactoryStore';
+import { getFirebaseDiagnostics } from './firebaseAdmin';
+import { activeAssetBackend } from './assetBackend';
 import { renderAsset } from './assetRenderer';
 import { attachStoragePathsToManifest, buildArtifactStoragePaths } from './assetStoragePaths';
 
 type GenericRecord = Record<string, unknown>;
-
 type RenderableAssetJob = GenericRecord & {
   jobId: string;
   prompt: string;
@@ -29,20 +16,8 @@ const JOBS_COLLECTION = process.env.ASSET_FACTORY_JOBS_COLLECTION ?? 'assetFacto
 const ASSETS_COLLECTION = process.env.ASSET_FACTORY_ASSETS_COLLECTION ?? 'assetFactoryAssets';
 const GENERATED_PREFIX = (process.env.ASSET_FACTORY_GENERATED_PREFIX ?? 'asset-factory/generated').replace(/\/$/, '');
 
-function forceLocalStore() {
-  return process.env.ASSET_FACTORY_FORCE_LOCAL === 'true';
-}
-
-function useFirebaseStore() {
-  return !forceLocalStore() && isFirebaseAdminAvailable();
-}
-
-function generatedPath(fileName: string) {
-  return `${GENERATED_PREFIX}/${fileName}`;
-}
-
 export function getStoreMode() {
-  return useFirebaseStore() ? 'firestore-storage' : 'local-json';
+  return activeAssetBackend().mode;
 }
 
 export function getStoreDiagnostics() {
@@ -50,7 +25,7 @@ export function getStoreDiagnostics() {
 
   return {
     mode: getStoreMode(),
-    fallbackActive: !useFirebaseStore(),
+    fallbackActive: activeAssetBackend().mode === 'local-json',
     firebase: diagnostics,
     collections: {
       jobs: JOBS_COLLECTION,
@@ -60,103 +35,8 @@ export function getStoreDiagnostics() {
   };
 }
 
-async function firestoreAddJob(job: GenericRecord) {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  await db.collection(JOBS_COLLECTION).doc(String(job.jobId)).set(job, { merge: true });
-  return job;
-}
-
-async function firestoreReadJobs() {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  const snapshot = await db.collection(JOBS_COLLECTION).orderBy('createdAt', 'desc').limit(250).get();
-  return snapshot.docs.map((doc) => doc.data() as GenericRecord);
-}
-
-async function firestoreFindJob(jobId: string) {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  const doc = await db.collection(JOBS_COLLECTION).doc(jobId).get();
-  return doc.exists ? (doc.data() as GenericRecord) : null;
-}
-
-async function firestoreUpdateJob(jobId: string, patch: GenericRecord) {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  const ref = db.collection(JOBS_COLLECTION).doc(jobId);
-  const existing = await ref.get();
-
-  if (!existing.exists) return null;
-
-  const updated = {
-    ...existing.data(),
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
-
-  await ref.set(updated, { merge: true });
-  return updated;
-}
-
-async function firestoreListAssets() {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  const snapshot = await db.collection(ASSETS_COLLECTION).orderBy('createdAt', 'desc').limit(250).get();
-  return snapshot.docs.map((doc) => doc.data() as GenericRecord);
-}
-
-async function firestoreFindAsset(jobId: string) {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  const doc = await db.collection(ASSETS_COLLECTION).doc(jobId).get();
-  return doc.exists ? (doc.data() as GenericRecord) : null;
-}
-
-async function firestoreUpsertAsset(asset: GenericRecord) {
-  const db = getAdminDb();
-  if (!db) throw new Error('Firestore is not available');
-
-  await db.collection(ASSETS_COLLECTION).doc(String(asset.jobId)).set(asset, { merge: true });
-  return asset;
-}
-
-async function upsertAsset(asset: GenericRecord) {
-  return useFirebaseStore() ? firestoreUpsertAsset(asset) : localUpsertAsset(asset);
-}
-
-async function writeGenerated(fileName: string, buffer: Buffer, contentType?: string) {
-  if (!useFirebaseStore()) {
-    await localWriteGenerated(fileName, buffer);
-    return { storagePath: fileName, publicUrl: null };
-  }
-
-  const bucket = getAdminBucket();
-  if (!bucket) throw new Error('Cloud Storage bucket is not available');
-
-  const file = bucket.file(generatedPath(fileName));
-  await file.save(buffer, {
-    resumable: false,
-    metadata: {
-      cacheControl: 'public, max-age=31536000, immutable',
-      contentType: contentType ?? 'application/octet-stream',
-    },
-  });
-
-  return {
-    storagePath: file.name,
-    publicUrl: `gs://${bucket.name}/${file.name}`,
-  };
-}
-
 export async function recordUsage(event: GenericRecord) {
-  return localRecordUsage({
+  return activeAssetBackend().recordUsage({
     eventId: event.eventId ?? randomUUID(),
     ...event,
     createdAt: event.createdAt ?? new Date().toISOString(),
@@ -164,11 +44,11 @@ export async function recordUsage(event: GenericRecord) {
 }
 
 export async function listUsageEvents() {
-  return localListUsage();
+  return activeAssetBackend().listUsage();
 }
 
 export async function addJob(job: GenericRecord) {
-  const saved = useFirebaseStore() ? await firestoreAddJob(job) : await localAddJob(job);
+  const saved = await activeAssetBackend().addJob(job);
 
   await recordUsage({
     action: 'job.created',
@@ -184,23 +64,43 @@ export async function addJob(job: GenericRecord) {
 }
 
 export async function readJobs() {
-  return useFirebaseStore() ? firestoreReadJobs() : localReadJobs();
+  return activeAssetBackend().readJobs();
 }
 
 export async function findJob(jobId: string) {
-  return useFirebaseStore() ? firestoreFindJob(jobId) : localFindJob(jobId);
+  return activeAssetBackend().findJob(jobId);
 }
 
 export async function updateJob(jobId: string, patch: GenericRecord) {
-  return useFirebaseStore() ? firestoreUpdateJob(jobId, patch) : localUpdateJob(jobId, patch);
+  return activeAssetBackend().updateJob(jobId, patch);
 }
 
 export async function listAssets() {
-  return useFirebaseStore() ? firestoreListAssets() : localListAssets();
+  return activeAssetBackend().listAssets();
 }
 
 export async function findAsset(jobId: string) {
-  return useFirebaseStore() ? firestoreFindAsset(jobId) : localFindAsset(jobId);
+  return activeAssetBackend().findAsset(jobId);
+}
+
+async function upsertAsset(asset: GenericRecord) {
+  return activeAssetBackend().upsertAsset(asset);
+}
+
+async function writeGeneratedFile(
+  fileName: string,
+  buffer: Buffer,
+  contentType: string,
+  storagePath: string
+) {
+  const writer = activeAssetBackend().writeGenerated as unknown as (
+    fileName: string,
+    buffer: Buffer,
+    contentType?: string,
+    storagePath?: string
+  ) => Promise<unknown>;
+
+  return writer(fileName, buffer, contentType, storagePath);
 }
 
 export async function materializeAsset(jobId: string) {
@@ -237,27 +137,21 @@ export async function materializeAsset(jobId: string) {
       manifestFile,
     });
 
-    const assetWrite = await writeGenerated(
+    const manifest = attachStoragePathsToManifest(rendered.manifest, paths);
+    const manifestBuffer = Buffer.from(JSON.stringify(manifest, null, 2));
+
+    const artifactUri = await writeGeneratedFile(
       rendered.assetFileName,
       rendered.assetBuffer,
-      rendered.assetMimeType
+      rendered.assetMimeType,
+      paths.artifact
     );
 
-    const manifestWritePath = useFirebaseStore()
-      ? generatedPath(manifestFile)
-      : manifestFile;
-
-    const manifest = attachStoragePathsToManifest(rendered.manifest, {
-      ...paths,
-      asset: assetWrite.storagePath,
-      assetUrl: assetWrite.publicUrl ?? paths.assetUrl,
-      manifest: manifestWritePath,
-    });
-
-    await writeGenerated(
+    const manifestUri = await writeGeneratedFile(
       manifestFile,
-      Buffer.from(JSON.stringify(manifest, null, 2)),
-      'application/json'
+      manifestBuffer,
+      'application/json; charset=utf-8',
+      paths.manifest
     );
 
     const asset = {
@@ -268,11 +162,13 @@ export async function materializeAsset(jobId: string) {
       manifest,
       storagePaths: {
         ...paths,
-        asset: assetWrite.storagePath,
-        assetUrl: assetWrite.publicUrl ?? paths.assetUrl,
-        manifest: manifestWritePath,
+        artifactUri,
+        manifestUri,
       },
-      previewPath: assetWrite.publicUrl ?? `/api/generated-assets/${rendered.assetFileName}`,
+      previewPath:
+        typeof artifactUri === 'string'
+          ? artifactUri
+          : `/api/generated-assets/${rendered.assetFileName}`,
       createdAt: new Date().toISOString(),
       published: false,
       storageMode: getStoreMode(),
@@ -324,19 +220,26 @@ export async function materializeAsset(jobId: string) {
 }
 
 export async function readGeneratedAsset(fileName: string) {
-  if (!useFirebaseStore()) {
-    return localReadGenerated(fileName);
+  const backend = activeAssetBackend();
+
+  if (backend.mode === 'local-json') {
+    return backend.readGenerated(fileName);
   }
 
-  const bucket = getAdminBucket();
-  if (!bucket) throw new Error('Cloud Storage bucket is not available');
+  const jobId = fileName.split('.').slice(0, -1).join('.') || fileName;
+  const asset = await backend.findAsset(jobId) as GenericRecord | null;
+  const storagePaths = asset?.storagePaths as GenericRecord | undefined;
 
-  try {
-    const [buffer] = await bucket.file(generatedPath(fileName)).download();
-    return buffer;
-  } catch {
-    return null;
-  }
+  const storagePath = fileName.endsWith('.json')
+    ? storagePaths?.manifest
+    : storagePaths?.artifact;
+
+  const reader = backend.readGenerated as unknown as (
+    fileName: string,
+    storagePath?: string
+  ) => Promise<Buffer | null>;
+
+  return reader(fileName, typeof storagePath === 'string' ? storagePath : undefined);
 }
 
 export async function searchAssets() {
@@ -389,10 +292,11 @@ export async function rollbackAsset(jobId: string, versionId: string) {
     ...asset,
     activeVersionId: versionId,
     lastRollback: rollback,
-    rollbacks: [...((asset.rollbacks as GenericRecord[] | undefined) ?? []), rollback],
+    rollbacks: [...(((asset as GenericRecord).rollbacks as GenericRecord[] | undefined) ?? []), rollback],
   };
 
   await upsertAsset(updated);
+
   await updateJob(jobId, {
     status: 'rolled-back',
     activeVersionId: versionId,
@@ -475,10 +379,11 @@ export async function createAssetVersion(jobId: string, versionPatch: GenericRec
     ...asset,
     activeVersionId: version.versionId,
     lastVersion: version,
-    versions: [...((asset.versions as GenericRecord[] | undefined) ?? []), version],
+    versions: [...(((asset as GenericRecord).versions as GenericRecord[] | undefined) ?? []), version],
   };
 
   await upsertAsset(updated);
+
   await updateJob(jobId, {
     activeVersionId: version.versionId,
     lastVersion: version,

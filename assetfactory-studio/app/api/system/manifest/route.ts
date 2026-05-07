@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
 import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
 import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
+import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
 
 export async function GET() {
   const diagnostics = getStoreDiagnostics();
   const supportedAssetTypes = listAssetTypeDefinitions();
   const providers = getProviderDiagnostics();
+  const queue = getQueueDiagnostics();
 
   return NextResponse.json({
     ok: true,
@@ -18,6 +20,7 @@ export async function GET() {
     rendererModes: [...new Set(supportedAssetTypes.map((type) => type.rendererMode))],
     supportedAssetTypes,
     providers,
+    queue,
     firebase: diagnostics.firebase,
     firebaseProjectId: diagnostics.firebase.projectId,
     storageBucket: diagnostics.firebase.storageBucket,
