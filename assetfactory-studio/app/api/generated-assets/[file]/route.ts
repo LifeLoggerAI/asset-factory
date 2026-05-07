@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readGeneratedAsset } from '@/lib/server/assetFactoryStore';
+import { findAsset, readGeneratedAsset } from '@/lib/server/assetFactoryStore';
 import { validateFileName } from '@/lib/server/assetFactoryValidation';
+import { authorizeAssetRequest } from '@/lib/server/assetAuth';
+import type { AssetFactoryAsset } from '@/lib/server/assetFactoryTypes';
 
 const contentTypes: Record<string, string> = {
   json: 'application/json; charset=utf-8',
@@ -18,8 +20,12 @@ function contentTypeFor(fileName: string) {
   return contentTypes[extension] ?? 'application/octet-stream';
 }
 
+function jobIdFromFile(fileName: string) {
+  return fileName.split('.').slice(0, -1).join('.') || fileName;
+}
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ file: string }> }
 ) {
   const { file } = await params;
@@ -27,6 +33,10 @@ export async function GET(
   if (!validateFileName(file)) {
     return NextResponse.json({ error: 'invalid file' }, { status: 400 });
   }
+
+  const assetRecord = await findAsset(jobIdFromFile(file)) as AssetFactoryAsset | null;
+  const auth = authorizeAssetRequest(req, assetRecord?.tenantId);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const asset = await readGeneratedAsset(file);
 
@@ -37,7 +47,9 @@ export async function GET(
   return new NextResponse(asset, {
     headers: {
       'content-type': contentTypeFor(file),
-      'cache-control': 'private, max-age=60',
+      'cache-control': assetRecord?.published ? 'public, max-age=31536000, immutable' : 'private, max-age=60',
+      'x-asset-job-id': assetRecord?.jobId ?? jobIdFromFile(file),
+      'x-asset-published': String(Boolean(assetRecord?.published)),
     },
   });
 }
