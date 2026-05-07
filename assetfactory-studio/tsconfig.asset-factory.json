@@ -8,6 +8,7 @@
     "app/api/jobs/[jobId]/**/*.ts",
     "app/api/system/**/*.ts",
     "app/api/assets/**/*.ts",
-    "app/api/stripe/**/*.ts"
+    "app/api/stripe/**/*.ts",
+    "app/api/cron/**/*.ts"
   ]
 }
