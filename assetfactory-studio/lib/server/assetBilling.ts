@@ -2,6 +2,7 @@ import { listUsageEvents } from './assetFactoryStore';
 import type { CanonicalAssetType } from './assetFactoryTypes';
 
 type UsageEvent = Record<string, unknown> & {
+  action?: string;
   tenantId?: string;
   assetType?: CanonicalAssetType;
   estimatedUnits?: number;
