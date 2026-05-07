@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { addJob, readJobs } from '@/lib/server/assetFactoryStore';
-import { validateGenerateRequest, type GenerateRequest } from '@/lib/server/assetFactoryValidation';
+import { requireAssetFactoryApiKey } from '@/lib/server/apiAuth';
+import {
+  validateGenerateRequest,
+  type GenerateRequest,
+} from '@/lib/server/assetFactoryValidation';
 import { evaluateGenerationPolicy } from '@/lib/server/assetGenerationPolicy';
 import { evaluateTenantQuota } from '@/lib/server/assetBilling';
 import { resolveAssetType } from '@/lib/server/assetTypeCatalog';
@@ -9,9 +13,14 @@ import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 import type { AssetFactoryJob } from '@/lib/server/assetFactoryTypes';
 
 export async function POST(req: NextRequest) {
+  const authError = requireAssetFactoryApiKey(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
+
     const jobId = body.jobId ?? randomUUID();
+
     const request = {
       ...body,
       jobId,
@@ -25,7 +34,9 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = authorizeAssetRequest(req, request.tenantId ?? 'default');
-    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const policy = evaluateGenerationPolicy(request);
     if (!policy.ok) {
@@ -33,16 +44,19 @@ export async function POST(req: NextRequest) {
     }
 
     const tenantId = auth.tenantId ?? request.tenantId ?? 'default';
+
     const quota = await evaluateTenantQuota({
       tenantId,
       estimatedUnits: policy.estimatedUnits,
       estimatedCostCents: policy.estimatedCostCents,
     });
+
     if (!quota.ok) {
       return NextResponse.json({ error: quota.error, quota }, { status: 402 });
     }
 
     const definition = resolveAssetType(request.type);
+
     const job: AssetFactoryJob = {
       ...request,
       tenantId,
@@ -63,7 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: 'Job submitted successfully',
-        jobId,
+        jobId: job.jobId,
         status: job.status,
         queueStatus: job.queueStatus,
         canonicalType: job.canonicalType,
@@ -86,12 +100,17 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const auth = authorizeAssetRequest(req);
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
 
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get('jobId');
-  const jobs = await readJobs() as AssetFactoryJob[];
-  const scopedJobs = auth.tenantId ? jobs.filter((job) => job.tenantId === auth.tenantId) : jobs;
+
+  const jobs = (await readJobs()) as AssetFactoryJob[];
+  const scopedJobs = auth.tenantId
+    ? jobs.filter((job) => job.tenantId === auth.tenantId)
+    : jobs;
 
   if (jobId) {
     const job = scopedJobs.find((item) => item.jobId === jobId);
