@@ -1,11 +1,14 @@
 import { createHash } from 'node:crypto';
 import type { GenerateRequest } from './assetFactoryValidation';
 import { resolveAssetType } from './assetTypeCatalog';
+import { renderWithConfiguredProvider } from './assetProviderRuntime';
 
 type AssetSize = {
   width?: number;
   height?: number;
 };
+
+type RendererMode = 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'manifest-only';
 
 function escapeSvgText(value: unknown): string {
   return String(value ?? '')
@@ -32,19 +35,21 @@ function colorFromHash(hash: string, offset = 0) {
 }
 
 function buildManifest(input: GenerateRequest & Record<string, unknown>, extra: {
-  rendererMode: 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'manifest-only';
+  rendererMode: RendererMode;
   formats: string[];
   width: number;
   height: number;
   previewPath: string | null;
   metadata?: Record<string, unknown>;
   dependencies?: string[];
+  rendererContract?: string;
 }) {
   const tenantId = input.tenantId ?? 'default';
+  const definition = resolveAssetType(input.type);
   return {
     jobId: input.jobId,
     tenantId,
-    type: input.type,
+    type: definition.canonicalType,
     presetId: input.presetId ?? null,
     prompt: input.prompt ?? '',
     rendererMode: extra.rendererMode,
@@ -57,11 +62,12 @@ function buildManifest(input: GenerateRequest & Record<string, unknown>, extra: 
     metadata: {
       ...(input.metadata ?? {}),
       ...(extra.metadata ?? {}),
-      canonicalType: resolveAssetType(input.type).canonicalType,
+      canonicalType: definition.canonicalType,
+      assetFamily: definition.family,
     },
     provenance: {
       engine: 'assetfactory-studio',
-      rendererContract: 'deterministic-local-v1',
+      rendererContract: extra.rendererContract ?? 'deterministic-local-v1',
       inputHash: stableHash({
         prompt: input.prompt,
         type: input.type,
@@ -74,7 +80,7 @@ function buildManifest(input: GenerateRequest & Record<string, unknown>, extra: 
     },
     approvalStatus: 'draft',
     version: 1,
-    targetModules: input.targetModule ? [String(input.targetModule)] : resolveAssetType(input.type).targetModules,
+    targetModules: input.targetModule ? [String(input.targetModule)] : definition.targetModules,
     dependencies: extra.dependencies ?? [],
   };
 }
@@ -86,12 +92,7 @@ function renderGraphic(input: GenerateRequest & Record<string, unknown>, width: 
   const accent2 = colorFromHash(hash, 2);
   const text = `${input.type ?? 'asset'} :: ${input.prompt ?? 'no-prompt'}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Generated graphic proof for ${escapeSvgText(input.jobId)}">
-  <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="${background}"/>
-      <stop offset="100%" stop-color="#101828"/>
-    </linearGradient>
-  </defs>
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="${background}"/><stop offset="100%" stop-color="#101828"/></linearGradient></defs>
   <rect width="100%" height="100%" fill="url(#g)"/>
   <circle cx="${Math.round(width * 0.78)}" cy="${Math.round(height * 0.24)}" r="${Math.round(Math.min(width, height) * 0.16)}" fill="${accent}" opacity="0.65"/>
   <rect x="${Math.round(width * 0.08)}" y="${Math.round(height * 0.62)}" width="${Math.round(width * 0.76)}" height="${Math.round(height * 0.16)}" rx="28" fill="${accent2}" opacity="0.5"/>
@@ -110,23 +111,11 @@ function renderModel(input: GenerateRequest & Record<string, unknown>) {
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0, name: String(input.jobId) }],
-    meshes: [{
-      name: `${input.type}-proof-mesh`,
-      primitives: [{
-        attributes: { POSITION: 0 },
-        indices: 1,
-        material: 0,
-      }],
-    }],
+    meshes: [{ name: `${input.type}-proof-mesh`, primitives: [{ attributes: { POSITION: 0 }, indices: 1, material: 0 }] }],
     materials: [{
       name: 'hash-derived-material',
       pbrMetallicRoughness: {
-        baseColorFactor: [
-          parseInt(color.slice(1, 3), 16) / 255,
-          parseInt(color.slice(3, 5), 16) / 255,
-          parseInt(color.slice(5, 7), 16) / 255,
-          1,
-        ],
+        baseColorFactor: [parseInt(color.slice(1, 3), 16) / 255, parseInt(color.slice(3, 5), 16) / 255, parseInt(color.slice(5, 7), 16) / 255, 1],
         metallicFactor: 0.1,
         roughnessFactor: 0.75,
       },
@@ -135,19 +124,9 @@ function renderModel(input: GenerateRequest & Record<string, unknown>) {
       { bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [-0.5, 0, -0.5], max: [0.5, 1, 0.5] },
       { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' },
     ],
-    bufferViews: [
-      { buffer: 0, byteOffset: 0, byteLength: 36 },
-      { buffer: 0, byteOffset: 36, byteLength: 6 },
-    ],
-    buffers: [{
-      byteLength: 42,
-      uri: 'data:application/octet-stream;base64,AAAAvwAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAC/AAAAAAAAgD8AAAAAPwAAAAAAAAABAAIA',
-    }],
-    extras: {
-      prompt: input.prompt,
-      deterministicSeed: hash,
-      note: 'Proof GLTF; replace adapter with provider-backed mesh generation for production.',
-    },
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }, { buffer: 0, byteOffset: 36, byteLength: 6 }],
+    buffers: [{ byteLength: 42, uri: 'data:application/octet-stream;base64,AAAAvwAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAC/AAAAAAAAgD8AAAAAPwAAAAAAAAABAAIA' }],
+    extras: { prompt: input.prompt, deterministicSeed: hash, note: 'Proof GLTF; replace adapter with provider-backed mesh generation for production.' },
   };
   return Buffer.from(JSON.stringify(gltf, null, 2));
 }
@@ -185,17 +164,9 @@ function renderAudio(input: GenerateRequest & Record<string, unknown>, sampleRat
 }
 
 function renderBundle(input: GenerateRequest & Record<string, unknown>) {
-  const payload = {
-    jobId: input.jobId,
-    tenantId: input.tenantId ?? 'default',
-    prompt: input.prompt,
-    type: input.type,
-    bundleVersion: 1,
-    assets: Array.isArray((input.metadata as Record<string, unknown> | undefined)?.assets)
-      ? (input.metadata as Record<string, unknown>).assets
-      : [],
-    instructions: 'Bundle proof manifest. Add generated child assets to metadata.assets for full packaging.',
-  };
+  const metadata = input.metadata as Record<string, unknown> | undefined;
+  const assets = Array.isArray(metadata?.assets) ? metadata.assets : [];
+  const payload = { jobId: input.jobId, tenantId: input.tenantId ?? 'default', prompt: input.prompt, type: input.type, bundleVersion: 1, assets, instructions: 'Bundle proof manifest. Add generated child assets to metadata.assets for full packaging.' };
   return Buffer.from(JSON.stringify(payload, null, 2));
 }
 
@@ -205,82 +176,42 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
   const width = finiteDimension(size.width, definition.defaultSize?.width ?? 1440);
   const height = finiteDimension(size.height, definition.defaultSize?.height ?? 1440);
   const format = String(input.format ?? definition.defaultFormat).toLowerCase();
+  const providerResult = await renderWithConfiguredProvider(input, definition);
+
+  if (providerResult) {
+    const assetFileName = `${input.jobId}.${providerResult.extension}`;
+    const manifest = buildManifest(input, {
+      rendererMode: definition.rendererMode,
+      formats: [providerResult.extension, 'json'],
+      width: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : width,
+      height: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : height,
+      previewPath: null,
+      metadata: { format: providerResult.extension, providerBacked: true, ...providerResult.metadata },
+      rendererContract: 'provider-backed-v1',
+    });
+    return { ok: true as const, assetBuffer: providerResult.assetBuffer, assetMimeType: providerResult.assetMimeType, assetFileName, manifest, mode: definition.rendererMode };
+  }
+
   const assetFileName = `${input.jobId}.${definition.extension}`;
 
   if (definition.canonicalType === 'model3d') {
-    const manifest = buildManifest(input, {
-      rendererMode: definition.rendererMode,
-      formats: definition.formats,
-      width,
-      height,
-      previewPath: null,
-      metadata: { format, spatial: { coordinateSystem: 'right-handed-y-up', unit: 'meter' } },
-    });
-    return {
-      ok: true as const,
-      assetBuffer: renderModel(input),
-      assetMimeType: definition.mimeType,
-      assetFileName,
-      manifest,
-      mode: definition.rendererMode,
-    };
+    const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width, height, previewPath: null, metadata: { format, spatial: { coordinateSystem: 'right-handed-y-up', unit: 'meter' } } });
+    return { ok: true as const, assetBuffer: renderModel(input), assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
   }
 
   if (definition.canonicalType === 'audio') {
     const sampleRate = Number((input.metadata as Record<string, unknown> | undefined)?.sampleRate ?? definition.defaultSampleRate ?? 22050);
     const durationSeconds = Number((input.metadata as Record<string, unknown> | undefined)?.durationSeconds ?? definition.defaultDurationSeconds ?? 2);
     const rendered = renderAudio(input, sampleRate, durationSeconds);
-    const manifest = buildManifest(input, {
-      rendererMode: definition.rendererMode,
-      formats: definition.formats,
-      width: 0,
-      height: 0,
-      previewPath: null,
-      metadata: { format, audio: { sampleRate, channels: 1, durationSeconds, proofToneHz: rendered.frequency } },
-    });
-    return {
-      ok: true as const,
-      assetBuffer: rendered.buffer,
-      assetMimeType: definition.mimeType,
-      assetFileName,
-      manifest,
-      mode: definition.rendererMode,
-    };
+    const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width: 0, height: 0, previewPath: null, metadata: { format, audio: { sampleRate, channels: 1, durationSeconds, proofToneHz: rendered.frequency } } });
+    return { ok: true as const, assetBuffer: rendered.buffer, assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
   }
 
   if (definition.canonicalType === 'bundle') {
-    const manifest = buildManifest(input, {
-      rendererMode: definition.rendererMode,
-      formats: definition.formats,
-      width: 0,
-      height: 0,
-      previewPath: null,
-      metadata: { format, bundle: true },
-    });
-    return {
-      ok: true as const,
-      assetBuffer: renderBundle(input),
-      assetMimeType: definition.mimeType,
-      assetFileName,
-      manifest,
-      mode: definition.rendererMode,
-    };
+    const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width: 0, height: 0, previewPath: null, metadata: { format, bundle: true } });
+    return { ok: true as const, assetBuffer: renderBundle(input), assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
   }
 
-  const manifest = buildManifest(input, {
-    rendererMode: definition.rendererMode,
-    formats: definition.formats,
-    width,
-    height,
-    previewPath: null,
-    metadata: { format },
-  });
-  return {
-    ok: true as const,
-    assetBuffer: renderGraphic(input, width, height),
-    assetMimeType: definition.mimeType,
-    assetFileName,
-    manifest,
-    mode: definition.rendererMode,
-  };
+  const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width, height, previewPath: null, metadata: { format } });
+  return { ok: true as const, assetBuffer: renderGraphic(input, width, height), assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
 }
