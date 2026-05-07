@@ -1,3 +1,22 @@
 import { NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
-export async function GET(){const d=getStoreDiagnostics();return NextResponse.json({ok:true,persistenceMode:d.mode,fallbackActive:d.fallbackActive,rendererMode:'svg-proof',firebaseProjectId:d.firebase.projectId,storageBucket:d.firebase.storageBucket});}
+import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
+import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+  const supportedAssetTypes = listAssetTypeDefinitions();
+  const providers = getProviderDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    service: 'asset-factory-studio',
+    persistenceMode: diagnostics.mode,
+    fallbackActive: diagnostics.fallbackActive,
+    rendererModes: [...new Set(supportedAssetTypes.map((type) => type.rendererMode))],
+    supportedAssetTypes,
+    providers,
+    firebaseProjectId: diagnostics.firebase.projectId,
+    storageBucket: diagnostics.firebase.storageBucket,
+  });
+}

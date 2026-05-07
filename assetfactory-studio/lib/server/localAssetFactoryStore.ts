@@ -6,6 +6,7 @@ type GenericRecord = Record<string, unknown>;
 type Db = {
   jobs: Record<string, GenericRecord>;
   assets: Record<string, GenericRecord>;
+  usage: Record<string, GenericRecord>;
 };
 
 const baseDir = path.join(process.cwd(), '.asset-factory-local');
@@ -15,11 +16,20 @@ const generatedDir = path.join(baseDir, 'generated');
 const init: Db = {
   jobs: {},
   assets: {},
+  usage: {},
 };
+
+function normalizeDb(value: Partial<Db> | null | undefined): Db {
+  return {
+    jobs: value?.jobs ?? {},
+    assets: value?.assets ?? {},
+    usage: value?.usage ?? {},
+  };
+}
 
 async function readDb(): Promise<Db> {
   try {
-    return JSON.parse(await fs.readFile(dbPath, 'utf-8')) as Db;
+    return normalizeDb(JSON.parse(await fs.readFile(dbPath, 'utf-8')) as Partial<Db>);
   } catch {
     await fs.mkdir(baseDir, { recursive: true });
     await fs.writeFile(dbPath, JSON.stringify(init, null, 2));
@@ -29,7 +39,7 @@ async function readDb(): Promise<Db> {
 
 async function writeDb(db: Db) {
   await fs.mkdir(baseDir, { recursive: true });
-  await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+  await fs.writeFile(dbPath, JSON.stringify(normalizeDb(db), null, 2));
 }
 
 export async function localAddJob(job: GenericRecord) {
@@ -80,6 +90,23 @@ export async function localUpsertAsset(asset: GenericRecord) {
   await writeDb(db);
 
   return asset;
+}
+
+export async function localRecordUsage(event: GenericRecord) {
+  const db = await readDb();
+  const eventId = String(event.eventId ?? `${event.tenantId ?? 'default'}-${event.jobId ?? Date.now()}-${Date.now()}`);
+  db.usage[eventId] = {
+    ...event,
+    eventId,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+  };
+  await writeDb(db);
+
+  return db.usage[eventId];
+}
+
+export async function localListUsage() {
+  return Object.values((await readDb()).usage);
 }
 
 export async function localWriteGenerated(fileName: string, buffer: Buffer) {
