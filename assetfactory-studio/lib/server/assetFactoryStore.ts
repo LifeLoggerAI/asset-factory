@@ -5,8 +5,10 @@ import {
   localFindAsset,
   localFindJob,
   localListAssets,
+  localListUsage,
   localReadGenerated,
   localReadJobs,
+  localRecordUsage,
   localUpdateJob,
   localUpsertAsset,
   localWriteGenerated,
@@ -37,8 +39,31 @@ export function getStoreDiagnostics() {
   };
 }
 
+export async function recordUsage(event: GenericRecord) {
+  return localRecordUsage({
+    eventId: event.eventId ?? randomUUID(),
+    ...event,
+    createdAt: event.createdAt ?? new Date().toISOString(),
+  });
+}
+
+export async function listUsageEvents() {
+  return localListUsage();
+}
+
 export async function addJob(job: GenericRecord) {
-  return localAddJob(job);
+  const saved = await localAddJob(job);
+  await recordUsage({
+    action: 'job.created',
+    tenantId: job.tenantId ?? 'default',
+    jobId: job.jobId,
+    assetType: job.canonicalType ?? job.type,
+    assetFamily: job.assetFamily,
+    estimatedUnits: job.estimatedUnits ?? 0,
+    estimatedCostCents: job.estimatedCostCents ?? 0,
+  });
+
+  return saved;
 }
 
 export async function readJobs() {
@@ -71,6 +96,14 @@ export async function materializeAsset(jobId: string) {
   await updateJob(jobId, {
     status: 'rendering',
     renderStartedAt: new Date().toISOString(),
+  });
+  await recordUsage({
+    action: 'job.rendering',
+    tenantId: job.tenantId ?? 'default',
+    jobId,
+    assetType: job.canonicalType ?? job.type,
+    estimatedUnits: job.estimatedUnits ?? 0,
+    estimatedCostCents: job.estimatedCostCents ?? 0,
   });
 
   try {
@@ -110,13 +143,31 @@ export async function materializeAsset(jobId: string) {
       manifestFile,
       rendererMode: rendered.mode,
     });
+    await recordUsage({
+      action: 'asset.materialized',
+      tenantId: job.tenantId ?? 'default',
+      jobId,
+      assetType: manifest.metadata?.canonicalType ?? manifest.type,
+      rendererMode: rendered.mode,
+      fileName: rendered.assetFileName,
+      estimatedUnits: job.estimatedUnits ?? 0,
+      estimatedCostCents: job.estimatedCostCents ?? 0,
+    });
 
     return asset;
   } catch (error) {
+    const failureReason = error instanceof Error ? error.message : 'unknown render error';
     await updateJob(jobId, {
       status: 'failed',
       failedAt: new Date().toISOString(),
-      failureReason: error instanceof Error ? error.message : 'unknown render error',
+      failureReason,
+    });
+    await recordUsage({
+      action: 'job.failed',
+      tenantId: job.tenantId ?? 'default',
+      jobId,
+      assetType: job.canonicalType ?? job.type,
+      failureReason,
     });
     throw error;
   }
@@ -145,6 +196,12 @@ export async function publishAsset(jobId: string) {
 
   await localUpsertAsset(updated);
   await updateJob(jobId, { status: 'published', publishedAt: updated.publishedAt });
+  await recordUsage({
+    action: 'asset.published',
+    tenantId: (asset as GenericRecord).tenantId ?? 'default',
+    jobId,
+    assetType: ((asset as GenericRecord).manifest as GenericRecord | undefined)?.type,
+  });
 
   return updated;
 }
@@ -161,6 +218,12 @@ export async function rollbackAsset(jobId: string, versionId: string) {
   };
 
   await updateJob(jobId, { status: 'rolled_back', rollback });
+  await recordUsage({
+    action: 'asset.rolled_back',
+    tenantId: job.tenantId ?? 'default',
+    jobId,
+    versionId,
+  });
   return rollback;
 }
 
@@ -182,6 +245,12 @@ export async function approveAsset(jobId: string, approvalPatch: GenericRecord) 
         ? { ...manifest, approvalStatus: approvalPatch.status ?? 'approved' }
         : manifest,
       approval,
+    });
+    await recordUsage({
+      action: 'asset.approved',
+      tenantId: assetRecord.tenantId ?? 'default',
+      jobId,
+      approvalStatus: approvalPatch.status ?? 'approved',
     });
   }
 
