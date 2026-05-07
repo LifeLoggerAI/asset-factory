@@ -35,7 +35,11 @@ export async function GET(
   }
 
   const assetRecord = await findAsset(jobIdFromFile(file)) as AssetFactoryAsset | null;
-  const auth = authorizeAssetRequest(req, assetRecord?.tenantId);
+  if (!assetRecord) {
+    return NextResponse.json({ error: 'not found' }, { status: 404 });
+  }
+
+  const auth = authorizeAssetRequest(req, assetRecord.tenantId);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const asset = await readGeneratedAsset(file);
@@ -47,9 +51,9 @@ export async function GET(
   return new NextResponse(asset, {
     headers: {
       'content-type': contentTypeFor(file),
-      'cache-control': assetRecord?.published ? 'public, max-age=31536000, immutable' : 'private, max-age=60',
-      'x-asset-job-id': assetRecord?.jobId ?? jobIdFromFile(file),
-      'x-asset-published': String(Boolean(assetRecord?.published)),
+      'cache-control': assetRecord.published ? 'public, max-age=31536000, immutable' : 'private, max-age=60',
+      'x-asset-job-id': assetRecord.jobId,
+      'x-asset-published': String(Boolean(assetRecord.published)),
     },
   });
 }
