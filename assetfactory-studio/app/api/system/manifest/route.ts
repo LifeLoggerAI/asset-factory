@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
 import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
+import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
 
 export async function GET() {
   const diagnostics = getStoreDiagnostics();
   const supportedAssetTypes = listAssetTypeDefinitions();
+  const providers = getProviderDiagnostics();
 
   return NextResponse.json({
     ok: true,
@@ -13,6 +15,7 @@ export async function GET() {
     fallbackActive: diagnostics.fallbackActive,
     rendererModes: [...new Set(supportedAssetTypes.map((type) => type.rendererMode))],
     supportedAssetTypes,
+    providers,
     firebaseProjectId: diagnostics.firebase.projectId,
     storageBucket: diagnostics.firebase.storageBucket,
   });
