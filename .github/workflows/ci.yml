@@ -3,11 +3,23 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, production-hardening-asset-factory]
+    branches: [main, production-hardening-asset-factory, launch-readiness-hardening]
   pull_request:
     branches: [main]
 
 jobs:
+  launch-readiness:
+    name: Launch readiness checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run launch readiness static checks
+        run: npm run test:launch-readiness
+
   root:
     name: Root orchestration
     runs-on: ubuntu-latest
