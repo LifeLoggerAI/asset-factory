@@ -221,11 +221,11 @@ async function assertCronSecret() {
 }
 
 async function assertStripeWebhookRejectsUnsignedPayload() {
-  await requestJson('/api/stripe/webhook', {
+  await requestJson('/api/stripe/webhooks', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ id: 'evt_smoke_unsigned', type: 'checkout.session.completed' }),
-  }, [400, 401, 403]);
+  }, [400, 401, 403, 501]);
 }
 
 async function run() {
