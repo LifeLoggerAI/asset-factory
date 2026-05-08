@@ -13,6 +13,10 @@
   },
   "scripts": {
     "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test",
-    "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build"
+    "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
+    "smoke:remote": "node scripts/smoke-asset-factory-remote.mjs",
+    "smoke:staging": "node scripts/smoke-asset-factory-remote.mjs",
+    "smoke:prod": "node scripts/smoke-asset-factory-remote.mjs",
+    "smoke:website": "ASSET_FACTORY_SMOKE_READONLY=true node scripts/smoke-asset-factory-remote.mjs"
   }
 }
