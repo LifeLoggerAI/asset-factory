@@ -23,6 +23,8 @@ function assertIncludes(content, expected, label) {
 const readiness = read('LAUNCH_READINESS.md');
 const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
+const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
+const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
 const packageJson = JSON.parse(read('package.json'));
 const workflow = read('.github/workflows/ci.yml');
 
@@ -79,6 +81,7 @@ const requiredSmokeCapabilities = [
   'assertTenantIsolation',
   'assertCronSecret',
   'assertStripeWebhookRejectsUnsignedPayload',
+  '/api/stripe/webhooks',
   'ASSET_FACTORY_BASE_URL',
   'ASSET_FACTORY_API_KEY',
   'ASSET_FACTORY_BEARER_TOKEN',
@@ -89,6 +92,33 @@ const requiredSmokeCapabilities = [
 
 for (const capability of requiredSmokeCapabilities) {
   assertIncludes(remoteSmoke, capability, 'scripts/smoke-asset-factory-remote.mjs');
+}
+
+const requiredStripeEntitlementCapabilities = [
+  'persistStripeEntitlement',
+  'buildStripeEntitlement',
+  "db.collection('assetFactoryStripeEvents')",
+  "db.collection('tenants')",
+  'assetFactoryPlan',
+  'assetFactoryEntitlement',
+  'runTransaction',
+  'duplicate',
+];
+
+for (const capability of requiredStripeEntitlementCapabilities) {
+  assertIncludes(stripeEntitlements, capability, 'assetfactory-studio/lib/server/stripeEntitlements.ts');
+}
+
+const requiredStripeWebhookCapabilities = [
+  'verifyStripeSignature',
+  'persistStripeEntitlement(event)',
+  'stripe.webhook.duplicate',
+  'entitlementApplied',
+  'entitlementDuplicate',
+];
+
+for (const capability of requiredStripeWebhookCapabilities) {
+  assertIncludes(stripeWebhookRoute, capability, 'assetfactory-studio/app/api/stripe/webhooks/route.ts');
 }
 
 assertIncludes(workflow, 'Launch readiness checks', '.github/workflows/ci.yml');

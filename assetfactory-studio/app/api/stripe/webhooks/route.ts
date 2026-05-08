@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { recordUsage } from '@/lib/server/assetFactoryStore';
+import { persistStripeEntitlement } from '@/lib/server/stripeEntitlements';
 
 const WEBHOOK_TOLERANCE_SECONDS = 300;
 
@@ -81,6 +82,15 @@ function tenantIdFromEvent(event: StripeLikeEvent) {
     if (typeof tenantId === 'string' && tenantId.trim()) return tenantId;
   }
 
+  const subscriptionDetails = object?.subscription_details;
+  if (subscriptionDetails && typeof subscriptionDetails === 'object' && !Array.isArray(subscriptionDetails)) {
+    const subscriptionMetadata = (subscriptionDetails as Record<string, unknown>).metadata;
+    if (subscriptionMetadata && typeof subscriptionMetadata === 'object' && !Array.isArray(subscriptionMetadata)) {
+      const tenantId = (subscriptionMetadata as Record<string, unknown>).tenantId;
+      if (typeof tenantId === 'string' && tenantId.trim()) return tenantId;
+    }
+  }
+
   const clientReferenceId = object?.client_reference_id;
   if (typeof clientReferenceId === 'string' && clientReferenceId.trim()) return clientReferenceId;
 
@@ -125,13 +135,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: false, error: 'Invalid Stripe webhook JSON' }, { status: 400 });
   }
 
+  const entitlementResult = await persistStripeEntitlement(event);
+
   await recordUsage({
-    action: 'stripe.webhook.received',
+    action: entitlementResult.duplicate ? 'stripe.webhook.duplicate' : 'stripe.webhook.received',
     eventId: event.id,
     stripeEventId: event.id,
     stripeEventType: event.type,
-    tenantId: tenantIdFromEvent(event),
+    tenantId: entitlementResult.entitlement?.tenantId ?? tenantIdFromEvent(event),
     stripeCreatedAt: event.created,
+    entitlementApplied: entitlementResult.applied,
+    entitlementDuplicate: entitlementResult.duplicate,
+    entitlementConfigured: entitlementResult.configured,
+    entitlementReason: entitlementResult.reason,
+    stripePriceId: entitlementResult.entitlement?.stripePriceId,
+    stripeSubscriptionId: entitlementResult.entitlement?.stripeSubscriptionId,
   });
 
   return NextResponse.json({
@@ -139,5 +157,15 @@ export async function POST(req: NextRequest) {
     configured: true,
     eventId: event.id,
     eventType: event.type,
+    entitlement: {
+      configured: entitlementResult.configured,
+      applied: entitlementResult.applied,
+      duplicate: entitlementResult.duplicate,
+      reason: entitlementResult.reason,
+      tenantId: entitlementResult.entitlement?.tenantId,
+      status: entitlementResult.entitlement?.status,
+      stripePriceId: entitlementResult.entitlement?.stripePriceId,
+      stripeSubscriptionId: entitlementResult.entitlement?.stripeSubscriptionId,
+    },
   });
 }
