@@ -15,7 +15,7 @@ These local proof renderers are intentionally deterministic so API contracts, ma
 
 Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass in staging and production**.
 
-Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
+Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for the deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedure. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
 
 ## Repo structure
 - `engine/`: sealed headless V1 engine API/runtime.
@@ -23,6 +23,7 @@ Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, re
 - `life-map-pipeline/functions/`: TypeScript Firebase Functions for LifeMap ingestion.
 - `assetfactory-studio/`: web/studio app and canonical multimodal API surface.
 - `docs/MULTIMODAL_ASSET_WIRING.md`: asset type, renderer, storage, provider, and E2E contract.
+- `docs/OPERATIONS_RUNBOOK.md`: staging/production deploy, smoke, monitoring, incident, rollback, and release-evidence runbook.
 - `LAUNCH_READINESS.md`: current production launch gate checklist.
 
 ## Requirements
@@ -158,6 +159,7 @@ Before using real provider-backed rendering in production:
 - Apply billing and quota checks per modality before queueing jobs.
 - Run emulator-backed Firestore/Storage integration tests.
 - Run the launch gates in `LAUNCH_READINESS.md`.
+- Follow `docs/OPERATIONS_RUNBOOK.md` for release evidence, rollback, and incident response.
 
 ## Deploy notes
 - Firebase Functions deploy from target package:
