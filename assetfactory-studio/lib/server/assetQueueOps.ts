@@ -33,8 +33,19 @@ export type QueueOpsSummary = {
   error?: string;
 };
 
+export type QueueRequeueResult = {
+  configured: boolean;
+  requeued: boolean;
+  jobId: string;
+  tenantId?: string;
+  previousStatus?: QueueOpsStatus;
+  reason?: string;
+  item?: QueueOpsItem;
+};
+
 const QUEUE_COLLECTION = 'assetFactoryQueue';
 const VISIBLE_STATUSES = ['queued', 'claimed', 'retrying', 'failed', 'dead-lettered'] as const;
+const REQUEUEABLE_STATUSES = new Set<QueueOpsStatus>(['failed', 'dead-lettered', 'retrying']);
 
 function asString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -131,4 +142,68 @@ export async function readQueueOpsSummary(options: { tenantId?: string; limit?: 
     staleClaimed,
     items: uniqueItems,
   };
+}
+
+export async function requeueAssetQueueJob(options: {
+  jobId: string;
+  tenantId?: string;
+  operatorId?: string;
+  reason?: string;
+  resetAttempts?: boolean;
+}): Promise<QueueRequeueResult> {
+  const db = getAdminDb();
+  if (!db) {
+    return { configured: false, requeued: false, jobId: options.jobId, tenantId: options.tenantId, reason: 'Firestore Admin is unavailable; queue requeue requires Firestore.' };
+  }
+
+  const now = new Date().toISOString();
+  const ref = db.collection(QUEUE_COLLECTION).doc(options.jobId);
+
+  return db.runTransaction(async (transaction) => {
+    const doc = await transaction.get(ref);
+    if (!doc.exists) {
+      return { configured: true, requeued: false, jobId: options.jobId, tenantId: options.tenantId, reason: 'Queue item not found.' };
+    }
+
+    const data = doc.data() ?? {};
+    const item = mapQueueItem(doc.id, data);
+
+    if (options.tenantId && item.tenantId && item.tenantId !== options.tenantId) {
+      return { configured: true, requeued: false, jobId: options.jobId, tenantId: options.tenantId, previousStatus: item.status, reason: 'Tenant mismatch.' };
+    }
+
+    if (!REQUEUEABLE_STATUSES.has(item.status)) {
+      return { configured: true, requeued: false, jobId: options.jobId, tenantId: item.tenantId, previousStatus: item.status, reason: `Queue item status ${item.status} is not requeueable.` };
+    }
+
+    const attempts = options.resetAttempts ? 0 : item.attempts;
+    const patch = {
+      status: 'queued',
+      queueStatus: 'queued',
+      attempts,
+      previousStatus: item.status,
+      requeuedAt: now,
+      requeuedBy: options.operatorId,
+      requeueReason: options.reason,
+      failureReason: null,
+      deadLetteredAt: null,
+      retryAfter: null,
+      leaseId: null,
+      leaseExpiresAt: null,
+      workerId: null,
+      heartbeatAt: null,
+      updatedAt: now,
+    };
+
+    transaction.set(ref, patch, { merge: true });
+
+    return {
+      configured: true,
+      requeued: true,
+      jobId: item.jobId,
+      tenantId: item.tenantId,
+      previousStatus: item.status,
+      item: { ...item, status: 'queued', queueStatus: 'queued', attempts, failureReason: undefined, deadLetteredAt: undefined, retryAfter: undefined, leaseId: undefined, leaseExpiresAt: undefined, workerId: undefined, heartbeatAt: undefined, updatedAt: now },
+    };
+  });
 }
