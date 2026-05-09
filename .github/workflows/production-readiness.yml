@@ -51,11 +51,12 @@ jobs:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
     steps:
-      - name: Stop if Firebase service account is missing
+      - name: Require Firebase service account
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
         run: |
-          echo "FIREBASE_SERVICE_ACCOUNT secret is not configured; skipping deploy."
-          exit 0
+          echo "FIREBASE_SERVICE_ACCOUNT secret is not configured."
+          echo "Add it in GitHub repo Settings -> Secrets and variables -> Actions before production deploy."
+          exit 1
 
       - name: Checkout
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
