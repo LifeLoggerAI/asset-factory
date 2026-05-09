@@ -24,6 +24,8 @@ const readiness = read('LAUNCH_READINESS.md');
 const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
+const unitTests = read('scripts/test-asset-factory-units.mjs');
+const studioPackage = read('assetfactory-studio/package.json');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
@@ -81,6 +83,24 @@ for (const scriptName of requiredPackageScripts) {
     packageJson.scripts?.[scriptName],
     `package.json scripts must define ${scriptName}`
   );
+}
+
+assertIncludes(studioPackage, 'node ../scripts/test-asset-factory-units.mjs', 'assetfactory-studio/package.json');
+
+const requiredUnitTestCapabilities = [
+  'buildStripeEntitlement',
+  'testStripeEntitlementFromCheckoutSession',
+  'testStripeEntitlementFromSubscriptionPriceMetadata',
+  'testStripeEntitlementRequiresTenant',
+  'requeueAssetQueueJob',
+  'testRequeueDeadLetteredJob',
+  'testRejectsTenantMismatch',
+  'testRejectsNonRequeueableStatus',
+  'PASS Asset Factory targeted unit behavior tests',
+];
+
+for (const capability of requiredUnitTestCapabilities) {
+  assertIncludes(unitTests, capability, 'scripts/test-asset-factory-units.mjs');
 }
 
 const requiredSmokeCapabilities = [
