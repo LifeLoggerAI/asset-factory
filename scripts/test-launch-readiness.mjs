@@ -62,6 +62,8 @@ for (const section of requiredReadinessSections) {
 const requiredReadmeReferences = [
   'Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass in staging and production**.',
   '`LAUNCH_READINESS.md`: current production launch gate checklist.',
+  'Node.js 20.19.0 or newer',
+  'nvm install 20.19.0',
   'npm run smoke:staging',
   'npm run smoke:prod',
   'npm run smoke:website',
@@ -88,12 +90,23 @@ for (const scriptName of requiredPackageScripts) {
   );
 }
 
+assert.equal(packageJson.engines?.node, '>=20.19.0', 'root package.json must require Node >=20.19.0');
+assert.equal(packageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
+
+const studioPackageJson = JSON.parse(studioPackage);
+assert.equal(studioPackageJson.engines?.node, '>=20.19.0', 'assetfactory-studio/package.json must require Node >=20.19.0');
+assert.equal(studioPackageJson.engines?.npm, '>=10.8.0', 'assetfactory-studio/package.json must require npm >=10.8.0');
+
 const requiredDoctorCapabilities = [
+  'MIN_NODE',
+  '20.19.0',
+  'node version is supported',
   'NPM_CONFIG_PREFIX',
   'root test:launch-readiness script exists',
   'studio test script exists',
   'local HEAD matches origin/main',
   'Recommended recovery commands',
+  'nvm install 20.19.0',
   'git reset --hard origin/main',
 ];
 
