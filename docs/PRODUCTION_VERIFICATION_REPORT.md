@@ -4,7 +4,7 @@ Status: **NOT YET PRODUCTION VERIFIED**
 
 This report exists so the repo cannot be marked complete until live deployment and smoke tests prove it.
 
-## Scope Implemented In This Branch
+## Scope Implemented On Main
 
 - Firebase config aligned to `life-map-pipeline/functions` with Node 20.
 - Hosting rewrites added for health, asset request, asset status, and Life Map ingestion APIs.
@@ -15,16 +15,32 @@ This report exists so the repo cannot be marked complete until live deployment a
 - Placeholder hosting page replaced with a production status shell.
 - GitHub Actions production readiness workflow added.
 - System-of-systems documentation added.
+- Production-finalization smoke test added at `scripts/smoke-production-finalization.mjs`.
+
+## Local Verification Evidence
+
+Recorded from local shell on `main` after pulling commit range through `ab4ade8c0652a768debff49c5768bddb63b31747`.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Root update | `git checkout main && git pull origin main` | Passed; fast-forwarded through deploy-functions TypeScript fixes |
+| Deploy functions install | `npm --prefix life-map-pipeline/functions install` | Passed; installed 300 packages; audit warnings remain |
+| Deploy functions build | `npm --prefix life-map-pipeline/functions run build` | Passed; `tsc --types node` completed |
+| Root build | `npm run build` | Passed; deploy Functions TypeScript build and legacy Functions syntax check completed |
+| Engine tests | `npm --prefix engine test` via root `npm test` | Passed; 3 tests passed |
+| Deploy functions test | `npm --prefix life-map-pipeline/functions test` via root `npm test` | Passed; build completed |
+| Legacy functions test | `npm --prefix functions test` via root `npm test` | Passed; `node --check index.js` completed |
+| Launch readiness | `npm run test:launch-readiness --if-present` | Passed; `PASS launch readiness static checks` |
 
 ## Required Evidence Before Marking Complete
 
 | Check | Required result | Status |
 | --- | --- | --- |
-| Root dependency install | `npm install` succeeds | Pending CI / local run |
-| Functions dependency install | `npm --prefix life-map-pipeline/functions install` succeeds | Pending CI / local run |
-| Build | `npm run build` succeeds | Pending CI / local run |
-| Test | `npm test` succeeds or documents intentional skips | Pending CI / local run |
-| Launch readiness | `npm run test:launch-readiness` succeeds | Pending CI / local run |
+| Root dependency install | `npm install` succeeds | Local dependency path verified through package builds/tests |
+| Functions dependency install | `npm --prefix life-map-pipeline/functions install` succeeds | Passed locally |
+| Build | `npm run build` succeeds | Passed locally |
+| Test | `npm test` succeeds or documents intentional skips | Passed locally |
+| Launch readiness | `npm run test:launch-readiness` succeeds | Passed locally |
 | Firebase deploy | `firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage` succeeds | Pending authenticated deploy |
 | Hosting smoke | Firebase hosting URL returns 200 | Pending deploy |
 | Health smoke | `/api/health` returns `ok: true` | Pending deploy |
@@ -56,4 +72,4 @@ Only update this document to **PRODUCTION VERIFIED** after recording:
 
 ## Current Limitation
 
-This branch was prepared through GitHub repository writes. Firebase deployment itself still requires authenticated Firebase credentials or CI secret `FIREBASE_SERVICE_ACCOUNT` to run in GitHub Actions.
+Local build, test, and launch-readiness gates now pass. Firebase deployment itself still requires authenticated Firebase credentials or CI secret `FIREBASE_SERVICE_ACCOUNT` to run in GitHub Actions.
