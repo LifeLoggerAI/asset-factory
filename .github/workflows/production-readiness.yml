@@ -68,7 +68,7 @@ jobs:
         run: npm run build
 
       - name: Write service account
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $HOME/firebase-service-account.json
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $RUNNER_TEMP/firebase-service-account.json
 
       - name: Deploy
         env:
