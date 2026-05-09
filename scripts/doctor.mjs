@@ -3,6 +3,8 @@ import { execSync } from 'node:child_process';
 
 const checks = [];
 let failed = false;
+const MIN_NODE = { major: 20, minor: 19, patch: 0 };
+const MIN_NPM = { major: 10, minor: 8, patch: 0 };
 
 function check(name, ok, details = '') {
   checks.push({ name, ok, details });
@@ -25,6 +27,24 @@ function command(commandLine) {
   }
 }
 
+function parseVersion(raw) {
+  const match = String(raw || '').trim().replace(/^v/, '').match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return null;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
+}
+
+function versionAtLeast(raw, minimum) {
+  const parsed = parseVersion(raw);
+  if (!parsed) return false;
+  if (parsed.major !== minimum.major) return parsed.major > minimum.major;
+  if (parsed.minor !== minimum.minor) return parsed.minor > minimum.minor;
+  return parsed.patch >= minimum.patch;
+}
+
+function versionLabel(version) {
+  return `${version.major}.${version.minor}.${version.patch}`;
+}
+
 const rootPkg = readJson('package.json');
 const studioPkg = readJson('assetfactory-studio/package.json');
 const gitBranch = command('git rev-parse --abbrev-ref HEAD');
@@ -34,8 +54,10 @@ const upstream = command('git rev-parse --abbrev-ref --symbolic-full-name @{u}')
 const nodeVersion = command('node --version');
 const npmVersion = command('npm --version');
 
-check('node is installed', Boolean(nodeVersion), 'Expected Node.js >=20.');
-check('npm is installed', Boolean(npmVersion), 'Expected npm 10+.');
+check('node is installed', Boolean(nodeVersion), `Expected Node.js >=${versionLabel(MIN_NODE)}.`);
+check('node version is supported', versionAtLeast(nodeVersion, MIN_NODE), `Current ${nodeVersion || 'missing'}; expected >=${versionLabel(MIN_NODE)} because current dependencies require Node ^20.19.0 or newer.`);
+check('npm is installed', Boolean(npmVersion), `Expected npm >=${versionLabel(MIN_NPM)}.`);
+check('npm version is supported', versionAtLeast(npmVersion, MIN_NPM), `Current ${npmVersion || 'missing'}; expected >=${versionLabel(MIN_NPM)}.`);
 check('NPM_CONFIG_PREFIX is unset', !process.env.NPM_CONFIG_PREFIX, process.env.NPM_CONFIG_PREFIX ? `Currently ${process.env.NPM_CONFIG_PREFIX}` : 'OK');
 check('root package.json readable', !rootPkg.__error, rootPkg.__error ?? 'OK');
 check('studio package.json readable', !studioPkg.__error, studioPkg.__error ?? 'OK');
@@ -69,6 +91,9 @@ for (const item of checks) {
 if (failed) {
   console.log('\nRecommended recovery commands:\n');
   console.log('unset NPM_CONFIG_PREFIX');
+  console.log('nvm install 20.19.0');
+  console.log('nvm use 20.19.0');
+  console.log('node --version');
   console.log('git fetch origin');
   console.log('git checkout main');
   console.log('git reset --hard origin/main');
