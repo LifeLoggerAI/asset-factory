@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
 const bearerSecurity = [{ bearerAuth: [] }, { assetFactoryApiKey: [] }];
+const adminSecurity = [{ bearerAuth: [] }, { assetFactoryApiKey: [] }];
+const workerSecurity = [{ workerSecret: [] }];
 
 export async function GET() {
   return NextResponse.json({
@@ -22,6 +24,12 @@ export async function GET() {
           in: 'header',
           name: 'x-asset-factory-key',
           description: 'Asset Factory API key required for protected mutating and full-diagnostics endpoints.',
+        },
+        workerSecret: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-asset-worker-secret',
+          description: 'Worker secret required for queue worker claim, heartbeat, complete, and fail actions.',
         },
         cronSecret: {
           type: 'apiKey',
@@ -68,6 +76,68 @@ export async function GET() {
       '/api/jobs/{jobId}/rollback': {
         post: { summary: 'Record a rollback against a tenant-authorized asset.', security: bearerSecurity },
       },
+      '/api/worker/asset-queue': {
+        get: {
+          summary: 'Read worker queue endpoint metadata and supported actions.',
+          security: workerSecurity,
+        },
+        post: {
+          summary: 'Run queue worker actions: claim-and-run, heartbeat, complete, or fail.',
+          security: workerSecurity,
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    action: { type: 'string', enum: ['claim-and-run', 'heartbeat', 'complete', 'fail'] },
+                    jobId: { type: 'string' },
+                    leaseId: { type: 'string' },
+                    reason: { type: 'string' },
+                    retryable: { type: 'boolean' },
+                    workerId: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/admin/queue': {
+        get: {
+          summary: 'Read admin queue visibility for queued, claimed, retrying, failed, dead-lettered, and stale-lease items.',
+          security: adminSecurity,
+          parameters: [
+            { name: 'status', in: 'query', required: false, schema: { type: 'string' } },
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 200 } },
+            { name: 'allTenants', in: 'query', required: false, schema: { type: 'boolean' } },
+          ],
+        },
+      },
+      '/api/admin/queue/requeue': {
+        post: {
+          summary: 'Requeue a failed, retrying, or dead-lettered queue item after operator review.',
+          security: adminSecurity,
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['jobId'],
+                  properties: {
+                    jobId: { type: 'string' },
+                    reason: { type: 'string' },
+                    resetAttempts: { type: 'boolean' },
+                    allTenants: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       '/api/assets': {
         get: { summary: 'List generated asset metadata visible to the current tenant.' },
       },
@@ -81,7 +151,7 @@ export async function GET() {
         get: { summary: 'Read tenant-scoped usage aggregates.' },
       },
       '/api/dashboard': {
-        get: { summary: 'Read tenant-scoped dashboard aggregates.' },
+        get: { summary: 'Read tenant-scoped dashboard aggregates, including queue failure/DLQ metrics.' },
       },
       '/api/system/health': {
         get: { summary: 'Read public health summary. Use ?full=true with API key for full diagnostics.' },
@@ -99,7 +169,7 @@ export async function GET() {
         get: { summary: 'Run or inspect the integrity cron placeholder.', security: [{ cronSecret: [] }] },
       },
       '/api/stripe/webhooks': {
-        post: { summary: 'Receive verified Stripe webhook events.', security: [{ stripeSignature: [] }] },
+        post: { summary: 'Receive verified Stripe webhook events and persist tenant entitlements when configured.', security: [{ stripeSignature: [] }] },
       },
     },
   });

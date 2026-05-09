@@ -24,6 +24,7 @@ const readiness = read('LAUNCH_READINESS.md');
 const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
+const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
 const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatcher.ts');
@@ -119,6 +120,22 @@ const requiredEmulatorSmokeCapabilities = [
 
 for (const capability of requiredEmulatorSmokeCapabilities) {
   assertIncludes(emulatorSmoke, capability, 'scripts/test-asset-factory-emulator.mjs');
+}
+
+const requiredOpenApiCapabilities = [
+  'workerSecret',
+  '/api/worker/asset-queue',
+  'claim-and-run',
+  'heartbeat',
+  '/api/admin/queue',
+  '/api/admin/queue/requeue',
+  'resetAttempts',
+  'allTenants',
+  'queue failure/DLQ metrics',
+];
+
+for (const capability of requiredOpenApiCapabilities) {
+  assertIncludes(openapiRoute, capability, 'assetfactory-studio/app/api/system/openapi/route.ts');
 }
 
 const requiredStripeEntitlementCapabilities = [
