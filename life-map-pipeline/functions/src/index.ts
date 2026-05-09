@@ -1,8 +1,13 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { Request, Response } from 'express';
 import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
 import { deterministicHash } from './hash';
+
+type HttpsRequest = Parameters<typeof functions.https.onRequest>[0] extends (req: infer Req, res: any) => any ? Req : never;
+type HttpsResponse = Parameters<typeof functions.https.onRequest>[0] extends (req: any, res: infer Res) => any ? Res : never;
+type FirestoreTransaction = FirebaseFirestore.Transaction;
+type LifeMapEventSnapshot = functions.firestore.QueryDocumentSnapshot;
+type LifeMapEventContext = functions.EventContext<{ eventId: string }>;
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -12,12 +17,12 @@ function now(): number {
   return Date.now();
 }
 
-function sendJson(res: Response, status: number, body: unknown): void {
+function sendJson(res: HttpsResponse, status: number, body: unknown): void {
   res.set('Cache-Control', 'no-store');
   res.status(status).json(body);
 }
 
-function applyCors(req: Request, res: Response): boolean {
+function applyCors(req: HttpsRequest, res: HttpsResponse): boolean {
   res.set('Access-Control-Allow-Origin', process.env.ASSET_FACTORY_ALLOWED_ORIGIN || '*');
   res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -42,6 +47,20 @@ function optionalString(value: unknown): string | undefined {
 function safeTags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 50);
+}
+
+function optionalNumberRecord(value: unknown): Record<string, number> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as Record<string, unknown>;
+  const output: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(candidate)) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) output[key] = raw;
+  }
+  return Object.keys(output).length > 0 ? output : undefined;
+}
+
+function objectPayload(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 }
 
 function newDocId(collection: string): string {
@@ -74,7 +93,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
   if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
 
   try {
-    const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+    const body = objectPayload(req.body);
     const projectId = requireString(body.projectId, 'projectId');
     const assetType = requireString(body.assetType, 'assetType');
     const source = optionalString(body.source) || 'api';
@@ -103,7 +122,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
       source,
       prompt: optionalString(body.prompt),
       tags: safeTags(body.tags),
-      dimensions: typeof body.dimensions === 'object' && body.dimensions !== null ? body.dimensions : undefined,
+      dimensions: optionalNumberRecord(body.dimensions),
       version: '1.0.0',
       lifecycleState: 'queued',
       createdAt: timestamp,
@@ -121,7 +140,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
       updatedAt: timestamp,
     };
 
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction: FirestoreTransaction) => {
       transaction.set(db.collection('assetFactoryRequests').doc(assetId), asset);
       transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), queueItem);
       transaction.set(db.collection('assetManifests').doc(assetId), {
@@ -160,7 +179,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
   if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
 
   try {
-    const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+    const body = objectPayload(req.body);
     const eventId = optionalString(body.eventId) || newDocId('lifeMapEvents');
     const event: LifeMapEvent = {
       eventId,
@@ -168,7 +187,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
       timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
       source: optionalString(body.source) || 'api',
       type: requireString(body.type, 'type'),
-      payload: typeof body.payload === 'object' && body.payload !== null ? body.payload : {},
+      payload: objectPayload(body.payload),
       linkedAssetId: optionalString(body.linkedAssetId),
     };
 
@@ -182,7 +201,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
 
 export const processLifeMapEvent = functions.firestore
   .document('lifeMapEvents/{eventId}')
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: LifeMapEventSnapshot, context: LifeMapEventContext) => {
     const event = snap.data() as LifeMapEvent;
     const { eventId } = context.params;
     const { userId } = event;
@@ -192,7 +211,7 @@ export const processLifeMapEvent = functions.firestore
     const lifeMapRef = db.collection('lifeMaps').doc(userId);
 
     try {
-      await db.runTransaction(async (transaction) => {
+      await db.runTransaction(async (transaction: FirestoreTransaction) => {
         const lifeMapDoc = await transaction.get(lifeMapRef);
 
         let lifeMap: LifeMap;
@@ -246,7 +265,7 @@ export const processLifeMapEvent = functions.firestore
       return null;
     } catch (error) {
       console.error(`[${eventId}] CRITICAL: Failed to process event for user ${userId}.`, error);
-      await lifeMapRef.set({ status: 'failed', updatedAt: now() }, { merge: true }).catch(err => {
+      await lifeMapRef.set({ status: 'failed', updatedAt: now() }, { merge: true }).catch((err: unknown) => {
         console.error(`[${eventId}] FATAL: Could not even set LifeMap status to failed.`, err);
       });
       return null;
