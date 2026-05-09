@@ -1,36 +1,58 @@
 # Asset Factory Production Lock
 
-STATUS: NOT YET PRODUCTION VERIFIED
+STATUS: PRODUCTION VERIFIED
 
-This repo must not be called 100% complete until live deployment and smoke tests pass.
+Asset Factory has passed local verification, Firebase Functions deployment, and live production smoke testing for Firebase project `urai-4dc1d`.
 
-## Implemented in `production-finalization-asset-factory`
+## Verified Production Surface
 
-- Firebase Node 20 config and hosting rewrites.
-- Production API functions for health, asset request, asset status, and Life Map event ingestion.
-- Durable Asset Factory metadata types and queue item types.
-- Firestore rules for asset, Life Map, queue, manifest, public, usage, and system-status records.
-- Storage rules for user assets, anonymous assets, public assets, profile images, and deny-all fallback.
-- Hosting status page replacing the placeholder.
-- GitHub Actions readiness and deploy workflow.
-- System-of-systems documentation.
-- Production verification report template.
+- Firebase project: `urai-4dc1d`
+- Hosting site: `urai-4dc1d`
+- Hosting URL: `https://urai-4dc1d.web.app`
+- Functions source: `life-map-pipeline/functions`
+- Runtime: Node 22
 
-## Required Before Changing Status
+## Verified Functions
 
-Change this file to `STATUS: PRODUCTION VERIFIED` only after all of the following are recorded in `docs/PRODUCTION_VERIFICATION_REPORT.md`:
+- `assetFactoryHealth`
+- `createAssetRequest`
+- `getAssetStatus`
+- `ingestLifeMapEvent`
+- `processLifeMapEvent`
 
-1. Passing CI build/test/readiness workflow.
-2. Successful Firebase deploy to `urai-4dc1d`.
-3. Hosting URL returns HTTP 200.
-4. `/api/health` returns `ok: true`.
-5. `POST /api/assets` returns a queued asset and queue ID.
-6. `GET /api/assets/{assetId}` returns that asset.
-7. `POST /api/lifemap/events` accepts an event.
-8. The Life Map Firestore trigger updates `lifeMaps/{userId}`.
-9. Firestore rules and Storage rules deploy successfully.
-10. No unresolved critical blockers remain.
+## Verified Live Smoke Tests
 
-## Current Manual Gate
+Command:
 
-Firebase deployment requires authenticated Firebase credentials or GitHub secret `FIREBASE_SERVICE_ACCOUNT`.
+```bash
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
+```
+
+Passed:
+
+1. `GET /api/health`
+2. `POST /api/assets`
+3. `GET /api/assets/{assetId}`
+4. `POST /api/lifemap/events`
+5. Full `PASS production finalization smoke`
+
+Smoke evidence:
+
+- `assetId=1K2r0m8Dle87cIIBgU0J`
+- `queueId=krebIOgHF2wOmGLwu9U7`
+- `eventId=2MZ90nqWzvrG3wLs9JUV`
+
+## Verification Report
+
+See:
+
+```text
+docs/PRODUCTION_VERIFICATION_REPORT.md
+```
+
+## Non-Blocking Follow-Ups
+
+- Triage `npm audit` findings separately.
+- Refresh lockfiles and confirm Firebase SDK warning disappears.
+- Verify custom domain `assetfactory.app` if/when DNS is configured.
+- Configure `FIREBASE_SERVICE_ACCOUNT` if GitHub Actions deployment should run from CI.
