@@ -26,8 +26,7 @@ function jobIdFromFile(fileName: string) {
 
 function asBodyInit(asset: Buffer | Uint8Array | string): BodyInit {
   if (typeof asset === 'string') return asset;
-  const bytes = asset instanceof Uint8Array ? asset : new Uint8Array(asset);
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return new Uint8Array(asset);
 }
 
 export async function GET(
