@@ -1,6 +1,15 @@
 # Firebase Service Account Setup
 
-Asset Factory production deployment is intentionally blocked until GitHub Actions has a Firebase deploy credential.
+Asset Factory is already production verified from local authenticated deployment. This document is now the CI deployment setup guide for GitHub Actions.
+
+## Current Verified Production Baseline
+
+- Firebase project: `urai-4dc1d`
+- Hosting URL: `https://urai-4dc1d.web.app`
+- Production lock: `LOCK.md` is `STATUS: PRODUCTION VERIFIED`
+- Verification evidence: `docs/PRODUCTION_VERIFICATION_REPORT.md`
+
+CI deploy is a post-production automation hardening item. Production status does not depend on CI until the team chooses to make GitHub Actions the deploy path.
 
 ## Required GitHub Secret
 
@@ -15,6 +24,8 @@ The value must be the full JSON service account key for Firebase project:
 ```text
 urai-4dc1d
 ```
+
+Do not commit this JSON file to the repository.
 
 ## Required Permissions
 
@@ -66,26 +77,40 @@ After the secret exists:
 The workflow will:
 
 1. Install root dependencies.
-2. Install Firebase Functions dependencies.
-3. Run doctor/readiness scripts.
-4. Build Functions.
-5. Deploy hosting, functions, Firestore rules, and Storage rules to `urai-4dc1d`.
-6. Run production-finalization smoke tests against `https://urai-4dc1d.web.app`.
+2. Install engine dependencies.
+3. Install legacy Functions dependencies.
+4. Install deploy Functions dependencies.
+5. Run doctor/readiness scripts.
+6. Build Functions.
+7. Run tests.
+8. Run non-blocking audit reporting.
+9. Deploy hosting, functions, Firestore rules, and Storage rules to `urai-4dc1d`.
+10. Run production-finalization smoke tests against `https://urai-4dc1d.web.app`.
 
 ## Required Passing Smoke Tests
 
-The deploy is not production verified unless all of these pass:
+The CI deploy is not considered verified unless all of these pass:
 
 - `GET /api/health`
 - `POST /api/assets`
 - `GET /api/assets/{assetId}`
 - `POST /api/lifemap/events`
 
-## Final Lock Update
+## Expected Failure Modes
 
-Only after a passing workflow and successful live smoke output should these files be updated:
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Workflow says `FIREBASE_SERVICE_ACCOUNT secret is not configured` | Secret is missing or named incorrectly | Add repository secret named exactly `FIREBASE_SERVICE_ACCOUNT` |
+| Firebase deploy permission error | Service account lacks one or more deploy roles | Add least-privilege Firebase/GCP deploy roles listed above |
+| Smoke test fails after deploy | Runtime or hosting rewrite regression | Do not update lock; inspect workflow logs and rerun local `npm run deploy:verify` |
+| Audit step reports low findings | Known post-production dependency hardening item | Keep audit non-blocking unless runtime-reachable high/critical findings appear |
 
-- `docs/PRODUCTION_VERIFICATION_REPORT.md`
-- `LOCK.md`
+## Final CI Evidence Update
 
-`LOCK.md` must stay `STATUS: NOT YET PRODUCTION VERIFIED` until live deploy evidence exists.
+After the first passing CI deployment:
+
+1. Add the GitHub Actions workflow URL and smoke evidence to `docs/PRODUCTION_VERIFICATION_REPORT.md`.
+2. Comment on Issue #56 with the passing workflow run link.
+3. Close Issue #56.
+
+Do not rotate or expose the service account JSON in issue comments, logs, screenshots, or docs.
