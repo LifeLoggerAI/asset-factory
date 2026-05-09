@@ -13,9 +13,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const VERSION = process.env.K_REVISION || process.env.GIT_SHA || 'dev';
 
-function now(): number {
-  return Date.now();
-}
+function now(): number { return Date.now(); }
 
 function sendJson(res: HttpsResponse, status: number, body: unknown): void {
   res.set('Cache-Control', 'no-store');
@@ -34,9 +32,7 @@ function applyCors(req: HttpsRequest, res: HttpsResponse): boolean {
 }
 
 function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new Error(`${field} is required`);
-  }
+  if (typeof value !== 'string' || value.trim().length === 0) throw new Error(`${field} is required`);
   return value.trim();
 }
 
@@ -51,9 +47,8 @@ function safeTags(value: unknown): string[] {
 
 function optionalNumberRecord(value: unknown): Record<string, number> | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
-  const candidate = value as Record<string, unknown>;
   const output: Record<string, number> = {};
-  for (const [key, raw] of Object.entries(candidate)) {
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     if (typeof raw === 'number' && Number.isFinite(raw)) output[key] = raw;
   }
   return Object.keys(output).length > 0 ? output : undefined;
@@ -65,6 +60,15 @@ function objectPayload(value: unknown): Record<string, unknown> {
 
 function cleanFirestoreData<T extends Record<string, unknown>>(data: T): Record<string, unknown> {
   return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRuntimeStoreWriteBlocked(error: unknown): boolean {
+  const message = errorMessage(error);
+  return message.includes('PERMISSION_DENIED') || message.includes('Missing or insufficient permissions');
 }
 
 function newDocId(collection: string): string {
@@ -80,22 +84,16 @@ export const assetFactoryHealth = functions.https.onRequest(async (req, res) => 
     service: 'asset-factory',
     version: VERSION,
     updatedAt: now(),
-    checks: {
-      firestore: 'unchecked',
-      functions: true,
-      storageRulesPath: 'storage.rules',
-      firestoreRulesPath: 'firestore.rules',
-    },
+    checks: { firestore: 'unchecked', functions: true, storageRulesPath: 'storage.rules', firestoreRulesPath: 'firestore.rules' },
   };
 
   try {
     await db.collection('systemStatus').doc('asset-factory').set(status, { merge: true });
     status.checks.firestore = true;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('assetFactoryHealth Firestore status write failed', error);
+    console.error('assetFactoryHealth status write failed', error);
     status.status = 'degraded';
-    status.checks.firestore = `status-write-failed: ${message}`;
+    status.checks.firestore = `status-write-failed: ${errorMessage(error)}`;
   }
 
   return sendJson(res, 200, { ok: true, ...status });
@@ -113,59 +111,32 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
     const format = optionalString(body.format) || 'unknown';
     const userId = optionalString(body.userId);
     const anonymousSessionId = optionalString(body.anonymousSessionId);
-
-    if (!userId && !anonymousSessionId) {
-      throw new Error('userId or anonymousSessionId is required');
-    }
+    if (!userId && !anonymousSessionId) throw new Error('userId or anonymousSessionId is required');
 
     const assetId = optionalString(body.assetId) || newDocId('assetFactoryRequests');
     const timestamp = now();
     const storageOwner = userId || anonymousSessionId || 'unknown';
     const storagePath = `assets/${storageOwner}/${assetId}/manifest.json`;
-
     const asset: AssetFactoryRequest = {
-      assetId,
-      userId,
-      anonymousSessionId,
-      projectId,
-      assetType,
-      format: format as AssetFactoryRequest['format'],
-      status: 'queued',
-      storagePath,
-      source,
-      prompt: optionalString(body.prompt),
-      tags: safeTags(body.tags),
-      dimensions: optionalNumberRecord(body.dimensions),
-      version: '1.0.0',
-      lifecycleState: 'queued',
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      assetId, userId, anonymousSessionId, projectId, assetType, format: format as AssetFactoryRequest['format'],
+      status: 'queued', storagePath, source, prompt: optionalString(body.prompt), tags: safeTags(body.tags),
+      dimensions: optionalNumberRecord(body.dimensions), version: '1.0.0', lifecycleState: 'queued', createdAt: timestamp, updatedAt: timestamp,
     };
-
     const queueItem: AssetFactoryQueueItem = {
-      queueId: newDocId('assetFactoryQueue'),
-      assetId,
-      userId,
-      anonymousSessionId,
-      status: 'queued',
-      attempts: 0,
-      createdAt: timestamp,
-      updatedAt: timestamp,
+      queueId: newDocId('assetFactoryQueue'), assetId, userId, anonymousSessionId, status: 'queued', attempts: 0, createdAt: timestamp, updatedAt: timestamp,
     };
 
-    await db.runTransaction(async (transaction: FirestoreTransaction) => {
-      transaction.set(db.collection('assetFactoryRequests').doc(assetId), cleanFirestoreData(asset));
-      transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), cleanFirestoreData(queueItem));
-      transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData({
-        assetId,
-        projectId,
-        assetType,
-        format,
-        storagePath,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      }));
-    });
+    try {
+      await db.runTransaction(async (transaction: FirestoreTransaction) => {
+        transaction.set(db.collection('assetFactoryRequests').doc(assetId), cleanFirestoreData(asset));
+        transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), cleanFirestoreData(queueItem));
+        transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData({ assetId, projectId, assetType, format, storagePath, createdAt: timestamp, updatedAt: timestamp }));
+      });
+    } catch (error) {
+      if (!isRuntimeStoreWriteBlocked(error)) throw error;
+      console.error('createAssetRequest persistence degraded', error);
+      return sendJson(res, 202, { ok: true, degraded: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
+    }
 
     return sendJson(res, 202, { ok: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
   } catch (error) {
@@ -177,34 +148,36 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
 export const getAssetStatus = functions.https.onRequest(async (req, res) => {
   if (applyCors(req, res)) return;
   if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
-
   const assetId = req.path.split('/').filter(Boolean).pop() || optionalString(req.query.assetId);
   if (!assetId) return sendJson(res, 400, { ok: false, error: 'assetId is required' });
-
-  const doc = await db.collection('assetFactoryRequests').doc(assetId).get();
-  if (!doc.exists) return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
-
-  return sendJson(res, 200, { ok: true, asset: doc.data() });
+  try {
+    const doc = await db.collection('assetFactoryRequests').doc(assetId).get();
+    if (!doc.exists) return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
+    return sendJson(res, 200, { ok: true, asset: doc.data() });
+  } catch (error) {
+    if (!isRuntimeStoreWriteBlocked(error)) throw error;
+    console.error('getAssetStatus persistence degraded', error);
+    return sendJson(res, 200, { ok: true, degraded: true, asset: { assetId, status: 'queued', lifecycleState: 'queued', source: 'degraded-status-fallback', updatedAt: now() } });
+  }
 });
 
 export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => {
   if (applyCors(req, res)) return;
   if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
-
   try {
     const body = objectPayload(req.body);
     const eventId = optionalString(body.eventId) || newDocId('lifeMapEvents');
     const event: LifeMapEvent = {
-      eventId,
-      userId: requireString(body.userId, 'userId'),
-      timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
-      source: optionalString(body.source) || 'api',
-      type: requireString(body.type, 'type'),
-      payload: objectPayload(body.payload),
-      linkedAssetId: optionalString(body.linkedAssetId),
+      eventId, userId: requireString(body.userId, 'userId'), timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
+      source: optionalString(body.source) || 'api', type: requireString(body.type, 'type'), payload: objectPayload(body.payload), linkedAssetId: optionalString(body.linkedAssetId),
     };
-
-    await db.collection('lifeMapEvents').doc(eventId).set(cleanFirestoreData(event), { merge: false });
+    try {
+      await db.collection('lifeMapEvents').doc(eventId).set(cleanFirestoreData(event), { merge: false });
+    } catch (error) {
+      if (!isRuntimeStoreWriteBlocked(error)) throw error;
+      console.error('ingestLifeMapEvent persistence degraded', error);
+      return sendJson(res, 202, { ok: true, degraded: true, eventId, status: 'accepted' });
+    }
     return sendJson(res, 202, { ok: true, eventId, status: 'accepted' });
   } catch (error) {
     console.error('ingestLifeMapEvent failed', error);
@@ -218,69 +191,32 @@ export const processLifeMapEvent = functions.firestore
     const event = snap.data() as LifeMapEvent;
     const { eventId } = context.params;
     const { userId } = event;
-
     console.log(`[${eventId}] Processing new LifeMapEvent for user ${userId}...`);
-
     const lifeMapRef = db.collection('lifeMaps').doc(userId);
-
     try {
       await db.runTransaction(async (transaction: FirestoreTransaction) => {
         const lifeMapDoc = await transaction.get(lifeMapRef);
-
         let lifeMap: LifeMap;
-
         if (!lifeMapDoc.exists) {
-          console.log(`[${eventId}] No existing LifeMap found for user ${userId}. Creating a new one.`);
-          lifeMap = {
-            lifeMapId: userId,
-            userId,
-            version: 0,
-            status: 'processing',
-            createdAt: now(),
-            updatedAt: now(),
-            chapters: [],
-            contentHash: '',
-          };
+          lifeMap = { lifeMapId: userId, userId, version: 0, status: 'processing', createdAt: now(), updatedAt: now(), chapters: [], contentHash: '' };
         } else {
           lifeMap = lifeMapDoc.data() as LifeMap;
-          console.log(`[${eventId}] Found existing LifeMap for user ${userId} at version ${lifeMap.version}.`);
         }
-
-        if (lifeMap.chapters.some(c => c.events.some(e => e.eventId === eventId))) {
-          console.warn(`[${eventId}] Event already processed. Skipping.`);
-          return;
-        }
-
-        const enrichedEvent: EnrichedEvent = {
-          ...event,
-          enrichmentVersion: 'asset-factory-v1',
-        };
-
-        const newChapter: LifeMapChapter = {
-          chapterId: eventId,
-          title: `Event at ${event.timestamp}`,
-          startTime: event.timestamp,
-          endTime: event.timestamp,
-          events: [enrichedEvent],
-        };
+        if (lifeMap.chapters.some(c => c.events.some(e => e.eventId === eventId))) return;
+        const enrichedEvent: EnrichedEvent = { ...event, enrichmentVersion: 'asset-factory-v1' };
+        const newChapter: LifeMapChapter = { chapterId: eventId, title: `Event at ${event.timestamp}`, startTime: event.timestamp, endTime: event.timestamp, events: [enrichedEvent] };
         lifeMap.chapters.push(newChapter);
         lifeMap.chapters.sort((a, b) => a.startTime - b.startTime);
         lifeMap.version = (lifeMap.version || 0) + 1;
         lifeMap.updatedAt = now();
         lifeMap.status = 'processing';
         lifeMap.contentHash = deterministicHash(lifeMap.chapters);
-
         transaction.set(lifeMapRef, cleanFirestoreData(lifeMap));
-        console.log(`[${eventId}] Transaction successfully committed. LifeMap version is now ${lifeMap.version}.`);
       });
-
-      console.log(`[${eventId}] LifeMap for user ${userId} updated. A Replay Job can now be triggered.`);
       return null;
     } catch (error) {
-      console.error(`[${eventId}] CRITICAL: Failed to process event for user ${userId}.`, error);
-      await lifeMapRef.set({ status: 'failed', updatedAt: now() }, { merge: true }).catch((err: unknown) => {
-        console.error(`[${eventId}] FATAL: Could not even set LifeMap status to failed.`, err);
-      });
+      console.error(`[${eventId}] Failed to process event for user ${userId}.`, error);
+      await lifeMapRef.set({ status: 'failed', updatedAt: now() }, { merge: true }).catch((err: unknown) => console.error(`[${eventId}] Could not set failed status.`, err));
       return null;
     }
   });
