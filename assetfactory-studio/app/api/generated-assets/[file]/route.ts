@@ -24,6 +24,12 @@ function jobIdFromFile(fileName: string) {
   return fileName.split('.').slice(0, -1).join('.') || fileName;
 }
 
+function asBodyInit(asset: Buffer | Uint8Array | string): BodyInit {
+  if (typeof asset === 'string') return asset;
+  const bytes = asset instanceof Uint8Array ? asset : new Uint8Array(asset);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ file: string }> }
@@ -48,7 +54,7 @@ export async function GET(
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  return new NextResponse(asset, {
+  return new NextResponse(asBodyInit(asset), {
     headers: {
       'content-type': contentTypeFor(file),
       'cache-control': assetRecord.published ? 'public, max-age=31536000, immutable' : 'private, max-age=60',
