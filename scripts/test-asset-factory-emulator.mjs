@@ -42,6 +42,7 @@ const assetRef = db.collection('assetFactoryAssets').doc(testId);
 const usageRef = db.collection('assetFactoryUsage').doc(`${testId}-usage`);
 const queueRef = db.collection('assetFactoryQueue').doc(testId);
 const queueDlqRef = db.collection('assetFactoryQueue').doc(`${testId}-dlq`);
+const queueRequeueRef = db.collection('assetFactoryQueue').doc(`${testId}-requeue`);
 const objectPath = `tenants/emulator/jobs/${testId}/v1/artifact.txt`;
 const now = new Date().toISOString();
 
@@ -128,17 +129,60 @@ await db.runTransaction(async (transaction) => {
   }, { merge: true });
 });
 
-const [jobDoc, assetDoc, usageDoc, queueDoc, queueDlqDoc, storageExists] = await Promise.all([
+await queueRequeueRef.set({
+  jobId: `${testId}-requeue`,
+  tenantId: 'emulator',
+  status: 'dead-lettered',
+  queueStatus: 'dead-lettered',
+  attempts: 3,
+  maxAttempts: 3,
+  workerId: 'emulator-worker',
+  leaseId: `${testId}-requeue-lease`,
+  leaseExpiresAt: new Date(Date.now() - 300000).toISOString(),
+  failureReason: 'emulator requeue proof failure',
+  deadLetteredAt: now,
+  queuedAt: now,
+  updatedAt: now,
+});
+
+await db.runTransaction(async (transaction) => {
+  const doc = await transaction.get(queueRequeueRef);
+  const item = doc.data();
+  if (!doc.exists || item?.status !== 'dead-lettered') {
+    throw new Error('Requeue queue item was not available to requeue.');
+  }
+
+  transaction.set(queueRequeueRef, {
+    status: 'queued',
+    queueStatus: 'queued',
+    previousStatus: item.status,
+    requeuedAt: new Date().toISOString(),
+    requeuedBy: 'emulator-operator',
+    requeueReason: 'emulator verified retry path',
+    failureReason: null,
+    deadLetteredAt: null,
+    retryAfter: null,
+    leaseId: null,
+    leaseExpiresAt: null,
+    workerId: null,
+    heartbeatAt: null,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+});
+
+const [jobDoc, assetDoc, usageDoc, queueDoc, queueDlqDoc, queueRequeueDoc, storageExists] = await Promise.all([
   jobRef.get(),
   assetRef.get(),
   usageRef.get(),
   queueRef.get(),
   queueDlqRef.get(),
+  queueRequeueRef.get(),
   bucket.file(objectPath).exists(),
 ]);
 
 const queueData = queueDoc.data();
 const queueDlqData = queueDlqDoc.data();
+const queueRequeueData = queueRequeueDoc.data();
 
 if (!jobDoc.exists || !assetDoc.exists || !usageDoc.exists || !storageExists[0]) {
   console.error('Emulator smoke test failed to round-trip Firestore and Storage artifacts.');
@@ -155,13 +199,19 @@ if (!queueDlqDoc.exists || queueDlqData?.status !== 'dead-lettered' || queueDlqD
   process.exit(1);
 }
 
+if (!queueRequeueDoc.exists || queueRequeueData?.status !== 'queued' || queueRequeueData?.previousStatus !== 'dead-lettered' || queueRequeueData?.failureReason !== null || queueRequeueData?.leaseId !== null) {
+  console.error('Emulator smoke test failed durable queue requeue lifecycle.');
+  process.exit(1);
+}
+
 await Promise.all([
   jobRef.delete(),
   assetRef.delete(),
   usageRef.delete(),
   queueRef.delete(),
   queueDlqRef.delete(),
+  queueRequeueRef.delete(),
   bucket.file(objectPath).delete().catch(() => undefined),
 ]);
 
-console.log('PASS Firestore/Storage/Queue emulator smoke test');
+console.log('PASS Firestore/Storage/Queue/Requeue emulator smoke test');

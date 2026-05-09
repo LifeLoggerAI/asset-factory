@@ -23,6 +23,7 @@ function assertIncludes(content, expected, label) {
 const readiness = read('LAUNCH_READINESS.md');
 const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
+const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
 const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatcher.ts');
@@ -102,6 +103,22 @@ const requiredSmokeCapabilities = [
 
 for (const capability of requiredSmokeCapabilities) {
   assertIncludes(remoteSmoke, capability, 'scripts/smoke-asset-factory-remote.mjs');
+}
+
+const requiredEmulatorSmokeCapabilities = [
+  'queueRequeueRef',
+  'emulator verified retry path',
+  'previousStatus',
+  'requeuedAt',
+  'requeuedBy',
+  'requeueReason',
+  'failureReason: null',
+  'leaseId: null',
+  'Queue/Requeue emulator smoke test',
+];
+
+for (const capability of requiredEmulatorSmokeCapabilities) {
+  assertIncludes(emulatorSmoke, capability, 'scripts/test-asset-factory-emulator.mjs');
 }
 
 const requiredStripeEntitlementCapabilities = [
