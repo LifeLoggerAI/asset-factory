@@ -93,6 +93,7 @@ Post-hardening deterministic predeploy smoke result:
 - Firebase project: `urai-4dc1d`
 - Hosting site: `urai-4dc1d`
 - Hosting URL: `https://urai-4dc1d.web.app`
+- Custom domain target: `https://www.uraiassetfactory.com`
 - Functions source: `life-map-pipeline/functions`
 - Runtime: Node 22
 
@@ -100,7 +101,7 @@ Post-hardening deterministic predeploy smoke result:
 
 - Functions audit hardening reduced the deploy Functions audit surface to 9 low findings. The remaining low advisory chain should not be force-fixed if it downgrades `firebase-admin` from the verified 12.x line.
 - Firebase CLI still prints a stale-looking Functions SDK warning even though the deploy Functions package has been verified with `firebase-functions@5.1.1` and `firebase-admin@12.7.0`.
-- Custom domain `assetfactory.app` is not verified yet. The verified production endpoint is `https://urai-4dc1d.web.app`.
+- Custom domain `www.uraiassetfactory.com` is not verified yet. The verified production endpoint is `https://urai-4dc1d.web.app`.
 - GitHub Actions deploy still requires repository secret `FIREBASE_SERVICE_ACCOUNT` if CI-based deployment is desired.
 
 ## Final Status
