@@ -25,6 +25,7 @@ const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
 const unitTests = read('scripts/test-asset-factory-units.mjs');
+const doctor = read('scripts/doctor.mjs');
 const studioPackage = read('assetfactory-studio/package.json');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
@@ -64,6 +65,7 @@ const requiredReadmeReferences = [
   'npm run smoke:staging',
   'npm run smoke:prod',
   'npm run smoke:website',
+  'npm run doctor',
 ];
 
 for (const reference of requiredReadmeReferences) {
@@ -71,6 +73,7 @@ for (const reference of requiredReadmeReferences) {
 }
 
 const requiredPackageScripts = [
+  'doctor',
   'smoke:remote',
   'smoke:staging',
   'smoke:prod',
@@ -83,6 +86,19 @@ for (const scriptName of requiredPackageScripts) {
     packageJson.scripts?.[scriptName],
     `package.json scripts must define ${scriptName}`
   );
+}
+
+const requiredDoctorCapabilities = [
+  'NPM_CONFIG_PREFIX',
+  'root test:launch-readiness script exists',
+  'studio test script exists',
+  'local HEAD matches origin/main',
+  'Recommended recovery commands',
+  'git reset --hard origin/main',
+];
+
+for (const capability of requiredDoctorCapabilities) {
+  assertIncludes(doctor, capability, 'scripts/doctor.mjs');
 }
 
 assertIncludes(studioPackage, 'node ../scripts/test-asset-factory-units.mjs', 'assetfactory-studio/package.json');
