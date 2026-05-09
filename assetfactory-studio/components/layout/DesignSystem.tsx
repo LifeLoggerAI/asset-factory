@@ -32,7 +32,10 @@ export const AppShell = ({ children }: AppShellProps) => {
         <Link href="/" style={{ textDecoration: 'none', color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
           Asset Factory
         </Link>
-        <nav style={{ display: 'flex', gap: '1.5rem' }}>
+        <nav style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <Link href="/admin/queue" style={{ textDecoration: 'none', color: '#fbbf24', fontWeight: 600 }}>
+            Operator Queue
+          </Link>
           <Link href="/trust" style={{ textDecoration: 'none', color: '#00aaff', fontWeight: 600 }}>
             Trust &amp; Security
           </Link>
