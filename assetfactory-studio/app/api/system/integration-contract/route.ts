@@ -38,6 +38,10 @@ export async function GET() {
         complete: 'POST /api/worker/asset-queue { action: "complete", jobId, leaseId }',
         fail: 'POST /api/worker/asset-queue { action: "fail", jobId, leaseId, reason, retryable }',
       },
+      admin: {
+        queue: 'GET /api/admin/queue?status=dead-lettered&limit=50',
+        allTenantQueue: 'GET /api/admin/queue?allTenants=true',
+      },
       assets: {
         list: 'GET /api/assets',
         read: 'GET /api/assets/:jobId',
@@ -68,6 +72,7 @@ export async function GET() {
       'Cron endpoints require CRON_SECRET.',
       'Stripe webhooks require verified stripe-signature headers and persist tenant entitlements when Firestore is configured.',
       'Worker queue endpoints require ASSET_FACTORY_WORKER_SECRET and use Firestore leases/retries/DLQ semantics in firestore-queue mode.',
+      'Admin queue visibility requires the admin role and reports failed, dead-lettered, retrying, queued, claimed, and stale-lease queue items.',
     ],
   });
 }
