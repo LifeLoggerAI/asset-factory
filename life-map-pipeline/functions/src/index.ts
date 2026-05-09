@@ -77,14 +77,23 @@ export const assetFactoryHealth = functions.https.onRequest(async (req, res) => 
     version: VERSION,
     updatedAt: now(),
     checks: {
-      firestore: true,
+      firestore: 'unchecked',
       functions: true,
       storageRulesPath: 'storage.rules',
       firestoreRulesPath: 'firestore.rules',
     },
   };
 
-  await db.collection('systemStatus').doc('asset-factory').set(status, { merge: true });
+  try {
+    await db.collection('systemStatus').doc('asset-factory').set(status, { merge: true });
+    status.checks.firestore = true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('assetFactoryHealth Firestore status write failed', error);
+    status.status = 'degraded';
+    status.checks.firestore = `status-write-failed: ${message}`;
+  }
+
   return sendJson(res, 200, { ok: true, ...status });
 });
 
