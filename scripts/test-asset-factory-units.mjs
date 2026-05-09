@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root = process.cwd();
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(scriptDir, '..');
 const studioRoot = path.join(root, 'assetfactory-studio');
 const studioNodeModules = path.join(studioRoot, 'node_modules');
 const typescriptPath = path.join(studioNodeModules, 'typescript', 'lib', 'typescript.js');
