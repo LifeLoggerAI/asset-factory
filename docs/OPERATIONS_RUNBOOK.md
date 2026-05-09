@@ -30,6 +30,7 @@ Core routes:
 - `POST /api/stripe/webhooks`
 - `GET|POST /api/cron/integrity-check`
 - `GET|POST /api/worker/asset-queue`
+- `GET /api/admin/queue`
 
 ## Required environment groups
 
@@ -95,6 +96,41 @@ npm --prefix assetfactory-studio run e2e
 npm test
 npm run build
 ```
+
+## Operator queue visibility
+
+Use the admin queue endpoint to inspect failed, dead-lettered, retrying, queued, claimed, and stale-lease queue items.
+
+Tenant-scoped view:
+
+```bash
+curl -H "x-tenant-id: $TENANT_ID" \
+  -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  "$ASSET_FACTORY_BASE_URL/api/admin/queue?status=dead-lettered&limit=50"
+```
+
+All-tenant operator view:
+
+```bash
+curl -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  "$ASSET_FACTORY_BASE_URL/api/admin/queue?allTenants=true&limit=100"
+```
+
+Dashboard metrics also include:
+
+- `dlqSize`
+- `queueFailures`
+- `staleClaimedQueueItems`
+- `queueByStatus`
+
+Dead-letter policy:
+
+1. Inspect the dead-lettered item and failure reason.
+2. Confirm whether the provider/auth/storage issue is fixed.
+3. Requeue only if the failure is understood and retryable.
+4. Leave permanent failures dead-lettered with actionable failure reasons.
 
 ## Staging checklist
 
@@ -192,7 +228,7 @@ Provider cost spike:
 
 Queue backlog:
 
-1. Check queue depth and dead-letter count.
+1. Check queue depth and dead-letter count using `/api/admin/queue`.
 2. Confirm worker auth and leases.
 3. Requeue retryable jobs only after root cause is known.
 4. Leave permanent failures dead-lettered with reasons.
@@ -240,11 +276,13 @@ Date/time UTC:
 - [ ] Cross-tenant denial passed
 - [ ] Stripe unsigned webhook rejection passed
 - [ ] Cron secret check passed
+- [ ] Admin queue visibility checked
 
 ### Production gates
 - [ ] DNS/TLS verified
 - [ ] Read-only smoke passed
 - [ ] Authenticated production smoke passed
+- [ ] Admin queue visibility checked
 - [ ] Observability checked
 - [ ] Provider spend caps confirmed
 - [ ] Rollback target identified
