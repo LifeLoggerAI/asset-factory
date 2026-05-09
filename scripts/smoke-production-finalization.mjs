@@ -7,14 +7,31 @@ if (!base) {
   process.exit(1);
 }
 
+function formatCause(error) {
+  if (!error || typeof error !== 'object') return '';
+  const cause = error.cause;
+  if (!cause || typeof cause !== 'object') return '';
+  const parts = [];
+  for (const key of ['code', 'errno', 'syscall', 'hostname', 'host', 'port']) {
+    if (cause[key]) parts.push(`${key}=${cause[key]}`);
+  }
+  return parts.length ? ` (${parts.join(', ')})` : '';
+}
+
 async function request(path, options = {}, expectedStatuses = [200]) {
-  const response = await fetch(`${base}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(`${base}${path}`, {
+      ...options,
+      headers: {
+        'content-type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${path} fetch failed for ${base}${path}: ${message}${formatCause(error)}`);
+  }
 
   const text = await response.text();
   let body;
