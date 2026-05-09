@@ -21,13 +21,18 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             life-map-pipeline/functions/package-lock.json
 
       - name: Install root dependencies
         run: npm install
 
-      - name: Install functions dependencies
+      - name: Install engine dependencies
+        run: npm --prefix engine install
+
+      - name: Install legacy functions dependencies
+        run: npm --prefix functions install
+
+      - name: Install deploy functions dependencies
         run: npm --prefix life-map-pipeline/functions install
 
       - name: Doctor
