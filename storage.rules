@@ -1,21 +1,53 @@
-
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Match any file in the assets directory
-    match /assets/{ownerId}/{jobId}/{filePath=**} {
-      // Only the user who owns the job can write to the job's folder.
-      allow write: if request.auth != null && request.auth.uid == ownerId;
-
-      // Only the user who owns the job can read their assets.
-      allow read: if request.auth != null && request.auth.uid == ownerId;
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
 
-    // Security for other paths can be added here
-    // For example, you might have a 'user_profiles' directory
-    match /user_profiles/{userId}/profile_picture.jpg {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == userId;
+    function isRequestingUser(userId) {
+      return isUserAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAllowedAssetContentType() {
+      return request.resource.contentType.matches('image/.*')
+        || request.resource.contentType.matches('application/json')
+        || request.resource.contentType.matches('text/.*')
+        || request.resource.contentType.matches('audio/.*')
+        || request.resource.contentType.matches('video/.*');
+    }
+
+    function isReasonableUploadSize() {
+      return request.resource.size < 50 * 1024 * 1024;
+    }
+
+    match /assets/{ownerId}/{jobId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
+      allow write: if isRequestingUser(ownerId)
+        && isAllowedAssetContentType()
+        && isReasonableUploadSize();
+    }
+
+    match /exports/{ownerId}/{exportId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
+      allow write: if false;
+    }
+
+    match /synthetic-demo/{demoId}/{filePath=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /user_profiles/{userId}/{filePath=**} {
+      allow read: if isRequestingUser(userId);
+      allow write: if isRequestingUser(userId)
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
