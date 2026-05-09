@@ -25,6 +25,7 @@
     "audit:all": "npm run audit:root && npm run audit:functions",
     "lockfile:refresh-root": "npm install --package-lock-only && npm run audit:root",
     "lockfile:refresh-functions": "node scripts/refresh-functions-lockfile.mjs",
+    "diagnose:custom-domain": "node scripts/diagnose-custom-domain.mjs",
     "deploy:firebase": "firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage",
     "deploy:hosting-rules": "firebase deploy --project urai-4dc1d --only hosting,firestore,storage",
     "deploy:functions": "firebase deploy --project urai-4dc1d --only functions",
