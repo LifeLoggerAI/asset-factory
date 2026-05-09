@@ -14,6 +14,17 @@ https://www.uraiassetfactory.com
 
 This runbook covers the remaining external DNS / Firebase Hosting setup required before Issue #55 can be closed.
 
+## Current Observed Custom-Domain Failure
+
+Latest read-only smoke result:
+
+```text
+Production finalization smoke target: https://www.uraiassetfactory.com
+FAIL /api/health fetch failed for https://www.uraiassetfactory.com/api/health: fetch failed (code=ECONNRESET, host=www.uraiassetfactory.com, port=443)
+```
+
+This means the verified Firebase runtime is not the blocker. The request reaches the custom domain host over HTTPS, then the connection resets before the `/api/health` response. Treat this as a DNS / TLS certificate / Firebase Hosting domain mapping issue until proven otherwise.
+
 ## Prerequisites
 
 - Firebase project: `urai-4dc1d`
@@ -102,6 +113,7 @@ Expected output:
 | Symptom | Likely cause | Next step |
 | --- | --- | --- |
 | `fetch failed` with `ENOTFOUND` | DNS is not configured or not propagated | Recheck DNS records and wait for propagation |
+| `fetch failed` with `ECONNRESET` on port 443 | HTTPS reaches a host, but TLS/proxy/Firebase Hosting mapping is not completing cleanly | Confirm Firebase Hosting custom domain is connected, certificate is provisioned, and DNS points only to Firebase-provided records |
 | Certificate error | Firebase certificate is not provisioned yet | Wait until Firebase Hosting shows certificate ready |
 | HTTP 404 | Domain points somewhere else or Firebase domain mapping is incomplete | Confirm Firebase Hosting custom domain setup |
 | `/api/health` fails | Hosting rewrite or Functions deployment issue | Verify `https://urai-4dc1d.web.app/api/health` still passes |
