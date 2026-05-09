@@ -31,6 +31,7 @@ Core routes:
 - `GET|POST /api/cron/integrity-check`
 - `GET|POST /api/worker/asset-queue`
 - `GET /api/admin/queue`
+- `POST /api/admin/queue/requeue`
 
 ## Required environment groups
 
@@ -131,6 +132,31 @@ Dead-letter policy:
 2. Confirm whether the provider/auth/storage issue is fixed.
 3. Requeue only if the failure is understood and retryable.
 4. Leave permanent failures dead-lettered with actionable failure reasons.
+
+Controlled requeue:
+
+```bash
+curl -X POST \
+  -H "content-type: application/json" \
+  -H "x-tenant-id: $TENANT_ID" \
+  -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  -d '{"jobId":"JOB_ID","reason":"provider outage fixed","resetAttempts":false}' \
+  "$ASSET_FACTORY_BASE_URL/api/admin/queue/requeue"
+```
+
+All-tenant operator requeue:
+
+```bash
+curl -X POST \
+  -H "content-type: application/json" \
+  -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  -d '{"jobId":"JOB_ID","reason":"manual verified retry","allTenants":true,"resetAttempts":true}' \
+  "$ASSET_FACTORY_BASE_URL/api/admin/queue/requeue"
+```
+
+Requeue is only for `failed`, `dead-lettered`, or `retrying` items. Every accepted or rejected requeue attempt records a usage audit event.
 
 ## Staging checklist
 
