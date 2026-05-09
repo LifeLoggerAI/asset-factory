@@ -16,7 +16,7 @@ Asset Factory is live on Firebase for project `urai-4dc1d` with production Funct
 - GitHub Actions production readiness workflow added.
 - System-of-systems documentation added.
 - Production-finalization smoke test added at `scripts/smoke-production-finalization.mjs`.
-- Firebase predeploy updated to use `npm install` so dependency updates do not fail on stale lockfiles.
+- Firebase predeploy restored to deterministic `npm ci` after deploy Functions lockfile hardening was merged.
 
 ## Local Verification Evidence
 
@@ -30,6 +30,7 @@ Recorded from local shell on `main` after syncing to `origin/main` and deploying
 | Deploy functions test | `npm --prefix life-map-pipeline/functions test` via root `npm test` | Passed; build completed |
 | Legacy functions test | `npm --prefix functions test` via root `npm test` | Passed; `node --check index.js` completed |
 | Launch readiness | `npm run test:launch-readiness --if-present` | Passed; `PASS launch readiness static checks` |
+| Post-hardening deterministic predeploy | `npm run verify:local && npm run deploy:functions && npm run deploy:verify` | Passed after Firebase predeploy was restored to `npm ci` |
 
 ## Firebase Deployment Evidence
 
@@ -37,14 +38,14 @@ Recorded from local shell on `main` after syncing to `origin/main` and deploying
 | --- | --- | --- |
 | Firebase project | `urai-4dc1d` | Passed |
 | Functions deploy command | `firebase deploy --project urai-4dc1d --only functions` | Passed |
-| Functions predeploy install | `npm --prefix "$RESOURCE_DIR" install` | Passed |
+| Functions predeploy install | `npm --prefix "$RESOURCE_DIR" ci` | Passed after lockfile hardening merge |
 | Functions predeploy build | `npm --prefix "$RESOURCE_DIR" run build` | Passed |
 | Functions source upload | `life-map-pipeline/functions source uploaded successfully` | Passed |
-| assetFactoryHealth | Updated successfully | Passed |
-| createAssetRequest | Updated successfully | Passed |
-| getAssetStatus | Updated successfully | Passed |
-| ingestLifeMapEvent | Updated successfully | Passed |
-| processLifeMapEvent | Updated successfully | Passed |
+| assetFactoryHealth | Deployed/verified | Passed |
+| createAssetRequest | Deployed/verified | Passed |
+| getAssetStatus | Deployed/verified | Passed |
+| ingestLifeMapEvent | Deployed/verified | Passed |
+| processLifeMapEvent | Deployed/verified | Passed |
 
 Function URLs reported by Firebase:
 
@@ -67,7 +68,7 @@ Command:
 ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
 ```
 
-Result:
+Initial production verification result:
 
 | Endpoint | Required result | Result |
 | --- | --- | --- |
@@ -75,6 +76,16 @@ Result:
 | `POST /api/assets` | HTTP 202 with asset ID and queue ID | Passed; `assetId=1K2r0m8Dle87cIIBgU0J`, `queueId=krebIOgHF2wOmGLwu9U7` |
 | `GET /api/assets/{assetId}` | HTTP 200 status response | Passed |
 | `POST /api/lifemap/events` | HTTP 202 accepted event | Passed; `eventId=2MZ90nqWzvrG3wLs9JUV` |
+| Full smoke | `PASS production finalization smoke` | Passed |
+
+Post-hardening deterministic predeploy smoke result:
+
+| Endpoint | Required result | Result |
+| --- | --- | --- |
+| `GET /api/health` | HTTP 200 | Passed |
+| `POST /api/assets` | HTTP 202 with asset ID and queue ID | Passed; `assetId=rTiehwlkaa4DdkD4Umzq`, `queueId=11kNuSh3CRgtQqdnLNcT` |
+| `GET /api/assets/{assetId}` | HTTP 200 status response | Passed |
+| `POST /api/lifemap/events` | HTTP 202 accepted event | Passed; `eventId=mJzdn9uuEL125b0fJ91N` |
 | Full smoke | `PASS production finalization smoke` | Passed |
 
 ## Deployment Target
@@ -87,11 +98,11 @@ Result:
 
 ## Known Non-Blocking Follow-Ups
 
-- `npm audit` reports 14 vulnerabilities in the Functions dependency tree: 10 low, 2 high, 2 critical. This should be triaged separately and not hidden.
-- Firebase CLI still warns that the Functions SDK appears outdated. The package has been upgraded in `package.json`; follow up by refreshing lockfiles and confirming the warning disappears in CI/local deploys.
-- Custom domain `assetfactory.app` was not verified in the final smoke output. The verified production endpoint is `https://urai-4dc1d.web.app`.
+- Functions audit hardening reduced the deploy Functions audit surface to 9 low findings. The remaining low advisory chain should not be force-fixed if it downgrades `firebase-admin` from the verified 12.x line.
+- Firebase CLI still prints a stale-looking Functions SDK warning even though the deploy Functions package has been verified with `firebase-functions@5.1.1` and `firebase-admin@12.7.0`.
+- Custom domain `assetfactory.app` is not verified yet. The verified production endpoint is `https://urai-4dc1d.web.app`.
 - GitHub Actions deploy still requires repository secret `FIREBASE_SERVICE_ACCOUNT` if CI-based deployment is desired.
 
 ## Final Status
 
-All required local build/test/readiness gates, Firebase Functions deployment, and live production smoke checks passed. Asset Factory is production verified on Firebase Hosting and Functions for `urai-4dc1d`.
+All required local build/test/readiness gates, Firebase Functions deployment, deterministic `npm ci` predeploy, and live production smoke checks passed. Asset Factory is production verified on Firebase Hosting and Functions for `urai-4dc1d`.
