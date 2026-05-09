@@ -6,7 +6,7 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --types node",
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "test": "npm run build"
