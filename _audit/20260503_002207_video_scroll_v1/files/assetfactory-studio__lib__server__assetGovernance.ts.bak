@@ -1,0 +1,214 @@
+import path from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { getAdminDb } from "./firebaseAdmin";
+import { getStoreDiagnostics } from "./assetFactoryStore";
+
+export type LifecycleState =
+  | "draft"
+  | "review"
+  | "approved"
+  | "promoted"
+  | "locked"
+  | "rolled_back"
+  | "archived";
+
+export type LifecycleEventInput = {
+  state: LifecycleState;
+  note?: string;
+  actor?: string;
+  version?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export function getRendererCatalog() {
+  return [
+    {
+      id: "visual-svg-v1",
+      label: "Deterministic SVG Renderer",
+      status: "live",
+      mode: "visual-worker-v1",
+      outputs: ["svg", "json"],
+      engine: "deterministic-svg-layout-engine-v1",
+      productionUse: "proof visuals, memory scrolls, symbolic cards",
+    },
+    {
+      id: "raster-image-v1",
+      label: "Raster Image Renderer",
+      status: "live",
+      outputs: ["png", "webp"],
+      productionUse: "share cards, thumbnails, social previews",
+    },
+    {
+      id: "video-scroll-v1",
+      label: "Video Scroll Renderer",
+      status: "planned",
+      outputs: ["mp4", "webm", "srt"],
+      productionUse: "CapCut-style recaps, launch demos, narrated scrolls",
+    },
+    {
+      id: "audio-voice-v1",
+      label: "Audio Voice Renderer",
+      status: "planned",
+      outputs: ["mp3", "wav", "json"],
+      productionUse: "narrator voiceovers, ritual audio, companion replies",
+    },
+    {
+      id: "spatial-scene-v1",
+      label: "Spatial Scene Renderer",
+      status: "planned",
+      outputs: ["gltf", "glb", "json"],
+      productionUse: "URAI Spatial, AR/VR constellation scenes, galleries",
+    },
+  ];
+}
+
+export function getProductionGradeReadiness() {
+  const diagnostics = getStoreDiagnostics();
+
+  return {
+    status:
+      diagnostics.persistenceMode === "firestore-storage" &&
+      diagnostics.fallbackActive === false
+        ? "production-capable"
+        : "degraded",
+    verifiedCore: {
+      liveHosting: true,
+      firestoreStorage: diagnostics.persistenceMode === "firestore-storage",
+      fallbackDisabled: diagnostics.fallbackActive === false,
+      rendererV1: diagnostics.rendererMode === "visual-worker-v1",
+      externalConsumerProofHarness: true,
+    },
+    remainingProductGradeGates: [
+      "real URAI Studio/Spatial/Admin consumer integration",
+      "PNG/WebP renderer live",
+      "video/audio/spatial renderers",
+      "approval and promotion workflow",
+      "rollback/version restore",
+      "CI/CD smoke and E2E automation",
+      "repo cleanup and production docs",
+    ],
+    diagnostics,
+  };
+}
+
+function localLifecyclePath(jobId: string) {
+  return path.join(process.cwd(), ".asset-factory", "lifecycle", `${jobId}.json`);
+}
+
+export async function appendLifecycleEvent(jobId: string, input: LifecycleEventInput) {
+  const createdAt = new Date().toISOString();
+  const event = {
+    id: `life_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    jobId,
+    state: input.state,
+    note: input.note || "",
+    actor: input.actor || "asset-factory-system",
+    version: input.version || "v1",
+    metadata: input.metadata || {},
+    createdAt,
+  };
+
+  const db = getAdminDb() as any;
+
+  if (db) {
+    const ref = db.collection("assetFactoryLifecycle").doc(jobId);
+    await ref.set(
+      {
+        jobId,
+        currentState: input.state,
+        updatedAt: createdAt,
+        updatedBy: event.actor,
+        latestEventId: event.id,
+      },
+      { merge: true }
+    );
+
+    await ref.collection("events").doc(event.id).set(event, { merge: true });
+
+    await db.collection("assetFactoryAssets").doc(jobId).set(
+      {
+        lifecycleState: input.state,
+        lifecycleUpdatedAt: createdAt,
+        lifecycleUpdatedBy: event.actor,
+      },
+      { merge: true }
+    );
+
+    await db.collection("assetFactoryJobs").doc(jobId).set(
+      {
+        lifecycleState: input.state,
+        lifecycleUpdatedAt: createdAt,
+        lifecycleUpdatedBy: event.actor,
+      },
+      { merge: true }
+    );
+
+    return {
+      ok: true,
+      mode: "firestore-storage",
+      jobId,
+      currentState: input.state,
+      event,
+    };
+  }
+
+  const file = localLifecyclePath(jobId);
+  await mkdir(path.dirname(file), { recursive: true });
+
+  let existing: any = { jobId, events: [] };
+  try {
+    existing = JSON.parse(await readFile(file, "utf8"));
+  } catch {}
+
+  existing.currentState = input.state;
+  existing.updatedAt = createdAt;
+  existing.events = [event, ...(existing.events || [])];
+
+  await writeFile(file, JSON.stringify(existing, null, 2));
+
+  return {
+    ok: true,
+    mode: "local-json",
+    jobId,
+    currentState: input.state,
+    event,
+  };
+}
+
+export async function readLifecycle(jobId: string) {
+  const db = getAdminDb() as any;
+
+  if (db) {
+    const ref = db.collection("assetFactoryLifecycle").doc(jobId);
+    const doc = await ref.get();
+    const eventsSnap = await ref.collection("events").orderBy("createdAt", "desc").limit(100).get();
+
+    return {
+      ok: true,
+      mode: "firestore-storage",
+      jobId,
+      lifecycle: doc.exists ? doc.data() : { jobId, currentState: "draft" },
+      events: eventsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+    };
+  }
+
+  const file = localLifecyclePath(jobId);
+  try {
+    const json = JSON.parse(await readFile(file, "utf8"));
+    return {
+      ok: true,
+      mode: "local-json",
+      jobId,
+      lifecycle: json,
+      events: json.events || [],
+    };
+  } catch {
+    return {
+      ok: true,
+      mode: "local-json",
+      jobId,
+      lifecycle: { jobId, currentState: "draft" },
+      events: [],
+    };
+  }
+}

@@ -1,0 +1,37 @@
+import { AssetFactoryShell } from "@/components/AssetFactoryShell";
+
+const renderers = [
+  ["visual-svg-v1", "Live", "SVG + JSON", "Deterministic symbolic visuals"],
+  ["raster-image-v1", "Live", "PNG + WebP", "Live raster exports for share cards, thumbnails, and social previews"],
+  ["video-scroll-v1", "Live scaffold", "HTML + Timeline + CapCut JSON + SRT", "Video-ready scroll package for demo reels, social previews, subtitles, and CapCut handoff"],
+  ["audio-voice-v1", "Live scaffold", "Script + SSML + Cues + VTT", "Voice-ready narrator package for video scroll narration and future TTS rendering"],
+  ["spatial-scene-v1", "Planned", "GLTF + GLB", "URAI Spatial and constellation scenes"],
+];
+
+export default function RenderersPage() {
+  return (
+    <AssetFactoryShell>
+      <section className="af-hero" style={{ minHeight: 260 }}>
+        <div className="af-kicker"><span className="af-dot" />Renderer roadmap</div>
+        <h1 className="af-title">Renderers</h1>
+        <p className="af-subtitle">
+          Asset Factory now exposes a renderer catalog so URAI modules can target visual,
+          raster, video, audio, and spatial outputs through one production contract.
+        </p>
+      </section>
+
+      <section className="af-grid">
+        {renderers.map(([id, status, outputs, description]) => (
+          <article key={id} className="af-card">
+            <div className="af-label">{status}</div>
+            <h2>{id}</h2>
+            <p>{description}</p>
+            <div style={{ marginTop: 14 }}>
+              <span className="af-pill">{outputs}</span>
+            </div>
+          </article>
+        ))}
+      </section>
+    </AssetFactoryShell>
+  );
+}

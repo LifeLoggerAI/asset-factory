@@ -1,0 +1,74 @@
+'use client';
+
+import { useState } from 'react';
+import { functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { useUser } from '@/lib/hooks';
+
+const createAssetJob = httpsCallable(functions, 'createAssetJob');
+
+export default function CreateAssetPage() {
+  const { user } = useUser();
+  const [prompt, setPrompt] = useState('a beautiful landscape');
+  const [assetType, setAssetType] = useState('image');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setResult(null);
+
+    try {
+      // V1 Canon: Pass a structured input object to the backend.
+      const jobData = {
+        assetType: assetType,
+        input: {
+          prompt: prompt,
+        },
+      };
+      const result = await createAssetJob(jobData);
+      setResult(result.data as any);
+    } catch (error) {
+      setResult({ error: (error as any).message });
+    }
+
+    setLoading(false);
+  };
+
+  return (
+    <div className="container mx-auto px-4">
+      <h1 className="text-4xl font-bold my-4">Create New Asset (V1)</h1>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="assetType" className="block text-gray-700 text-sm font-bold mb-2">Asset Type</label>
+          <input
+            type="text"
+            id="assetType"
+            value={assetType}
+            onChange={(e) => setAssetType(e.target.value)}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          />
+        </div>
+        <div className="mb-4">
+          <label htmlFor="prompt" className="block text-gray-700 text-sm font-bold mb-2">Prompt</label>
+          <textarea
+            id="prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-24"
+          />
+        </div>
+        <button type="submit" disabled={loading || !user} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+          {loading ? 'Creating Job...' : 'Create Asset Job'}
+        </button>
+      </form>
+      {result && (
+        <div className="mt-4 p-4 border rounded">
+          <h2 className="text-2xl font-bold">Job Result</h2>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+}

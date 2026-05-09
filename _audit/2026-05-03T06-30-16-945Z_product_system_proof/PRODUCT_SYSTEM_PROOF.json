@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "proofType": "asset-factory-product-system-regression",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mope5mp3_4gwuwj",
+  "lifecycleState": "approved",
+  "rendererCatalogCount": 5,
+  "productionGradeStatus": "production-capable",
+  "artifactFormats": [
+    "svg",
+    "png",
+    "webp"
+  ],
+  "svgBytes": 2125,
+  "pngBytes": 364960,
+  "webpBytes": 57258,
+  "assetUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mope5mp3_4gwuwj.svg",
+  "pngUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mope5mp3_4gwuwj.png",
+  "webpUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mope5mp3_4gwuwj.webp",
+  "manifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mope5mp3_4gwuwj.json",
+  "verifiedAt": "2026-05-03T06:30:30.016Z"
+}

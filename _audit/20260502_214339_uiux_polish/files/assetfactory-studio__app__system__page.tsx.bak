@@ -1,0 +1,64 @@
+export default function SystemPage() {
+  const endpoints = [
+    ["/api/system/health", "Health"],
+    ["/api/system/manifest", "Manifest"],
+    ["/api/system/capabilities", "Capabilities"],
+    ["/api/system/integration-contract", "Integration Contract"],
+    ["/api/presets", "Presets"],
+    ["/api/generate", "Generate API"],
+    ["/api/jobs", "Jobs API"],
+    ["/api/assets", "Assets API"]
+  ];
+
+  return (
+    <main style={{ padding: "32px", maxWidth: "1040px" }}>
+      <h1 style={{ fontSize: "34px", fontWeight: 800, marginBottom: "12px" }}>
+        Asset Factory System
+      </h1>
+
+      <p style={{ color: "#aaa", marginBottom: "24px", maxWidth: "760px" }}>
+        Standalone generation service and URAI system-of-systems module. This page exposes the runtime contract,
+        public health surface, generation APIs, and integration handoff points.
+      </p>
+
+      <section
+        style={{
+          display: "grid",
+          gap: "16px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+          marginBottom: "32px"
+        }}
+      >
+        <div style={{ border: "1px solid #333", borderRadius: "12px", padding: "18px" }}>
+          <strong>Status</strong>
+          <p style={{ color: "#aaa" }}>Live E2E verified</p>
+        </div>
+
+        <div style={{ border: "1px solid #333", borderRadius: "12px", padding: "18px" }}>
+          <strong>Mode</strong>
+          <p style={{ color: "#aaa" }}>Standalone + system-of-systems</p>
+        </div>
+
+        <div style={{ border: "1px solid #333", borderRadius: "12px", padding: "18px" }}>
+          <strong>Artifacts</strong>
+          <p style={{ color: "#aaa" }}>Runtime API served SVG + manifest</p>
+        </div>
+      </section>
+
+      <h2 style={{ fontSize: "22px", fontWeight: 700, marginBottom: "12px" }}>
+        Public Contract Endpoints
+      </h2>
+
+      <ul style={{ display: "grid", gap: "10px", padding: 0, listStyle: "none" }}>
+        {endpoints.map(([href, label]) => (
+          <li key={href} style={{ border: "1px solid #333", borderRadius: "10px", padding: "12px" }}>
+            <a href={href} style={{ color: "#93c5fd" }}>
+              {label}
+            </a>
+            <div style={{ color: "#aaa", marginTop: "4px", fontFamily: "monospace" }}>{href}</div>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}

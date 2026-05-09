@@ -1,0 +1,273 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mopeauzo_vdh8ft",
+    "webpUrl": null,
+    "type": "audio-voice",
+    "createdAt": "2026-05-03T06:34:21.924Z",
+    "jobId": "job_mopeauzo_vdh8ft",
+    "input": {
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "tenantId": "urai-system",
+      "type": "audio-voice",
+      "presetId": "audio-voice-v1",
+      "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+      "speed": "medium"
+    },
+    "fallbackActive": false,
+    "persistenceMode": "firestore-storage",
+    "tenantId": "urai-system",
+    "pngUrl": null,
+    "presetId": "audio-voice-v1",
+    "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+    "assetUrl": null,
+    "mode": "audio-voice-package",
+    "output": {
+      "scriptUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+      "renderEngine": "voice-script-ssml-cue-package-v1",
+      "nextWorker": "tts-audio-render-worker-v1",
+      "tone": "calm, cinematic, supportive",
+      "rendererMode": "audio-voice-v1",
+      "ssmlUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+      "vttUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+      "wavStatus": "requires-tts-worker",
+      "speed": "medium",
+      "mode": "audio-voice-package",
+      "jobId": "job_mopeauzo_vdh8ft",
+      "voiceId": "urai-calm-narrator-v1",
+      "mp3Status": "requires-tts-worker",
+      "fallbackActive": false,
+      "voiceManifestUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+      "persistenceMode": "firestore-storage",
+      "tenantId": "urai-system",
+      "cuesUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+      "ok": true,
+      "durationMs": 12600,
+      "presetId": "audio-voice-v1",
+      "artifacts": [
+        {
+          "format": "voice-script-txt",
+          "fileName": "job_mopeauzo_vdh8ft.voice-script.txt",
+          "mimeType": "text/plain; charset=utf-8",
+          "byteLength": 236,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-script.txt"
+        },
+        {
+          "format": "ssml-xml",
+          "fileName": "job_mopeauzo_vdh8ft.ssml.xml",
+          "mimeType": "application/xml; charset=utf-8",
+          "byteLength": 398,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.ssml.xml"
+        },
+        {
+          "format": "voice-cues-json",
+          "fileName": "job_mopeauzo_vdh8ft.voice-cues.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1329,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-cues.json"
+        },
+        {
+          "format": "vtt",
+          "fileName": "job_mopeauzo_vdh8ft.vtt",
+          "mimeType": "text/vtt; charset=utf-8",
+          "byteLength": 376,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.vtt"
+        },
+        {
+          "format": "voice-manifest-json",
+          "fileName": "job_mopeauzo_vdh8ft.voice.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 836,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice.json"
+        }
+      ]
+    },
+    "scriptUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+    "bundleUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+    "rendererMode": "audio-voice-v1",
+    "voiceManifestUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+    "cuesUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+    "ssmlUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+    "vttUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+    "artifacts": [
+      {
+        "format": "voice-script-txt",
+        "fileName": "job_mopeauzo_vdh8ft.voice-script.txt",
+        "mimeType": "text/plain; charset=utf-8",
+        "byteLength": 236,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-script.txt"
+      },
+      {
+        "format": "ssml-xml",
+        "fileName": "job_mopeauzo_vdh8ft.ssml.xml",
+        "mimeType": "application/xml; charset=utf-8",
+        "byteLength": 398,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.ssml.xml"
+      },
+      {
+        "format": "voice-cues-json",
+        "fileName": "job_mopeauzo_vdh8ft.voice-cues.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1329,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-cues.json"
+      },
+      {
+        "format": "vtt",
+        "fileName": "job_mopeauzo_vdh8ft.vtt",
+        "mimeType": "text/vtt; charset=utf-8",
+        "byteLength": 376,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.vtt"
+      },
+      {
+        "format": "voice-manifest-json",
+        "fileName": "job_mopeauzo_vdh8ft.voice.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 836,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice.json"
+      }
+    ],
+    "status": "completed",
+    "updatedAt": "2026-05-03T06:34:22.516Z"
+  },
+  "asset": {
+    "id": "job_mopeauzo_vdh8ft",
+    "jobId": "job_mopeauzo_vdh8ft",
+    "tenantId": "urai-system",
+    "type": "audio",
+    "status": "completed",
+    "presetId": "audio-voice-v1",
+    "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+    "bundleUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+    "voiceManifestUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+    "scriptUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+    "ssmlUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+    "cuesUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+    "vttUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+    "output": {
+      "ok": true,
+      "jobId": "job_mopeauzo_vdh8ft",
+      "tenantId": "urai-system",
+      "presetId": "audio-voice-v1",
+      "rendererMode": "audio-voice-v1",
+      "renderEngine": "voice-script-ssml-cue-package-v1",
+      "mode": "audio-voice-package",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium",
+      "durationMs": 12600,
+      "scriptUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+      "ssmlUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+      "cuesUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+      "vttUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+      "voiceManifestUrl": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+      "mp3Status": "requires-tts-worker",
+      "wavStatus": "requires-tts-worker",
+      "nextWorker": "tts-audio-render-worker-v1",
+      "artifacts": [
+        {
+          "format": "voice-script-txt",
+          "fileName": "job_mopeauzo_vdh8ft.voice-script.txt",
+          "mimeType": "text/plain; charset=utf-8",
+          "byteLength": 236,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-script.txt"
+        },
+        {
+          "format": "ssml-xml",
+          "fileName": "job_mopeauzo_vdh8ft.ssml.xml",
+          "mimeType": "application/xml; charset=utf-8",
+          "byteLength": 398,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.ssml.xml"
+        },
+        {
+          "format": "voice-cues-json",
+          "fileName": "job_mopeauzo_vdh8ft.voice-cues.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1329,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-cues.json"
+        },
+        {
+          "format": "vtt",
+          "fileName": "job_mopeauzo_vdh8ft.vtt",
+          "mimeType": "text/vtt; charset=utf-8",
+          "byteLength": 376,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.vtt"
+        },
+        {
+          "format": "voice-manifest-json",
+          "fileName": "job_mopeauzo_vdh8ft.voice.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 836,
+          "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+          "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice.json"
+        }
+      ],
+      "persistenceMode": "firestore-storage",
+      "fallbackActive": false
+    },
+    "artifacts": [
+      {
+        "format": "voice-script-txt",
+        "fileName": "job_mopeauzo_vdh8ft.voice-script.txt",
+        "mimeType": "text/plain; charset=utf-8",
+        "byteLength": 236,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-script.txt",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-script.txt"
+      },
+      {
+        "format": "ssml-xml",
+        "fileName": "job_mopeauzo_vdh8ft.ssml.xml",
+        "mimeType": "application/xml; charset=utf-8",
+        "byteLength": 398,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.ssml.xml",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.ssml.xml"
+      },
+      {
+        "format": "voice-cues-json",
+        "fileName": "job_mopeauzo_vdh8ft.voice-cues.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1329,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice-cues.json",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice-cues.json"
+      },
+      {
+        "format": "vtt",
+        "fileName": "job_mopeauzo_vdh8ft.vtt",
+        "mimeType": "text/vtt; charset=utf-8",
+        "byteLength": 376,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.vtt",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.vtt"
+      },
+      {
+        "format": "voice-manifest-json",
+        "fileName": "job_mopeauzo_vdh8ft.voice.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 836,
+        "url": "/api/generated-assets/job_mopeauzo_vdh8ft.voice.json",
+        "storagePath": "asset-factory/urai-system/job_mopeauzo_vdh8ft/job_mopeauzo_vdh8ft.voice.json"
+      }
+    ],
+    "createdAt": "2026-05-03T06:34:21.924Z",
+    "updatedAt": "2026-05-03T06:34:22.574Z",
+    "mode": "audio-voice-package",
+    "rendererMode": "audio-voice-v1",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

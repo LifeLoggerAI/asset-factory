@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mopedz99_kepf43",
+    "jobId": "job_mopedz99_kepf43",
+    "tenantId": "urai-system",
+    "type": "audio-voice",
+    "presetId": "audio-voice-v1",
+    "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "audio-voice",
+      "presetId": "audio-voice-v1",
+      "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T06:36:47.421Z",
+    "updatedAt": "2026-05-03T06:36:47.422Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

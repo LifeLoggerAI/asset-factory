@@ -1,0 +1,21 @@
+{
+  "accept-ranges": "bytes",
+  "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+  "cache-control": "no-store",
+  "connection": "keep-alive",
+  "content-length": "227",
+  "content-type": "application/x-subrip; charset=utf-8",
+  "cross-origin-opener-policy-report-only": "same-origin; report-to=\"gfe-default_product_name\"",
+  "date": "Sun, 03 May 2026 06:59:34 GMT",
+  "report-to": "{\"group\":\"gfe-default_product_name\",\"max_age\":2592000,\"endpoints\":[{\"url\":\"https://csp.withgoogle.com/csp/report-to/default_product_name\"}]}",
+  "server": "Google Frontend",
+  "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+  "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch,cookie,need-authorization, x-fh-requested-host, accept-encoding",
+  "x-asset-factory-persistence": "firestore-storage",
+  "x-cache": "MISS",
+  "x-cache-hits": "0",
+  "x-country-code": "US",
+  "x-orig-accept-language": "*",
+  "x-served-by": "cache-chi-klot8100061-CHI",
+  "x-timer": "S1777791574.072374,VS0,VE170"
+}

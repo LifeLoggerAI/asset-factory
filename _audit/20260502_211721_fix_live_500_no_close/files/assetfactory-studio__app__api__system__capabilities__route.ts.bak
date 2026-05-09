@@ -1,0 +1,31 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+  return NextResponse.json({
+    ok: true,
+    service: "asset-factory",
+    capabilities: [
+      "asset.creation",
+      "asset.materialization",
+      "asset.firestore.jobs",
+      "asset.firestore.assets",
+      "asset.cloud-storage.artifacts",
+      "asset.generated.svg",
+      "asset.generated.manifest",
+      "local.fallback",
+      "system.manifest",
+      "system.health",
+      "system.capabilities",
+    ],
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+    rendererMode: diagnostics.rendererMode,
+    diagnostics,
+  });
+}

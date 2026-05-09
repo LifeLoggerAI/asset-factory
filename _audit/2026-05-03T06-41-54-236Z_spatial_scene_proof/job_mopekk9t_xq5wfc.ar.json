@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "jobId": "job_mopekk9t_xq5wfc",
+  "tenantId": "urai-system",
+  "renderer": "spatial-scene-v1",
+  "targets": [
+    "webxr",
+    "unity",
+    "visionos",
+    "arcore",
+    "arkit"
+  ],
+  "recommendedPlacement": "front-facing-anchored-scene",
+  "requiredCapabilities": [
+    "plane-detection-optional",
+    "gaze-or-tap-input",
+    "transparent-background",
+    "spatial-audio-ready"
+  ],
+  "sceneUrl": "/api/generated-assets/job_mopekk9t_xq5wfc.scene.json",
+  "gltfUrl": "/api/generated-assets/job_mopekk9t_xq5wfc.gltf",
+  "worldUrl": "/api/generated-assets/job_mopekk9t_xq5wfc.world.json"
+}

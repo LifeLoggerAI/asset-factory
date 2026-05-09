@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "jobId": "job_mopcxflo_51ziiy",
+  "tenantId": "urai-system",
+  "worldId": "urai-world-job_mopcxflo_51ziiy",
+  "units": "meters",
+  "anchorMode": "world-origin",
+  "origin": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  "bounds": {
+    "width": 4,
+    "height": 3,
+    "depth": 4
+  },
+  "semanticLayers": [
+    "memory-orbs",
+    "ritual-gates",
+    "constellation-lines",
+    "narrator-anchors"
+  ]
+}

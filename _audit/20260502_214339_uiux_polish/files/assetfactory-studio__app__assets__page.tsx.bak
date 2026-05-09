@@ -1,0 +1,42 @@
+'use client';
+
+import { useUser } from '@/lib/hooks';
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+
+export default function AssetsPage() {
+  const { user } = useUser();
+  const [assets, setAssets] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const q = query(collection(db, "assets"), where("ownerId", "==", user.id));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const assets: any[] = [];
+        querySnapshot.forEach((doc) => {
+          assets.push({ id: doc.id, ...doc.data() });
+        });
+        setAssets(assets);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  return (
+    <div className="container mx-auto px-4">
+      <h1 className="text-4xl font-bold my-4">My Assets</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {assets.map((asset) => (
+          <div key={asset.id} className="border p-4 rounded-lg">
+            <h2 className="text-2xl font-bold">{asset.type}</h2>
+            <p>Job ID: {asset.jobId}</p>
+            <p>Created At: {new Date(asset.createdAt.seconds * 1000).toLocaleString()}</p>
+            <a href={asset.bundleUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Download Asset</a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

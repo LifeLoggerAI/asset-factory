@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mop4iw2v_l687qm",
+    "jobId": "job_mop4iw2v_l687qm",
+    "tenantId": "urai-system",
+    "type": "video-scroll",
+    "presetId": "video-scroll-v1",
+    "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "video-scroll",
+      "presetId": "video-scroll-v1",
+      "aspectRatio": "9:16",
+      "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff"
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T02:00:40.423Z",
+    "updatedAt": "2026-05-03T02:00:40.423Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

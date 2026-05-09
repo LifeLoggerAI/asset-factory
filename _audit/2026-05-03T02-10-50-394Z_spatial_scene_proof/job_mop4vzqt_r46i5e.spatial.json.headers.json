@@ -1,0 +1,16 @@
+{
+  "accept-ranges": "bytes",
+  "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+  "cache-control": "max-age=600",
+  "connection": "keep-alive",
+  "content-length": "90",
+  "content-type": "application/json",
+  "date": "Sun, 03 May 2026 02:10:53 GMT",
+  "server": "Google Frontend",
+  "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, x-fh-requested-host, accept-encoding",
+  "x-cache": "MISS",
+  "x-cache-hits": "0",
+  "x-cloud-trace-context": "73109b88f16cb2e02219238ef8014b98",
+  "x-served-by": "cache-chi-kigq8000034-CHI",
+  "x-timer": "S1777774253.330287,VS0,VE160"
+}

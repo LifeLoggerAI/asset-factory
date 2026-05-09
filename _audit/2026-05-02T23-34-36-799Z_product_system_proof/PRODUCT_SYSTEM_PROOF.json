@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "proofType": "asset-factory-product-system-v1",
+  "productionReadinessRoute": "/api/system/production-grade",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_moozb2d9_nkmep8",
+  "lifecycleState": "approved",
+  "rendererCatalogCount": 5,
+  "productionGradeStatus": "production-capable",
+  "assetUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_moozb2d9_nkmep8.svg",
+  "manifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_moozb2d9_nkmep8.json",
+  "verifiedAt": "2026-05-02T23:34:39.817Z"
+}

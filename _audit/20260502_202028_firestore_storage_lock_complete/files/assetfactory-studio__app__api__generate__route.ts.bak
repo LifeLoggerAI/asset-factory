@@ -1,0 +1,108 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextRequest, NextResponse } from "next/server";
+import { addJob, getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+import { authorizeAssetFactoryRequest, forbiddenAuthResponse, getAuthDiagnostics } from "@/lib/server/assetFactoryAuth";
+import { meterUsage } from "@/lib/server/assetFactoryMetering";
+
+type GeneratePayload = {
+  presetId?: string;
+  tenantId?: string;
+  prompt?: string;
+  type?: string;
+  aspectRatio?: string;
+  [key: string]: unknown;
+};
+
+function makeJobId() {
+  return `job_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+  const auth = getAuthDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    route: "/api/generate",
+    methods: ["GET", "POST"],
+    status: "ready",
+    persistence: diagnostics.persistenceMode,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+    fallbackReason: diagnostics.fallbackReason,
+    authMode: auth.authMode,
+    publicProofMode: auth.publicProofMode,
+    enforcementActive: auth.enforcementActive,
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const auth = authorizeAssetFactoryRequest(req);
+
+  if (!auth.ok) {
+    return NextResponse.json(forbiddenAuthResponse(auth), { status: 401 });
+  }
+
+  let payload: GeneratePayload = {};
+
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
+  }
+
+  const diagnostics = getStoreDiagnostics();
+  const jobId = makeJobId();
+  const now = new Date().toISOString();
+  const tenantId = auth.tenantId || payload.tenantId || "unknown";
+
+  const job = await addJob({
+    id: jobId,
+    jobId,
+    status: "queued",
+    presetId: payload.presetId ?? "unknown",
+    tenantId,
+    type: payload.type ?? "asset",
+    prompt: payload.prompt ?? "",
+    input: {
+      ...payload,
+      tenantId,
+    },
+    output: null,
+    assetUrl: null,
+    bundleUrl: null,
+    createdAt: now,
+    updatedAt: now,
+    mode: diagnostics.persistenceMode === "firestore-storage" ? "firestore-storage" : "local-e2e",
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+
+  const usage = await meterUsage({
+    tenantId,
+    action: "job.created",
+    jobId,
+    units: 1,
+    metadata: {
+      presetId: job.presetId,
+      type: job.type,
+      rendererMode: diagnostics.rendererMode,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    job,
+    usage,
+    auth: {
+      tenantId,
+      authMode: auth.authMode,
+      publicProofMode: auth.publicProofMode,
+    },
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

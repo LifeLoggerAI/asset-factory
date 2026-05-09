@@ -1,0 +1,96 @@
+
+import * as admin from 'firebase-admin';
+
+let adminApp: admin.app.App | null = null;
+let initializationError: Error | null = null;
+let fallbackReason = 'Not initialized';
+
+function initializeFirebaseAdmin() {
+  // Prevent re-initialization
+  if (admin.apps.length > 0) {
+    adminApp = admin.app();
+    fallbackReason = 'Already initialized';
+    return;
+  }
+
+  // Production environment (e.g., Cloud Run, Cloud Functions)
+  if (process.env.GOOGLE_CLOUD_PROJECT) {
+    try {
+      adminApp = admin.initializeApp();
+      fallbackReason = ''; // Success
+      return;
+    } catch (error) {
+      console.error("Firebase Admin initialization failed in production environment:", error);
+      initializationError = error as Error;
+      adminApp = null;
+      fallbackReason = 'Production initialization failed';
+      return;
+    }
+  }
+
+  // Development environment with service account key
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      const projectId = serviceAccount.project_id;
+
+      adminApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: `${projectId}.appspot.com`,
+      });
+      fallbackReason = ''; // Success
+      return;
+    } catch (error) {
+      console.error("Firebase Admin initialization with service account key failed:", error);
+      initializationError = error as Error;
+      adminApp = null;
+      fallbackReason = 'Service account JSON parsing or initialization failed.';
+      return;
+    }
+  }
+
+  // If no configuration is available
+  fallbackReason = 'No FIREBASE_SERVICE_ACCOUNT_KEY or GOOGLE_CLOUD_PROJECT env var found.';
+  adminApp = null;
+}
+
+// Initialize on module load
+initializeFirebaseAdmin();
+
+export function getAdminApp(): admin.app.App | null {
+  return adminApp;
+}
+
+export function getAdminDb(): admin.firestore.Firestore | null {
+  if (!adminApp) return null;
+  return adminApp.firestore();
+}
+
+export function getAdminBucket(): admin.storage.Bucket | null {
+  if (!adminApp) return null;
+  return adminApp.storage().bucket();
+}
+
+export function isFirebaseAdminAvailable(): boolean {
+  return adminApp !== null;
+}
+
+export function getFirebaseAdminInitializationInfo() {
+  const app = getAdminApp();
+  if (app) {
+    return {
+      fallbackActive: false,
+      fallbackReason: '',
+      firebaseProjectId: app.options.projectId,
+      storageBucket: app.options.storageBucket,
+    };
+  } else {
+    return {
+      fallbackActive: true,
+      fallbackReason,
+      initializationError: initializationError?.message || 'Unknown error',
+      firebaseProjectId: process.env.FIREBASE_PROJECT_ID || null, // get from env if possible
+      storageBucket: null,
+    };
+  }
+}

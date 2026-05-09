@@ -1,0 +1,1 @@
+{"ok":true,"route":"/api/generate","methods":["GET","POST"],"persistenceMode":"firestore-storage","fallbackActive":false,"fallbackReason":null,"firebaseProjectId":"asset-factory-dev-id","storageBucket":"asset-factory-dev-id.firebasestorage.app","databaseId":"(default)","rendererMode":"visual-worker-v1"}

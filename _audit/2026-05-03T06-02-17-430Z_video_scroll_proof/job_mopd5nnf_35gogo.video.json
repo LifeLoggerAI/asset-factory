@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "jobId": "job_mopd5nnf_35gogo",
+  "tenantId": "urai-system",
+  "presetId": "video-scroll-v1",
+  "rendererMode": "video-scroll-v1",
+  "renderEngine": "timeline-html-srt-capcut-package-v1",
+  "mode": "video-scroll-package",
+  "durationMs": 10500,
+  "fps": 30,
+  "aspectRatio": "9:16",
+  "storyboardUrl": "/api/generated-assets/job_mopd5nnf_35gogo.storyboard.html",
+  "timelineUrl": "/api/generated-assets/job_mopd5nnf_35gogo.timeline.json",
+  "capcutUrl": "/api/generated-assets/job_mopd5nnf_35gogo.capcut.json",
+  "srtUrl": "/api/generated-assets/job_mopd5nnf_35gogo.srt",
+  "mp4Status": "requires-ffmpeg-worker",
+  "webmStatus": "requires-ffmpeg-worker",
+  "nextWorker": "ffmpeg-video-render-worker-v1"
+}

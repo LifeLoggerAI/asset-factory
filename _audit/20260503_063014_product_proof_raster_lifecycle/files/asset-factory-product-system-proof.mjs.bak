@@ -1,0 +1,158 @@
+import fs from "node:fs";
+
+const project = process.env.FIREBASE_PROJECT_ID || "asset-factory-dev-id";
+const baseUrl = process.env.ASSET_FACTORY_BASE_URL || `https://${project}.web.app`;
+const tenantId = process.env.ASSET_FACTORY_TENANT_ID || "urai-system";
+const keyFile = process.env.ASSET_FACTORY_API_KEY_FILE || ".asset-factory-api-key";
+
+let apiKey = process.env.ASSET_FACTORY_API_KEY || "";
+if (!apiKey && fs.existsSync(keyFile)) apiKey = fs.readFileSync(keyFile, "utf8").trim();
+if (!apiKey) throw new Error("Missing ASSET_FACTORY_API_KEY or .asset-factory-api-key");
+
+const outDir = `_audit/${new Date().toISOString().replace(/[:.]/g, "-")}_product_system_proof`;
+fs.mkdirSync(outDir, { recursive: true });
+
+const headers = {
+  "content-type": "application/json",
+  "x-asset-factory-tenant": tenantId,
+  "x-asset-factory-api-key": apiKey,
+  authorization: `Bearer ${apiKey}`,
+};
+
+async function json(path, options = {}) {
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: { ...headers, ...(options.headers || {}) },
+  });
+
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { raw: text };
+  }
+
+  fs.writeFileSync(`${outDir}/${path.replaceAll("/", "_") || "root"}.json`, JSON.stringify(body, null, 2));
+
+  if (!res.ok) {
+    throw new Error(`${path} failed ${res.status}: ${text.slice(0, 1200)}`);
+  }
+
+  return body;
+}
+
+async function artifact(path, expectedType) {
+  const res = await fetch(`${baseUrl}${path}`, { headers });
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const name = path.split("/").pop();
+
+  fs.writeFileSync(`${outDir}/${name}`, buffer);
+  fs.writeFileSync(`${outDir}/${name}.headers.json`, JSON.stringify(Object.fromEntries(res.headers.entries()), null, 2));
+
+  if (!res.ok) throw new Error(`${path} failed ${res.status}`);
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes(expectedType)) throw new Error(`${path} expected ${expectedType}, got ${contentType}`);
+  if (res.headers.get("x-asset-factory-persistence") !== "firestore-storage") {
+    throw new Error(`${path} missing firestore-storage header`);
+  }
+
+  return { contentType, byteLength: buffer.length };
+}
+
+console.log("[1] Production readiness");
+const production = await json("/api/system/production-grade");
+if (!production.ok) throw new Error("production-grade route not ok");
+
+console.log("[2] Renderer catalog");
+const renderers = await json("/api/renderers");
+const required = ["visual-svg-v1", "raster-image-v1", "video-scroll-v1", "audio-voice-v1", "spatial-scene-v1"];
+
+for (const id of required) {
+  const renderer = renderers.renderers?.find((item) => item.id === id);
+  if (!renderer) throw new Error(`missing renderer ${id}`);
+}
+
+console.log("[3] Generate product-system visual job");
+const generated = await json("/api/generate", {
+  method: "POST",
+  body: JSON.stringify({
+    tenantId,
+    type: "visual",
+    presetId: "raster-image-v1-proof",
+    aspectRatio: "1:1",
+    prompt: "Asset Factory product system proof using verified raster renderer path",
+    outputFormats: ["svg", "png", "webp"],
+    metadata: {
+      proofType: "product-system-regression",
+      rendererPath: "visual-svg-v1+raster-image-v1"
+    }
+  }),
+});
+
+const jobId = generated.job?.jobId || generated.jobId || generated.id;
+if (!jobId) throw new Error("no jobId returned");
+
+console.log("[JOB_ID]", jobId);
+
+console.log("[4] Materialize");
+const materialized = await json(`/api/jobs/${jobId}/materialize`, { method: "POST" });
+if (materialized.job?.status !== "completed") throw new Error("materialized job not completed");
+
+console.log("[5] Fetch generated artifacts");
+const manifest = await json(`/api/generated-assets/${jobId}.json`);
+const svg = await artifact(`/api/generated-assets/${jobId}.svg`, "image/svg+xml");
+const png = await artifact(`/api/generated-assets/${jobId}.png`, "image/png");
+const webp = await artifact(`/api/generated-assets/${jobId}.webp`, "image/webp");
+
+if (manifest.persistenceMode !== "firestore-storage") throw new Error("manifest not firestore-storage");
+if (!manifest.artifactFormats?.includes("png")) throw new Error("manifest missing png");
+if (!manifest.artifactFormats?.includes("webp")) throw new Error("manifest missing webp");
+
+console.log("[6] Lifecycle approval");
+const approved = await json(`/api/lifecycle/${jobId}`, {
+  method: "POST",
+  body: JSON.stringify({
+    state: "approved",
+    actor: "product-system-regression-proof",
+    note: "Approved by full renderer-stack regression proof.",
+    metadata: {
+      proofType: "product-system-regression",
+      rendererStack: required
+    },
+  }),
+});
+
+const lifecycle = await json(`/api/lifecycle/${jobId}`);
+
+if (approved.currentState !== "approved") throw new Error("approval state not recorded");
+if (lifecycle.lifecycle?.currentState !== "approved") throw new Error("lifecycle readback not approved");
+
+const proof = {
+  ok: true,
+  proofType: "asset-factory-product-system-regression",
+  baseUrl,
+  tenantId,
+  jobId,
+  lifecycleState: lifecycle.lifecycle.currentState,
+  rendererCatalogCount: renderers.renderers.length,
+  productionGradeStatus: production.readiness?.status,
+  artifactFormats: manifest.artifactFormats,
+  svgBytes: svg.byteLength,
+  pngBytes: png.byteLength,
+  webpBytes: webp.byteLength,
+  assetUrl: `${baseUrl}/api/generated-assets/${jobId}.svg`,
+  pngUrl: `${baseUrl}/api/generated-assets/${jobId}.png`,
+  webpUrl: `${baseUrl}/api/generated-assets/${jobId}.webp`,
+  manifestUrl: `${baseUrl}/api/generated-assets/${jobId}.json`,
+  verifiedAt: new Date().toISOString(),
+};
+
+fs.writeFileSync(`${outDir}/PRODUCT_SYSTEM_PROOF.json`, JSON.stringify(proof, null, 2));
+
+console.log("[PASS] Product system regression proof verified");
+console.log("[JOB_ID]", jobId);
+console.log("[SVG]", proof.assetUrl);
+console.log("[PNG]", proof.pngUrl);
+console.log("[WEBP]", proof.webpUrl);
+console.log("[AUDIT]", outDir);

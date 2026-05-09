@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mopeauzo_vdh8ft",
+    "jobId": "job_mopeauzo_vdh8ft",
+    "tenantId": "urai-system",
+    "type": "audio-voice",
+    "presetId": "audio-voice-v1",
+    "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "audio-voice",
+      "presetId": "audio-voice-v1",
+      "prompt": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T06:34:21.924Z",
+    "updatedAt": "2026-05-03T06:34:21.924Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "proofType": "video-scroll-renderer-v1",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mop1tx2j_qfqvc1",
+  "rendererStatus": "video-scroll-v1-live-scaffold",
+  "videoManifestBytes": 722,
+  "timelineBytes": 1329,
+  "capcutBytes": 1700,
+  "srtBytes": 227,
+  "storyboardBytes": 1533,
+  "storyboardUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop1tx2j_qfqvc1.storyboard.html",
+  "timelineUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop1tx2j_qfqvc1.timeline.json",
+  "capcutUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop1tx2j_qfqvc1.capcut.json",
+  "srtUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop1tx2j_qfqvc1.srt",
+  "videoManifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop1tx2j_qfqvc1.video.json",
+  "nextWorker": "ffmpeg-video-render-worker-v1",
+  "verifiedAt": "2026-05-03T00:45:19.706Z"
+}

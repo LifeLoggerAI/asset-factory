@@ -1,0 +1,103 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextRequest, NextResponse } from "next/server";
+import { findJob, getStoreDiagnostics, materializeAsset } from "@/lib/server/assetFactoryStore";
+import { authorizeAssetFactoryRequest, forbiddenAuthResponse } from "@/lib/server/assetFactoryAuth";
+import { meterUsage } from "@/lib/server/assetFactoryMetering";
+
+export async function POST(
+  req: NextRequest,
+  context: { params: { jobId: string } }
+) {
+  const auth = authorizeAssetFactoryRequest(req);
+
+  if (!auth.ok) {
+    return NextResponse.json(forbiddenAuthResponse(auth), { status: 401 });
+  }
+
+  const { jobId } = context.params;
+  const existing = await findJob(jobId);
+
+  if (existing && existing.tenantId && existing.tenantId !== auth.tenantId) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Tenant mismatch",
+        jobId,
+        jobTenantId: existing.tenantId,
+        requestTenantId: auth.tenantId,
+      },
+      { status: 403 }
+    );
+  }
+
+  const result = await materializeAsset(jobId);
+  const diagnostics = getStoreDiagnostics();
+
+  if (!result) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Job not found",
+        jobId,
+        persistenceMode: diagnostics.persistenceMode,
+        fallbackActive: diagnostics.fallbackActive,
+        diagnostics,
+      },
+      { status: 404 }
+    );
+  }
+
+  if ((result as any).ok === false) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: (result as any).error,
+        jobId,
+        result,
+        persistenceMode: diagnostics.persistenceMode,
+        fallbackActive: diagnostics.fallbackActive,
+        diagnostics,
+      },
+      { status: 500 }
+    );
+  }
+
+  const job = result as any;
+
+  const usage = await meterUsage({
+    tenantId: auth.tenantId,
+    action: "job.materialized",
+    jobId,
+    units: 1,
+    metadata: {
+      type: job.type,
+      presetId: job.presetId,
+      rendererMode: job.output?.rendererMode,
+      renderEngine: job.output?.renderEngine,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    job,
+    asset: {
+      id: job.jobId,
+      jobId: job.jobId,
+      status: job.status,
+      assetUrl: job.assetUrl,
+      bundleUrl: job.bundleUrl,
+      output: job.output,
+    },
+    usage,
+    auth: {
+      tenantId: auth.tenantId,
+      authMode: auth.authMode,
+      publicProofMode: auth.publicProofMode,
+    },
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

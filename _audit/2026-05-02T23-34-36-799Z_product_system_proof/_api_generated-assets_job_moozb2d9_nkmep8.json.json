@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "jobId": "job_moozb2d9_nkmep8",
+  "type": "visual",
+  "presetId": "product-system-proof",
+  "tenantId": "urai-system",
+  "prompt": "Asset Factory product system proof with lifecycle approval",
+  "aspectRatio": "1:1",
+  "assetUrl": "/api/generated-assets/job_moozb2d9_nkmep8.svg",
+  "bundleUrl": "/api/generated-assets/job_moozb2d9_nkmep8.json",
+  "renderedAt": "2026-05-02T23:34:38.259Z",
+  "materializedAt": "2026-05-02T23:34:38.259Z",
+  "mode": "svg-proof",
+  "rendererMode": "visual-worker-v1",
+  "renderEngine": "deterministic-svg-layout-engine-v1",
+  "workerId": "asset-render-worker-primary",
+  "workerVersion": "1.0.0",
+  "storageAssetPath": "asset-factory/urai-system/job_moozb2d9_nkmep8/job_moozb2d9_nkmep8.svg",
+  "storageManifestPath": "asset-factory/urai-system/job_moozb2d9_nkmep8/job_moozb2d9_nkmep8.json",
+  "persistenceMode": "firestore-storage"
+}

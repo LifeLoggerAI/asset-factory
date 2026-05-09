@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "mode": "firestore-storage",
+  "jobId": "job_mopee2zu_oyll19",
+  "lifecycle": {
+    "jobId": "job_mopee2zu_oyll19",
+    "updatedBy": "product-system-regression-proof",
+    "latestEventId": "life_mopeeba8_niq6uy",
+    "currentState": "approved",
+    "updatedAt": "2026-05-03T06:37:03.008Z"
+  },
+  "events": [
+    {
+      "id": "life_mopeeba8_niq6uy",
+      "actor": "product-system-regression-proof",
+      "createdAt": "2026-05-03T06:37:03.008Z",
+      "jobId": "job_mopee2zu_oyll19",
+      "note": "Approved by Product System proof using verified raster renderer output.",
+      "metadata": {
+        "proofType": "product-system-regression",
+        "rendererStack": [
+          "visual-svg-v1",
+          "raster-image-v1",
+          "video-scroll-v1",
+          "audio-voice-v1",
+          "spatial-scene-v1"
+        ],
+        "rasterProofFile": "_audit/2026-05-03T06-36-51-794Z_raster_renderer_proof/RASTER_RENDERER_PROOF.json"
+      },
+      "state": "approved",
+      "version": "v1"
+    }
+  ]
+}

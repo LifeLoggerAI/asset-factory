@@ -1,0 +1,19 @@
+{
+  "accept-ranges": "bytes",
+  "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+  "cache-control": "no-store",
+  "connection": "keep-alive",
+  "content-length": "1533",
+  "content-type": "text/html; charset=utf-8",
+  "date": "Sun, 03 May 2026 06:49:01 GMT",
+  "server": "Google Frontend",
+  "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+  "vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch,cookie,need-authorization, x-fh-requested-host, accept-encoding",
+  "x-asset-factory-persistence": "firestore-storage",
+  "x-cache": "MISS",
+  "x-cache-hits": "0",
+  "x-country-code": "US",
+  "x-orig-accept-language": "*",
+  "x-served-by": "cache-chi-klot8100123-CHI",
+  "x-timer": "S1777790942.541660,VS0,VE211"
+}

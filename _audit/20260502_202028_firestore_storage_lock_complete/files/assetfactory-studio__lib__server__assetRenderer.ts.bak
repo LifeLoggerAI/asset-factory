@@ -1,0 +1,12 @@
+import { runAssetRenderWorker, ASSET_RENDER_WORKER } from "./assetRenderWorker";
+import type { RenderWorkerInput, RenderWorkerOutput } from "./renderWorkerTypes";
+
+export type RenderAssetInput = RenderWorkerInput;
+export type RenderAssetResult = RenderWorkerOutput;
+
+export const RENDERER_MODE = ASSET_RENDER_WORKER.rendererMode;
+export const RENDER_ENGINE = ASSET_RENDER_WORKER.renderEngine;
+
+export async function renderAsset(input: RenderAssetInput): Promise<RenderAssetResult> {
+  return runAssetRenderWorker(input);
+}

@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "proofType": "audio-voice-renderer-v1",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mop43ouj_se29xp",
+  "rendererStatus": "audio-voice-v1-live-scaffold",
+  "voiceManifestBytes": 836,
+  "scriptBytes": 236,
+  "ssmlBytes": 398,
+  "cuesBytes": 1329,
+  "vttBytes": 376,
+  "voiceManifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop43ouj_se29xp.voice.json",
+  "scriptUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop43ouj_se29xp.voice-script.txt",
+  "ssmlUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop43ouj_se29xp.ssml.xml",
+  "cuesUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop43ouj_se29xp.voice-cues.json",
+  "vttUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mop43ouj_se29xp.vtt",
+  "nextWorker": "tts-audio-render-worker-v1",
+  "verifiedAt": "2026-05-03T01:48:54.717Z"
+}

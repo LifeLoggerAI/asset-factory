@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "renderers": [
+    {
+      "id": "visual-svg-v1",
+      "label": "Deterministic SVG Renderer",
+      "status": "live",
+      "mode": "visual-worker-v1",
+      "outputs": [
+        "svg",
+        "json"
+      ],
+      "engine": "deterministic-svg-layout-engine-v1",
+      "productionUse": "proof visuals, memory scrolls, symbolic cards"
+    },
+    {
+      "id": "raster-image-v1",
+      "label": "Raster Image Renderer",
+      "status": "live",
+      "outputs": [
+        "png",
+        "webp"
+      ],
+      "productionUse": "share cards, thumbnails, social previews"
+    },
+    {
+      "id": "video-scroll-v1",
+      "label": "Video Scroll Renderer",
+      "status": "live-scaffold",
+      "outputs": [
+        "storyboard-html",
+        "timeline-json",
+        "capcut-json",
+        "srt",
+        "video-manifest-json"
+      ],
+      "productionUse": "CapCut-style recaps, launch demos, narrated scrolls"
+    },
+    {
+      "id": "audio-voice-v1",
+      "label": "Audio Voice Renderer",
+      "status": "planned",
+      "outputs": [
+        "mp3",
+        "wav",
+        "json"
+      ],
+      "productionUse": "narrator voiceovers, ritual audio, companion replies"
+    },
+    {
+      "id": "spatial-scene-v1",
+      "label": "Spatial Scene Renderer",
+      "status": "planned",
+      "outputs": [
+        "gltf",
+        "glb",
+        "json"
+      ],
+      "productionUse": "URAI Spatial, AR/VR constellation scenes, galleries"
+    }
+  ]
+}

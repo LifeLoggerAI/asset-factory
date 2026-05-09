@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "jobId": "job_mopd5q4r_8l27yx",
+  "tenantId": "urai-system",
+  "presetId": "audio-voice-v1",
+  "renderer": "audio-voice-v1",
+  "voiceId": "urai-calm-narrator-v1",
+  "tone": "calm, cinematic, supportive",
+  "speed": "medium",
+  "durationMs": 12600,
+  "cues": [
+    {
+      "index": 1,
+      "startMs": 0,
+      "endMs": 3000,
+      "text": "A signal becomes audible.",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    },
+    {
+      "index": 2,
+      "startMs": 3200,
+      "endMs": 6200,
+      "text": "The memory is shaped into a voice-ready narration.",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    },
+    {
+      "index": 3,
+      "startMs": 6400,
+      "endMs": 9400,
+      "text": "URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    },
+    {
+      "index": 4,
+      "startMs": 9600,
+      "endMs": 12600,
+      "text": "URAI prepares the asset for narration, subtitles, and future TTS rendering.",
+      "voiceId": "urai-calm-narrator-v1",
+      "tone": "calm, cinematic, supportive",
+      "speed": "medium"
+    }
+  ]
+}

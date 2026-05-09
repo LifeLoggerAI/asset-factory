@@ -1,0 +1,17 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { getProductionGradeReadiness, getRendererCatalog } from "@/lib/server/assetGovernance";
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    system: "asset-factory",
+    grade: "production-capable-module",
+    nextGrade: "fully-production-grade-product-system",
+    readiness: getProductionGradeReadiness(),
+    renderers: getRendererCatalog(),
+  });
+}

@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "format": "capcut-style-project-json",
+  "jobId": "job_mopeas6t_ol7t97",
+  "tenantId": "urai-system",
+  "title": "URAI Video Scroll job_mopeas6t_ol7t97",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "durationMs": 10500
+  },
+  "tracks": [
+    {
+      "type": "visual",
+      "clips": [
+        {
+          "id": "scene-1",
+          "startMs": 0,
+          "endMs": 3500,
+          "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff",
+          "transition": "fade-in"
+        },
+        {
+          "id": "scene-2",
+          "startMs": 3500,
+          "endMs": 7000,
+          "prompt": "glowing memory scroll, soft cosmic movement, violet blue aura",
+          "transition": "soft-bloom-crossfade"
+        },
+        {
+          "id": "scene-3",
+          "startMs": 7000,
+          "endMs": 10500,
+          "prompt": "cinematic product proof, luminous interface, asset factory renderer",
+          "transition": "soft-bloom-crossfade"
+        }
+      ]
+    },
+    {
+      "type": "subtitles",
+      "clips": [
+        {
+          "id": "subtitle-1",
+          "startMs": 0,
+          "endMs": 3500,
+          "text": "A signal becomes visible."
+        },
+        {
+          "id": "subtitle-2",
+          "startMs": 3500,
+          "endMs": 7000,
+          "text": "The pattern sharpens into a symbolic memory."
+        },
+        {
+          "id": "subtitle-3",
+          "startMs": 7000,
+          "endMs": 10500,
+          "text": "URAI renders the moment into a shareable visual sequence."
+        }
+      ]
+    }
+  ],
+  "exportTargets": [
+    "mp4",
+    "webm"
+  ],
+  "nextWorker": "ffmpeg-video-render-worker-v1"
+}

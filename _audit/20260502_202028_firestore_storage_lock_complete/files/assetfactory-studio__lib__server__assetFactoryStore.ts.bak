@@ -1,0 +1,431 @@
+import fs from "fs";
+import path from "path";
+import { getAdminBucket, getAdminDb, getAdminDiagnostics, getBucketCandidates } from "./firebaseAdmin";
+import { renderAsset, RENDERER_MODE } from "./assetRenderer";
+import * as local from "./localAssetFactoryStore";
+
+export type MaterializeFailure = {
+  ok: false;
+  jobId: string;
+  error: string;
+  persistenceMode: string;
+  fallbackActive: boolean;
+  storageBucket?: string | null;
+};
+
+export type AssetFactoryJob = {
+  id: string;
+  jobId: string;
+  status: string;
+  presetId: string;
+  tenantId: string;
+  type: string;
+  prompt: string;
+  input: Record<string, unknown>;
+  output: null | Record<string, unknown>;
+  assetUrl: null | string;
+  bundleUrl: null | string;
+  createdAt: string;
+  updatedAt: string;
+  mode: string;
+  persistenceMode?: string;
+  fallbackActive?: boolean;
+};
+
+const JOBS = "assetFactoryJobs";
+const ASSETS = "assetFactoryAssets";
+
+let forcedFallbackReason: string | null = null;
+
+function basename(fileName: string) {
+  return path.basename(fileName);
+}
+
+function jobIdFromFile(fileName: string) {
+  return basename(fileName).replace(/\.(svg|json)$/i, "");
+}
+
+function storagePaths(job: AssetFactoryJob) {
+  return {
+    assetPath: `asset-factory/${job.tenantId}/${job.jobId}/${job.jobId}.svg`,
+    manifestPath: `asset-factory/${job.tenantId}/${job.jobId}/${job.jobId}.json`,
+  };
+}
+
+function adminReady() {
+  const db = getAdminDb();
+  const bucket = getAdminBucket();
+  return { db, bucket, ready: Boolean(db && bucket) };
+}
+
+export function getStoreDiagnostics() {
+  const admin = getAdminDiagnostics();
+  const active = admin.adminAvailable && !forcedFallbackReason;
+
+  return {
+    persistenceMode: active ? "firestore-storage" : "local-json",
+    fallbackActive: !active,
+    fallbackReason: forcedFallbackReason || admin.fallbackReason,
+    firebaseProjectId: admin.projectId,
+    storageBucket: admin.storageBucket,
+    databaseId: (admin as any).databaseId ?? null,
+    rendererMode: RENDERER_MODE,
+  };
+}
+
+export function getStoreMode() {
+  return getStoreDiagnostics().persistenceMode;
+}
+
+function withStoreMeta<T extends Record<string, any>>(value: T): T {
+  const d = getStoreDiagnostics();
+  return {
+    ...value,
+    persistenceMode: d.persistenceMode,
+    fallbackActive: d.fallbackActive,
+  };
+}
+
+export async function addJob(job: AssetFactoryJob) {
+  const { db, ready } = adminReady();
+
+  if (!ready || !db) {
+    forcedFallbackReason = forcedFallbackReason || "Firebase Admin not ready during addJob";
+    const localJob = local.addJob(job as any) as any;
+    return {
+      ...localJob,
+      persistenceMode: "local-json",
+      fallbackActive: true,
+      fallbackReason: forcedFallbackReason,
+    };
+  }
+
+  const stored = {
+    ...job,
+    id: job.jobId,
+    jobId: job.jobId,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+    mode: "firestore-storage",
+  };
+
+  try {
+    const ref = db.collection(JOBS).doc(job.jobId);
+    await ref.set(stored, { merge: true });
+
+    const verify = await ref.get();
+
+    if (!verify.exists) {
+      throw new Error(`Firestore write verification failed for ${job.jobId}`);
+    }
+
+    const verified = verify.data() as any;
+
+    return {
+      ...verified,
+      id: verified.id || job.jobId,
+      jobId: verified.jobId || job.jobId,
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+      mode: verified.mode || "firestore-storage",
+    };
+  } catch (error: any) {
+    forcedFallbackReason = error?.message || "Firestore addJob failed";
+    console.error("[assetFactoryStore] addJob firestore failed; using local fallback", error);
+
+    const localJob = local.addJob(job as any) as any;
+
+    return {
+      ...localJob,
+      persistenceMode: "local-json",
+      fallbackActive: true,
+      fallbackReason: forcedFallbackReason,
+    };
+  }
+}
+
+export async function readJobs() {
+  const { db, ready } = adminReady();
+
+  if (!ready || !db) {
+    return local.readJobs().map((job: any) => withStoreMeta(job));
+  }
+
+  try {
+    const snap = await db.collection(JOBS).orderBy("createdAt", "desc").limit(100).get();
+    return snap.docs.map((doc) => withStoreMeta(doc.data() as any));
+  } catch (error) {
+    console.error("[assetFactoryStore] readJobs fallback", error);
+    return local.readJobs().map((job: any) => withStoreMeta(job));
+  }
+}
+
+export async function findJob(jobId: string) {
+  const { db, ready } = adminReady();
+
+  if (!ready || !db || forcedFallbackReason) {
+    const job = local.findJob(jobId) as any;
+    return job
+      ? {
+          ...job,
+          persistenceMode: "local-json",
+          fallbackActive: true,
+          fallbackReason: forcedFallbackReason || "Firebase Admin not ready during findJob",
+        }
+      : null;
+  }
+
+  try {
+    const ref = db.collection(JOBS).doc(jobId);
+    const doc = await ref.get();
+
+    if (!doc.exists) {
+      console.warn(`[assetFactoryStore] Firestore job not found: ${jobId}`);
+      return null;
+    }
+
+    const data = doc.data() as any;
+
+    return {
+      ...data,
+      id: data.id || jobId,
+      jobId: data.jobId || jobId,
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+      mode: data.mode || "firestore-storage",
+    };
+  } catch (error: any) {
+    forcedFallbackReason = error?.message || "Firestore findJob failed";
+    console.error("[assetFactoryStore] findJob firestore failed; using local fallback", error);
+
+    const job = local.findJob(jobId) as any;
+    return job
+      ? {
+          ...job,
+          persistenceMode: "local-json",
+          fallbackActive: true,
+          fallbackReason: forcedFallbackReason,
+        }
+      : null;
+  }
+}
+
+export async function updateJob(jobId: string, patch: Partial<AssetFactoryJob>) {
+  const { db, ready } = adminReady();
+
+  if (!ready || !db) {
+    const job = local.updateJob(jobId, patch as any) as any;
+    return job ? withStoreMeta(job) : null;
+  }
+
+  try {
+    const ref = db.collection(JOBS).doc(jobId);
+    const current = await ref.get();
+
+    if (!current.exists) return null;
+
+    const updated = withStoreMeta({
+      ...(current.data() as any),
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+    });
+
+    await ref.set(updated, { merge: true });
+    return updated;
+  } catch (error) {
+    console.error("[assetFactoryStore] updateJob fallback", error);
+    const job = local.updateJob(jobId, patch as any) as any;
+    return job ? withStoreMeta(job) : null;
+  }
+}
+
+export async function listAssets() {
+  const { db, ready } = adminReady();
+
+  if (!ready || !db) {
+    return local.listAssets().map((asset: any) => withStoreMeta(asset));
+  }
+
+  try {
+    const snap = await db.collection(ASSETS).orderBy("createdAt", "desc").limit(100).get();
+    return snap.docs.map((doc) => withStoreMeta(doc.data() as any));
+  } catch (error) {
+    console.error("[assetFactoryStore] listAssets fallback", error);
+    return local.listAssets().map((asset: any) => withStoreMeta(asset));
+  }
+}
+
+export async function materializeAsset(jobId: string): Promise<AssetFactoryJob | MaterializeFailure | null> {
+  const job = await findJob(jobId);
+  const diagnostics = getStoreDiagnostics();
+  const { db, bucket, ready } = adminReady();
+
+  if (!job) {
+    console.error(`[assetFactoryStore] materializeAsset could not find job ${jobId}`);
+    return null;
+  }
+
+  if (!ready || !db || !bucket || diagnostics.persistenceMode !== "firestore-storage") {
+    const result = local.materializeLocalAsset(jobId) as any;
+    return result
+      ? {
+          ...result,
+          persistenceMode: "local-json",
+          fallbackActive: true,
+        }
+      : {
+          ok: false,
+          jobId,
+          error: diagnostics.fallbackReason || "Firebase Admin/Storage unavailable and local fallback did not contain job",
+          persistenceMode: "local-json",
+          fallbackActive: true,
+          storageBucket: diagnostics.storageBucket,
+        };
+  }
+
+  try {
+    const rendered = await renderAsset({
+      jobId: job.jobId,
+      tenantId: job.tenantId,
+      presetId: job.presetId,
+      type: job.type,
+      prompt: job.prompt,
+      input: job.input,
+    });
+
+    const paths = storagePaths(job as AssetFactoryJob);
+
+    await bucket.file(paths.assetPath).save(rendered.assetBuffer, {
+      contentType: rendered.assetMimeType,
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    await bucket.file(paths.manifestPath).save(rendered.manifestBuffer, {
+      contentType: rendered.manifestMimeType,
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    const output = {
+      ...rendered.manifest,
+      assetUrl: `/api/generated-assets/${job.jobId}.svg`,
+      bundleUrl: `/api/generated-assets/${job.jobId}.json`,
+      storageAssetPath: paths.assetPath,
+      storageManifestPath: paths.manifestPath,
+      persistenceMode: "firestore-storage",
+    };
+
+    const updated = {
+      ...job,
+      status: "completed",
+      output,
+      assetUrl: `/api/generated-assets/${job.jobId}.svg`,
+      bundleUrl: `/api/generated-assets/${job.jobId}.json`,
+      updatedAt: new Date().toISOString(),
+      mode: "firestore-storage",
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+    };
+
+    const asset = {
+      id: job.jobId,
+      jobId: job.jobId,
+      tenantId: job.tenantId,
+      type: job.type,
+      status: "completed",
+      presetId: job.presetId,
+      prompt: job.prompt,
+      assetUrl: updated.assetUrl,
+      bundleUrl: updated.bundleUrl,
+      createdAt: job.createdAt,
+      updatedAt: updated.updatedAt,
+      mode: "firestore-storage",
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+      storageAssetPath: paths.assetPath,
+      storageManifestPath: paths.manifestPath,
+    };
+
+    await db.collection(JOBS).doc(job.jobId).set(updated, { merge: true });
+    await db.collection(ASSETS).doc(job.jobId).set(asset, { merge: true });
+
+    return updated as AssetFactoryJob;
+  } catch (error: any) {
+    const message = error?.message || String(error) || "Cloud Storage materialization failed";
+    console.error("[assetFactoryStore] materializeAsset storage failed", error);
+
+    const failedPatch = {
+      status: "failed",
+      updatedAt: new Date().toISOString(),
+      output: {
+        ok: false,
+        error: message,
+        stage: "storage-materialization",
+        persistenceMode: "firestore-storage",
+        storageBucket: diagnostics.storageBucket,
+        bucketCandidates: getBucketCandidates(),
+      },
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+      mode: "firestore-storage",
+    };
+
+    try {
+      await db.collection(JOBS).doc(job.jobId).set({ ...job, ...failedPatch }, { merge: true });
+    } catch {}
+
+    return {
+      ok: false,
+      jobId,
+      error: message,
+      persistenceMode: "firestore-storage",
+      fallbackActive: false,
+      storageBucket: diagnostics.storageBucket,
+    };
+  }
+}
+
+export async function readGeneratedAsset(fileName: string) {
+  const safeFile = basename(fileName);
+  const jobId = jobIdFromFile(safeFile);
+  const isJson = safeFile.endsWith(".json");
+
+  const { db, bucket, ready } = adminReady();
+
+  if (ready && db && bucket) {
+    try {
+      const assetDoc = await db.collection(ASSETS).doc(jobId).get();
+      if (assetDoc.exists) {
+        const asset: any = assetDoc.data();
+        const storagePath = isJson ? asset.storageManifestPath : asset.storageAssetPath;
+        if (storagePath) {
+          const [buffer] = await bucket.file(storagePath).download();
+          return {
+            ok: true,
+            data: buffer,
+            contentType: isJson ? "application/json; charset=utf-8" : "image/svg+xml; charset=utf-8",
+            persistenceMode: "firestore-storage",
+          };
+        }
+      }
+    } catch (error) {
+      console.error("[assetFactoryStore] readGeneratedAsset storage fallback", error);
+    }
+  }
+
+  try {
+    const filePath = local.getGeneratedAssetPath(safeFile);
+    if (!fs.existsSync(filePath)) return null;
+    return {
+      ok: true,
+      data: fs.readFileSync(filePath),
+      contentType: isJson ? "application/json; charset=utf-8" : "image/svg+xml; charset=utf-8",
+      persistenceMode: "local-json",
+    };
+  } catch {
+    return null;
+  }
+}

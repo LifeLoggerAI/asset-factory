@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "jobId": "job_mopcxflo_51ziiy",
+  "tenantId": "urai-system",
+  "presetId": "spatial-scene-v1",
+  "rendererMode": "spatial-scene-v1",
+  "renderEngine": "spatial-scene-gltf-handoff-package-v1",
+  "mode": "spatial-scene-package",
+  "anchorMode": "world-origin",
+  "sceneScale": 1,
+  "sceneUrl": "/api/generated-assets/job_mopcxflo_51ziiy.scene.json",
+  "spatialManifestUrl": "/api/generated-assets/job_mopcxflo_51ziiy.spatial.json",
+  "worldUrl": "/api/generated-assets/job_mopcxflo_51ziiy.world.json",
+  "arUrl": "/api/generated-assets/job_mopcxflo_51ziiy.ar.json",
+  "gltfUrl": "/api/generated-assets/job_mopcxflo_51ziiy.gltf",
+  "glbStatus": "requires-spatial-render-worker",
+  "usdzStatus": "requires-spatial-render-worker",
+  "nextWorker": "spatial-render-worker-v1"
+}
