@@ -1,0 +1,233 @@
+export type RenderInput = {
+  job?: Record<string, any>;
+  jobId?: string;
+  tenantId?: string;
+  presetId?: string;
+  type?: string;
+  prompt?: string;
+  aspectRatio?: string;
+  input?: Record<string, unknown>;
+  outputFormats?: string[];
+};
+
+export type RenderAssetInput = RenderInput;
+
+export type RenderedArtifact = {
+  format: "svg" | "png" | "webp" | "json";
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+  byteLength: number;
+};
+
+export type RenderAssetResult = {
+  ok: true;
+  assetBuffer: Buffer;
+  assetMimeType: string;
+  assetFileName: string;
+  manifestBuffer: Buffer;
+  manifestMimeType: string;
+  manifestFileName: string;
+  manifest: Record<string, unknown>;
+  artifacts: RenderedArtifact[];
+  mode: string;
+};
+
+function escapeXml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function normalizeFormats(input: RenderInput): Array<"svg" | "png" | "webp"> {
+  const fromInput = input.outputFormats || (input.input?.outputFormats as string[] | undefined);
+  const requested = Array.isArray(fromInput) && fromInput.length ? fromInput : ["svg", "png", "webp"];
+  const allowed = new Set(["svg", "png", "webp"]);
+  const formats = requested
+    .map((format) => String(format).toLowerCase())
+    .filter((format) => allowed.has(format)) as Array<"svg" | "png" | "webp">;
+
+  return Array.from(new Set(formats.length ? formats : ["svg", "png", "webp"]));
+}
+
+async function rasterizeSvg(svgBuffer: Buffer) {
+  const sharpModule = await import("sharp");
+  const sharp = sharpModule.default || sharpModule;
+
+  const png = await sharp(svgBuffer, { density: 192 })
+    .resize(1400, 1400, { fit: "cover" })
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toBuffer();
+
+  const webp = await sharp(svgBuffer, { density: 192 })
+    .resize(1400, 1400, { fit: "cover" })
+    .webp({ quality: 92, effort: 5 })
+    .toBuffer();
+
+  return { png, webp };
+}
+
+export async function renderAsset(input: RenderInput): Promise<RenderAssetResult> {
+  const job = input.job || {};
+
+  const jobId =
+    input.jobId ||
+    job.jobId ||
+    job.id ||
+    `job_${Date.now().toString(36)}`;
+
+  const tenantId =
+    input.tenantId ||
+    job.tenantId ||
+    job.input?.tenantId ||
+    "urai-system";
+
+  const presetId =
+    input.presetId ||
+    job.presetId ||
+    job.input?.presetId ||
+    "memory-scroll";
+
+  const type =
+    input.type ||
+    job.type ||
+    job.input?.type ||
+    "visual";
+
+  const prompt =
+    input.prompt ||
+    job.prompt ||
+    job.input?.prompt ||
+    "URAI Asset Factory generated asset";
+
+  const aspectRatio =
+    input.aspectRatio ||
+    job.aspectRatio ||
+    job.input?.aspectRatio ||
+    "1:1";
+
+  const renderedAt = new Date().toISOString();
+  const rendererMode = process.env.ASSET_FACTORY_RENDERER_MODE || "visual-worker-v1";
+  const outputFormats = normalizeFormats(input);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-label="URAI Asset Factory generated visual">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070914"/>
+      <stop offset="45%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="50%" cy="42%" r="50%">
+      <stop offset="0%" stop-color="#e0f2fe" stop-opacity="0.95"/>
+      <stop offset="44%" stop-color="#8b5cf6" stop-opacity="0.54"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1400" height="1400" rx="84" fill="url(#bg)"/>
+  <circle cx="700" cy="520" r="360" fill="url(#orb)" filter="url(#glow)"/>
+  <circle cx="700" cy="520" r="230" fill="none" stroke="#c4b5fd" stroke-width="9" opacity="0.75"/>
+  <circle cx="700" cy="520" r="118" fill="#ffffff" opacity="0.1"/>
+  <path d="M280 850 C 430 690, 540 990, 700 790 S 965 740, 1105 625" fill="none" stroke="#e0f2fe" stroke-width="16" opacity="0.74" stroke-linecap="round"/>
+  <text x="700" y="490" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" fill="#ffffff">URAI Asset Factory</text>
+  <text x="700" y="570" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" fill="#c7d2fe">${escapeXml(presetId)} · ${escapeXml(type)} · ${escapeXml(aspectRatio)}</text>
+  <foreignObject x="230" y="930" width="940" height="230">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Inter,Arial,sans-serif;color:white;text-align:center;font-size:38px;line-height:1.25;font-weight:700;">
+      ${escapeXml(prompt)}
+    </div>
+  </foreignObject>
+  <text x="700" y="1265" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" fill="#cbd5e1">job ${escapeXml(jobId)} · tenant ${escapeXml(tenantId)}</text>
+</svg>`;
+
+  const svgBuffer = Buffer.from(svg, "utf8");
+  const artifacts: RenderedArtifact[] = [];
+
+  if (outputFormats.includes("svg")) {
+    artifacts.push({
+      format: "svg",
+      fileName: `${jobId}.svg`,
+      mimeType: "image/svg+xml; charset=utf-8",
+      buffer: svgBuffer,
+      byteLength: svgBuffer.length,
+    });
+  }
+
+  if (outputFormats.includes("png") || outputFormats.includes("webp")) {
+    const raster = await rasterizeSvg(svgBuffer);
+
+    if (outputFormats.includes("png")) {
+      artifacts.push({
+        format: "png",
+        fileName: `${jobId}.png`,
+        mimeType: "image/png",
+        buffer: raster.png,
+        byteLength: raster.png.length,
+      });
+    }
+
+    if (outputFormats.includes("webp")) {
+      artifacts.push({
+        format: "webp",
+        fileName: `${jobId}.webp`,
+        mimeType: "image/webp",
+        buffer: raster.webp,
+        byteLength: raster.webp.length,
+      });
+    }
+  }
+
+  const manifest = {
+    ok: true,
+    jobId,
+    type,
+    presetId,
+    tenantId,
+    prompt,
+    aspectRatio,
+    assetUrl: `/api/generated-assets/${jobId}.svg`,
+    pngUrl: `/api/generated-assets/${jobId}.png`,
+    webpUrl: `/api/generated-assets/${jobId}.webp`,
+    bundleUrl: `/api/generated-assets/${jobId}.json`,
+    renderedAt,
+    materializedAt: renderedAt,
+    mode: "raster-expanded",
+    rendererMode,
+    renderEngine: "deterministic-svg-plus-sharp-raster-engine-v1",
+    workerId: "asset-render-worker-primary",
+    workerVersion: "1.1.0",
+    outputFormats,
+    artifactFormats: artifacts.map((artifact) => artifact.format),
+  };
+
+  const manifestJson = JSON.stringify(manifest, null, 2);
+  const manifestBuffer = Buffer.from(manifestJson, "utf8");
+
+  artifacts.push({
+    format: "json",
+    fileName: `${jobId}.json`,
+    mimeType: "application/json; charset=utf-8",
+    buffer: manifestBuffer,
+    byteLength: manifestBuffer.length,
+  });
+
+  const primarySvg = artifacts.find((artifact) => artifact.format === "svg") || artifacts[0];
+
+  return {
+    ok: true,
+    assetBuffer: primarySvg.buffer,
+    assetMimeType: primarySvg.mimeType,
+    assetFileName: primarySvg.fileName,
+    manifestBuffer,
+    manifestMimeType: "application/json; charset=utf-8",
+    manifestFileName: `${jobId}.json`,
+    manifest,
+    artifacts,
+    mode: "raster-expanded",
+  };
+}

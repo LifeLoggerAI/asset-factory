@@ -1,0 +1,36 @@
+{
+  "name": "urai-functions",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": "22"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/fix-functions-entry.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "serve": "firebase emulators:start --only functions,firestore,auth,storage",
+    "deploy": "firebase deploy --only functions,firestore,storage"
+  },
+  "dependencies": {
+    "@asset-factory/types": "file:vendor/asset-factory-types",
+    "@google-cloud/pubsub": "^5.0.0",
+    "@google-cloud/secret-manager": "^6.0.0",
+    "express": "^4.22.1",
+    "firebase-admin": "^13.8.0",
+    "firebase-functions": "^7.2.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript": "^5.8.2"
+  },
+  "packageManager": "pnpm@latest",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@firebase/util",
+      "protobufjs"
+    ]
+  }
+}

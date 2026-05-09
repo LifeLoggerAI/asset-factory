@@ -1,0 +1,93 @@
+{
+  "ok": true,
+  "jobId": "job_mopeawwd_c10sg2",
+  "tenantId": "urai-system",
+  "presetId": "spatial-scene-v1",
+  "renderer": "spatial-scene-v1",
+  "coordinateSystem": "meters-y-up-right-handed",
+  "anchorMode": "world-origin",
+  "sceneScale": 1,
+  "nodes": [
+    {
+      "id": "root-constellation",
+      "type": "constellation-root",
+      "label": "URAI Spatial Memory Root",
+      "position": [
+        0,
+        1.4,
+        -2.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "material": "aura-glass",
+      "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff"
+    },
+    {
+      "id": "memory-orb-primary",
+      "type": "memory-orb",
+      "label": "Primary Memory Orb",
+      "position": [
+        -0.6,
+        1.7,
+        -2
+      ],
+      "radius": 0.18,
+      "color": "#8b5cf6",
+      "glow": 0.82
+    },
+    {
+      "id": "memory-orb-secondary",
+      "type": "memory-orb",
+      "label": "Secondary Memory Orb",
+      "position": [
+        0.55,
+        1.55,
+        -2.1
+      ],
+      "radius": 0.14,
+      "color": "#22d3ee",
+      "glow": 0.68
+    },
+    {
+      "id": "ritual-gate",
+      "type": "portal-arc",
+      "label": "Ritual Gate",
+      "position": [
+        0,
+        1.1,
+        -2.4
+      ],
+      "radius": 0.72,
+      "color": "#c4b5fd"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "tap-primary-orb",
+      "target": "memory-orb-primary",
+      "gesture": "tap",
+      "action": "open-memory-detail",
+      "haptic": "soft-pulse"
+    },
+    {
+      "id": "gaze-ritual-gate",
+      "target": "ritual-gate",
+      "gesture": "gaze-dwell",
+      "action": "begin-spatial-replay",
+      "haptic": "rising-bloom"
+    }
+  ],
+  "environment": {
+    "lighting": "soft-cosmic-ambient",
+    "background": "transparent-spatial-overlay",
+    "particles": "slow-aura-drift"
+  }
+}

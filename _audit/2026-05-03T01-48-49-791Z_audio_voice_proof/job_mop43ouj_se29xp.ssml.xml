@@ -1,0 +1,10 @@
+<speak>
+  <voice name="urai-calm-narrator-v1">
+    <prosody rate="medium">
+      <p>A signal becomes audible.</p>
+      <p>The memory is shaped into a voice-ready narration.</p>
+      <p>URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing</p>
+      <p>URAI prepares the asset for narration, subtitles, and future TTS rendering.</p>
+    </prosody>
+  </voice>
+</speak>

@@ -1,0 +1,64 @@
+
+import { AssetJob } from '../types';
+
+// For now, this is a simple SVG proof renderer.
+// It's designed to be replaced by a real worker that can handle different asset types.
+
+interface RenderInput {
+  job: AssetJob;
+}
+
+interface RenderOutput {
+  ok: true;
+  assetBuffer: Buffer;
+  assetMimeType: 'image/svg+xml; charset=utf-8';
+  assetFileName: string;
+  manifest: Record<string, any>;
+  mode: 'svg-proof';
+}
+
+interface RenderError {
+  ok: false;
+  error: string;
+}
+
+export async function renderAsset(input: RenderInput): Promise<RenderOutput | RenderError> {
+  const { job } = input;
+
+  const svgContent = `
+    <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <rect width="512" height="512" fill="#f0f0f0"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#333">
+        Job ID: ${job.jobId}
+      </text>
+      <text x="50%" y="60%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#666">
+        Preset: ${job.presetId}
+      </text>
+      <text x="50%" y="70%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#999">
+        Status: ${job.status}
+      </text>
+    </svg>
+  `;
+
+  const assetBuffer = Buffer.from(svgContent, 'utf-8');
+  const manifest = {
+    jobId: job.jobId,
+    tenantId: job.tenantId,
+    presetId: job.presetId,
+    prompt: job.prompt,
+    createdAt: job.createdAt,
+    renderer: 'svg-proof',
+    dimensions: { width: 512, height: 512 },
+    encoding: 'utf-8',
+    mimeType: 'image/svg+xml; charset=utf-8',
+  };
+
+  return {
+    ok: true,
+    assetBuffer,
+    assetMimeType: 'image/svg+xml; charset=utf-8',
+    assetFileName: `${job.jobId}.svg`,
+    manifest,
+    mode: 'svg-proof',
+  };
+}

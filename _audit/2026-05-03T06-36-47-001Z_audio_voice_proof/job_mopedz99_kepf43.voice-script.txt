@@ -1,0 +1,4 @@
+A signal becomes audible.
+The memory is shaped into a voice-ready narration.
+URAI Audio Voice Renderer v1 proof for narrator voiceovers and video scroll pairing
+URAI prepares the asset for narration, subtitles, and future TTS rendering.

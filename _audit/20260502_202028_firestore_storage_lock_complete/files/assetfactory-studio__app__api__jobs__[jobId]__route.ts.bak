@@ -1,0 +1,26 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextRequest, NextResponse } from "next/server";
+import { findJob, getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET(
+  _req: NextRequest,
+  context: { params: { jobId: string } }
+) {
+  const { jobId } = context.params;
+  const job = await findJob(jobId);
+  const diagnostics = getStoreDiagnostics();
+
+  if (!job) {
+    return NextResponse.json({ ok: false, error: "Job not found", jobId }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    job,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

@@ -1,10 +1,183 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter } from './lifemap.types';
+import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
 import { deterministicHash } from './hash';
 
 admin.initializeApp();
 const db = admin.firestore();
+const VERSION = process.env.K_REVISION || process.env.GIT_SHA || 'dev';
+
+function now(): number {
+  return Date.now();
+}
+
+function sendJson(res: functions.Response, status: number, body: unknown): void {
+  res.set('Cache-Control', 'no-store');
+  res.status(status).json(body);
+}
+
+function applyCors(req: functions.Request, res: functions.Response): boolean {
+  res.set('Access-Control-Allow-Origin', process.env.ASSET_FACTORY_ALLOWED_ORIGIN || '*');
+  res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return true;
+  }
+  return false;
+}
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`${field} is required`);
+  }
+  return value.trim();
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function safeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 50);
+}
+
+function newDocId(collection: string): string {
+  return db.collection(collection).doc().id;
+}
+
+export const assetFactoryHealth = functions.https.onRequest(async (req, res) => {
+  if (applyCors(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  const status: SystemStatusRecord = {
+    status: 'healthy',
+    service: 'asset-factory',
+    version: VERSION,
+    updatedAt: now(),
+    checks: {
+      firestore: true,
+      functions: true,
+      storageRulesPath: 'storage.rules',
+      firestoreRulesPath: 'firestore.rules',
+    },
+  };
+
+  await db.collection('systemStatus').doc('asset-factory').set(status, { merge: true });
+  return sendJson(res, 200, { ok: true, ...status });
+});
+
+export const createAssetRequest = functions.https.onRequest(async (req, res) => {
+  if (applyCors(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  try {
+    const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+    const projectId = requireString(body.projectId, 'projectId');
+    const assetType = requireString(body.assetType, 'assetType');
+    const source = optionalString(body.source) || 'api';
+    const format = optionalString(body.format) || 'unknown';
+    const userId = optionalString(body.userId);
+    const anonymousSessionId = optionalString(body.anonymousSessionId);
+
+    if (!userId && !anonymousSessionId) {
+      throw new Error('userId or anonymousSessionId is required');
+    }
+
+    const assetId = optionalString(body.assetId) || newDocId('assetFactoryRequests');
+    const timestamp = now();
+    const storageOwner = userId || anonymousSessionId || 'unknown';
+    const storagePath = `assets/${storageOwner}/${assetId}/manifest.json`;
+
+    const asset: AssetFactoryRequest = {
+      assetId,
+      userId,
+      anonymousSessionId,
+      projectId,
+      assetType,
+      format: format as AssetFactoryRequest['format'],
+      status: 'queued',
+      storagePath,
+      source,
+      prompt: optionalString(body.prompt),
+      tags: safeTags(body.tags),
+      dimensions: typeof body.dimensions === 'object' && body.dimensions !== null ? body.dimensions : undefined,
+      version: '1.0.0',
+      lifecycleState: 'queued',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    const queueItem: AssetFactoryQueueItem = {
+      queueId: newDocId('assetFactoryQueue'),
+      assetId,
+      userId,
+      anonymousSessionId,
+      status: 'queued',
+      attempts: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await db.runTransaction(async (transaction) => {
+      transaction.set(db.collection('assetFactoryRequests').doc(assetId), asset);
+      transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), queueItem);
+      transaction.set(db.collection('assetManifests').doc(assetId), {
+        assetId,
+        projectId,
+        assetType,
+        format,
+        storagePath,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    });
+
+    return sendJson(res, 202, { ok: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
+  } catch (error) {
+    console.error('createAssetRequest failed', error);
+    return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
+  }
+});
+
+export const getAssetStatus = functions.https.onRequest(async (req, res) => {
+  if (applyCors(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  const assetId = req.path.split('/').filter(Boolean).pop() || optionalString(req.query.assetId);
+  if (!assetId) return sendJson(res, 400, { ok: false, error: 'assetId is required' });
+
+  const doc = await db.collection('assetFactoryRequests').doc(assetId).get();
+  if (!doc.exists) return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
+
+  return sendJson(res, 200, { ok: true, asset: doc.data() });
+});
+
+export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => {
+  if (applyCors(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  try {
+    const body = typeof req.body === 'object' && req.body !== null ? req.body : {};
+    const eventId = optionalString(body.eventId) || newDocId('lifeMapEvents');
+    const event: LifeMapEvent = {
+      eventId,
+      userId: requireString(body.userId, 'userId'),
+      timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
+      source: optionalString(body.source) || 'api',
+      type: requireString(body.type, 'type'),
+      payload: typeof body.payload === 'object' && body.payload !== null ? body.payload : {},
+      linkedAssetId: optionalString(body.linkedAssetId),
+    };
+
+    await db.collection('lifeMapEvents').doc(eventId).set(event, { merge: false });
+    return sendJson(res, 202, { ok: true, eventId, status: 'accepted' });
+  } catch (error) {
+    console.error('ingestLifeMapEvent failed', error);
+    return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
+  }
+});
 
 export const processLifeMapEvent = functions.firestore
   .document('lifeMapEvents/{eventId}')
@@ -18,69 +191,63 @@ export const processLifeMapEvent = functions.firestore
     const lifeMapRef = db.collection('lifeMaps').doc(userId);
 
     try {
-        await db.runTransaction(async (transaction) => {
-            const lifeMapDoc = await transaction.get(lifeMapRef);
+      await db.runTransaction(async (transaction) => {
+        const lifeMapDoc = await transaction.get(lifeMapRef);
 
-            let lifeMap: LifeMap;
+        let lifeMap: LifeMap;
 
-            if (!lifeMapDoc.exists) {
-                console.log(`[${eventId}] No existing LifeMap found for user ${userId}. Creating a new one.`);
-                lifeMap = {
-                    lifeMapId: userId,
-                    userId,
-                    version: 0,
-                    status: 'processing',
-                    createdAt: Date.now(),
-                    updatedAt: Date.now(),
-                    chapters: [],
-                    contentHash: '',
-                };
-            } else {
-                lifeMap = lifeMapDoc.data() as LifeMap;
-                console.log(`[${eventId}] Found existing LifeMap for user ${userId} at version ${lifeMap.version}.`);
-            }
+        if (!lifeMapDoc.exists) {
+          console.log(`[${eventId}] No existing LifeMap found for user ${userId}. Creating a new one.`);
+          lifeMap = {
+            lifeMapId: userId,
+            userId,
+            version: 0,
+            status: 'processing',
+            createdAt: now(),
+            updatedAt: now(),
+            chapters: [],
+            contentHash: '',
+          };
+        } else {
+          lifeMap = lifeMapDoc.data() as LifeMap;
+          console.log(`[${eventId}] Found existing LifeMap for user ${userId} at version ${lifeMap.version}.`);
+        }
 
-            if (lifeMap.chapters.some(c => c.events.some(e => e.eventId === eventId))) {
-                console.warn(`[${eventId}] Event already processed. Skipping.`);
-                return;
-            }
+        if (lifeMap.chapters.some(c => c.events.some(e => e.eventId === eventId))) {
+          console.warn(`[${eventId}] Event already processed. Skipping.`);
+          return;
+        }
 
-            const enrichedEvent: EnrichedEvent = {
-                ...event,
-            };
+        const enrichedEvent: EnrichedEvent = {
+          ...event,
+          enrichmentVersion: 'asset-factory-v1',
+        };
 
-            const newChapter: LifeMapChapter = {
-                chapterId: eventId,
-                title: `Event at ${event.timestamp}`,
-                startTime: event.timestamp,
-                endTime: event.timestamp,
-                events: [enrichedEvent],
-            };
-            lifeMap.chapters.push(newChapter);
-            
-            lifeMap.chapters.sort((a, b) => a.startTime - b.startTime);
+        const newChapter: LifeMapChapter = {
+          chapterId: eventId,
+          title: `Event at ${event.timestamp}`,
+          startTime: event.timestamp,
+          endTime: event.timestamp,
+          events: [enrichedEvent],
+        };
+        lifeMap.chapters.push(newChapter);
+        lifeMap.chapters.sort((a, b) => a.startTime - b.startTime);
+        lifeMap.version = (lifeMap.version || 0) + 1;
+        lifeMap.updatedAt = now();
+        lifeMap.status = 'processing';
+        lifeMap.contentHash = deterministicHash(lifeMap.chapters);
 
-            lifeMap.version = (lifeMap.version || 0) + 1;
-            lifeMap.updatedAt = Date.now();
-            lifeMap.status = 'processing';
+        transaction.set(lifeMapRef, lifeMap);
+        console.log(`[${eventId}] Transaction successfully committed. LifeMap version is now ${lifeMap.version}.`);
+      });
 
-            lifeMap.contentHash = deterministicHash(lifeMap.chapters);
-
-            transaction.set(lifeMapRef, lifeMap);
-            console.log(`[${eventId}] Transaction successfully committed. LifeMap version is now ${lifeMap.version}.`);
-        });
-
-        console.log(`[${eventId}] LifeMap for user ${userId} updated. A Replay Job can now be triggered.`);
-
-        return null;
-
+      console.log(`[${eventId}] LifeMap for user ${userId} updated. A Replay Job can now be triggered.`);
+      return null;
     } catch (error) {
-        console.error(`[${eventId}] CRITICAL: Failed to process event for user ${userId}.`, error);
-        
-        await lifeMapRef.update({ status: 'failed', updatedAt: Date.now() }).catch(err => {
-            console.error(`[${eventId}] FATAL: Could not even set LifeMap status to failed.`, err);
-        });
-
-        return null;
+      console.error(`[${eventId}] CRITICAL: Failed to process event for user ${userId}.`, error);
+      await lifeMapRef.set({ status: 'failed', updatedAt: now() }, { merge: true }).catch(err => {
+        console.error(`[${eventId}] FATAL: Could not even set LifeMap status to failed.`, err);
+      });
+      return null;
     }
   });

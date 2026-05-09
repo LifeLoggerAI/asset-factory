@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "system": "asset-factory",
+  "grade": "production-capable-module",
+  "nextGrade": "fully-production-grade-product-system",
+  "readiness": {
+    "status": "production-capable",
+    "verifiedCore": {
+      "liveHosting": true,
+      "firestoreStorage": true,
+      "fallbackDisabled": true,
+      "rendererV1": true,
+      "externalConsumerProofHarness": true
+    },
+    "remainingProductGradeGates": [
+      "real URAI Studio/Spatial/Admin consumer integration",
+      "PNG/WebP renderer live",
+      "video/audio/spatial renderers",
+      "approval and promotion workflow",
+      "rollback/version restore",
+      "CI/CD smoke and E2E automation",
+      "repo cleanup and production docs"
+    ],
+    "diagnostics": {
+      "persistenceMode": "firestore-storage",
+      "fallbackActive": false,
+      "fallbackReason": null,
+      "firebaseProjectId": "asset-factory-dev-id",
+      "storageBucket": "asset-factory-dev-id-1042953383820-assets",
+      "databaseId": "(default)",
+      "rendererMode": "visual-worker-v1",
+      "rasterRenderer": "sharp-v1",
+      "supportedOutputFormats": [
+        "svg",
+        "png",
+        "webp",
+        "json"
+      ]
+    }
+  },
+  "renderers": [
+    {
+      "id": "visual-svg-v1",
+      "label": "Deterministic SVG Renderer",
+      "status": "live",
+      "mode": "visual-worker-v1",
+      "outputs": [
+        "svg",
+        "json"
+      ],
+      "engine": "deterministic-svg-layout-engine-v1"
+    },
+    {
+      "id": "raster-image-v1",
+      "label": "Raster Image Renderer",
+      "status": "live",
+      "outputs": [
+        "png",
+        "webp"
+      ]
+    },
+    {
+      "id": "video-scroll-v1",
+      "label": "Video Scroll Renderer",
+      "status": "planned",
+      "outputs": [
+        "mp4",
+        "webm",
+        "srt"
+      ]
+    },
+    {
+      "id": "audio-voice-v1",
+      "label": "Audio Voice Renderer",
+      "status": "live-scaffold",
+      "outputs": [
+        "voice-script-txt",
+        "ssml-xml",
+        "voice-cues-json",
+        "vtt",
+        "voice-manifest-json"
+      ]
+    },
+    {
+      "id": "spatial-scene-v1",
+      "label": "Spatial Scene Renderer",
+      "status": "live-scaffold",
+      "outputs": [
+        "spatial-manifest-json",
+        "scene-json",
+        "world-json",
+        "ar-json",
+        "gltf-json"
+      ]
+    }
+  ]
+}

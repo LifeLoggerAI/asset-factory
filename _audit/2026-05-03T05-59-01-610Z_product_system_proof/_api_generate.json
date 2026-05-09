@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mopd1g4i_ggo1k4",
+    "jobId": "job_mopd1g4i_ggo1k4",
+    "tenantId": "urai-system",
+    "type": "visual",
+    "presetId": "raster-image-v1-proof",
+    "prompt": "Asset Factory product system proof using verified raster renderer path",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "visual",
+      "presetId": "raster-image-v1-proof",
+      "aspectRatio": "1:1",
+      "prompt": "Asset Factory product system proof using verified raster renderer path",
+      "outputFormats": [
+        "svg",
+        "png",
+        "webp"
+      ],
+      "metadata": {
+        "proofType": "product-system-regression",
+        "rendererPath": "visual-svg-v1+raster-image-v1"
+      }
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T05:59:03.138Z",
+    "updatedAt": "2026-05-03T05:59:03.138Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

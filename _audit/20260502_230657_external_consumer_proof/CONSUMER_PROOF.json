@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "proofType": "external-urai-consumer-proof",
+  "consumer": "urai-studio-proof-harness",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mooybj2o_ql4b3n",
+  "assetUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mooybj2o_ql4b3n.svg",
+  "manifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mooybj2o_ql4b3n.json",
+  "persistenceMode": "firestore-storage",
+  "rendererMode": "visual-worker-v1",
+  "renderEngine": "deterministic-svg-layout-engine-v1",
+  "storageAssetPath": "asset-factory/urai-system/job_mooybj2o_ql4b3n/job_mooybj2o_ql4b3n.svg",
+  "storageManifestPath": "asset-factory/urai-system/job_mooybj2o_ql4b3n/job_mooybj2o_ql4b3n.json",
+  "verifiedAt": "2026-05-02T23:07:01.657Z"
+}

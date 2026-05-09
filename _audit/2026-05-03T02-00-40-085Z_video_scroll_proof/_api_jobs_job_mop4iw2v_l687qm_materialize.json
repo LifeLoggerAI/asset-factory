@@ -1,0 +1,265 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mop4iw2v_l687qm",
+    "webpUrl": null,
+    "type": "video-scroll",
+    "createdAt": "2026-05-03T02:00:40.423Z",
+    "jobId": "job_mop4iw2v_l687qm",
+    "input": {
+      "tenantId": "urai-system",
+      "aspectRatio": "9:16",
+      "type": "video-scroll",
+      "presetId": "video-scroll-v1",
+      "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff"
+    },
+    "fallbackActive": false,
+    "persistenceMode": "firestore-storage",
+    "tenantId": "urai-system",
+    "pngUrl": null,
+    "presetId": "video-scroll-v1",
+    "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff",
+    "assetUrl": null,
+    "mode": "video-scroll-package",
+    "output": {
+      "renderEngine": "timeline-html-srt-capcut-package-v1",
+      "srtUrl": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+      "nextWorker": "ffmpeg-video-render-worker-v1",
+      "capcutUrl": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+      "rendererMode": "video-scroll-v1",
+      "fps": 30,
+      "aspectRatio": "9:16",
+      "timelineUrl": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+      "storyboardUrl": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+      "mode": "video-scroll-package",
+      "jobId": "job_mop4iw2v_l687qm",
+      "fallbackActive": false,
+      "persistenceMode": "firestore-storage",
+      "tenantId": "urai-system",
+      "webmStatus": "requires-ffmpeg-worker",
+      "ok": true,
+      "durationMs": 10500,
+      "presetId": "video-scroll-v1",
+      "mp4Status": "requires-ffmpeg-worker",
+      "artifacts": [
+        {
+          "format": "storyboard-html",
+          "fileName": "job_mop4iw2v_l687qm.storyboard.html",
+          "mimeType": "text/html; charset=utf-8",
+          "byteLength": 1533,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.storyboard.html"
+        },
+        {
+          "format": "timeline-json",
+          "fileName": "job_mop4iw2v_l687qm.timeline.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1329,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.timeline.json"
+        },
+        {
+          "format": "capcut-json",
+          "fileName": "job_mop4iw2v_l687qm.capcut.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1700,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.capcut.json"
+        },
+        {
+          "format": "srt",
+          "fileName": "job_mop4iw2v_l687qm.srt",
+          "mimeType": "application/x-subrip; charset=utf-8",
+          "byteLength": 227,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.srt"
+        },
+        {
+          "format": "video-manifest-json",
+          "fileName": "job_mop4iw2v_l687qm.video.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 722,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.video.json"
+        }
+      ]
+    },
+    "bundleUrl": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+    "srtUrl": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+    "capcutUrl": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+    "rendererMode": "video-scroll-v1",
+    "timelineUrl": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+    "storyboardUrl": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+    "artifacts": [
+      {
+        "format": "storyboard-html",
+        "fileName": "job_mop4iw2v_l687qm.storyboard.html",
+        "mimeType": "text/html; charset=utf-8",
+        "byteLength": 1533,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.storyboard.html"
+      },
+      {
+        "format": "timeline-json",
+        "fileName": "job_mop4iw2v_l687qm.timeline.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1329,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.timeline.json"
+      },
+      {
+        "format": "capcut-json",
+        "fileName": "job_mop4iw2v_l687qm.capcut.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1700,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.capcut.json"
+      },
+      {
+        "format": "srt",
+        "fileName": "job_mop4iw2v_l687qm.srt",
+        "mimeType": "application/x-subrip; charset=utf-8",
+        "byteLength": 227,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.srt"
+      },
+      {
+        "format": "video-manifest-json",
+        "fileName": "job_mop4iw2v_l687qm.video.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 722,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.video.json"
+      }
+    ],
+    "status": "completed",
+    "updatedAt": "2026-05-03T02:00:41.007Z"
+  },
+  "asset": {
+    "id": "job_mop4iw2v_l687qm",
+    "jobId": "job_mop4iw2v_l687qm",
+    "tenantId": "urai-system",
+    "type": "video",
+    "status": "completed",
+    "presetId": "video-scroll-v1",
+    "prompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff",
+    "bundleUrl": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+    "storyboardUrl": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+    "timelineUrl": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+    "capcutUrl": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+    "srtUrl": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+    "output": {
+      "ok": true,
+      "jobId": "job_mop4iw2v_l687qm",
+      "tenantId": "urai-system",
+      "presetId": "video-scroll-v1",
+      "rendererMode": "video-scroll-v1",
+      "renderEngine": "timeline-html-srt-capcut-package-v1",
+      "mode": "video-scroll-package",
+      "durationMs": 10500,
+      "fps": 30,
+      "aspectRatio": "9:16",
+      "storyboardUrl": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+      "timelineUrl": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+      "capcutUrl": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+      "srtUrl": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+      "mp4Status": "requires-ffmpeg-worker",
+      "webmStatus": "requires-ffmpeg-worker",
+      "nextWorker": "ffmpeg-video-render-worker-v1",
+      "artifacts": [
+        {
+          "format": "storyboard-html",
+          "fileName": "job_mop4iw2v_l687qm.storyboard.html",
+          "mimeType": "text/html; charset=utf-8",
+          "byteLength": 1533,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.storyboard.html"
+        },
+        {
+          "format": "timeline-json",
+          "fileName": "job_mop4iw2v_l687qm.timeline.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1329,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.timeline.json"
+        },
+        {
+          "format": "capcut-json",
+          "fileName": "job_mop4iw2v_l687qm.capcut.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1700,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.capcut.json"
+        },
+        {
+          "format": "srt",
+          "fileName": "job_mop4iw2v_l687qm.srt",
+          "mimeType": "application/x-subrip; charset=utf-8",
+          "byteLength": 227,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.srt"
+        },
+        {
+          "format": "video-manifest-json",
+          "fileName": "job_mop4iw2v_l687qm.video.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 722,
+          "url": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+          "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.video.json"
+        }
+      ],
+      "persistenceMode": "firestore-storage",
+      "fallbackActive": false
+    },
+    "artifacts": [
+      {
+        "format": "storyboard-html",
+        "fileName": "job_mop4iw2v_l687qm.storyboard.html",
+        "mimeType": "text/html; charset=utf-8",
+        "byteLength": 1533,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.storyboard.html",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.storyboard.html"
+      },
+      {
+        "format": "timeline-json",
+        "fileName": "job_mop4iw2v_l687qm.timeline.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1329,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.timeline.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.timeline.json"
+      },
+      {
+        "format": "capcut-json",
+        "fileName": "job_mop4iw2v_l687qm.capcut.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1700,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.capcut.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.capcut.json"
+      },
+      {
+        "format": "srt",
+        "fileName": "job_mop4iw2v_l687qm.srt",
+        "mimeType": "application/x-subrip; charset=utf-8",
+        "byteLength": 227,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.srt",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.srt"
+      },
+      {
+        "format": "video-manifest-json",
+        "fileName": "job_mop4iw2v_l687qm.video.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 722,
+        "url": "/api/generated-assets/job_mop4iw2v_l687qm.video.json",
+        "storagePath": "asset-factory/urai-system/job_mop4iw2v_l687qm/job_mop4iw2v_l687qm.video.json"
+      }
+    ],
+    "createdAt": "2026-05-03T02:00:40.423Z",
+    "updatedAt": "2026-05-03T02:00:41.084Z",
+    "mode": "video-scroll-package",
+    "rendererMode": "video-scroll-v1",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

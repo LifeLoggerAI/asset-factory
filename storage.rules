@@ -1,7 +1,7 @@
 rules_version = '2';
 
-service firebase.storage {
-  match /b/{bucket}/o {
+service cloud.firestore {
+  match /databases/{database}/documents {
     function isUserAuthenticated() {
       return request.auth != null;
     }
@@ -10,43 +10,166 @@ service firebase.storage {
       return isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAllowedAssetContentType() {
-      return request.resource.contentType.matches('image/.*')
-        || request.resource.contentType.matches('application/json')
-        || request.resource.contentType.matches('text/.*')
-        || request.resource.contentType.matches('audio/.*')
-        || request.resource.contentType.matches('video/.*');
+    function ownsExistingResource() {
+      return isUserAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
-    function isReasonableUploadSize() {
-      return request.resource.size < 50 * 1024 * 1024;
+    function ownsRequestedResource() {
+      return isUserAuthenticated() && request.resource.data.ownerId == request.auth.uid;
     }
 
-    match /assets/{ownerId}/{jobId}/{filePath=**} {
-      allow read: if isRequestingUser(ownerId);
-      allow write: if isRequestingUser(ownerId)
-        && isAllowedAssetContentType()
-        && isReasonableUploadSize();
+    function ownsExistingUserResource() {
+      return isUserAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    match /exports/{ownerId}/{exportId}/{filePath=**} {
-      allow read: if isRequestingUser(ownerId);
+    function ownsRequestedUserResource() {
+      return isUserAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function isPendingJobCreate() {
+      return request.resource.data.status == 'pending'
+        && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function hasAnonymousSession() {
+      return request.resource.data.anonymousSessionId is string
+        && request.resource.data.anonymousSessionId.size() >= 12;
+    }
+
+    function isSyntheticDemoDoc() {
+      return resource.data.isSynthetic == true
+        && resource.data.demoMode == true
+        && resource.data.ownerId == 'synthetic-demo';
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isRequestingUser(tenantId);
       allow write: if false;
     }
 
-    match /synthetic-demo/{demoId}/{filePath=**} {
+    match /jobs/{jobId} {
+      allow read: if ownsExistingResource();
+      allow create: if ownsRequestedResource() && isPendingJobCreate();
+      allow update, delete: if false;
+    }
+
+    match /usage_ledger/{usageId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
+    match /dead_jobs/{jobId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
+    match /consent_ledger/{entryId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
+    }
+
+    match /consent_snapshots/{snapshotId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
+    }
+
+    match /feature_flags/{flagId} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /user_profiles/{userId}/{filePath=**} {
-      allow read: if isRequestingUser(userId);
-      allow write: if isRequestingUser(userId)
-        && request.resource.contentType.matches('image/.*')
-        && request.resource.size < 5 * 1024 * 1024;
+    match /exports/{exportId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
     }
 
-    match /{path=**} {
+    match /delete_requests/{requestId} {
+      allow read: if ownsExistingResource();
+      allow create: if ownsRequestedResource()
+        && request.resource.data.status == 'requested'
+        && request.resource.data.targetUserId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /demo_public/{demoId} {
+      allow read: if isSyntheticDemoDoc();
+      allow create, update, delete: if false;
+    }
+
+    match /timeline_events/{eventId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
+    match /narrator_reflections/{reflectionId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
+    match /assetFactoryRequests/{assetId} {
+      allow read: if ownsExistingUserResource()
+        || (
+          resource.data.publicUrl is string
+          && resource.data.lifecycleState == 'published'
+        );
+
+      allow create: if ownsRequestedUserResource()
+        && request.resource.data.assetId == assetId
+        && request.resource.data.status in ['requested', 'queued']
+        && request.resource.data.lifecycleState in ['requested', 'queued'];
+
+      allow update, delete: if false;
+    }
+
+    match /assetFactoryQueue/{queueId} {
+      allow read: if ownsExistingUserResource();
+      allow write: if false;
+    }
+
+    match /assetManifests/{assetId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /publicAssets/{assetId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /anonymousAssetRequests/{assetId} {
+      allow create: if hasAnonymousSession()
+        && request.resource.data.assetId == assetId
+        && request.resource.data.status in ['requested', 'queued'];
+
+      allow read, update, delete: if false;
+    }
+
+    match /lifeMapEvents/{eventId} {
+      allow read: if ownsExistingUserResource();
+      allow create: if ownsRequestedUserResource()
+        && request.resource.data.eventId == eventId;
+      allow update, delete: if false;
+    }
+
+    match /lifeMaps/{userId} {
+      allow read: if isRequestingUser(userId);
+      allow write: if false;
+    }
+
+    match /systemStatus/{statusId} {
+      allow read: if statusId == 'asset-factory';
+      allow write: if false;
+    }
+
+    match /system_metrics/{metricId} {
+      allow read, write: if false;
+    }
+
+    match /billing_audit/{auditId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
       allow read, write: if false;
     }
   }

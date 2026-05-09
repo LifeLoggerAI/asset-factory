@@ -1,0 +1,35 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextResponse } from "next/server";
+import { ASSET_FACTORY_SYSTEM, systemNow } from "@/lib/server/assetFactorySystem";
+import { getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    status: "healthy",
+    service: ASSET_FACTORY_SYSTEM.id,
+    liveUrl: ASSET_FACTORY_SYSTEM.liveUrl,
+    generatedAt: systemNow(),
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+    fallbackReason: diagnostics.fallbackReason,
+    rendererMode: diagnostics.rendererMode,
+    firebaseProjectId: diagnostics.firebaseProjectId,
+    storageBucket: diagnostics.storageBucket,
+    checks: {
+      api: true,
+      generateRoute: true,
+      materializeRoute: true,
+      artifactServingRoute: true,
+      standalone: true,
+      systemOfSystems: true,
+      firestoreStorage: diagnostics.persistenceMode === "firestore-storage",
+      localFallback: diagnostics.fallbackActive,
+    },
+  });
+}

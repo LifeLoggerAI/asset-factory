@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mooybj2o_ql4b3n",
+    "jobId": "job_mooybj2o_ql4b3n",
+    "tenantId": "urai-system",
+    "type": "visual",
+    "presetId": "urai-consumer-proof",
+    "prompt": "URAI external consumer proof asset generated through Asset Factory",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "visual",
+      "presetId": "urai-consumer-proof",
+      "aspectRatio": "1:1",
+      "prompt": "URAI external consumer proof asset generated through Asset Factory",
+      "metadata": {
+        "consumer": "urai-studio-proof-harness",
+        "proofType": "system-of-systems-consumption-proof"
+      }
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-02T23:06:59.280Z",
+    "updatedAt": "2026-05-02T23:06:59.280Z",
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

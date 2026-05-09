@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "mode": "firestore-storage",
+  "jobId": "job_moozb2d9_nkmep8",
+  "lifecycle": {
+    "jobId": "job_moozb2d9_nkmep8",
+    "updatedBy": "product-system-proof",
+    "latestEventId": "life_moozb3om_ul0kbd",
+    "currentState": "approved",
+    "updatedAt": "2026-05-02T23:34:38.950Z"
+  },
+  "events": [
+    {
+      "id": "life_moozb3om_ul0kbd",
+      "actor": "product-system-proof",
+      "createdAt": "2026-05-02T23:34:38.950Z",
+      "jobId": "job_moozb2d9_nkmep8",
+      "note": "Approved by automated product system proof.",
+      "metadata": {
+        "proofType": "product-system-v1"
+      },
+      "state": "approved",
+      "version": "v1"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mop4vzqt_r46i5e",
+    "jobId": "job_mop4vzqt_r46i5e",
+    "tenantId": "urai-system",
+    "type": "spatial-scene",
+    "presetId": "spatial-scene-v1",
+    "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "spatial-scene",
+      "presetId": "spatial-scene-v1",
+      "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff",
+      "anchorMode": "world-origin",
+      "sceneScale": 1
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T02:10:51.701Z",
+    "updatedAt": "2026-05-03T02:10:51.970Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

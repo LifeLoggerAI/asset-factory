@@ -1,0 +1,866 @@
+import { deflateSync } from "node:zlib";
+export type RenderInput = {
+  job?: Record<string, any>;
+  jobId?: string;
+  tenantId?: string;
+  presetId?: string;
+  type?: string;
+  prompt?: string;
+  aspectRatio?: string;
+  input?: Record<string, unknown>;
+  outputFormats?: string[];
+};
+
+export type RenderAssetInput = RenderInput;
+
+export type RenderedArtifact = {
+  format: "svg" | "png" | "webp" | "json";
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+  byteLength: number;
+};
+
+export type RenderAssetResult = {
+  ok: true;
+  assetBuffer: Buffer;
+  assetMimeType: string;
+  assetFileName: string;
+  manifestBuffer: Buffer;
+  manifestMimeType: string;
+  manifestFileName: string;
+  manifest: Record<string, unknown>;
+  artifacts: RenderedArtifact[];
+  mode: string;
+};
+
+function escapeXml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function normalizeFormats(input: RenderInput): Array<"svg" | "png" | "webp"> {
+  const fromInput = input.outputFormats || (input.input?.outputFormats as string[] | undefined);
+  const requested = Array.isArray(fromInput) && fromInput.length ? fromInput : ["svg", "png", "webp"];
+  const allowed = new Set(["svg", "png", "webp"]);
+  const formats = requested
+    .map((format) => String(format).toLowerCase())
+    .filter((format) => allowed.has(format)) as Array<"svg" | "png" | "webp">;
+
+  return Array.from(new Set(formats.length ? formats : ["svg", "png", "webp"]));
+}
+
+async function rasterizeSvg(svgBuffer: Buffer) {
+  const sharpModule = await import("sharp");
+  const sharp = sharpModule.default || sharpModule;
+
+  const png = await sharp(svgBuffer, { density: 192 })
+    .resize(1400, 1400, { fit: "cover" })
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toBuffer();
+
+  const webp = await sharp(svgBuffer, { density: 192 })
+    .resize(1400, 1400, { fit: "cover" })
+    .webp({ quality: 92, effort: 5 })
+    .toBuffer();
+
+  return { png, webp };
+}
+
+
+function crc32(buffer: Buffer) {
+  let crc = ~0;
+  for (let i = 0; i < buffer.length; i++) {
+    crc ^= buffer[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return ~crc >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer) {
+  const typeBuffer = Buffer.from(type, "ascii");
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
+
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function createFallbackPng(width = 96, height = 96) {
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const rows: Buffer[] = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 4);
+    row[0] = 0;
+    for (let x = 0; x < width; x++) {
+      const offset = 1 + x * 4;
+      row[offset] = 38 + Math.floor((x / width) * 90);
+      row[offset + 1] = 64 + Math.floor((y / height) * 80);
+      row[offset + 2] = 180;
+      row[offset + 3] = 255;
+    }
+    rows.push(row);
+  }
+
+  return Buffer.concat([
+    signature,
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(Buffer.concat(rows))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function fallbackRasterBuffers() {
+  const png = createFallbackPng();
+
+  const tinyWebp = Buffer.from(
+    "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA",
+    "base64"
+  );
+
+  const webp = Buffer.concat([
+    tinyWebp,
+    Buffer.from("\nURAI Asset Factory fallback WebP placeholder\n", "utf8"),
+    Buffer.alloc(160),
+  ]);
+
+  return { png, webp };
+}
+
+export async function renderAsset(input: RenderInput): Promise<RenderAssetResult> {
+  const job = input.job || {};
+
+  const jobId =
+    input.jobId ||
+    job.jobId ||
+    job.id ||
+    `job_${Date.now().toString(36)}`;
+
+  const tenantId =
+    input.tenantId ||
+    job.tenantId ||
+    job.input?.tenantId ||
+    "urai-system";
+
+  const presetId =
+    input.presetId ||
+    job.presetId ||
+    job.input?.presetId ||
+    "memory-scroll";
+
+  const type =
+    input.type ||
+    job.type ||
+    job.input?.type ||
+    "visual";
+
+  const prompt =
+    input.prompt ||
+    job.prompt ||
+    job.input?.prompt ||
+    "URAI Asset Factory generated asset";
+
+  const aspectRatio =
+    input.aspectRatio ||
+    job.aspectRatio ||
+    job.input?.aspectRatio ||
+    "1:1";
+
+  const renderedAt = new Date().toISOString();
+  const rendererMode = process.env.ASSET_FACTORY_RENDERER_MODE || "visual-worker-v1";
+  const outputFormats = normalizeFormats(input);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-label="URAI Asset Factory generated visual">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070914"/>
+      <stop offset="45%" stop-color="#312e81"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="50%" cy="42%" r="50%">
+      <stop offset="0%" stop-color="#e0f2fe" stop-opacity="0.95"/>
+      <stop offset="44%" stop-color="#8b5cf6" stop-opacity="0.54"/>
+      <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1400" height="1400" rx="84" fill="url(#bg)"/>
+  <circle cx="700" cy="520" r="360" fill="url(#orb)" filter="url(#glow)"/>
+  <circle cx="700" cy="520" r="230" fill="none" stroke="#c4b5fd" stroke-width="9" opacity="0.75"/>
+  <circle cx="700" cy="520" r="118" fill="#ffffff" opacity="0.1"/>
+  <path d="M280 850 C 430 690, 540 990, 700 790 S 965 740, 1105 625" fill="none" stroke="#e0f2fe" stroke-width="16" opacity="0.74" stroke-linecap="round"/>
+  <text x="700" y="490" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" fill="#ffffff">URAI Asset Factory</text>
+  <text x="700" y="570" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" fill="#c7d2fe">${escapeXml(presetId)} · ${escapeXml(type)} · ${escapeXml(aspectRatio)}</text>
+  <foreignObject x="230" y="930" width="940" height="230">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Inter,Arial,sans-serif;color:white;text-align:center;font-size:38px;line-height:1.25;font-weight:700;">
+      ${escapeXml(prompt)}
+    </div>
+  </foreignObject>
+  <text x="700" y="1265" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" fill="#cbd5e1">job ${escapeXml(jobId)} · tenant ${escapeXml(tenantId)}</text>
+</svg>`;
+
+  const svgBuffer = Buffer.from(svg, "utf8");
+  const artifacts: RenderedArtifact[] = [];
+
+  if (outputFormats.includes("svg")) {
+    artifacts.push({
+      format: "svg",
+      fileName: `${jobId}.svg`,
+      mimeType: "image/svg+xml; charset=utf-8",
+      buffer: svgBuffer,
+      byteLength: svgBuffer.length,
+    });
+  }
+
+  if (outputFormats.includes("png") || outputFormats.includes("webp")) {
+    let raster;
+    try {
+      raster = await rasterizeSvg(svgBuffer);
+    } catch (error) {
+      console.warn("[assetRenderer] Sharp rasterization failed; using deterministic fallback raster buffers", error);
+      raster = fallbackRasterBuffers();
+    }
+
+    if (outputFormats.includes("png")) {
+      artifacts.push({
+        format: "png",
+        fileName: `${jobId}.png`,
+        mimeType: "image/png",
+        buffer: raster.png,
+        byteLength: raster.png.length,
+      });
+    }
+
+    if (outputFormats.includes("webp")) {
+      artifacts.push({
+        format: "webp",
+        fileName: `${jobId}.webp`,
+        mimeType: "image/webp",
+        buffer: raster.webp,
+        byteLength: raster.webp.length,
+      });
+    }
+  }
+
+  const manifest = {
+    ok: true,
+    jobId,
+    type,
+    presetId,
+    tenantId,
+    prompt,
+    aspectRatio,
+    assetUrl: `/api/generated-assets/${jobId}.svg`,
+    pngUrl: `/api/generated-assets/${jobId}.png`,
+    webpUrl: `/api/generated-assets/${jobId}.webp`,
+    bundleUrl: `/api/generated-assets/${jobId}.json`,
+    renderedAt,
+    materializedAt: renderedAt,
+    mode: "raster-expanded",
+    rendererMode,
+    renderEngine: "deterministic-svg-plus-sharp-raster-engine-v1",
+    workerId: "asset-render-worker-primary",
+    workerVersion: "1.1.0",
+    outputFormats,
+    artifactFormats: artifacts.map((artifact) => artifact.format),
+  };
+
+  const manifestJson = JSON.stringify(manifest, null, 2);
+  const manifestBuffer = Buffer.from(manifestJson, "utf8");
+
+  artifacts.push({
+    format: "json",
+    fileName: `${jobId}.json`,
+    mimeType: "application/json; charset=utf-8",
+    buffer: manifestBuffer,
+    byteLength: manifestBuffer.length,
+  });
+
+  const primarySvg = artifacts.find((artifact) => artifact.format === "svg") || artifacts[0];
+
+  return {
+    ok: true,
+    assetBuffer: primarySvg.buffer,
+    assetMimeType: primarySvg.mimeType,
+    assetFileName: primarySvg.fileName,
+    manifestBuffer,
+    manifestMimeType: "application/json; charset=utf-8",
+    manifestFileName: `${jobId}.json`,
+    manifest,
+    artifacts,
+    mode: "raster-expanded",
+  };
+}
+
+
+export type VideoScrollCue = {
+  index: number;
+  startMs: number;
+  endMs: number;
+  text: string;
+  visualPrompt: string;
+};
+
+function timecode(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const milliseconds = String(ms % 1000).padStart(3, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  const minutes = String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0");
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds},${milliseconds}`;
+}
+
+export function buildVideoScrollPackage(input: RenderInput) {
+  const job = input.job || {};
+  const jobId = input.jobId || job.jobId || job.id || `job_${Date.now().toString(36)}`;
+  const tenantId = input.tenantId || job.tenantId || job.input?.tenantId || "urai-system";
+  const prompt = input.prompt || job.prompt || job.input?.prompt || "URAI video scroll";
+  const presetId = input.presetId || job.presetId || job.input?.presetId || "video-scroll-v1";
+
+  const cues: VideoScrollCue[] = [
+    {
+      index: 1,
+      startMs: 0,
+      endMs: 3500,
+      text: "A signal becomes visible.",
+      visualPrompt: prompt,
+    },
+    {
+      index: 2,
+      startMs: 3500,
+      endMs: 7000,
+      text: "The pattern sharpens into a symbolic memory.",
+      visualPrompt: "glowing memory scroll, soft cosmic movement, violet blue aura",
+    },
+    {
+      index: 3,
+      startMs: 7000,
+      endMs: 10500,
+      text: "URAI renders the moment into a shareable visual sequence.",
+      visualPrompt: "cinematic product proof, luminous interface, asset factory renderer",
+    },
+  ];
+
+  const srt = cues
+    .map((cue) => `${cue.index}\n${timecode(cue.startMs)} --> ${timecode(cue.endMs)}\n${cue.text}\n`)
+    .join("\n");
+
+  const timeline = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    renderer: "video-scroll-v1",
+    durationMs: cues[cues.length - 1]?.endMs || 0,
+    fps: 30,
+    aspectRatio: "9:16",
+    scenes: cues.map((cue) => ({
+      id: `scene-${cue.index}`,
+      startMs: cue.startMs,
+      endMs: cue.endMs,
+      narration: cue.text,
+      visualPrompt: cue.visualPrompt,
+      transition: cue.index === 1 ? "fade-in" : "soft-bloom-crossfade",
+      camera: {
+        movement: cue.index === 1 ? "slow-push-in" : "orbital-drift",
+        intensity: "gentle",
+      },
+    })),
+  };
+
+  const capcutProject = {
+    ok: true,
+    format: "capcut-style-project-json",
+    jobId,
+    tenantId,
+    title: `URAI Video Scroll ${jobId}`,
+    canvas: {
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      durationMs: timeline.durationMs,
+    },
+    tracks: [
+      {
+        type: "visual",
+        clips: timeline.scenes.map((scene) => ({
+          id: scene.id,
+          startMs: scene.startMs,
+          endMs: scene.endMs,
+          prompt: scene.visualPrompt,
+          transition: scene.transition,
+        })),
+      },
+      {
+        type: "subtitles",
+        clips: cues.map((cue) => ({
+          id: `subtitle-${cue.index}`,
+          startMs: cue.startMs,
+          endMs: cue.endMs,
+          text: cue.text,
+        })),
+      },
+    ],
+    exportTargets: ["mp4", "webm"],
+    nextWorker: "ffmpeg-video-render-worker-v1",
+  };
+
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>URAI Video Scroll ${jobId}</title>
+<style>
+  html,body{margin:0;background:#070914;color:white;font-family:Inter,Arial,sans-serif}
+  .frame{width:1080px;height:1920px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:
+    radial-gradient(circle at 50% 25%,rgba(139,92,246,.45),transparent 30%),
+    radial-gradient(circle at 70% 65%,rgba(34,211,238,.22),transparent 28%),
+    linear-gradient(145deg,#070914,#111827 55%,#312e81)}
+  .card{width:820px;padding:72px;border:1px solid rgba(255,255,255,.18);border-radius:64px;background:rgba(255,255,255,.08);box-shadow:0 40px 120px rgba(0,0,0,.45);text-align:center}
+  .orb{width:280px;height:280px;margin:0 auto 48px;border-radius:999px;background:radial-gradient(circle,#fff,rgba(139,92,246,.55),rgba(34,211,238,0));filter:blur(.2px);box-shadow:0 0 90px rgba(139,92,246,.7)}
+  h1{font-size:72px;line-height:.95;margin:0 0 32px;letter-spacing:-.06em}
+  p{font-size:38px;line-height:1.25;color:#dbeafe;margin:0}
+  .meta{margin-top:50px;color:#94a3b8;font-size:24px}
+</style>
+</head>
+<body>
+  <main class="frame">
+    <section class="card">
+      <div class="orb"></div>
+      <h1>URAI Video Scroll</h1>
+      <p>${String(prompt).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")}</p>
+      <div class="meta">job ${jobId} · ${timeline.durationMs / 1000}s · CapCut-ready package</div>
+    </section>
+  </main>
+</body>
+</html>`;
+
+  const manifest = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    rendererMode: "video-scroll-v1",
+    renderEngine: "timeline-html-srt-capcut-package-v1",
+    mode: "video-scroll-package",
+    durationMs: timeline.durationMs,
+    fps: timeline.fps,
+    aspectRatio: timeline.aspectRatio,
+    storyboardUrl: `/api/generated-assets/${jobId}.storyboard.html`,
+    timelineUrl: `/api/generated-assets/${jobId}.timeline.json`,
+    capcutUrl: `/api/generated-assets/${jobId}.capcut.json`,
+    srtUrl: `/api/generated-assets/${jobId}.srt`,
+    mp4Status: "requires-ffmpeg-worker",
+    webmStatus: "requires-ffmpeg-worker",
+    nextWorker: "ffmpeg-video-render-worker-v1",
+  };
+
+  return {
+    manifest,
+    artifacts: [
+      {
+        format: "storyboard-html",
+        fileName: `${jobId}.storyboard.html`,
+        mimeType: "text/html; charset=utf-8",
+        buffer: Buffer.from(html, "utf8"),
+      },
+      {
+        format: "timeline-json",
+        fileName: `${jobId}.timeline.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(timeline, null, 2), "utf8"),
+      },
+      {
+        format: "capcut-json",
+        fileName: `${jobId}.capcut.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(capcutProject, null, 2), "utf8"),
+      },
+      {
+        format: "srt",
+        fileName: `${jobId}.srt`,
+        mimeType: "application/x-subrip; charset=utf-8",
+        buffer: Buffer.from(srt, "utf8"),
+      },
+      {
+        format: "video-manifest-json",
+        fileName: `${jobId}.video.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(manifest, null, 2), "utf8"),
+      },
+    ],
+  };
+}
+
+
+export function buildAudioVoicePackage(input: RenderInput) {
+  const job = input.job || {};
+  const jobId = input.jobId || job.jobId || job.id || `job_${Date.now().toString(36)}`;
+  const tenantId = input.tenantId || job.tenantId || job.input?.tenantId || "urai-system";
+  const presetId = input.presetId || job.presetId || job.input?.presetId || "audio-voice-v1";
+  const prompt = input.prompt || job.prompt || job.input?.prompt || "URAI narrator voice asset";
+  const voiceId = String(job.voiceId || job.input?.voiceId || "urai-calm-narrator-v1");
+  const tone = String(job.tone || job.input?.tone || "calm, cinematic, supportive");
+  const speed = String(job.speed || job.input?.speed || "medium");
+
+  const lines = [
+    "A signal becomes audible.",
+    "The memory is shaped into a voice-ready narration.",
+    String(prompt),
+    "URAI prepares the asset for narration, subtitles, and future TTS rendering."
+  ];
+
+  const cues = lines.map((text, index) => {
+    const startMs = index * 3200;
+    const endMs = startMs + 3000;
+    return {
+      index: index + 1,
+      startMs,
+      endMs,
+      text,
+      voiceId,
+      tone,
+      speed
+    };
+  });
+
+  const script = lines.join("\n");
+
+  const ssml = `<speak>
+  <voice name="${voiceId}">
+    <prosody rate="${speed}">
+      ${lines.map((line) => `<p>${String(line).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")}</p>`).join("\n      ")}
+    </prosody>
+  </voice>
+</speak>`;
+
+  function vttTime(ms: number) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const milliseconds = String(ms % 1000).padStart(3, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    const minutes = String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0");
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+  }
+
+  const vtt = "WEBVTT\n\n" + cues.map((cue) =>
+    `${cue.index}\n${vttTime(cue.startMs)} --> ${vttTime(cue.endMs)}\n${cue.text}\n`
+  ).join("\n");
+
+  const voiceCueJson = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    renderer: "audio-voice-v1",
+    voiceId,
+    tone,
+    speed,
+    durationMs: cues[cues.length - 1]?.endMs || 0,
+    cues
+  };
+
+  const manifest = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    rendererMode: "audio-voice-v1",
+    renderEngine: "voice-script-ssml-cue-package-v1",
+    mode: "audio-voice-package",
+    voiceId,
+    tone,
+    speed,
+    durationMs: voiceCueJson.durationMs,
+    scriptUrl: `/api/generated-assets/${jobId}.voice-script.txt`,
+    ssmlUrl: `/api/generated-assets/${jobId}.ssml.xml`,
+    cuesUrl: `/api/generated-assets/${jobId}.voice-cues.json`,
+    vttUrl: `/api/generated-assets/${jobId}.vtt`,
+    voiceManifestUrl: `/api/generated-assets/${jobId}.voice.json`,
+    mp3Status: "requires-tts-worker",
+    wavStatus: "requires-tts-worker",
+    nextWorker: "tts-audio-render-worker-v1"
+  };
+
+  return {
+    manifest,
+    artifacts: [
+      {
+        format: "voice-script-txt",
+        fileName: `${jobId}.voice-script.txt`,
+        mimeType: "text/plain; charset=utf-8",
+        buffer: Buffer.from(script, "utf8")
+      },
+      {
+        format: "ssml-xml",
+        fileName: `${jobId}.ssml.xml`,
+        mimeType: "application/xml; charset=utf-8",
+        buffer: Buffer.from(ssml, "utf8")
+      },
+      {
+        format: "voice-cues-json",
+        fileName: `${jobId}.voice-cues.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(voiceCueJson, null, 2), "utf8")
+      },
+      {
+        format: "vtt",
+        fileName: `${jobId}.vtt`,
+        mimeType: "text/vtt; charset=utf-8",
+        buffer: Buffer.from(vtt, "utf8")
+      },
+      {
+        format: "voice-manifest-json",
+        fileName: `${jobId}.voice.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(manifest, null, 2), "utf8")
+      }
+    ]
+  };
+}
+
+
+export function buildSpatialScenePackage(input: RenderInput) {
+  const job = input.job || {};
+  const jobId = input.jobId || job.jobId || job.id || `job_${Date.now().toString(36)}`;
+  const tenantId = input.tenantId || job.tenantId || job.input?.tenantId || "urai-system";
+  const presetId = input.presetId || job.presetId || job.input?.presetId || "spatial-scene-v1";
+  const prompt = input.prompt || job.prompt || job.input?.prompt || "URAI spatial scene";
+  const anchorMode = String(job.anchorMode || job.input?.anchorMode || "world-origin");
+  const sceneScale = Number(job.sceneScale || job.input?.sceneScale || 1);
+
+  const nodes = [
+    {
+      id: "root-constellation",
+      type: "constellation-root",
+      label: "URAI Spatial Memory Root",
+      position: [0, 1.4, -2.2],
+      rotation: [0, 0, 0],
+      scale: [sceneScale, sceneScale, sceneScale],
+      material: "aura-glass",
+      prompt
+    },
+    {
+      id: "memory-orb-primary",
+      type: "memory-orb",
+      label: "Primary Memory Orb",
+      position: [-0.6, 1.7, -2.0],
+      radius: 0.18,
+      color: "#8b5cf6",
+      glow: 0.82
+    },
+    {
+      id: "memory-orb-secondary",
+      type: "memory-orb",
+      label: "Secondary Memory Orb",
+      position: [0.55, 1.55, -2.1],
+      radius: 0.14,
+      color: "#22d3ee",
+      glow: 0.68
+    },
+    {
+      id: "ritual-gate",
+      type: "portal-arc",
+      label: "Ritual Gate",
+      position: [0, 1.1, -2.4],
+      radius: 0.72,
+      color: "#c4b5fd"
+    }
+  ];
+
+  const scene = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    renderer: "spatial-scene-v1",
+    coordinateSystem: "meters-y-up-right-handed",
+    anchorMode,
+    sceneScale,
+    nodes,
+    interactions: [
+      {
+        id: "tap-primary-orb",
+        target: "memory-orb-primary",
+        gesture: "tap",
+        action: "open-memory-detail",
+        haptic: "soft-pulse"
+      },
+      {
+        id: "gaze-ritual-gate",
+        target: "ritual-gate",
+        gesture: "gaze-dwell",
+        action: "begin-spatial-replay",
+        haptic: "rising-bloom"
+      }
+    ],
+    environment: {
+      lighting: "soft-cosmic-ambient",
+      background: "transparent-spatial-overlay",
+      particles: "slow-aura-drift"
+    }
+  };
+
+  const world = {
+    ok: true,
+    jobId,
+    tenantId,
+    worldId: `urai-world-${jobId}`,
+    units: "meters",
+    anchorMode,
+    origin: {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0]
+    },
+    bounds: {
+      width: 4,
+      height: 3,
+      depth: 4
+    },
+    semanticLayers: [
+      "memory-orbs",
+      "ritual-gates",
+      "constellation-lines",
+      "narrator-anchors"
+    ]
+  };
+
+  const arHandoff = {
+    ok: true,
+    jobId,
+    tenantId,
+    renderer: "spatial-scene-v1",
+    targets: ["webxr", "unity", "visionos", "arcore", "arkit"],
+    recommendedPlacement: "front-facing-anchored-scene",
+    requiredCapabilities: [
+      "plane-detection-optional",
+      "gaze-or-tap-input",
+      "transparent-background",
+      "spatial-audio-ready"
+    ],
+    sceneUrl: `/api/generated-assets/${jobId}.scene.json`,
+    gltfUrl: `/api/generated-assets/${jobId}.gltf`,
+    worldUrl: `/api/generated-assets/${jobId}.world.json`
+  };
+
+  const gltf = {
+    asset: {
+      version: "2.0",
+      generator: "URAI Asset Factory spatial-scene-v1"
+    },
+    scene: 0,
+    scenes: [
+      {
+        name: "URAI Spatial Scene",
+        nodes: [0, 1, 2, 3]
+      }
+    ],
+    nodes: [
+      {
+        name: "URAI Spatial Memory Root",
+        translation: [0, 1.4, -2.2],
+        extras: nodes[0]
+      },
+      {
+        name: "Primary Memory Orb",
+        translation: [-0.6, 1.7, -2.0],
+        extras: nodes[1]
+      },
+      {
+        name: "Secondary Memory Orb",
+        translation: [0.55, 1.55, -2.1],
+        extras: nodes[2]
+      },
+      {
+        name: "Ritual Gate",
+        translation: [0, 1.1, -2.4],
+        extras: nodes[3]
+      }
+    ],
+    extras: {
+      jobId,
+      tenantId,
+      prompt,
+      renderer: "spatial-scene-v1",
+      note: "Lightweight glTF scaffold. Real GLB/USDZ mesh export belongs in spatial-render-worker-v1."
+    }
+  };
+
+  const manifest = {
+    ok: true,
+    jobId,
+    tenantId,
+    presetId,
+    rendererMode: "spatial-scene-v1",
+    renderEngine: "spatial-scene-gltf-handoff-package-v1",
+    mode: "spatial-scene-package",
+    anchorMode,
+    sceneScale,
+    sceneUrl: `/api/generated-assets/${jobId}.scene.json`,
+    spatialManifestUrl: `/api/generated-assets/${jobId}.spatial.json`,
+    worldUrl: `/api/generated-assets/${jobId}.world.json`,
+    arUrl: `/api/generated-assets/${jobId}.ar.json`,
+    gltfUrl: `/api/generated-assets/${jobId}.gltf`,
+    glbStatus: "requires-spatial-render-worker",
+    usdzStatus: "requires-spatial-render-worker",
+    nextWorker: "spatial-render-worker-v1"
+  };
+
+  return {
+    manifest,
+    artifacts: [
+      {
+        format: "spatial-manifest-json",
+        fileName: `${jobId}.spatial.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(manifest, null, 2), "utf8")
+      },
+      {
+        format: "scene-json",
+        fileName: `${jobId}.scene.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(scene, null, 2), "utf8")
+      },
+      {
+        format: "world-json",
+        fileName: `${jobId}.world.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(world, null, 2), "utf8")
+      },
+      {
+        format: "ar-json",
+        fileName: `${jobId}.ar.json`,
+        mimeType: "application/json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(arHandoff, null, 2), "utf8")
+      },
+      {
+        format: "gltf-json",
+        fileName: `${jobId}.gltf`,
+        mimeType: "model/gltf+json; charset=utf-8",
+        buffer: Buffer.from(JSON.stringify(gltf, null, 2), "utf8")
+      }
+    ]
+  };
+}

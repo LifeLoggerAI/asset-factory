@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "proofType": "raster-renderer-v1",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mopf7e18_kan7qs",
+  "rendererStatus": "raster-image-v1-live",
+  "artifactFormats": [
+    "svg",
+    "png",
+    "webp"
+  ],
+  "storagePngPath": "asset-factory/urai-system/job_mopf7e18_kan7qs/job_mopf7e18_kan7qs.png",
+  "storageWebpPath": "asset-factory/urai-system/job_mopf7e18_kan7qs/job_mopf7e18_kan7qs.webp",
+  "svgBytes": 2125,
+  "pngBytes": 17178,
+  "webpBytes": 248,
+  "svgUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopf7e18_kan7qs.svg",
+  "pngUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopf7e18_kan7qs.png",
+  "webpUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopf7e18_kan7qs.webp",
+  "manifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopf7e18_kan7qs.json",
+  "verifiedAt": "2026-05-03T06:59:41.005Z"
+}

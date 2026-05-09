@@ -1,0 +1,703 @@
+import { getAdminDb, getAdminBucket, getFirebaseAdminInitializationInfo } from "./firebaseAdmin";
+import { renderAsset, buildVideoScrollPackage, buildAudioVoicePackage } from "./assetRenderer";
+import * as localStore from "./localAssetFactoryStore";
+
+type AnyRecord = Record<string, any>;
+
+const localAny = localStore as any;
+const JOBS = "assetFactoryJobs";
+const ASSETS = "assetFactoryAssets";
+
+function now() {
+  return new Date().toISOString();
+}
+
+function makeJobId() {
+  return `job_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function jobTenant(job: AnyRecord | null | undefined) {
+  return job?.tenantId || job?.input?.tenantId || "default";
+}
+
+function dbAndBucket() {
+  const db = getAdminDb();
+  const bucket = getAdminBucket();
+  return { db, bucket, active: Boolean(db && bucket) };
+}
+
+function contentTypeForExt(ext: string) {
+  if (ext === "svg") return "image/svg+xml; charset=utf-8";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "json") return "application/json; charset=utf-8";
+  if (ext === "html") return "text/html; charset=utf-8";
+  if (ext === "srt") return "application/x-subrip; charset=utf-8";
+  return "application/octet-stream";
+}
+
+function isVideoScrollJob(job: AnyRecord | null | undefined) {
+  const preset = job?.presetId || job?.input?.presetId || "";
+  const type = job?.type || job?.input?.type || "";
+  return preset === "video-scroll-v1" || type === "video" || type === "video-scroll";
+}
+
+function isAudioVoiceJob(job: AnyRecord | null | undefined) {
+  const preset = job?.presetId || job?.input?.presetId || "";
+  const type = job?.type || job?.input?.type || "";
+  return preset === "audio-voice-v1" || type === "audio" || type === "audio-voice" || type === "voice";
+}
+
+function generatedUrl(jobId: string, ext: string) {
+  return `/api/generated-assets/${jobId}.${ext}`;
+}
+
+function parseGeneratedFileName(fileName: string) {
+  const clean = fileName.replace(/^\/+/, "");
+
+  const suffixes = [
+    { suffix: ".voice-script.txt", contentType: "text/plain; charset=utf-8" },
+    { suffix: ".voice-cues.json", contentType: "application/json; charset=utf-8" },
+    { suffix: ".voice.json", contentType: "application/json; charset=utf-8" },
+    { suffix: ".ssml.xml", contentType: "application/xml; charset=utf-8" },
+    { suffix: ".vtt", contentType: "text/vtt; charset=utf-8" },
+    { suffix: ".storyboard.html", contentType: "text/html; charset=utf-8" },
+    { suffix: ".timeline.json", contentType: "application/json; charset=utf-8" },
+    { suffix: ".capcut.json", contentType: "application/json; charset=utf-8" },
+    { suffix: ".video.json", contentType: "application/json; charset=utf-8" },
+    { suffix: ".srt", contentType: "application/x-subrip; charset=utf-8" },
+    { suffix: ".svg", contentType: "image/svg+xml; charset=utf-8" },
+    { suffix: ".png", contentType: "image/png" },
+    { suffix: ".webp", contentType: "image/webp" },
+    { suffix: ".json", contentType: "application/json; charset=utf-8" },
+  ];
+
+  const match = suffixes.find((item) => clean.endsWith(item.suffix));
+  if (!match) return null;
+
+  const jobId = clean.slice(0, -match.suffix.length);
+  if (!jobId) return null;
+
+  return {
+    jobId,
+    clean,
+    suffix: match.suffix,
+    contentType: match.contentType,
+  };
+}
+
+export function getStoreMode() {
+  return dbAndBucket().active ? "firestore-storage" : "local-json";
+}
+
+export function getStoreDiagnostics() {
+  const info = getFirebaseAdminInitializationInfo();
+  const active = dbAndBucket().active;
+
+  return {
+    persistenceMode: active ? "firestore-storage" : "local-json",
+    fallbackActive: !active,
+    fallbackReason: active ? null : info.fallbackReason,
+    firebaseProjectId: info.firebaseProjectId,
+    storageBucket: info.storageBucket,
+    databaseId: info.databaseId || "(default)",
+    rendererMode: process.env.ASSET_FACTORY_RENDERER_MODE || "visual-worker-v1",
+    rasterRenderer: "sharp-v1",
+    supportedOutputFormats: ["svg", "png", "webp", "json"],
+  };
+}
+
+export async function addJob(job: AnyRecord) {
+  const { db, active } = dbAndBucket();
+  if (!active || !db) return localAny.addJob(job as any);
+
+  const jobId = job.jobId || job.id || makeJobId();
+  const createdAt = job.createdAt || now();
+
+  const doc = {
+    ...job,
+    id: jobId,
+    jobId,
+    tenantId: job.tenantId || job.input?.tenantId || "default",
+    status: job.status || "queued",
+    createdAt,
+    updatedAt: now(),
+    assetUrl: job.assetUrl || null,
+    pngUrl: job.pngUrl || null,
+    webpUrl: job.webpUrl || null,
+    bundleUrl: job.bundleUrl || null,
+    output: job.output || null,
+    mode: "firestore-storage",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  await db.collection(JOBS).doc(jobId).set(doc, { merge: true });
+  return doc;
+}
+
+export async function readJobs() {
+  const { db, active } = dbAndBucket();
+  if (!active || !db) return localAny.readJobs();
+
+  try {
+    const snap = await db.collection(JOBS).orderBy("createdAt", "desc").limit(100).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.warn("[assetFactoryStore] Firestore readJobs failed; using local fallback", error);
+    return localAny.readJobs();
+  }
+}
+
+export async function findJob(jobId: string) {
+  const { db, active } = dbAndBucket();
+  if (!active || !db) return localAny.findJob(jobId);
+
+  const doc = await db.collection(JOBS).doc(jobId).get();
+  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+}
+
+export async function updateJob(jobId: string, patch: AnyRecord) {
+  const { db, active } = dbAndBucket();
+  if (!active || !db) return localAny.updateJob(jobId, patch as any);
+
+  const next = {
+    ...patch,
+    updatedAt: now(),
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  await db.collection(JOBS).doc(jobId).set(next, { merge: true });
+  return findJob(jobId);
+}
+
+export async function listAssets() {
+  const { db, active } = dbAndBucket();
+  if (!active || !db) return localAny.listAssets();
+
+  try {
+    const snap = await db.collection(ASSETS).orderBy("updatedAt", "desc").limit(100).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    console.warn("[assetFactoryStore] Firestore listAssets failed; using local fallback", error);
+    return localAny.listAssets();
+  }
+}
+
+export async function materializeAsset(jobId: string) {
+  const { db, bucket, active } = dbAndBucket();
+  if (!active || !db || !bucket) return materializeLocalAsset(jobId);
+
+  const job = await findJob(jobId);
+  if (!job) return null;
+
+  if (isVideoScrollJob(job)) return materializeVideoScrollAsset(jobId, job);
+  if (isAudioVoiceJob(job)) return materializeAudioVoiceAsset(jobId, job);
+
+  const tenantId = jobTenant(job);
+
+  const rendered = await renderAsset({
+    job,
+    jobId,
+    tenantId,
+    presetId: job.presetId || job.input?.presetId,
+    type: job.type || job.input?.type,
+    prompt: job.prompt || job.input?.prompt,
+    aspectRatio: job.aspectRatio || job.input?.aspectRatio,
+    input: job.input,
+    outputFormats: job.outputFormats || job.input?.outputFormats || ["svg", "png", "webp"],
+  });
+
+  const artifacts: Array<{
+    format: string;
+    fileName: string;
+    mimeType: string;
+    byteLength: number;
+    url: string;
+    storagePath: string;
+  }> = [];
+
+  for (const artifact of rendered.artifacts) {
+    const storagePath = `asset-factory/${tenantId}/${jobId}/${artifact.fileName}`;
+
+    let manifestBuffer = artifact.buffer;
+    if (artifact.format === "json") {
+      const manifestWithStorage = {
+        ...rendered.manifest,
+        storageManifestPath: storagePath,
+      };
+      manifestBuffer = Buffer.from(JSON.stringify(manifestWithStorage, null, 2), "utf8");
+    }
+
+    await bucket.file(storagePath).save(manifestBuffer, {
+      contentType: artifact.mimeType,
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    artifacts.push({
+      format: artifact.format,
+      fileName: artifact.fileName,
+      mimeType: artifact.mimeType,
+      byteLength: artifact.byteLength,
+      url: generatedUrl(jobId, artifact.format),
+      storagePath,
+    });
+  }
+
+  const storageByFormat = Object.fromEntries(
+    artifacts.map((artifact) => [artifact.format, artifact.storagePath])
+  );
+
+  const manifest = {
+    ...rendered.manifest,
+    artifacts,
+    storageAssetPath: storageByFormat.svg || null,
+    storagePngPath: storageByFormat.png || null,
+    storageWebpPath: storageByFormat.webp || null,
+    storageManifestPath: storageByFormat.json || null,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  if (storageByFormat.json) {
+    await bucket.file(storageByFormat.json).save(Buffer.from(JSON.stringify(manifest, null, 2)), {
+      contentType: "application/json; charset=utf-8",
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+  }
+
+  const patch = {
+    status: "completed",
+    assetUrl: generatedUrl(jobId, "svg"),
+    pngUrl: generatedUrl(jobId, "png"),
+    webpUrl: generatedUrl(jobId, "webp"),
+    bundleUrl: generatedUrl(jobId, "json"),
+    output: manifest,
+    artifacts,
+    mode: "firestore-storage",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+    updatedAt: now(),
+  };
+
+  await db.collection(JOBS).doc(jobId).set(patch, { merge: true });
+
+  const asset = {
+    id: jobId,
+    jobId,
+    tenantId,
+    type: job.type || job.input?.type || "visual",
+    status: "completed",
+    presetId: job.presetId || job.input?.presetId || "memory-scroll",
+    prompt: job.prompt || job.input?.prompt || "",
+    assetUrl: patch.assetUrl,
+    pngUrl: patch.pngUrl,
+    webpUrl: patch.webpUrl,
+    bundleUrl: patch.bundleUrl,
+    output: manifest,
+    artifacts,
+    createdAt: job.createdAt || now(),
+    updatedAt: now(),
+    mode: "firestore-storage",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  await db.collection(ASSETS).doc(jobId).set(asset, { merge: true });
+
+  return {
+    ok: true,
+    job: await findJob(jobId),
+    asset,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+}
+
+async function materializeVideoScrollAsset(jobId: string, job: AnyRecord) {
+  const { db, bucket, active } = dbAndBucket();
+  if (!active || !db || !bucket) return null;
+
+  const tenantId = jobTenant(job);
+  const pkg = buildVideoScrollPackage({
+    job,
+    jobId,
+    tenantId,
+    presetId: job.presetId || job.input?.presetId || "video-scroll-v1",
+    type: job.type || job.input?.type || "video",
+    prompt: job.prompt || job.input?.prompt || "",
+    aspectRatio: job.aspectRatio || job.input?.aspectRatio || "9:16",
+    input: job.input,
+  });
+
+  const artifacts: Array<{
+    format: string;
+    fileName: string;
+    mimeType: string;
+    byteLength: number;
+    url: string;
+    storagePath: string;
+  }> = [];
+
+  for (const artifact of pkg.artifacts) {
+    const storagePath = `asset-factory/${tenantId}/${jobId}/${artifact.fileName}`;
+
+    await bucket.file(storagePath).save(artifact.buffer, {
+      contentType: artifact.mimeType,
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    artifacts.push({
+      format: artifact.format,
+      fileName: artifact.fileName,
+      mimeType: artifact.mimeType,
+      byteLength: artifact.buffer.length,
+      url: `/api/generated-assets/${artifact.fileName}`,
+      storagePath,
+    });
+  }
+
+  const manifest = {
+    ...pkg.manifest,
+    artifacts,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  const patch = {
+    status: "completed",
+    bundleUrl: `/api/generated-assets/${jobId}.video.json`,
+    storyboardUrl: `/api/generated-assets/${jobId}.storyboard.html`,
+    timelineUrl: `/api/generated-assets/${jobId}.timeline.json`,
+    capcutUrl: `/api/generated-assets/${jobId}.capcut.json`,
+    srtUrl: `/api/generated-assets/${jobId}.srt`,
+    output: manifest,
+    artifacts,
+    mode: "video-scroll-package",
+    rendererMode: "video-scroll-v1",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+    updatedAt: now(),
+  };
+
+  await db.collection(JOBS).doc(jobId).set(patch, { merge: true });
+
+  const asset = {
+    id: jobId,
+    jobId,
+    tenantId,
+    type: "video",
+    status: "completed",
+    presetId: "video-scroll-v1",
+    prompt: job.prompt || job.input?.prompt || "",
+    bundleUrl: patch.bundleUrl,
+    storyboardUrl: patch.storyboardUrl,
+    timelineUrl: patch.timelineUrl,
+    capcutUrl: patch.capcutUrl,
+    srtUrl: patch.srtUrl,
+    output: manifest,
+    artifacts,
+    createdAt: job.createdAt || now(),
+    updatedAt: now(),
+    mode: "video-scroll-package",
+    rendererMode: "video-scroll-v1",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  await db.collection(ASSETS).doc(jobId).set(asset, { merge: true });
+
+  return {
+    ok: true,
+    job: await findJob(jobId),
+    asset,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+}
+
+async function materializeAudioVoiceAsset(jobId: string, job: AnyRecord) {
+  const { db, bucket, active } = dbAndBucket();
+  if (!active || !db || !bucket) return null;
+
+  const tenantId = jobTenant(job);
+  const pkg = buildAudioVoicePackage({
+    job,
+    jobId,
+    tenantId,
+    presetId: job.presetId || job.input?.presetId || "audio-voice-v1",
+    type: job.type || job.input?.type || "audio",
+    prompt: job.prompt || job.input?.prompt || "",
+    input: job.input,
+  });
+
+  const artifacts: Array<{
+    format: string;
+    fileName: string;
+    mimeType: string;
+    byteLength: number;
+    url: string;
+    storagePath: string;
+  }> = [];
+
+  for (const artifact of pkg.artifacts) {
+    const storagePath = `asset-factory/${tenantId}/${jobId}/${artifact.fileName}`;
+
+    await bucket.file(storagePath).save(artifact.buffer, {
+      contentType: artifact.mimeType,
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    artifacts.push({
+      format: artifact.format,
+      fileName: artifact.fileName,
+      mimeType: artifact.mimeType,
+      byteLength: artifact.buffer.length,
+      url: `/api/generated-assets/${artifact.fileName}`,
+      storagePath,
+    });
+  }
+
+  const manifest = {
+    ...pkg.manifest,
+    artifacts,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  const patch = {
+    status: "completed",
+    bundleUrl: `/api/generated-assets/${jobId}.voice.json`,
+    voiceManifestUrl: `/api/generated-assets/${jobId}.voice.json`,
+    scriptUrl: `/api/generated-assets/${jobId}.voice-script.txt`,
+    ssmlUrl: `/api/generated-assets/${jobId}.ssml.xml`,
+    cuesUrl: `/api/generated-assets/${jobId}.voice-cues.json`,
+    vttUrl: `/api/generated-assets/${jobId}.vtt`,
+    output: manifest,
+    artifacts,
+    mode: "audio-voice-package",
+    rendererMode: "audio-voice-v1",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+    updatedAt: now(),
+  };
+
+  await db.collection(JOBS).doc(jobId).set(patch, { merge: true });
+
+  const asset = {
+    id: jobId,
+    jobId,
+    tenantId,
+    type: "audio",
+    status: "completed",
+    presetId: "audio-voice-v1",
+    prompt: job.prompt || job.input?.prompt || "",
+    bundleUrl: patch.bundleUrl,
+    voiceManifestUrl: patch.voiceManifestUrl,
+    scriptUrl: patch.scriptUrl,
+    ssmlUrl: patch.ssmlUrl,
+    cuesUrl: patch.cuesUrl,
+    vttUrl: patch.vttUrl,
+    output: manifest,
+    artifacts,
+    createdAt: job.createdAt || now(),
+    updatedAt: now(),
+    mode: "audio-voice-package",
+    rendererMode: "audio-voice-v1",
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+
+  await db.collection(ASSETS).doc(jobId).set(asset, { merge: true });
+
+  return {
+    ok: true,
+    job: await findJob(jobId),
+    asset,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+}
+
+export async function readGeneratedAsset(fileName: string) {
+  const { bucket, active } = dbAndBucket();
+  if (!active || !bucket) return readLocalGeneratedAsset(fileName);
+
+  const parsed = parseGeneratedFileName(fileName);
+  if (!parsed) return null;
+
+  const job = await findJob(parsed.jobId);
+  const tenantId = jobTenant(job || {});
+  const path = `asset-factory/${tenantId}/${parsed.jobId}/${parsed.clean}`;
+  const file = bucket.file(path);
+  const [exists] = await file.exists();
+
+  if (!exists) return null;
+
+  const [buffer] = await file.download();
+
+  return {
+    buffer,
+    contentType: parsed.contentType,
+    fileName: parsed.clean,
+    persistenceMode: "firestore-storage",
+    fallbackActive: false,
+  };
+}
+
+async function materializeLocalAsset(jobId: string) {
+  const findJob = localAny.findJob;
+  const updateJob = localAny.updateJob;
+
+  if (typeof findJob !== "function") return null;
+
+  const job: any = await findJob(jobId);
+  if (!job) return null;
+
+  const tenantId = job?.tenantId || job?.input?.tenantId || "local";
+  const rendered = await renderAsset({
+    job,
+    jobId,
+    tenantId,
+    presetId: job?.presetId || job?.input?.presetId || "memory-scroll",
+    type: job?.type || job?.input?.type || "visual",
+    prompt: job?.prompt || job?.input?.prompt || "",
+    aspectRatio: job?.aspectRatio || job?.input?.aspectRatio,
+    input: job?.input,
+    outputFormats: ["svg", "png", "webp"],
+  });
+
+  const artifacts = rendered.artifacts.map((artifact) => ({
+    format: artifact.format,
+    fileName: artifact.fileName,
+    mimeType: artifact.mimeType,
+    byteLength: artifact.byteLength,
+    url: generatedUrl(jobId, artifact.format),
+  }));
+
+  const manifest = {
+    ...rendered.manifest,
+    artifacts,
+    persistenceMode: "local-json",
+    fallbackActive: true,
+  };
+
+  const patch = {
+    status: "completed",
+    assetUrl: generatedUrl(jobId, "svg"),
+    pngUrl: generatedUrl(jobId, "png"),
+    webpUrl: generatedUrl(jobId, "webp"),
+    bundleUrl: generatedUrl(jobId, "json"),
+    output: manifest,
+    artifacts,
+    mode: "local-json",
+    persistenceMode: "local-json",
+    fallbackActive: true,
+    updatedAt: now(),
+  };
+
+  let updatedJob: any = { ...job, ...patch };
+
+  if (typeof updateJob === "function") {
+    try {
+      updatedJob = await updateJob(jobId, patch);
+    } catch {
+      updatedJob = { ...job, ...patch };
+    }
+  }
+
+  return {
+    ok: true,
+    job: updatedJob,
+    asset: {
+      id: jobId,
+      jobId,
+      tenantId,
+      type: job?.type || job?.input?.type || "visual",
+      status: "completed",
+      presetId: job?.presetId || job?.input?.presetId || "memory-scroll",
+      prompt: job?.prompt || job?.input?.prompt || "",
+      assetUrl: patch.assetUrl,
+      pngUrl: patch.pngUrl,
+      webpUrl: patch.webpUrl,
+      bundleUrl: patch.bundleUrl,
+      output: manifest,
+      artifacts,
+      createdAt: job?.createdAt || now(),
+      updatedAt: patch.updatedAt,
+      mode: "local-json",
+      persistenceMode: "local-json",
+    },
+    persistenceMode: "local-json",
+    fallbackActive: true,
+  };
+}
+
+async function readLocalGeneratedAsset(fileName: string) {
+  const parsed = parseGeneratedFileName(fileName);
+  if (!parsed) return null;
+
+  const findJob = localAny.findJob;
+  if (typeof findJob !== "function") return null;
+
+  const job: any = await findJob(parsed.jobId);
+  if (!job) return null;
+
+  if (
+    parsed.suffix === ".storyboard.html" ||
+    parsed.suffix === ".timeline.json" ||
+    parsed.suffix === ".capcut.json" ||
+    parsed.suffix === ".video.json" ||
+    parsed.suffix === ".srt"
+  ) {
+    const pkg = buildVideoScrollPackage({
+      job,
+      jobId: parsed.jobId,
+      tenantId: job?.tenantId || job?.input?.tenantId || "local",
+      presetId: job?.presetId || job?.input?.presetId || "video-scroll-v1",
+      type: job?.type || job?.input?.type || "video",
+      prompt: job?.prompt || job?.input?.prompt || "",
+      aspectRatio: job?.aspectRatio || job?.input?.aspectRatio || "9:16",
+      input: job?.input,
+    });
+
+    const artifact = pkg.artifacts.find((item) => item.fileName === parsed.clean);
+    if (!artifact) return null;
+
+    return {
+      buffer: artifact.buffer,
+      contentType: artifact.mimeType,
+      fileName: artifact.fileName,
+      persistenceMode: "local-json",
+      fallbackActive: true,
+    };
+  }
+
+  const rendered = await renderAsset({
+    job,
+    jobId: parsed.jobId,
+    tenantId: job?.tenantId || job?.input?.tenantId || "local",
+    presetId: job?.presetId || job?.input?.presetId || "memory-scroll",
+    type: job?.type || job?.input?.type || "visual",
+    prompt: job?.prompt || job?.input?.prompt || "",
+    aspectRatio: job?.aspectRatio || job?.input?.aspectRatio,
+    input: job?.input,
+    outputFormats: ["svg", "png", "webp"],
+  });
+
+  const artifact = rendered.artifacts.find((item) => item.fileName === parsed.clean);
+  if (!artifact) return null;
+
+  return {
+    buffer: artifact.buffer,
+    contentType: artifact.mimeType,
+    fileName: artifact.fileName,
+    persistenceMode: "local-json",
+    fallbackActive: true,
+  };
+}

@@ -1,0 +1,34 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import { getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    system: "asset-factory",
+    routeAlias: "/api/system/production",
+    canonicalRoute: "/api/system/production-grade",
+    grade: "production-capable-module",
+    nextGrade: "fully-production-grade-product-system",
+    readiness: {
+      status:
+        diagnostics.persistenceMode === "firestore-storage" &&
+        diagnostics.fallbackActive === false
+          ? "production-capable"
+          : "degraded",
+      diagnostics
+    },
+    renderers: [
+      { id: "visual-svg-v1", status: "live", outputs: ["svg", "json"] },
+      { id: "raster-image-v1", status: "live", outputs: ["png", "webp"] },
+      { id: "video-scroll-v1", status: "planned", outputs: ["mp4", "webm", "srt"] },
+      { id: "audio-voice-v1", status: "live-scaffold", outputs: ["voice-script-txt", "ssml-xml", "voice-cues-json", "vtt", "voice-manifest-json"] },
+      { id: "spatial-scene-v1", status: "planned", outputs: ["gltf", "glb", "json"] }
+    ]
+  });
+}

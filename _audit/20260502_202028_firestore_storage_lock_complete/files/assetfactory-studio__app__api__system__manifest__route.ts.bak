@@ -1,0 +1,24 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextResponse } from "next/server";
+import { ASSET_FACTORY_SYSTEM, systemNow } from "@/lib/server/assetFactorySystem";
+import { getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    generatedAt: systemNow(),
+    system: ASSET_FACTORY_SYSTEM,
+    persistence: diagnostics.persistenceMode,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+    fallbackReason: diagnostics.fallbackReason,
+    rendererMode: diagnostics.rendererMode,
+    firebaseProjectId: diagnostics.firebaseProjectId,
+    storageBucket: diagnostics.storageBucket,
+  });
+}

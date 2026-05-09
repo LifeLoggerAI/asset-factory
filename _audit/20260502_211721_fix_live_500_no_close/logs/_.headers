@@ -1,0 +1,16 @@
+HTTP/2 200 
+cache-control: max-age=3600
+content-type: text/html; charset=utf-8
+etag: "c0b6d730bba47b2cc91b3d6fc8ac91176cf88a298cef0c5ebd6cd3e0921dd4dd"
+last-modified: Sat, 02 May 2026 21:14:36 GMT
+strict-transport-security: max-age=31556926; includeSubDomains; preload
+accept-ranges: bytes
+date: Sat, 02 May 2026 21:17:23 GMT
+x-served-by: cache-chi-klot8100032-CHI
+x-cache: MISS
+x-cache-hits: 0
+x-timer: S1777756643.422483,VS0,VE70
+vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+content-length: 10011
+

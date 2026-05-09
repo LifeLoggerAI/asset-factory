@@ -1,0 +1,35 @@
+import Link from "next/link";
+
+const nav = [
+  ["Dashboard", "/dashboard"],
+  ["Create", "/create"],
+  ["Assets", "/assets"],
+  ["Jobs", "/jobs"],
+  ["System", "/system"],
+  ["Status", "/status"],
+  ["Usage", "/usage"],
+];
+
+export function AssetFactoryShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="af-shell">
+      <header className="af-topbar">
+        <Link href="/" className="af-brand">
+          <span className="af-orb" />
+          <span>URAI Asset Factory</span>
+        </Link>
+        <nav className="af-nav" aria-label="Asset Factory navigation">
+          {nav.map(([label, href]) => (
+            <Link key={href} href={href}>
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </header>
+      {children}
+      <footer className="af-footer">
+        Asset Factory · Firestore/Storage backed · Worker-rendered · URAI production module
+      </footer>
+    </main>
+  );
+}

@@ -1,0 +1,268 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mop4vzqt_r46i5e",
+    "webpUrl": null,
+    "type": "spatial-scene",
+    "createdAt": "2026-05-03T02:10:51.701Z",
+    "jobId": "job_mop4vzqt_r46i5e",
+    "input": {
+      "anchorMode": "world-origin",
+      "tenantId": "urai-system",
+      "sceneScale": 1,
+      "type": "spatial-scene",
+      "presetId": "spatial-scene-v1",
+      "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff"
+    },
+    "fallbackActive": false,
+    "persistenceMode": "firestore-storage",
+    "tenantId": "urai-system",
+    "pngUrl": null,
+    "presetId": "spatial-scene-v1",
+    "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff",
+    "assetUrl": null,
+    "mode": "spatial-scene-package",
+    "output": {
+      "renderEngine": "spatial-scene-gltf-handoff-package-v1",
+      "nextWorker": "spatial-render-worker-v1",
+      "sceneUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+      "spatialManifestUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+      "gltfUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+      "rendererMode": "spatial-scene-v1",
+      "usdzStatus": "requires-spatial-render-worker",
+      "sceneScale": 1,
+      "mode": "spatial-scene-package",
+      "jobId": "job_mop4vzqt_r46i5e",
+      "arUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+      "glbStatus": "requires-spatial-render-worker",
+      "anchorMode": "world-origin",
+      "worldUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+      "fallbackActive": false,
+      "persistenceMode": "firestore-storage",
+      "tenantId": "urai-system",
+      "ok": true,
+      "presetId": "spatial-scene-v1",
+      "artifacts": [
+        {
+          "format": "spatial-manifest-json",
+          "fileName": "job_mop4vzqt_r46i5e.spatial.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 788,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.spatial.json"
+        },
+        {
+          "format": "scene-json",
+          "fileName": "job_mop4vzqt_r46i5e.scene.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1927,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.scene.json"
+        },
+        {
+          "format": "world-json",
+          "fileName": "job_mop4vzqt_r46i5e.world.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 482,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.world.json"
+        },
+        {
+          "format": "ar-json",
+          "fileName": "job_mop4vzqt_r46i5e.ar.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 607,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.ar.json"
+        },
+        {
+          "format": "gltf-json",
+          "fileName": "job_mop4vzqt_r46i5e.gltf",
+          "mimeType": "model/gltf+json; charset=utf-8",
+          "byteLength": 2349,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.gltf"
+        }
+      ]
+    },
+    "bundleUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+    "arUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+    "sceneUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+    "worldUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+    "spatialManifestUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+    "gltfUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+    "rendererMode": "spatial-scene-v1",
+    "artifacts": [
+      {
+        "format": "spatial-manifest-json",
+        "fileName": "job_mop4vzqt_r46i5e.spatial.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 788,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.spatial.json"
+      },
+      {
+        "format": "scene-json",
+        "fileName": "job_mop4vzqt_r46i5e.scene.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1927,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.scene.json"
+      },
+      {
+        "format": "world-json",
+        "fileName": "job_mop4vzqt_r46i5e.world.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 482,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.world.json"
+      },
+      {
+        "format": "ar-json",
+        "fileName": "job_mop4vzqt_r46i5e.ar.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 607,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.ar.json"
+      },
+      {
+        "format": "gltf-json",
+        "fileName": "job_mop4vzqt_r46i5e.gltf",
+        "mimeType": "model/gltf+json; charset=utf-8",
+        "byteLength": 2349,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.gltf"
+      }
+    ],
+    "status": "completed",
+    "updatedAt": "2026-05-03T02:10:53.068Z"
+  },
+  "asset": {
+    "id": "job_mop4vzqt_r46i5e",
+    "jobId": "job_mop4vzqt_r46i5e",
+    "tenantId": "urai-system",
+    "type": "spatial",
+    "status": "completed",
+    "presetId": "spatial-scene-v1",
+    "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff",
+    "bundleUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+    "spatialManifestUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+    "sceneUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+    "worldUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+    "arUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+    "gltfUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+    "output": {
+      "ok": true,
+      "jobId": "job_mop4vzqt_r46i5e",
+      "tenantId": "urai-system",
+      "presetId": "spatial-scene-v1",
+      "rendererMode": "spatial-scene-v1",
+      "renderEngine": "spatial-scene-gltf-handoff-package-v1",
+      "mode": "spatial-scene-package",
+      "anchorMode": "world-origin",
+      "sceneScale": 1,
+      "sceneUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+      "spatialManifestUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+      "worldUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+      "arUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+      "gltfUrl": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+      "glbStatus": "requires-spatial-render-worker",
+      "usdzStatus": "requires-spatial-render-worker",
+      "nextWorker": "spatial-render-worker-v1",
+      "artifacts": [
+        {
+          "format": "spatial-manifest-json",
+          "fileName": "job_mop4vzqt_r46i5e.spatial.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 788,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.spatial.json"
+        },
+        {
+          "format": "scene-json",
+          "fileName": "job_mop4vzqt_r46i5e.scene.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 1927,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.scene.json"
+        },
+        {
+          "format": "world-json",
+          "fileName": "job_mop4vzqt_r46i5e.world.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 482,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.world.json"
+        },
+        {
+          "format": "ar-json",
+          "fileName": "job_mop4vzqt_r46i5e.ar.json",
+          "mimeType": "application/json; charset=utf-8",
+          "byteLength": 607,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.ar.json"
+        },
+        {
+          "format": "gltf-json",
+          "fileName": "job_mop4vzqt_r46i5e.gltf",
+          "mimeType": "model/gltf+json; charset=utf-8",
+          "byteLength": 2349,
+          "url": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+          "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.gltf"
+        }
+      ],
+      "persistenceMode": "firestore-storage",
+      "fallbackActive": false
+    },
+    "artifacts": [
+      {
+        "format": "spatial-manifest-json",
+        "fileName": "job_mop4vzqt_r46i5e.spatial.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 788,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.spatial.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.spatial.json"
+      },
+      {
+        "format": "scene-json",
+        "fileName": "job_mop4vzqt_r46i5e.scene.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 1927,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.scene.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.scene.json"
+      },
+      {
+        "format": "world-json",
+        "fileName": "job_mop4vzqt_r46i5e.world.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 482,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.world.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.world.json"
+      },
+      {
+        "format": "ar-json",
+        "fileName": "job_mop4vzqt_r46i5e.ar.json",
+        "mimeType": "application/json; charset=utf-8",
+        "byteLength": 607,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.ar.json",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.ar.json"
+      },
+      {
+        "format": "gltf-json",
+        "fileName": "job_mop4vzqt_r46i5e.gltf",
+        "mimeType": "model/gltf+json; charset=utf-8",
+        "byteLength": 2349,
+        "url": "/api/generated-assets/job_mop4vzqt_r46i5e.gltf",
+        "storagePath": "asset-factory/urai-system/job_mop4vzqt_r46i5e/job_mop4vzqt_r46i5e.gltf"
+      }
+    ],
+    "createdAt": "2026-05-03T02:10:51.701Z",
+    "updatedAt": "2026-05-03T02:10:53.158Z",
+    "mode": "spatial-scene-package",
+    "rendererMode": "spatial-scene-v1",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_mopcxhbp_vwm4g3",
+    "jobId": "job_mopcxhbp_vwm4g3",
+    "tenantId": "urai-system",
+    "type": "visual",
+    "presetId": "product-system-proof",
+    "prompt": "Asset Factory product system proof with lifecycle approval",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "visual",
+      "presetId": "product-system-proof",
+      "aspectRatio": "1:1",
+      "prompt": "Asset Factory product system proof with lifecycle approval"
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-03T05:55:58.069Z",
+    "updatedAt": "2026-05-03T05:55:58.069Z",
+    "pngUrl": null,
+    "webpUrl": null,
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

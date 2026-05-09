@@ -1,0 +1,41 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextRequest, NextResponse } from "next/server";
+import { findJob, getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET(
+  _req: NextRequest,
+  context: { params: { jobId: string } }
+) {
+  const { jobId } = context.params;
+  const job = await findJob(jobId);
+  const diagnostics = getStoreDiagnostics();
+
+  if (!job) {
+    return NextResponse.json({ ok: false, error: "Asset/job not found", jobId }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    asset: {
+      id: job.jobId,
+      jobId: job.jobId,
+      tenantId: job.tenantId,
+      type: job.type,
+      status: job.status,
+      presetId: job.presetId,
+      prompt: job.prompt,
+      assetUrl: job.assetUrl,
+      bundleUrl: job.bundleUrl,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      mode: job.mode,
+      persistenceMode: diagnostics.persistenceMode,
+    },
+    job,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

@@ -1,0 +1,119 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "URAI Asset Factory spatial-scene-v1"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "URAI Spatial Scene",
+      "nodes": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "URAI Spatial Memory Root",
+      "translation": [
+        0,
+        1.4,
+        -2.2
+      ],
+      "extras": {
+        "id": "root-constellation",
+        "type": "constellation-root",
+        "label": "URAI Spatial Memory Root",
+        "position": [
+          0,
+          1.4,
+          -2.2
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "material": "aura-glass",
+        "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff"
+      }
+    },
+    {
+      "name": "Primary Memory Orb",
+      "translation": [
+        -0.6,
+        1.7,
+        -2
+      ],
+      "extras": {
+        "id": "memory-orb-primary",
+        "type": "memory-orb",
+        "label": "Primary Memory Orb",
+        "position": [
+          -0.6,
+          1.7,
+          -2
+        ],
+        "radius": 0.18,
+        "color": "#8b5cf6",
+        "glow": 0.82
+      }
+    },
+    {
+      "name": "Secondary Memory Orb",
+      "translation": [
+        0.55,
+        1.55,
+        -2.1
+      ],
+      "extras": {
+        "id": "memory-orb-secondary",
+        "type": "memory-orb",
+        "label": "Secondary Memory Orb",
+        "position": [
+          0.55,
+          1.55,
+          -2.1
+        ],
+        "radius": 0.14,
+        "color": "#22d3ee",
+        "glow": 0.68
+      }
+    },
+    {
+      "name": "Ritual Gate",
+      "translation": [
+        0,
+        1.1,
+        -2.4
+      ],
+      "extras": {
+        "id": "ritual-gate",
+        "type": "portal-arc",
+        "label": "Ritual Gate",
+        "position": [
+          0,
+          1.1,
+          -2.4
+        ],
+        "radius": 0.72,
+        "color": "#c4b5fd"
+      }
+    }
+  ],
+  "extras": {
+    "jobId": "job_mopeawwd_c10sg2",
+    "tenantId": "urai-system",
+    "prompt": "URAI Spatial Scene Renderer v1 proof for AR VR constellation handoff",
+    "renderer": "spatial-scene-v1",
+    "note": "Lightweight glTF scaffold. Real GLB/USDZ mesh export belongs in spatial-render-worker-v1."
+  }
+}

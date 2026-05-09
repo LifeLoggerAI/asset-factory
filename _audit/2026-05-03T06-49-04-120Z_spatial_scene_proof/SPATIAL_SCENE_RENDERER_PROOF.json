@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "proofType": "spatial-scene-renderer-v1",
+  "baseUrl": "https://asset-factory-dev-id.web.app",
+  "tenantId": "urai-system",
+  "jobId": "job_mopetry1_cgqcxs",
+  "rendererStatus": "spatial-scene-v1-live-scaffold",
+  "spatialManifestBytes": 788,
+  "sceneBytes": 1927,
+  "worldBytes": 482,
+  "arBytes": 607,
+  "gltfBytes": 2349,
+  "spatialManifestUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopetry1_cgqcxs.spatial.json",
+  "sceneUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopetry1_cgqcxs.scene.json",
+  "worldUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopetry1_cgqcxs.world.json",
+  "arUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopetry1_cgqcxs.ar.json",
+  "gltfUrl": "https://asset-factory-dev-id.web.app/api/generated-assets/job_mopetry1_cgqcxs.gltf",
+  "nextWorker": "spatial-render-worker-v1",
+  "verifiedAt": "2026-05-03T06:49:06.359Z"
+}

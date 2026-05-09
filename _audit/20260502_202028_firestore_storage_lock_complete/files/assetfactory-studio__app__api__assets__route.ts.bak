@@ -1,0 +1,19 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextResponse } from "next/server";
+import { getStoreDiagnostics, listAssets } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const assets = await listAssets();
+  const diagnostics = getStoreDiagnostics();
+
+  return NextResponse.json({
+    ok: true,
+    assets,
+    count: assets.length,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

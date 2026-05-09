@@ -1,0 +1,32 @@
+{
+  "name": "@asset-factory/types",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "packageManager": "pnpm@latest",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@firebase/util",
+      "protobufjs"
+    ]
+  }
+}

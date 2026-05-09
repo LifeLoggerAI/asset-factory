@@ -1,0 +1,48 @@
+{
+  "ok": true,
+  "jobId": "job_mop1tx2j_qfqvc1",
+  "tenantId": "urai-system",
+  "presetId": "video-scroll-v1",
+  "renderer": "video-scroll-v1",
+  "durationMs": 10500,
+  "fps": 30,
+  "aspectRatio": "9:16",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "startMs": 0,
+      "endMs": 3500,
+      "narration": "A signal becomes visible.",
+      "visualPrompt": "URAI Video Scroll Renderer v1 proof for demo reels and CapCut handoff",
+      "transition": "fade-in",
+      "camera": {
+        "movement": "slow-push-in",
+        "intensity": "gentle"
+      }
+    },
+    {
+      "id": "scene-2",
+      "startMs": 3500,
+      "endMs": 7000,
+      "narration": "The pattern sharpens into a symbolic memory.",
+      "visualPrompt": "glowing memory scroll, soft cosmic movement, violet blue aura",
+      "transition": "soft-bloom-crossfade",
+      "camera": {
+        "movement": "orbital-drift",
+        "intensity": "gentle"
+      }
+    },
+    {
+      "id": "scene-3",
+      "startMs": 7000,
+      "endMs": 10500,
+      "narration": "URAI renders the moment into a shareable visual sequence.",
+      "visualPrompt": "cinematic product proof, luminous interface, asset factory renderer",
+      "transition": "soft-bloom-crossfade",
+      "camera": {
+        "movement": "orbital-drift",
+        "intensity": "gentle"
+      }
+    }
+  ]
+}

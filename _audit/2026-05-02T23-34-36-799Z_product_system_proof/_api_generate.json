@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "job": {
+    "id": "job_moozb2d9_nkmep8",
+    "jobId": "job_moozb2d9_nkmep8",
+    "tenantId": "urai-system",
+    "type": "visual",
+    "presetId": "product-system-proof",
+    "prompt": "Asset Factory product system proof with lifecycle approval",
+    "input": {
+      "tenantId": "urai-system",
+      "type": "visual",
+      "presetId": "product-system-proof",
+      "aspectRatio": "1:1",
+      "prompt": "Asset Factory product system proof with lifecycle approval"
+    },
+    "status": "queued",
+    "assetUrl": null,
+    "bundleUrl": null,
+    "output": null,
+    "createdAt": "2026-05-02T23:34:37.245Z",
+    "updatedAt": "2026-05-02T23:34:37.245Z",
+    "mode": "firestore-storage",
+    "persistenceMode": "firestore-storage",
+    "fallbackActive": false
+  },
+  "persistenceMode": "firestore-storage",
+  "fallbackActive": false
+}

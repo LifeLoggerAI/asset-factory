@@ -1,0 +1,56 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 0;
+
+import { NextResponse } from "next/server";
+import { getAdminBucket, getBucketCandidates } from "@/lib/server/firebaseAdmin";
+import { getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET() {
+  const diagnostics = getStoreDiagnostics();
+  const bucket = getAdminBucket();
+  const probePath = `asset-factory/_probes/probe-${Date.now()}.txt`;
+
+  if (!bucket) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "No admin bucket available",
+        diagnostics,
+        bucketCandidates: getBucketCandidates(),
+      },
+      { status: 500 }
+    );
+  }
+
+  try {
+    await bucket.file(probePath).save(Buffer.from("ok", "utf8"), {
+      contentType: "text/plain; charset=utf-8",
+      resumable: false,
+      metadata: { cacheControl: "no-store" },
+    });
+
+    const [data] = await bucket.file(probePath).download();
+
+    return NextResponse.json({
+      ok: true,
+      probePath,
+      readback: data.toString("utf8"),
+      bucketName: bucket.name,
+      diagnostics,
+      bucketCandidates: getBucketCandidates(),
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error?.message || String(error),
+        code: error?.code,
+        bucketName: bucket.name,
+        diagnostics,
+        bucketCandidates: getBucketCandidates(),
+      },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { findJob, listAssets, getStoreDiagnostics } from "@/lib/server/assetFactoryStore";
+
+export async function GET(_: Request, { params }: { params: { jobId: string } }) {
+  const job = await findJob(params.jobId);
+  const assets = await listAssets();
+  const asset = Array.isArray(assets) ? assets.find((a: any) => a.jobId === params.jobId || a.id === params.jobId) : null;
+  const diagnostics = getStoreDiagnostics();
+
+  if (!job && !asset) {
+    return NextResponse.json({
+      ok: false,
+      error: "asset-not-found",
+      jobId: params.jobId,
+      persistenceMode: diagnostics.persistenceMode,
+      fallbackActive: diagnostics.fallbackActive,
+    }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    asset: asset || {
+      id: params.jobId,
+      jobId: params.jobId,
+      status: job?.status,
+      assetUrl: job?.assetUrl,
+      bundleUrl: job?.bundleUrl,
+      output: job?.output,
+    },
+    job,
+    persistenceMode: diagnostics.persistenceMode,
+    fallbackActive: diagnostics.fallbackActive,
+  });
+}

@@ -1,7 +1,7 @@
 rules_version = '2';
 
-service cloud.firestore {
-  match /databases/{database}/documents {
+service firebase.storage {
+  match /b/{bucket}/o {
     function isUserAuthenticated() {
       return request.auth != null;
     }
@@ -10,98 +10,82 @@ service cloud.firestore {
       return isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    function ownsExistingResource() {
-      return isUserAuthenticated() && resource.data.ownerId == request.auth.uid;
+    function validUpload(maxBytes) {
+      return request.resource != null
+        && request.resource.size < maxBytes;
     }
 
-    function ownsRequestedResource() {
-      return isUserAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+    function isAllowedAssetContentType() {
+      return request.resource != null
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('application/json')
+          || request.resource.contentType.matches('text/.*')
+          || request.resource.contentType.matches('audio/.*')
+          || request.resource.contentType.matches('video/.*')
+        );
     }
 
-    function isPendingJobCreate() {
-      return request.resource.data.status == 'pending'
-        && request.resource.data.ownerId == request.auth.uid;
+    function isAllowedProfileImageContentType() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*');
     }
 
-    function isSyntheticDemoDoc() {
-      return request.resource.data.isSynthetic == true
-        && request.resource.data.demoMode == true
-        && request.resource.data.ownerId == 'synthetic-demo';
+    function isReasonableAssetUpload() {
+      return validUpload(50 * 1024 * 1024)
+        && isAllowedAssetContentType();
     }
 
-    match /tenants/{tenantId} {
-      allow read: if isRequestingUser(tenantId);
+    function isReasonableAnonymousAssetUpload() {
+      return validUpload(25 * 1024 * 1024)
+        && isAllowedAssetContentType();
+    }
+
+    function isReasonableProfileImageUpload() {
+      return validUpload(5 * 1024 * 1024)
+        && isAllowedProfileImageContentType();
+    }
+
+    match /assets/{ownerId}/{assetOrJobId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
+      allow write: if isRequestingUser(ownerId)
+        && isReasonableAssetUpload();
+    }
+
+    match /exports/{ownerId}/{exportId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
       allow write: if false;
     }
 
-    match /jobs/{jobId} {
-      allow read: if ownsExistingResource();
-      allow create: if ownsRequestedResource() && isPendingJobCreate();
-      allow update, delete: if false;
-    }
-
-    match /usage_ledger/{usageId} {
-      allow read: if ownsExistingResource();
-      allow write: if false;
-    }
-
-    match /dead_jobs/{jobId} {
-      allow read: if ownsExistingResource();
-      allow write: if false;
-    }
-
-    match /consent_ledger/{entryId} {
-      allow read: if ownsExistingResource();
-      allow create, update, delete: if false;
-    }
-
-    match /consent_snapshots/{snapshotId} {
-      allow read: if ownsExistingResource();
-      allow create, update, delete: if false;
-    }
-
-    match /feature_flags/{flagId} {
+    match /synthetic-demo/{demoId}/{filePath=**} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /exports/{exportId} {
-      allow read: if ownsExistingResource();
-      allow create, update, delete: if false;
+    match /anonymousAssets/{sessionId}/{assetId}/{filePath=**} {
+      allow read: if false;
+      allow write: if sessionId.size() >= 12
+        && isReasonableAnonymousAssetUpload();
     }
 
-    match /delete_requests/{requestId} {
-      allow read: if ownsExistingResource();
-      allow create: if ownsRequestedResource()
-        && request.resource.data.status == 'requested'
-        && request.resource.data.targetUserId == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    match /demo_public/{demoId} {
-      allow read: if resource.data.isSynthetic == true && resource.data.demoMode == true;
-      allow create, update, delete: if false;
-    }
-
-    match /timeline_events/{eventId} {
-      allow read: if ownsExistingResource();
+    match /publicAssets/{assetId}/{filePath=**} {
+      allow read: if true;
       allow write: if false;
     }
 
-    match /narrator_reflections/{reflectionId} {
-      allow read: if ownsExistingResource();
-      allow write: if false;
+    match /user_profiles/{userId}/profile_picture.jpg {
+      allow read: if true;
+      allow write: if isRequestingUser(userId)
+        && isReasonableProfileImageUpload();
     }
 
-    match /system_metrics/{metricId} {
-      allow read, write: if false;
+    match /user_profiles/{userId}/{filePath=**} {
+      allow read: if isRequestingUser(userId);
+      allow write: if isRequestingUser(userId)
+        && isReasonableProfileImageUpload();
     }
 
-    match /billing_audit/{auditId} {
-      allow read, write: if false;
-    }
-
-    match /{document=**} {
+    match /{allPaths=**} {
       allow read, write: if false;
     }
   }
