@@ -26,7 +26,10 @@ const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
 const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatcher.ts');
+const queueOps = read('assetfactory-studio/lib/server/assetQueueOps.ts');
 const workerRoute = read('assetfactory-studio/app/api/worker/asset-queue/route.ts');
+const adminQueueRoute = read('assetfactory-studio/app/api/admin/queue/route.ts');
+const dashboardRoute = read('assetfactory-studio/app/api/dashboard/route.ts');
 const integrationContract = read('assetfactory-studio/app/api/system/integration-contract/route.ts');
 const packageJson = JSON.parse(read('package.json'));
 const workflow = read('.github/workflows/ci.yml');
@@ -140,6 +143,20 @@ for (const capability of requiredQueueCapabilities) {
   assertIncludes(queueDispatcher, capability, 'assetfactory-studio/lib/server/assetQueueDispatcher.ts');
 }
 
+const requiredQueueOpsCapabilities = [
+  'readQueueOpsSummary',
+  'failedOrDeadLettered',
+  'staleClaimed',
+  'assetFactoryQueue',
+  'dead-lettered',
+  'retrying',
+  'claimed',
+];
+
+for (const capability of requiredQueueOpsCapabilities) {
+  assertIncludes(queueOps, capability, 'assetfactory-studio/lib/server/assetQueueOps.ts');
+}
+
 const requiredWorkerRouteCapabilities = [
   'ASSET_FACTORY_WORKER_SECRET',
   'claim-and-run',
@@ -156,6 +173,30 @@ for (const capability of requiredWorkerRouteCapabilities) {
   assertIncludes(workerRoute, capability, 'assetfactory-studio/app/api/worker/asset-queue/route.ts');
 }
 
+const requiredAdminQueueCapabilities = [
+  'authorizeAssetRequest(req, undefined, \'admin\')',
+  'readQueueOpsSummary',
+  'allTenants',
+  'status',
+  'limit',
+];
+
+for (const capability of requiredAdminQueueCapabilities) {
+  assertIncludes(adminQueueRoute, capability, 'assetfactory-studio/app/api/admin/queue/route.ts');
+}
+
+const requiredDashboardQueueCapabilities = [
+  'readQueueOpsSummary',
+  'dlqSize',
+  'queueFailures',
+  'staleClaimedQueueItems',
+  'queueByStatus',
+];
+
+for (const capability of requiredDashboardQueueCapabilities) {
+  assertIncludes(dashboardRoute, capability, 'assetfactory-studio/app/api/dashboard/route.ts');
+}
+
 const requiredWorkerContract = [
   'asset-factory-worker',
   'x-asset-worker-secret',
@@ -164,6 +205,17 @@ const requiredWorkerContract = [
 ];
 
 for (const capability of requiredWorkerContract) {
+  assertIncludes(integrationContract, capability, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
+}
+
+const requiredAdminQueueContract = [
+  'GET /api/admin/queue',
+  'allTenantQueue',
+  'dead-lettered',
+  'stale-lease',
+];
+
+for (const capability of requiredAdminQueueContract) {
   assertIncludes(integrationContract, capability, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
 }
 
