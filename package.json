@@ -9,7 +9,8 @@
   },
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0",
+    "npm": ">=10.8.0"
   },
   "scripts": {
     "doctor": "node scripts/doctor.mjs",
