@@ -19,7 +19,8 @@
     "test:launch-readiness": "node scripts/test-launch-readiness.mjs",
     "smoke:remote": "node scripts/smoke-asset-factory-remote.mjs",
     "smoke:staging": "node scripts/smoke-asset-factory-remote.mjs",
-    "smoke:prod": "node scripts/smoke-asset-factory-remote.mjs",
-    "smoke:website": "ASSET_FACTORY_SMOKE_READONLY=true node scripts/smoke-asset-factory-remote.mjs"
+    "smoke:prod": "node scripts/smoke-production-finalization.mjs",
+    "smoke:production-finalization": "node scripts/smoke-production-finalization.mjs",
+    "smoke:website": "ASSET_FACTORY_SMOKE_READONLY=true node scripts/smoke-production-finalization.mjs"
   }
 }
