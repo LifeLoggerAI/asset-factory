@@ -25,6 +25,28 @@ FAIL /api/health fetch failed for https://www.uraiassetfactory.com/api/health: f
 
 This means the verified Firebase runtime is not the blocker. The request reaches the custom domain host over HTTPS, then the connection resets before the `/api/health` response. Treat this as a DNS / TLS certificate / Firebase Hosting domain mapping issue until proven otherwise.
 
+## One-Command Diagnostic
+
+Run this before or after Firebase/DNS changes:
+
+```bash
+npm run diagnose:custom-domain
+```
+
+It checks:
+
+- A records
+- AAAA records
+- CNAME records
+- TLS certificate / SAN / issuer / validity
+- HTTPS response for `/api/health`
+
+You can override the domain if needed:
+
+```bash
+ASSET_FACTORY_CUSTOM_DOMAIN=www.uraiassetfactory.com npm run diagnose:custom-domain
+```
+
 ## Prerequisites
 
 - Firebase project: `urai-4dc1d`
