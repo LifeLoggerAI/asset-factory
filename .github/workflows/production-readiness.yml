@@ -49,6 +49,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
     steps:
       - name: Stop if Firebase service account is missing
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
@@ -90,6 +91,6 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
-      - name: Smoke health endpoint
+      - name: Smoke production finalization endpoints
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        run: npm run smoke:website --if-present
+        run: npm run smoke:production-finalization
