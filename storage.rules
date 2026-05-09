@@ -1,21 +1,41 @@
-
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Match any file in the assets directory
-    match /assets/{ownerId}/{jobId}/{filePath=**} {
-      // Only the user who owns the job can write to the job's folder.
-      allow write: if request.auth != null && request.auth.uid == ownerId;
-
-      // Only the user who owns the job can read their assets.
-      allow read: if request.auth != null && request.auth.uid == ownerId;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Security for other paths can be added here
-    // For example, you might have a 'user_profiles' directory
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validUpload(maxBytes) {
+      return request.resource != null && request.resource.size < maxBytes;
+    }
+
+    match /assets/{userId}/{assetId}/{filePath=**} {
+      allow read: if owns(userId);
+      allow write: if owns(userId) && validUpload(26214400);
+    }
+
+    match /anonymousAssets/{sessionId}/{assetId}/{filePath=**} {
+      allow read: if false;
+      allow write: if sessionId.size() >= 12 && validUpload(26214400);
+    }
+
+    match /publicAssets/{assetId}/{filePath=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /user_profiles/{userId}/profile_picture.jpg {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true;
+      allow write: if owns(userId) && validUpload(5242880);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

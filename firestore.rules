@@ -1,84 +1,105 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Global Helper Functions ---
-
-    function isUserAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isRequestingUser(userId) {
-      return request.auth.uid == userId;
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
     }
 
-    function isNewDoc() {
-      return resource == null;
+    function ownsExisting() {
+      return signedIn() && resource.data.userId == request.auth.uid;
     }
 
-    function isExistingDoc() {
-      return resource != null;
+    function ownsRequested() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
     }
 
-    // --- Tenants Collection ---
-    // Controls access to user-specific subscription and billing data.
+    function hasAnonymousSession() {
+      return request.resource.data.anonymousSessionId is string && request.resource.data.anonymousSessionId.size() >= 12;
+    }
+
     match /tenants/{tenantId} {
-      // Users can read their own tenant document.
-      // Admins (in the future) could also have read access.
-      allow read: if isUserAuthenticated() && isRequestingUser(tenantId);
-
-      // No client-side writes are allowed to prevent tampering with billing status.
+      allow read: if owns(tenantId);
       allow write: if false;
     }
 
-    // --- Jobs Collection ---
-    // The core of the asset factory, representing work to be done.
     match /jobs/{jobId} {
-      // Users can read jobs they own.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-
-      // Allow users to create jobs if they are the owner and the data is valid.
-      allow create: if isUserAuthenticated() 
-                      && isRequestingUser(request.resource.data.ownerId)
-                      && request.resource.data.status == 'pending';
-
-      // Jobs are immutable from the client-side once created.
-      // Only the backend can update job status.
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.status == 'pending';
       allow update, delete: if false;
     }
 
-    // --- Usage Ledger Collection ---
-    // Tracks billable events. Critical for revenue integrity.
+    match /assetFactoryRequests/{assetId} {
+      allow read: if ownsExisting() || (resource.data.publicUrl is string && resource.data.lifecycleState == 'published');
+      allow create: if ownsRequested()
+        && request.resource.data.assetId == assetId
+        && request.resource.data.status in ['requested', 'queued']
+        && request.resource.data.lifecycleState in ['requested', 'queued'];
+      allow update, delete: if false;
+    }
+
+    match /assetFactoryQueue/{queueId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /assetManifests/{assetId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /publicAssets/{assetId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /anonymousAssetRequests/{assetId} {
+      allow create: if hasAnonymousSession()
+        && request.resource.data.assetId == assetId
+        && request.resource.data.status in ['requested', 'queued'];
+      allow read, update, delete: if false;
+    }
+
+    match /lifeMapEvents/{eventId} {
+      allow read: if ownsExisting();
+      allow create: if ownsRequested() && request.resource.data.eventId == eventId;
+      allow update, delete: if false;
+    }
+
+    match /lifeMaps/{userId} {
+      allow read: if owns(userId);
+      allow write: if false;
+    }
+
+    match /systemStatus/{statusId} {
+      allow read: if statusId == 'asset-factory';
+      allow write: if false;
+    }
+
     match /usage_ledger/{usageId} {
-      // Users can read their own usage records to see their history.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-
-      // Only the backend can write to the usage ledger to prevent fraud.
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
 
-    // --- Dead Jobs Collection ---
-    // Jobs that have failed permanently.
     match /dead_jobs/{jobId} {
-      // Users can see jobs that have failed to allow for support requests.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-      
-      // No client-side writes.
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
       allow write: if false;
     }
 
-    // --- System Metrics Collection ---
-    // Aggregated operational data. Should not be client-accessible.
     match /system_metrics/{metricId} {
       allow read, write: if false;
     }
 
-    // --- Billing Audit Collection ---
-    // Reconciliation logs. Should not be client-accessible.
     match /billing_audit/{auditId} {
-        allow read, write: if false;
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
