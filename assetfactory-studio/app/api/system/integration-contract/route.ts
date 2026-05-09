@@ -41,6 +41,7 @@ export async function GET() {
       admin: {
         queue: 'GET /api/admin/queue?status=dead-lettered&limit=50',
         allTenantQueue: 'GET /api/admin/queue?allTenants=true',
+        requeue: 'POST /api/admin/queue/requeue { jobId, reason, resetAttempts, allTenants }',
       },
       assets: {
         list: 'GET /api/assets',
@@ -73,6 +74,7 @@ export async function GET() {
       'Stripe webhooks require verified stripe-signature headers and persist tenant entitlements when Firestore is configured.',
       'Worker queue endpoints require ASSET_FACTORY_WORKER_SECRET and use Firestore leases/retries/DLQ semantics in firestore-queue mode.',
       'Admin queue visibility requires the admin role and reports failed, dead-lettered, retrying, queued, claimed, and stale-lease queue items.',
+      'Admin queue requeue requires the admin role, only requeues failed/dead-lettered/retrying items, and records usage audit events.',
     ],
   });
 }
