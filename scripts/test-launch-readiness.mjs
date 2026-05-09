@@ -30,6 +30,8 @@ const queueOps = read('assetfactory-studio/lib/server/assetQueueOps.ts');
 const workerRoute = read('assetfactory-studio/app/api/worker/asset-queue/route.ts');
 const adminQueueRoute = read('assetfactory-studio/app/api/admin/queue/route.ts');
 const adminQueueRequeueRoute = read('assetfactory-studio/app/api/admin/queue/requeue/route.ts');
+const queueAdminPage = read('assetfactory-studio/app/admin/queue/page.tsx');
+const designSystem = read('assetfactory-studio/components/layout/DesignSystem.tsx');
 const dashboardRoute = read('assetfactory-studio/app/api/dashboard/route.ts');
 const integrationContract = read('assetfactory-studio/app/api/system/integration-contract/route.ts');
 const packageJson = JSON.parse(read('package.json'));
@@ -200,6 +202,22 @@ const requiredAdminQueueRequeueCapabilities = [
 for (const capability of requiredAdminQueueRequeueCapabilities) {
   assertIncludes(adminQueueRequeueRoute, capability, 'assetfactory-studio/app/api/admin/queue/requeue/route.ts');
 }
+
+const requiredQueueAdminPageCapabilities = [
+  'Operator Console',
+  '/api/admin/queue?',
+  '/api/admin/queue/requeue',
+  'Requeue reason',
+  'Reset attempts',
+  'All-tenant operator view',
+];
+
+for (const capability of requiredQueueAdminPageCapabilities) {
+  assertIncludes(queueAdminPage, capability, 'assetfactory-studio/app/admin/queue/page.tsx');
+}
+
+assertIncludes(designSystem, 'href="/admin/queue"', 'assetfactory-studio/components/layout/DesignSystem.tsx');
+assertIncludes(designSystem, 'Operator Queue', 'assetfactory-studio/components/layout/DesignSystem.tsx');
 
 const requiredDashboardQueueCapabilities = [
   'readQueueOpsSummary',
