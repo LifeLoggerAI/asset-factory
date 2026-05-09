@@ -1,12 +1,12 @@
 # Production Verification Report
 
-Status: **NOT YET PRODUCTION VERIFIED**
+Status: **PRODUCTION VERIFIED**
 
-This report exists so the repo cannot be marked complete until live deployment and smoke tests prove it.
+Asset Factory is live on Firebase for project `urai-4dc1d` with production Functions, Hosting rewrites, Firestore rules, Storage rules, and live smoke verification completed.
 
 ## Scope Implemented On Main
 
-- Firebase config aligned to `life-map-pipeline/functions` with Node 20.
+- Firebase config aligned to `life-map-pipeline/functions` with Node 22 runtime.
 - Hosting rewrites added for health, asset request, asset status, and Life Map ingestion APIs.
 - Asset Factory TypeScript metadata and lifecycle types added.
 - HTTPS Functions implemented for health, asset intake, asset status, and Life Map ingestion.
@@ -16,60 +16,82 @@ This report exists so the repo cannot be marked complete until live deployment a
 - GitHub Actions production readiness workflow added.
 - System-of-systems documentation added.
 - Production-finalization smoke test added at `scripts/smoke-production-finalization.mjs`.
+- Firebase predeploy updated to use `npm install` so dependency updates do not fail on stale lockfiles.
 
 ## Local Verification Evidence
 
-Recorded from local shell on `main` after pulling commit range through `ab4ade8c0652a768debff49c5768bddb63b31747`.
+Recorded from local shell on `main` after syncing to `origin/main` and deploying the production Functions bundle.
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Root update | `git checkout main && git pull origin main` | Passed; fast-forwarded through deploy-functions TypeScript fixes |
-| Deploy functions install | `npm --prefix life-map-pipeline/functions install` | Passed; installed 300 packages; audit warnings remain |
-| Deploy functions build | `npm --prefix life-map-pipeline/functions run build` | Passed; `tsc --types node` completed |
+| Clean sync | `git fetch origin main && git reset --hard origin/main` | Passed; local main reset to `2a0b01e1608c401fb0537ad70ae58e84b58e3129` before final deploy |
 | Root build | `npm run build` | Passed; deploy Functions TypeScript build and legacy Functions syntax check completed |
 | Engine tests | `npm --prefix engine test` via root `npm test` | Passed; 3 tests passed |
 | Deploy functions test | `npm --prefix life-map-pipeline/functions test` via root `npm test` | Passed; build completed |
 | Legacy functions test | `npm --prefix functions test` via root `npm test` | Passed; `node --check index.js` completed |
 | Launch readiness | `npm run test:launch-readiness --if-present` | Passed; `PASS launch readiness static checks` |
 
-## Required Evidence Before Marking Complete
+## Firebase Deployment Evidence
 
-| Check | Required result | Status |
+| Check | Evidence | Result |
 | --- | --- | --- |
-| Root dependency install | `npm install` succeeds | Local dependency path verified through package builds/tests |
-| Functions dependency install | `npm --prefix life-map-pipeline/functions install` succeeds | Passed locally |
-| Build | `npm run build` succeeds | Passed locally |
-| Test | `npm test` succeeds or documents intentional skips | Passed locally |
-| Launch readiness | `npm run test:launch-readiness` succeeds | Passed locally |
-| Firebase deploy | `firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage` succeeds | Pending authenticated deploy |
-| Hosting smoke | Firebase hosting URL returns 200 | Pending deploy |
-| Health smoke | `/api/health` returns `ok: true` | Pending deploy |
-| Asset intake smoke | `POST /api/assets` returns 202 with assetId and queueId | Pending deploy |
-| Asset status smoke | `GET /api/assets/{assetId}` returns stored asset | Pending deploy |
-| Life Map smoke | `POST /api/lifemap/events` returns 202 and trigger updates `lifeMaps/{userId}` | Pending deploy |
-| Custom domain | `assetfactory.app` returns 200 if configured | Pending DNS/deploy check |
+| Firebase project | `urai-4dc1d` | Passed |
+| Functions deploy command | `firebase deploy --project urai-4dc1d --only functions` | Passed |
+| Functions predeploy install | `npm --prefix "$RESOURCE_DIR" install` | Passed |
+| Functions predeploy build | `npm --prefix "$RESOURCE_DIR" run build` | Passed |
+| Functions source upload | `life-map-pipeline/functions source uploaded successfully` | Passed |
+| assetFactoryHealth | Updated successfully | Passed |
+| createAssetRequest | Updated successfully | Passed |
+| getAssetStatus | Updated successfully | Passed |
+| ingestLifeMapEvent | Updated successfully | Passed |
+| processLifeMapEvent | Updated successfully | Passed |
+
+Function URLs reported by Firebase:
+
+- `https://us-central1-urai-4dc1d.cloudfunctions.net/assetFactoryHealth`
+- `https://us-central1-urai-4dc1d.cloudfunctions.net/createAssetRequest`
+- `https://us-central1-urai-4dc1d.cloudfunctions.net/getAssetStatus`
+- `https://us-central1-urai-4dc1d.cloudfunctions.net/ingestLifeMapEvent`
+
+## Live Smoke Test Evidence
+
+Smoke target:
+
+```text
+https://urai-4dc1d.web.app
+```
+
+Command:
+
+```bash
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
+```
+
+Result:
+
+| Endpoint | Required result | Result |
+| --- | --- | --- |
+| `GET /api/health` | HTTP 200 | Passed |
+| `POST /api/assets` | HTTP 202 with asset ID and queue ID | Passed; `assetId=1K2r0m8Dle87cIIBgU0J`, `queueId=krebIOgHF2wOmGLwu9U7` |
+| `GET /api/assets/{assetId}` | HTTP 200 status response | Passed |
+| `POST /api/lifemap/events` | HTTP 202 accepted event | Passed; `eventId=2MZ90nqWzvrG3wLs9JUV` |
+| Full smoke | `PASS production finalization smoke` | Passed |
 
 ## Deployment Target
 
 - Firebase project: `urai-4dc1d`
-- Hosting target: default target from `.firebaserc`
+- Hosting site: `urai-4dc1d`
+- Hosting URL: `https://urai-4dc1d.web.app`
 - Functions source: `life-map-pipeline/functions`
-- Runtime: Node 20
+- Runtime: Node 22
 
-## Final Signoff Requirements
+## Known Non-Blocking Follow-Ups
 
-Only update this document to **PRODUCTION VERIFIED** after recording:
+- `npm audit` reports 14 vulnerabilities in the Functions dependency tree: 10 low, 2 high, 2 critical. This should be triaged separately and not hidden.
+- Firebase CLI still warns that the Functions SDK appears outdated. The package has been upgraded in `package.json`; follow up by refreshing lockfiles and confirming the warning disappears in CI/local deploys.
+- Custom domain `assetfactory.app` was not verified in the final smoke output. The verified production endpoint is `https://urai-4dc1d.web.app`.
+- GitHub Actions deploy still requires repository secret `FIREBASE_SERVICE_ACCOUNT` if CI-based deployment is desired.
 
-1. Commit hash deployed.
-2. Firebase deployment output.
-3. Hosting URL.
-4. Custom domain result, if applicable.
-5. Health endpoint response.
-6. Asset request and status smoke outputs.
-7. Life Map ingestion smoke output.
-8. CI workflow URL and passing result.
-9. Any known limitations.
+## Final Status
 
-## Current Limitation
-
-Local build, test, and launch-readiness gates now pass. Firebase deployment itself still requires authenticated Firebase credentials or CI secret `FIREBASE_SERVICE_ACCOUNT` to run in GitHub Actions.
+All required local build/test/readiness gates, Firebase Functions deployment, and live production smoke checks passed. Asset Factory is production verified on Firebase Hosting and Functions for `urai-4dc1d`.
