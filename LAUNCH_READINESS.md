@@ -4,6 +4,8 @@ This document is the current launch-readiness source of truth for `LifeLoggerAI/
 
 It supersedes older historical/lock/final-report documents when those documents imply the system is fully complete, immutable, or already production-live. Older documents may remain useful for context, but public launch decisions should use this checklist plus live staging/production smoke evidence.
 
+Operational execution details live in `docs/OPERATIONS_RUNBOOK.md`, including deploy steps, staging/production smoke commands, monitoring checks, incident response, rollback, and the release evidence template.
+
 ## Current release position
 
 Status: **not production-ready yet**.
