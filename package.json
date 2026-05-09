@@ -30,7 +30,7 @@
     "deploy:functions": "firebase deploy --project urai-4dc1d --only functions",
     "deploy:verify": "ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization",
     "deploy:verify-readonly": "ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization",
-    "deploy:verify-custom-domain": "ASSET_FACTORY_BASE_URL=https://assetfactory.app ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization",
+    "deploy:verify-custom-domain": "ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization",
     "deploy:production": "npm run verify:local && npm run deploy:firebase && npm run deploy:verify",
     "deploy:partial": "npm run verify:local && npm run deploy:hosting-rules && npm run deploy:verify-readonly",
     "smoke:remote": "node scripts/smoke-asset-factory-remote.mjs",
