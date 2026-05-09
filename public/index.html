@@ -1,9 +1,41 @@
-<html>
+<!doctype html>
+<html lang="en">
   <head>
-    <title>Asset Factory</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>URAI Asset Factory</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #080b12; color: #edf4ff; }
+      body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top left, rgba(92, 141, 255, 0.26), transparent 32rem), radial-gradient(circle at bottom right, rgba(162, 89, 255, 0.24), transparent 34rem), #080b12; }
+      main { width: min(1040px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0; }
+      .eyebrow { color: #a8c7ff; letter-spacing: .16em; text-transform: uppercase; font-size: 13px; font-weight: 700; }
+      h1 { font-size: clamp(42px, 8vw, 86px); line-height: .9; margin: 18px 0; max-width: 880px; }
+      p { color: #c8d7ef; font-size: 18px; line-height: 1.65; max-width: 760px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 42px; }
+      .card { border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); border-radius: 24px; padding: 22px; box-shadow: 0 24px 80px rgba(0,0,0,.25); }
+      .card h2 { font-size: 17px; margin: 0 0 8px; }
+      .card p { font-size: 14px; margin: 0; color: #adc0dc; }
+      code { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; padding: 4px 8px; color: #ffffff; }
+      .status { display: inline-flex; gap: 8px; align-items: center; margin-top: 28px; padding: 10px 14px; border-radius: 999px; background: rgba(82, 255, 168, .12); color: #a7ffd2; border: 1px solid rgba(82, 255, 168, .28); }
+      .dot { width: 9px; height: 9px; border-radius: 999px; background: #52ffa8; box-shadow: 0 0 18px #52ffa8; }
+      a { color: #a8c7ff; }
+    </style>
   </head>
   <body>
-    <h1>Asset Factory</h1>
-    <p>Coming Soon</p>
+    <main>
+      <div class="eyebrow">URAI / LifeLogger System of Systems</div>
+      <h1>Asset Factory production surface.</h1>
+      <p>
+        This deployment hosts the URAI asset generation control plane: request intake, durable metadata,
+        queue records, Life Map event ingestion, Firestore and Storage rules, Firebase Functions, and live readiness checks.
+      </p>
+      <div class="status"><span class="dot"></span><span>Hosting shell live. Verify Functions at <code>/api/health</code>.</span></div>
+      <section class="grid" aria-label="Asset Factory subsystems">
+        <div class="card"><h2>Asset Intake</h2><p>POST <code>/api/assets</code> to create queued asset requests with metadata, tags, format, dimensions, and lifecycle state.</p></div>
+        <div class="card"><h2>Asset Status</h2><p>GET <code>/api/assets/{assetId}</code> to read current request status and storage manifest path.</p></div>
+        <div class="card"><h2>Life Map Pipeline</h2><p>POST <code>/api/lifemap/events</code> to ingest symbolic events for Life Map synthesis.</p></div>
+        <div class="card"><h2>Operations</h2><p>GET <code>/api/health</code> to verify functions, Firestore write access, version, and production readiness.</p></div>
+      </section>
+    </main>
   </body>
 </html>
