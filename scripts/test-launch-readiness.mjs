@@ -84,6 +84,9 @@ for (const scriptName of requiredPackageScripts) {
 const requiredSmokeCapabilities = [
   'assertPublicDiagnosticsRedacted',
   'assertContractRoutes',
+  'assertOperatorQueueSurface',
+  '/admin/queue',
+  '/api/admin/queue?status=dead-lettered',
   'exerciseAssetType',
   'assertTenantIsolation',
   'assertCronSecret',

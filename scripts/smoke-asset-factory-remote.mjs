@@ -128,7 +128,7 @@ async function assertContractRoutes() {
   const openapi = await requestJson('/api/system/openapi');
 
   const contractText = JSON.stringify(contract).toLowerCase();
-  for (const expected of ['urai-studio', 'urai-spatial', 'urai-jobs', '/api/generate', '/api/jobs']) {
+  for (const expected of ['urai-studio', 'urai-spatial', 'urai-jobs', '/api/generate', '/api/jobs', '/api/admin/queue']) {
     if (!contractText.includes(expected)) {
       throw new Error(`integration contract missing ${expected}`);
     }
@@ -137,6 +137,29 @@ async function assertContractRoutes() {
   if (!openapi || typeof openapi !== 'object') {
     throw new Error('openapi route did not return JSON metadata');
   }
+}
+
+async function assertOperatorQueueSurface() {
+  const page = await request('/admin/queue', {}, [200, 307, 308]);
+  const pageText = typeof page.body === 'string' ? page.body : JSON.stringify(page.body);
+  if (page.response.status === 200 && !pageText.includes('Operator Console') && !pageText.includes('Queue failures')) {
+    throw new Error('operator queue page did not include expected operator UI text');
+  }
+
+  if (!apiKey && !bearerToken) {
+    console.warn('WARN no operator credentials provided; skipping admin queue API positive smoke');
+    return;
+  }
+
+  const queue = await requestJson('/api/admin/queue?status=dead-lettered&limit=5', {
+    headers: defaultHeaders(),
+  });
+
+  if (!queue || typeof queue !== 'object' || !('items' in queue)) {
+    throw new Error('admin queue API did not return a queue summary with items');
+  }
+
+  await requestJson('/api/admin/queue?status=dead-lettered&limit=5', {}, [400, 401, 403, 503]);
 }
 
 async function exerciseAssetType(testCase) {
@@ -235,6 +258,7 @@ async function run() {
   await waitForHealth();
   await assertPublicDiagnosticsRedacted();
   await assertContractRoutes();
+  await assertOperatorQueueSurface();
 
   if (skipMutations) {
     console.log('PASS remote smoke read-only checks');
