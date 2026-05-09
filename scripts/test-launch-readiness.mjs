@@ -25,6 +25,9 @@ const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
+const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatcher.ts');
+const workerRoute = read('assetfactory-studio/app/api/worker/asset-queue/route.ts');
+const integrationContract = read('assetfactory-studio/app/api/system/integration-contract/route.ts');
 const packageJson = JSON.parse(read('package.json'));
 const workflow = read('.github/workflows/ci.yml');
 
@@ -119,6 +122,49 @@ const requiredStripeWebhookCapabilities = [
 
 for (const capability of requiredStripeWebhookCapabilities) {
   assertIncludes(stripeWebhookRoute, capability, 'assetfactory-studio/app/api/stripe/webhooks/route.ts');
+}
+
+const requiredQueueCapabilities = [
+  'claimNextAssetQueueJob',
+  'heartbeatAssetQueueJob',
+  'completeAssetQueueJob',
+  'failAssetQueueJob',
+  'leaseExpiresAt',
+  'maxAttempts',
+  'dead-lettered',
+  'ASSET_FACTORY_QUEUE_LEASE_SECONDS',
+  'ASSET_FACTORY_QUEUE_MAX_ATTEMPTS',
+];
+
+for (const capability of requiredQueueCapabilities) {
+  assertIncludes(queueDispatcher, capability, 'assetfactory-studio/lib/server/assetQueueDispatcher.ts');
+}
+
+const requiredWorkerRouteCapabilities = [
+  'ASSET_FACTORY_WORKER_SECRET',
+  'claim-and-run',
+  'heartbeat',
+  'complete',
+  'fail',
+  'materializeAsset',
+  'queue.worker_claimed',
+  'queue.worker_completed',
+  'queue.worker_failed',
+];
+
+for (const capability of requiredWorkerRouteCapabilities) {
+  assertIncludes(workerRoute, capability, 'assetfactory-studio/app/api/worker/asset-queue/route.ts');
+}
+
+const requiredWorkerContract = [
+  'asset-factory-worker',
+  'x-asset-worker-secret',
+  'POST /api/worker/asset-queue',
+  'leases/retries/DLQ',
+];
+
+for (const capability of requiredWorkerContract) {
+  assertIncludes(integrationContract, capability, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
 }
 
 assertIncludes(workflow, 'Launch readiness checks', '.github/workflows/ci.yml');
