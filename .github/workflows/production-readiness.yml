@@ -46,34 +46,50 @@ jobs:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
     needs: verify
-    if: github.ref == 'refs/heads/main' && secrets.FIREBASE_SERVICE_ACCOUNT != ''
+    if: github.ref == 'refs/heads/main'
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
+      - name: Stop if Firebase service account is missing
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
+        run: |
+          echo "FIREBASE_SERVICE_ACCOUNT secret is not configured; skipping deploy."
+          exit 0
+
       - name: Checkout
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/checkout@v4
 
       - name: Setup Node
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Firebase CLI
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: npm install -g firebase-tools
 
       - name: Install dependencies
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: |
           npm install
           npm --prefix life-map-pipeline/functions install
 
       - name: Build
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: npm run build
 
       - name: Write service account
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > $RUNNER_TEMP/firebase-service-account.json
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        run: echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Deploy
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
       - name: Smoke health endpoint
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: npm run smoke:website --if-present
