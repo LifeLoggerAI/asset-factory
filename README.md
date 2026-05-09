@@ -27,13 +27,16 @@ Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, re
 - `LAUNCH_READINESS.md`: current production launch gate checklist.
 
 ## Requirements
-- Node.js 20.x (recommended for TypeScript/Firebase packages).
-- npm 10+
+- Node.js 20.19.0 or newer. Node 20.18.x is too old for current Studio dependencies.
+- npm 10.8.0 or newer.
 - Firebase CLI (`npm i -g firebase-tools`) for emulators/deploy.
 
 ## Quick start
 ```bash
 unset NPM_CONFIG_PREFIX
+nvm install 20.19.0
+nvm use 20.19.0
+node --version
 npm install
 npm --prefix engine install
 npm --prefix functions install
@@ -49,6 +52,8 @@ git fetch origin
 git checkout main
 git reset --hard origin/main
 unset NPM_CONFIG_PREFIX
+nvm install 20.19.0
+nvm use 20.19.0
 npm install
 npm --prefix assetfactory-studio install
 npm run doctor
@@ -113,7 +118,7 @@ npm run serve
 npm run doctor
 ```
 
-The doctor checks Node/npm availability, `NPM_CONFIG_PREFIX`, required scripts, required files, Studio dependencies, and whether local `HEAD` matches `origin/main`.
+The doctor checks Node/npm versions, `NPM_CONFIG_PREFIX`, required scripts, required files, Studio dependencies, and whether local `HEAD` matches `origin/main`.
 
 ### Full intended validation
 ```bash
@@ -191,8 +196,9 @@ Before using real provider-backed rendering in production:
 
 ## Troubleshooting
 - If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
+- If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 20.19.0 && nvm use 20.19.0`.
 - If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
 - If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
 - If Firebase build fails, verify Node version and `firebase-tools` auth/project selection.
-- If Studio E2E fails to boot, verify Node 20, dependencies, and no conflicting process on port 3000.
+- If Studio E2E fails to boot, verify Node 20.19.0+, dependencies, and no conflicting process on port 3000.
 - If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
