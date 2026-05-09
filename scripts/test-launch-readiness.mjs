@@ -29,6 +29,7 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const queueOps = read('assetfactory-studio/lib/server/assetQueueOps.ts');
 const workerRoute = read('assetfactory-studio/app/api/worker/asset-queue/route.ts');
 const adminQueueRoute = read('assetfactory-studio/app/api/admin/queue/route.ts');
+const adminQueueRequeueRoute = read('assetfactory-studio/app/api/admin/queue/requeue/route.ts');
 const dashboardRoute = read('assetfactory-studio/app/api/dashboard/route.ts');
 const integrationContract = read('assetfactory-studio/app/api/system/integration-contract/route.ts');
 const packageJson = JSON.parse(read('package.json'));
@@ -145,12 +146,14 @@ for (const capability of requiredQueueCapabilities) {
 
 const requiredQueueOpsCapabilities = [
   'readQueueOpsSummary',
+  'requeueAssetQueueJob',
   'failedOrDeadLettered',
   'staleClaimed',
   'assetFactoryQueue',
   'dead-lettered',
   'retrying',
   'claimed',
+  'REQUEUEABLE_STATUSES',
 ];
 
 for (const capability of requiredQueueOpsCapabilities) {
@@ -185,6 +188,19 @@ for (const capability of requiredAdminQueueCapabilities) {
   assertIncludes(adminQueueRoute, capability, 'assetfactory-studio/app/api/admin/queue/route.ts');
 }
 
+const requiredAdminQueueRequeueCapabilities = [
+  'authorizeAssetRequest(req, undefined, \'admin\')',
+  'requeueAssetQueueJob',
+  'queue.admin_requeued',
+  'queue.admin_requeue_rejected',
+  'resetAttempts',
+  'allTenants',
+];
+
+for (const capability of requiredAdminQueueRequeueCapabilities) {
+  assertIncludes(adminQueueRequeueRoute, capability, 'assetfactory-studio/app/api/admin/queue/requeue/route.ts');
+}
+
 const requiredDashboardQueueCapabilities = [
   'readQueueOpsSummary',
   'dlqSize',
@@ -210,7 +226,9 @@ for (const capability of requiredWorkerContract) {
 
 const requiredAdminQueueContract = [
   'GET /api/admin/queue',
+  'POST /api/admin/queue/requeue',
   'allTenantQueue',
+  'requeue',
   'dead-lettered',
   'stale-lease',
 ];
