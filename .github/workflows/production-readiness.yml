@@ -47,6 +47,9 @@ jobs:
       - name: Launch readiness
         run: npm run test:launch-readiness --if-present
 
+      - name: Non-blocking dependency audit
+        run: npm run audit:all
+
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
