@@ -12,6 +12,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "doctor": "node scripts/doctor.mjs",
     "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test",
     "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
     "test:launch-readiness": "node scripts/test-launch-readiness.mjs",

@@ -33,11 +33,25 @@ Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, re
 
 ## Quick start
 ```bash
+unset NPM_CONFIG_PREFIX
 npm install
 npm --prefix engine install
 npm --prefix functions install
 npm --prefix life-map-pipeline/functions install
 npm --prefix assetfactory-studio install
+npm run doctor
+```
+
+If `npm run doctor`, `npm run test:launch-readiness`, `npm --prefix assetfactory-studio test`, or `npm --prefix assetfactory-studio run typecheck` reports a missing script, your local checkout is stale or you are not in the repository root. Recover with:
+
+```bash
+git fetch origin
+git checkout main
+git reset --hard origin/main
+unset NPM_CONFIG_PREFIX
+npm install
+npm --prefix assetfactory-studio install
+npm run doctor
 ```
 
 ## Environment
@@ -94,8 +108,17 @@ npm run serve
 
 ## Tests and validation
 
+### Repo doctor
+```bash
+npm run doctor
+```
+
+The doctor checks Node/npm availability, `NPM_CONFIG_PREFIX`, required scripts, required files, Studio dependencies, and whether local `HEAD` matches `origin/main`.
+
 ### Full intended validation
 ```bash
+npm run doctor
+npm run test:launch-readiness
 npm --prefix engine test
 npm --prefix assetfactory-studio run lint
 npm --prefix assetfactory-studio run typecheck
@@ -167,6 +190,8 @@ Before using real provider-backed rendering in production:
 - Ensure project, service account, and env are configured before deploy.
 
 ## Troubleshooting
+- If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
+- If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
 - If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
 - If Firebase build fails, verify Node version and `firebase-tools` auth/project selection.
 - If Studio E2E fails to boot, verify Node 20, dependencies, and no conflicting process on port 3000.
