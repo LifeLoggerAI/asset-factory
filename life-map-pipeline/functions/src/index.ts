@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { Request, Response } from 'express';
 import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
 import { deterministicHash } from './hash';
 
@@ -11,12 +12,12 @@ function now(): number {
   return Date.now();
 }
 
-function sendJson(res: functions.Response, status: number, body: unknown): void {
+function sendJson(res: Response, status: number, body: unknown): void {
   res.set('Cache-Control', 'no-store');
   res.status(status).json(body);
 }
 
-function applyCors(req: functions.Request, res: functions.Response): boolean {
+function applyCors(req: Request, res: Response): boolean {
   res.set('Access-Control-Allow-Origin', process.env.ASSET_FACTORY_ALLOWED_ORIGIN || '*');
   res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
