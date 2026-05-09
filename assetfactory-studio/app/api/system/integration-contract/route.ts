@@ -5,13 +5,14 @@ export async function GET() {
     ok: true,
     service: 'asset-factory-studio',
     version: '1.0.0',
-    targets: ['urai-studio', 'urai-spatial', 'urai-jobs'],
+    targets: ['urai-studio', 'urai-spatial', 'urai-jobs', 'asset-factory-worker'],
     auth: {
       tenantHeader: 'x-tenant-id',
       apiKeyHeader: 'x-asset-factory-key',
       bearerAuthorization: true,
       cronSecretHeader: 'x-cron-secret',
       stripeSignatureHeader: 'stripe-signature',
+      workerSecretHeader: 'x-asset-worker-secret',
     },
     routes: {
       presets: {
@@ -29,6 +30,13 @@ export async function GET() {
         publish: 'POST /api/jobs/:jobId/publish',
         approve: 'POST /api/jobs/:jobId/approve',
         rollback: 'POST /api/jobs/:jobId/rollback',
+      },
+      worker: {
+        metadata: 'GET /api/worker/asset-queue',
+        claimAndRun: 'POST /api/worker/asset-queue { action: "claim-and-run" }',
+        heartbeat: 'POST /api/worker/asset-queue { action: "heartbeat", jobId, leaseId }',
+        complete: 'POST /api/worker/asset-queue { action: "complete", jobId, leaseId }',
+        fail: 'POST /api/worker/asset-queue { action: "fail", jobId, leaseId, reason, retryable }',
       },
       assets: {
         list: 'GET /api/assets',
@@ -58,7 +66,8 @@ export async function GET() {
       'Generated asset downloads require matching asset metadata before serving bytes.',
       'Full system diagnostics require a configured Asset Factory API key.',
       'Cron endpoints require CRON_SECRET.',
-      'Stripe webhooks require verified stripe-signature headers.',
+      'Stripe webhooks require verified stripe-signature headers and persist tenant entitlements when Firestore is configured.',
+      'Worker queue endpoints require ASSET_FACTORY_WORKER_SECRET and use Firestore leases/retries/DLQ semantics in firestore-queue mode.',
     ],
   });
 }
