@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       rollbackWorkflow: 'contract-only',
       approvals: 'contract-only',
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providers.some((provider) => provider.configured),
+      providerBackedRendering: providers.adapters.some((provider) => provider.configured),
     },
   };
 

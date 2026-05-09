@@ -56,7 +56,7 @@ export async function cloudUpdateJob(jobId: string, patch: GenericRecord) {
   const ref = db.collection(collections.jobs).doc(jobId);
   const doc = await ref.get();
   if (!doc.exists) return null;
-  const updated = stripUndefined({ ...patch, updatedAt: new Date().toISOString() });
+  const updated: GenericRecord = stripUndefined({ ...patch, updatedAt: new Date().toISOString() });
   await ref.set(updated, { merge: true });
   await db.collection(collections.queue).doc(jobId).set(stripUndefined({
     jobId,

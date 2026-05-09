@@ -13,6 +13,12 @@ function assert(condition, message) {
   }
 }
 
+function assertEqual(actual, expected, message) {
+  if (actual !== expected) {
+    throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
 function assertIncludes(content, expected, label) {
   assert(
     content.includes(expected),
@@ -90,12 +96,12 @@ for (const scriptName of requiredPackageScripts) {
   );
 }
 
-assert.equal(packageJson.engines?.node, '>=20.19.0', 'root package.json must require Node >=20.19.0');
-assert.equal(packageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
+assertEqual(packageJson.engines?.node, '>=20.19.0', 'root package.json must require Node >=20.19.0');
+assertEqual(packageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
 
 const studioPackageJson = JSON.parse(studioPackage);
-assert.equal(studioPackageJson.engines?.node, '>=20.19.0', 'assetfactory-studio/package.json must require Node >=20.19.0');
-assert.equal(studioPackageJson.engines?.npm, '>=10.8.0', 'assetfactory-studio/package.json must require npm >=10.8.0');
+assertEqual(studioPackageJson.engines?.node, '>=20.19.0', 'assetfactory-studio/package.json must require Node >=20.19.0');
+assertEqual(studioPackageJson.engines?.npm, '>=10.8.0', 'assetfactory-studio/package.json must require npm >=10.8.0');
 
 const requiredDoctorCapabilities = [
   'MIN_NODE',
