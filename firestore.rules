@@ -1,84 +1,108 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Global Helper Functions ---
-
     function isUserAuthenticated() {
       return request.auth != null;
     }
 
     function isRequestingUser(userId) {
-      return request.auth.uid == userId;
+      return isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    function isNewDoc() {
-      return resource == null;
+    function ownsExistingResource() {
+      return isUserAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
 
-    function isExistingDoc() {
-      return resource != null;
+    function ownsRequestedResource() {
+      return isUserAuthenticated() && request.resource.data.ownerId == request.auth.uid;
     }
 
-    // --- Tenants Collection ---
-    // Controls access to user-specific subscription and billing data.
+    function isPendingJobCreate() {
+      return request.resource.data.status == 'pending'
+        && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function isSyntheticDemoDoc() {
+      return request.resource.data.isSynthetic == true
+        && request.resource.data.demoMode == true
+        && request.resource.data.ownerId == 'synthetic-demo';
+    }
+
     match /tenants/{tenantId} {
-      // Users can read their own tenant document.
-      // Admins (in the future) could also have read access.
-      allow read: if isUserAuthenticated() && isRequestingUser(tenantId);
-
-      // No client-side writes are allowed to prevent tampering with billing status.
+      allow read: if isRequestingUser(tenantId);
       allow write: if false;
     }
 
-    // --- Jobs Collection ---
-    // The core of the asset factory, representing work to be done.
     match /jobs/{jobId} {
-      // Users can read jobs they own.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-
-      // Allow users to create jobs if they are the owner and the data is valid.
-      allow create: if isUserAuthenticated() 
-                      && isRequestingUser(request.resource.data.ownerId)
-                      && request.resource.data.status == 'pending';
-
-      // Jobs are immutable from the client-side once created.
-      // Only the backend can update job status.
+      allow read: if ownsExistingResource();
+      allow create: if ownsRequestedResource() && isPendingJobCreate();
       allow update, delete: if false;
     }
 
-    // --- Usage Ledger Collection ---
-    // Tracks billable events. Critical for revenue integrity.
     match /usage_ledger/{usageId} {
-      // Users can read their own usage records to see their history.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-
-      // Only the backend can write to the usage ledger to prevent fraud.
+      allow read: if ownsExistingResource();
       allow write: if false;
     }
 
-    // --- Dead Jobs Collection ---
-    // Jobs that have failed permanently.
     match /dead_jobs/{jobId} {
-      // Users can see jobs that have failed to allow for support requests.
-      allow read: if isUserAuthenticated() && isRequestingUser(resource.data.ownerId);
-      
-      // No client-side writes.
+      allow read: if ownsExistingResource();
       allow write: if false;
     }
 
-    // --- System Metrics Collection ---
-    // Aggregated operational data. Should not be client-accessible.
+    match /consent_ledger/{entryId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
+    }
+
+    match /consent_snapshots/{snapshotId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
+    }
+
+    match /feature_flags/{flagId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /exports/{exportId} {
+      allow read: if ownsExistingResource();
+      allow create, update, delete: if false;
+    }
+
+    match /delete_requests/{requestId} {
+      allow read: if ownsExistingResource();
+      allow create: if ownsRequestedResource()
+        && request.resource.data.status == 'requested'
+        && request.resource.data.targetUserId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /demo_public/{demoId} {
+      allow read: if resource.data.isSynthetic == true && resource.data.demoMode == true;
+      allow create, update, delete: if false;
+    }
+
+    match /timeline_events/{eventId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
+    match /narrator_reflections/{reflectionId} {
+      allow read: if ownsExistingResource();
+      allow write: if false;
+    }
+
     match /system_metrics/{metricId} {
       allow read, write: if false;
     }
 
-    // --- Billing Audit Collection ---
-    // Reconciliation logs. Should not be client-accessible.
     match /billing_audit/{auditId} {
-        allow read, write: if false;
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
