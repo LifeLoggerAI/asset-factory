@@ -23,6 +23,7 @@
     "audit:root": "npm audit --audit-level=high || true",
     "audit:functions": "npm --prefix life-map-pipeline/functions audit --audit-level=high || true",
     "audit:all": "npm run audit:root && npm run audit:functions",
+    "lockfile:refresh-functions": "node scripts/refresh-functions-lockfile.mjs",
     "deploy:firebase": "firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage",
     "deploy:hosting-rules": "firebase deploy --project urai-4dc1d --only hosting,firestore,storage",
     "deploy:functions": "firebase deploy --project urai-4dc1d --only functions",
