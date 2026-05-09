@@ -63,6 +63,10 @@ function objectPayload(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 }
 
+function cleanFirestoreData<T extends Record<string, unknown>>(data: T): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+}
+
 function newDocId(collection: string): string {
   return db.collection(collection).doc().id;
 }
@@ -150,9 +154,9 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
     };
 
     await db.runTransaction(async (transaction: FirestoreTransaction) => {
-      transaction.set(db.collection('assetFactoryRequests').doc(assetId), asset);
-      transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), queueItem);
-      transaction.set(db.collection('assetManifests').doc(assetId), {
+      transaction.set(db.collection('assetFactoryRequests').doc(assetId), cleanFirestoreData(asset));
+      transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), cleanFirestoreData(queueItem));
+      transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData({
         assetId,
         projectId,
         assetType,
@@ -160,7 +164,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
         storagePath,
         createdAt: timestamp,
         updatedAt: timestamp,
-      });
+      }));
     });
 
     return sendJson(res, 202, { ok: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
@@ -200,7 +204,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
       linkedAssetId: optionalString(body.linkedAssetId),
     };
 
-    await db.collection('lifeMapEvents').doc(eventId).set(event, { merge: false });
+    await db.collection('lifeMapEvents').doc(eventId).set(cleanFirestoreData(event), { merge: false });
     return sendJson(res, 202, { ok: true, eventId, status: 'accepted' });
   } catch (error) {
     console.error('ingestLifeMapEvent failed', error);
@@ -266,7 +270,7 @@ export const processLifeMapEvent = functions.firestore
         lifeMap.status = 'processing';
         lifeMap.contentHash = deterministicHash(lifeMap.chapters);
 
-        transaction.set(lifeMapRef, lifeMap);
+        transaction.set(lifeMapRef, cleanFirestoreData(lifeMap));
         console.log(`[${eventId}] Transaction successfully committed. LifeMap version is now ${lifeMap.version}.`);
       });
 
