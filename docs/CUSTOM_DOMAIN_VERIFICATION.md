@@ -6,10 +6,10 @@ Asset Factory is production verified at:
 https://urai-4dc1d.web.app
 ```
 
-The optional custom domain target is:
+The custom domain target is:
 
 ```text
-https://assetfactory.app
+https://www.uraiassetfactory.com
 ```
 
 This runbook covers the remaining external DNS / Firebase Hosting setup required before Issue #55 can be closed.
@@ -19,7 +19,7 @@ This runbook covers the remaining external DNS / Firebase Hosting setup required
 - Firebase project: `urai-4dc1d`
 - Hosting site: `urai-4dc1d`
 - Production smoke passes on `https://urai-4dc1d.web.app`
-- Access to DNS settings for `assetfactory.app`
+- Access to DNS settings for `uraiassetfactory.com`
 - Access to Firebase Hosting custom domain settings
 
 ## Firebase Hosting Setup
@@ -31,7 +31,7 @@ This runbook covers the remaining external DNS / Firebase Hosting setup required
 5. Add custom domain:
 
 ```text
-assetfactory.app
+www.uraiassetfactory.com
 ```
 
 6. Follow Firebase's ownership verification instructions.
@@ -43,13 +43,13 @@ assetfactory.app
 From a terminal, check resolution:
 
 ```bash
-nslookup assetfactory.app
+nslookup www.uraiassetfactory.com
 ```
 
 Optional HTTPS check:
 
 ```bash
-curl -I https://assetfactory.app
+curl -I https://www.uraiassetfactory.com
 ```
 
 Expected result after DNS and certificate setup:
@@ -70,13 +70,13 @@ npm run deploy:verify-custom-domain
 This uses:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://assetfactory.app ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization
+ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization
 ```
 
 Expected output:
 
 ```text
-Production finalization smoke target: https://assetfactory.app
+Production finalization smoke target: https://www.uraiassetfactory.com
 PASS /api/health
 PASS read-only production finalization smoke
 ```
@@ -86,7 +86,7 @@ PASS read-only production finalization smoke
 Only run full write smoke against the custom domain if you explicitly want to create production smoke records through that domain:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://assetfactory.app npm run smoke:production-finalization
+ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com npm run smoke:production-finalization
 ```
 
 Expected output:
@@ -111,7 +111,7 @@ Expected output:
 
 Issue #55 can close only after:
 
-1. `assetfactory.app` resolves.
+1. `www.uraiassetfactory.com` resolves.
 2. HTTPS certificate is valid.
 3. Firebase Hosting serves the custom domain.
 4. `npm run deploy:verify-custom-domain` passes.
