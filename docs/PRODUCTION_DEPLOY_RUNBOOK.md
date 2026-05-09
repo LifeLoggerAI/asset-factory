@@ -5,6 +5,7 @@ This runbook is the canonical terminal flow for taking Asset Factory from verifi
 ## Current Production Target
 
 - Firebase project: `urai-4dc1d`
+- Hosting site: `urai-4dc1d`
 - Hosting URL: `https://urai-4dc1d.web.app`
 - Firebase config: `firebase.json`
 - Deployed Functions source: `life-map-pipeline/functions`
@@ -39,6 +40,17 @@ Expected result:
 - Engine tests pass.
 - Deploy Functions test/build passes.
 - Launch readiness static checks pass.
+
+## Firebase Auth Gate
+
+If deploy fails with `Authentication Error: Your credentials are no longer valid`, reauthenticate before retrying:
+
+```bash
+firebase login --reauth
+firebase use urai-4dc1d
+```
+
+For a headless CI session, use a repository secret/service account as described in `docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md`.
 
 ## Production Deploy
 
@@ -76,6 +88,27 @@ The smoke test must pass:
 Use this only after Firebase auth and project access are confirmed:
 
 ```bash
+npm run deploy:production
+```
+
+## Current Known Deploy Failure and Fix
+
+Observed failure:
+
+```text
+Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
+Error: Assertion failed: resolving hosting target of a site with no site name or target name.
+```
+
+Repo-side fix applied:
+
+- `firebase.json` now sets the explicit Hosting site: `urai-4dc1d`.
+
+Operator-side fix required:
+
+```bash
+firebase login --reauth
+git pull origin main
 npm run deploy:production
 ```
 
