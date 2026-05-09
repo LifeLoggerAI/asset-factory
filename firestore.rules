@@ -1,104 +1,91 @@
 rules_version = '2';
 
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function signedIn() {
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isUserAuthenticated() {
       return request.auth != null;
     }
 
-    function owns(userId) {
-      return signedIn() && request.auth.uid == userId;
+    function isRequestingUser(userId) {
+      return isUserAuthenticated() && request.auth.uid == userId;
     }
 
-    function ownsExisting() {
-      return signedIn() && resource.data.userId == request.auth.uid;
+    function validUpload(maxBytes) {
+      return request.resource != null
+        && request.resource.size < maxBytes;
     }
 
-    function ownsRequested() {
-      return signedIn() && request.resource.data.userId == request.auth.uid;
+    function isAllowedAssetContentType() {
+      return request.resource != null
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('application/json')
+          || request.resource.contentType.matches('text/.*')
+          || request.resource.contentType.matches('audio/.*')
+          || request.resource.contentType.matches('video/.*')
+        );
     }
 
-    function hasAnonymousSession() {
-      return request.resource.data.anonymousSessionId is string && request.resource.data.anonymousSessionId.size() >= 12;
+    function isAllowedProfileImageContentType() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*');
     }
 
-    match /tenants/{tenantId} {
-      allow read: if owns(tenantId);
+    function isReasonableAssetUpload() {
+      return validUpload(50 * 1024 * 1024)
+        && isAllowedAssetContentType();
+    }
+
+    function isReasonableAnonymousAssetUpload() {
+      return validUpload(25 * 1024 * 1024)
+        && isAllowedAssetContentType();
+    }
+
+    function isReasonableProfileImageUpload() {
+      return validUpload(5 * 1024 * 1024)
+        && isAllowedProfileImageContentType();
+    }
+
+    match /assets/{ownerId}/{assetOrJobId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
+      allow write: if isRequestingUser(ownerId)
+        && isReasonableAssetUpload();
+    }
+
+    match /exports/{ownerId}/{exportId}/{filePath=**} {
+      allow read: if isRequestingUser(ownerId);
       allow write: if false;
     }
 
-    match /jobs/{jobId} {
-      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.status == 'pending';
-      allow update, delete: if false;
-    }
-
-    match /assetFactoryRequests/{assetId} {
-      allow read: if ownsExisting() || (resource.data.publicUrl is string && resource.data.lifecycleState == 'published');
-      allow create: if ownsRequested()
-        && request.resource.data.assetId == assetId
-        && request.resource.data.status in ['requested', 'queued']
-        && request.resource.data.lifecycleState in ['requested', 'queued'];
-      allow update, delete: if false;
-    }
-
-    match /assetFactoryQueue/{queueId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-
-    match /assetManifests/{assetId} {
+    match /synthetic-demo/{demoId}/{filePath=**} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /publicAssets/{assetId} {
+    match /anonymousAssets/{sessionId}/{assetId}/{filePath=**} {
+      allow read: if false;
+      allow write: if sessionId.size() >= 12
+        && isReasonableAnonymousAssetUpload();
+    }
+
+    match /publicAssets/{assetId}/{filePath=**} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /anonymousAssetRequests/{assetId} {
-      allow create: if hasAnonymousSession()
-        && request.resource.data.assetId == assetId
-        && request.resource.data.status in ['requested', 'queued'];
-      allow read, update, delete: if false;
+    match /user_profiles/{userId}/profile_picture.jpg {
+      allow read: if true;
+      allow write: if isRequestingUser(userId)
+        && isReasonableProfileImageUpload();
     }
 
-    match /lifeMapEvents/{eventId} {
-      allow read: if ownsExisting();
-      allow create: if ownsRequested() && request.resource.data.eventId == eventId;
-      allow update, delete: if false;
+    match /user_profiles/{userId}/{filePath=**} {
+      allow read: if isRequestingUser(userId);
+      allow write: if isRequestingUser(userId)
+        && isReasonableProfileImageUpload();
     }
 
-    match /lifeMaps/{userId} {
-      allow read: if owns(userId);
-      allow write: if false;
-    }
-
-    match /systemStatus/{statusId} {
-      allow read: if statusId == 'asset-factory';
-      allow write: if false;
-    }
-
-    match /usage_ledger/{usageId} {
-      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
-      allow write: if false;
-    }
-
-    match /dead_jobs/{jobId} {
-      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
-      allow write: if false;
-    }
-
-    match /system_metrics/{metricId} {
-      allow read, write: if false;
-    }
-
-    match /billing_audit/{auditId} {
-      allow read, write: if false;
-    }
-
-    match /{document=**} {
+    match /{allPaths=**} {
       allow read, write: if false;
     }
   }
