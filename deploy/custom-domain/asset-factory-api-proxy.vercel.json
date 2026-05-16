@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://urai-4dc1d.web.app/api/:path*"
+    }
+  ]
+}
