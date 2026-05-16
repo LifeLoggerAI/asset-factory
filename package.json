@@ -21,6 +21,7 @@
     "verify:production": "npm run verify:local && npm run deploy:verify",
     "test:launch-readiness": "node scripts/test-launch-readiness.mjs",
     "test:completion-lock": "node scripts/check-completion-lock.mjs",
+    "check:deploy-workflow": "node scripts/check-deploy-workflow.mjs",
     "audit:root": "test -f package-lock.json && npm audit --audit-level=high || echo 'Skipping root audit: package-lock.json is not committed yet. Run npm install --package-lock-only to enable root audit.'",
     "audit:functions": "npm --prefix life-map-pipeline/functions audit --audit-level=high || true",
     "audit:all": "npm run audit:root && npm run audit:functions",
