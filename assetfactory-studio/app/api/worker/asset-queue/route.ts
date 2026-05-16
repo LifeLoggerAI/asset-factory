@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { materializeAsset, recordUsage, updateJob } from '@/lib/server/assetFactoryStore';
 import {
@@ -15,6 +16,12 @@ function providedBearer(req: NextRequest) {
   return req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '';
 }
 
+function safeEquals(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function requireWorkerSecret(req: NextRequest) {
   const expected = process.env.ASSET_FACTORY_WORKER_SECRET;
   if (!expected) {
@@ -22,7 +29,7 @@ function requireWorkerSecret(req: NextRequest) {
   }
 
   const provided = req.headers.get('x-asset-worker-secret') ?? providedBearer(req);
-  if (provided !== expected) {
+  if (!provided || !safeEquals(provided, expected)) {
     return NextResponse.json({ error: 'Unauthorized worker request' }, { status: 401 });
   }
 
