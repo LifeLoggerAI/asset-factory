@@ -1,6 +1,6 @@
 import type { GenerateRequest } from './assetFactoryValidation';
 import type { AssetTypeDefinition } from './assetTypeCatalog';
-import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';
+import { configuredProviderName, evaluateProviderReadiness, type AssetProviderName } from './assetProviderAdapters';
 
 type ProviderRenderResult = {
   assetBuffer: Buffer;
@@ -19,6 +19,13 @@ function env(name: string) {
   return stringValue(process.env[name]);
 }
 
+async function readResponsePayload(response: Response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  return contentType.includes('application/json')
+    ? await response.json()
+    : await response.text();
+}
+
 async function postJson(url: string, headers: Record<string, string>, body: JsonRecord) {
   const response = await fetch(url, {
     method: 'POST',
@@ -29,15 +36,24 @@ async function postJson(url: string, headers: Record<string, string>, body: Json
     body: JSON.stringify(body),
   });
 
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text();
+  const payload = await readResponsePayload(response);
 
   if (!response.ok) {
     throw new Error(`Provider request failed ${response.status}: ${typeof payload === 'string' ? payload : JSON.stringify(payload)}`);
   }
 
+  return payload as JsonRecord;
+}
+
+async function getJson(url: string, headers: Record<string, string>) {
+  const response = await fetch(url, { method: 'GET', headers });
+  const payload = await readResponsePayload(response);
+  if (!response.ok) {
+    throw new Error(`Provider status request failed ${response.status}: ${typeof payload === 'string' ? payload : JSON.stringify(payload)}`);
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Provider status response was not JSON object');
+  }
   return payload as JsonRecord;
 }
 
@@ -197,9 +213,10 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
       : env('ASSET_FACTORY_GRAPHICS_MODEL');
   if (!apiKey || !version) return null;
 
+  const authHeaders = { authorization: `Token ${apiKey}` };
   const prediction = await postJson(
     'https://api.replicate.com/v1/predictions',
-    { authorization: `Token ${apiKey}` },
+    authHeaders,
     { version, input: { prompt: input.prompt } }
   );
 
@@ -210,9 +227,10 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     if (status === 'succeeded') break;
     if (status === 'failed' || status === 'canceled') throw new Error(`Replicate prediction ${status}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    current = await postJson(getUrl, { authorization: `Token ${apiKey}` }, {});
+    current = await getJson(getUrl, authHeaders);
   }
 
+  if (stringValue(current.status) !== 'succeeded') throw new Error('Replicate prediction timed out before succeeding');
   const outputUrl = firstUrl(current.output);
   if (!outputUrl) throw new Error('Replicate prediction did not return a downloadable output URL');
   const binary = await fetchBinary(outputUrl);
@@ -253,6 +271,9 @@ export async function renderWithConfiguredProvider(
   input: GenerateRequest,
   definition: AssetTypeDefinition
 ): Promise<ProviderRenderResult | null> {
+  const readiness = evaluateProviderReadiness(definition.canonicalType);
+  if (!readiness.ok) throw new Error(readiness.error ?? 'Configured provider is not ready');
+
   const provider = configuredProviderName();
   if (provider === 'local-proof') return null;
 
