@@ -4,17 +4,17 @@
 - Firebase project: urai-4dc1d
 - Production API base: https://urai-4dc1d.web.app
 - Branch: main
-- Commit SHA: 8b83cf7e4d9317e476ba78faf1e4ae3a9abec684
-- Date/time: 2026-05-16T18:34:42Z
+- Commit SHA: 979ec4c97b7c4459eb27a42d9d2848a8dc2e1dd6
+- Date/time: 2026-05-16T18:41:53Z
 
 ## Smoke result
 
 | Check | Result | Evidence |
 | --- | --- | --- |
 | Health | pass | PASS /api/health |
-| Asset request | pass | PASS /api/assets assetId=VZ8KyeU8nuQQonM1xm9Z queueId=kpAHbM3UcwVxODOhd8pe |
+| Asset request | pass | PASS /api/assets assetId=TRzZX4W5FwSdlJZc7ItC queueId=DP9tXDUvIPs7KKFcSAn7 |
 | Asset status | pass | PASS /api/assets/{assetId} |
-| LifeMap event ingestion | pass | PASS /api/lifemap/events eventId=7HDdDvmuCz3dTLEg3NUU |
+| LifeMap event ingestion | pass | PASS /api/lifemap/events eventId=mWpbtHR8DB58X2IBkQRG |
 | Production finalization smoke | pass | PASS production finalization smoke |
 
 ## Decision
