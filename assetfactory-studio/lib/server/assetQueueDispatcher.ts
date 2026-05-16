@@ -97,7 +97,12 @@ export async function dispatchAssetJob(jobId: string, payload: GenericRecord = {
 function isClaimable(item: GenericRecord, now = nowIso()) {
   const status = String(item.status ?? item.queueStatus ?? 'queued');
   const leaseExpiresAt = typeof item.leaseExpiresAt === 'string' ? item.leaseExpiresAt : '';
-  return status === 'queued' || status === 'retrying' || (status === 'claimed' && leaseExpiresAt <= now);
+  const retryAfter = typeof item.retryAfter === 'string' ? item.retryAfter : '';
+
+  if (status === 'queued') return true;
+  if (status === 'retrying') return !retryAfter || retryAfter <= now;
+  if (status === 'claimed') return Boolean(leaseExpiresAt) && leaseExpiresAt <= now;
+  return false;
 }
 
 export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
@@ -129,6 +134,9 @@ export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
           queueStatus: 'dead-lettered',
           attempts,
           maxAttempts,
+          leaseId: null,
+          workerId: null,
+          leaseExpiresAt: null,
           deadLetteredAt: now,
           failureReason: item.failureReason ?? 'maximum attempts exceeded before claim',
           updatedAt: now,
@@ -146,6 +154,7 @@ export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
         claimedAt: now,
         heartbeatAt: now,
         leaseExpiresAt,
+        retryAfter: null,
         updatedAt: now,
       });
 
@@ -192,6 +201,10 @@ export async function completeAssetQueueJob(jobId: string, leaseId: string, patc
       queueStatus: 'completed',
       completedAt: now,
       leaseCompletedAt: now,
+      leaseId: null,
+      workerId: null,
+      leaseExpiresAt: null,
+      retryAfter: null,
       updatedAt: now,
     });
     transaction.set(ref, update, { merge: true });
@@ -219,9 +232,13 @@ export async function failAssetQueueJob(jobId: string, leaseId: string, reason: 
       queueStatus: status,
       failureReason: reason,
       lastFailedAt: now,
+      leaseId: null,
+      workerId: null,
+      leaseExpiresAt: null,
+      heartbeatAt: null,
       updatedAt: now,
-      retryAfter: shouldRetry ? futureIso(Math.min(60 * attempts, 300)) : undefined,
-      deadLetteredAt: shouldRetry ? undefined : now,
+      retryAfter: shouldRetry ? futureIso(Math.min(60 * Math.max(attempts, 1), 300)) : null,
+      deadLetteredAt: shouldRetry ? null : now,
     });
 
     transaction.set(ref, update, { merge: true });
@@ -238,5 +255,7 @@ export function getQueueDiagnostics() {
     leaseSeconds: queueLeaseSeconds(),
     maxAttempts: queueMaxAttempts(),
     durableLeasesSupported: true,
+    retryBackoffSupported: true,
+    deadLetterSupported: true,
   };
 }
