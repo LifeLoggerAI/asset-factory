@@ -34,7 +34,7 @@ The lock owner must verify evidence before changing `Status` to `LOCKED`:
 | Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging. | Pending |
 | Auth gate | JWT/API-key auth enabled, issuer/JWKS/audience checked, tenant and role claims enforced. | Pending |
 | Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files. | Pending |
-| Generation gate | Local-proof smoke and real provider smoke pass for launch asset types. | Pending |
+| Provider generation gate | Local-proof smoke and real provider smoke pass for launch asset types. | Pending |
 | Worker gate | Durable queue/worker path uses leases, retries, idempotency, DLQ, cleanup/retention. | Pending |
 | Billing gate | Stripe webhook verifies signatures and persists idempotent tenant entitlements. | Pending |
 | Diagnostics gate | Public health/manifest are redacted; full diagnostics require API key. | Pending |
