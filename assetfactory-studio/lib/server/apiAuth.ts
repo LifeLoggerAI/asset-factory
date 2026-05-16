@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 
 function apiKeyRequired() {
   return process.env.ASSET_FACTORY_REQUIRE_API_KEY === 'true';
 }
 
+function safeEquals(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function providedAssetFactoryKey(req: NextRequest) {
-  return req.headers.get('x-asset-factory-key') ?? req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  return (
+    req.headers.get('x-asset-factory-api-key') ??
+    req.headers.get('x-asset-factory-key') ??
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+  );
 }
 
 export function requireConfiguredAssetFactoryApiKey(req: NextRequest) {
@@ -20,7 +31,8 @@ export function requireConfiguredAssetFactoryApiKey(req: NextRequest) {
     );
   }
 
-  if (providedAssetFactoryKey(req) !== configuredKey) {
+  const providedKey = providedAssetFactoryKey(req);
+  if (!providedKey || !safeEquals(providedKey, configuredKey)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
