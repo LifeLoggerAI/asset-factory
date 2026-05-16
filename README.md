@@ -17,6 +17,16 @@ Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass i
 
 Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
 
+### Current verified production surface
+
+- Verified Firebase production API base: `https://urai-4dc1d.web.app`
+- Verified production smoke evidence: `docs/release-evidence/2026-05-16-production-api-smoke.md`
+- Verified Firebase deploy evidence: `docs/release-evidence/2026-05-16-firebase-deploy.md`
+- Verified final local gate evidence: `docs/release-evidence/2026-05-16-final-local-gates.md`
+- Known custom-domain API blocker: `docs/release-evidence/2026-05-16-custom-domain-blocker.md`
+
+Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as the API base until the custom-domain blocker is closed. Those domains currently do not prove the Firebase Hosting API rewrites for this repo.
+
 ## Repo structure
 - `engine/`: sealed headless V1 engine API/runtime.
 - `functions/`: Firebase Cloud Functions (legacy/root deployment set).
@@ -124,6 +134,8 @@ The doctor checks Node/npm versions, `NPM_CONFIG_PREFIX`, required scripts, requ
 ```bash
 npm run doctor
 npm run test:launch-readiness
+npm run test:completion-lock
+npm run check:deploy-workflow
 npm --prefix engine test
 npm --prefix assetfactory-studio run lint
 npm --prefix assetfactory-studio run typecheck
@@ -159,20 +171,43 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
+Verified Firebase production API smoke uses the Firebase Hosting URL until the custom-domain blocker closes:
+
 ```bash
-ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
+ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
 CRON_SECRET=$PROD_CRON_SECRET \
 npm run smoke:prod
 ```
 
-For read-only diagnostics checks:
+Use the custom domain only after DNS/Firebase Hosting attachment is verified:
+
+```bash
+ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
+ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
+ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
+ASSET_FACTORY_TENANT_ID=prod-smoke \
+ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
+CRON_SECRET=$PROD_CRON_SECRET \
+npm run smoke:prod
+```
+
+For read-only diagnostics checks on the verified Firebase URL:
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+npm run smoke:website
+```
+
+For read-only diagnostics checks on the custom domain after the blocker closes:
+
+```bash
+ASSET_FACTORY_SMOKE_READONLY=true \
+ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
 npm run smoke:website
 ```
 
@@ -192,6 +227,11 @@ Before using real provider-backed rendering in production:
 ## Deploy notes
 - Firebase Functions deploy from target package:
   - `cd life-map-pipeline/functions && npm run deploy`
+- Root Firebase deploy and verification scripts:
+  - `npm run deploy:firebase`
+  - `npm run deploy:verify-readonly`
+  - `npm run deploy:verify`
+  - `npm run check:deploy-workflow`
 - Ensure project, service account, and env are configured before deploy.
 
 ## Troubleshooting
@@ -202,3 +242,4 @@ Before using real provider-backed rendering in production:
 - If Firebase build fails, verify Node version and `firebase-tools` auth/project selection.
 - If Studio E2E fails to boot, verify Node 20.19.0+, dependencies, and no conflicting process on port 3000.
 - If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
+- If `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
