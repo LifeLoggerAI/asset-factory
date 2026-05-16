@@ -8,6 +8,26 @@ Asset Factory is not live until staging and production smoke tests pass and the 
 
 Local proof mode is useful for development. It is not proof of production readiness.
 
+## Current verified production status
+
+As of the latest release evidence, the Firebase default production API is verified at:
+
+```text
+https://urai-4dc1d.web.app
+```
+
+Evidence files:
+
+- `docs/release-evidence/2026-05-16-firebase-deploy.md`
+- `docs/release-evidence/2026-05-16-production-api-smoke.md`
+- `docs/release-evidence/2026-05-16-final-local-gates.md`
+
+Known custom-domain blocker:
+
+- `docs/release-evidence/2026-05-16-custom-domain-blocker.md`
+
+Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as API smoke bases until the custom-domain blocker is closed. If `/api/health` on the custom domain returns a Next.js 404, the domain is still routed to a separate frontend target and is not using this repo's Firebase Hosting API rewrites.
+
 ## Runtime surfaces
 
 Primary package: `assetfactory-studio/`.
@@ -91,7 +111,11 @@ npm --prefix engine install
 npm --prefix functions install
 npm --prefix life-map-pipeline/functions install
 npm --prefix assetfactory-studio install
+npm run doctor
+npm run verify:local
 npm run test:launch-readiness
+npm run test:completion-lock
+npm run check:deploy-workflow
 npm --prefix assetfactory-studio run check
 npm --prefix assetfactory-studio run e2e
 npm test
@@ -189,19 +213,36 @@ npm run smoke:staging
 4. Confirm Stripe live webhook endpoint and secret are active.
 5. Confirm public docs do not claim unsupported capabilities.
 6. Deploy production.
-7. Verify DNS/TLS for `www.uraiassetfactory.com`.
-8. Run read-only smoke.
+7. Run read-only smoke against the currently verified Firebase production API base.
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
-9. Run authenticated production smoke.
+8. Run authenticated production smoke against the currently verified Firebase production API base.
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
+ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
+ASSET_FACTORY_TENANT_ID=prod-smoke \
+ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
+CRON_SECRET=$PROD_CRON_SECRET \
+npm run smoke:prod
+```
+
+9. Verify DNS/TLS and API routing for `uraiassetfactory.com` and `www.uraiassetfactory.com` before declaring the custom domain ready.
+
+```bash
+ASSET_FACTORY_SMOKE_READONLY=true \
+ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
+npm run smoke:website
+```
+
+```bash
+ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
@@ -212,6 +253,19 @@ npm run smoke:prod
 
 10. Check logs, queue backlog, dead letters, provider failures, and spend.
 11. Attach production smoke evidence to the release issue.
+
+## Custom-domain API blocker closure
+
+The custom-domain blocker is closed only when all of these are true:
+
+- `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
+- `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
+- `https://uraiassetfactory.com/api/health` returns the expected Asset Factory health response, not a Next.js 404 page.
+- read-only smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
+- authenticated smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
+- new custom-domain evidence is committed under `docs/release-evidence/`.
+
+Do not update the completion lock to `LOCKED` until this blocker and the remaining `LAUNCH_READINESS.md` P0 gates are closed with evidence.
 
 ## Smoke pass criteria
 
@@ -287,7 +341,11 @@ Deployed by:
 Date/time UTC:
 
 ### Local gates
+- [ ] npm run doctor
+- [ ] npm run verify:local
 - [ ] npm run test:launch-readiness
+- [ ] npm run test:completion-lock
+- [ ] npm run check:deploy-workflow
 - [ ] npm --prefix assetfactory-studio run check
 - [ ] npm --prefix assetfactory-studio run e2e
 - [ ] npm test
@@ -305,9 +363,11 @@ Date/time UTC:
 - [ ] Admin queue visibility checked
 
 ### Production gates
-- [ ] DNS/TLS verified
-- [ ] Read-only smoke passed
-- [ ] Authenticated production smoke passed
+- [ ] Firebase default API read-only smoke passed
+- [ ] Firebase default API authenticated smoke passed
+- [ ] Custom domain DNS/TLS verified
+- [ ] Custom domain read-only smoke passed
+- [ ] Custom domain authenticated smoke passed
 - [ ] Admin queue visibility checked
 - [ ] Observability checked
 - [ ] Provider spend caps confirmed
@@ -321,7 +381,7 @@ Go/no-go decision:
 ## Remaining operational gaps
 
 - Live staging secrets and deploy evidence.
-- Live production secrets and deploy evidence.
+- Custom-domain API routing evidence for `uraiassetfactory.com` and `www.uraiassetfactory.com`.
 - Real provider-backed generation smoke.
 - Operator UI for failed and dead-lettered jobs.
 - Account deletion/export/support workflows.
