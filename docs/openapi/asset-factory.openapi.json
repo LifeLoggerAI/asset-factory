@@ -1,0 +1,306 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Asset Factory API",
+    "version": "asset-factory-api-v1",
+    "description": "Canonical HTTP contract for Asset Factory Firebase API, Life Map ingestion, and Core integration."
+  },
+  "servers": [
+    { "url": "https://urai-4dc1d.web.app", "description": "Production-smoked Firebase API slice" },
+    { "url": "https://staging.uraiassetfactory.com", "description": "Staging target" },
+    { "url": "https://www.uraiassetfactory.com", "description": "Production public-domain target" }
+  ],
+  "security": [
+    { "bearerAuth": [], "apiKeyAuth": [] }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Return public redacted service health.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Redacted health status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/assets": {
+      "post": {
+        "operationId": "createAssetRequest",
+        "summary": "Create or accept a tenant-scoped asset request.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/RequestId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateAssetRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted and queued.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreateAssetResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/assets/{assetId}": {
+      "get": {
+        "operationId": "getAssetStatus",
+        "summary": "Return tenant-scoped asset status.",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          },
+          { "$ref": "#/components/parameters/RequestId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetAssetStatusResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/TenantForbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/lifemap/events": {
+      "post": {
+        "operationId": "ingestLifeMapEvent",
+        "summary": "Accept a symbolic Life Map event and optional linked asset ID.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/RequestId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LifeMapEventRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Event accepted.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LifeMapEventResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-asset-factory-api-key"
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "minLength": 8 }
+      },
+      "RequestId": {
+        "name": "x-request-id",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "minLength": 1 }
+      }
+    },
+    "schemas": {
+      "LifecycleState": {
+        "type": "string",
+        "enum": ["requested", "queued", "processing", "rendered", "stored", "published", "failed", "archived"]
+      },
+      "AssetType": {
+        "type": "string",
+        "enum": ["graphic", "model3d", "audio", "bundle"]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["ok", "status", "service", "version", "updatedAt", "checks"],
+        "properties": {
+          "ok": { "const": true },
+          "status": { "type": "string", "enum": ["healthy", "degraded"] },
+          "service": { "const": "asset-factory" },
+          "version": { "type": "string" },
+          "updatedAt": { "type": "number" },
+          "checks": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": true
+      },
+      "CreateAssetRequest": {
+        "type": "object",
+        "required": ["projectId", "assetType"],
+        "properties": {
+          "projectId": { "type": "string", "minLength": 1 },
+          "assetType": { "$ref": "#/components/schemas/AssetType" },
+          "format": { "type": "string", "minLength": 1 },
+          "prompt": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" }, "maxItems": 50 },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "number" } },
+          "source": { "type": "string" },
+          "linkedLifeMapEventId": { "type": "string" },
+          "assetId": { "type": "string" },
+          "userId": { "type": "string", "description": "Local-proof compatibility only. Production identity must come from auth." },
+          "anonymousSessionId": { "type": "string", "description": "Local-proof compatibility only. Production identity must come from auth." }
+        },
+        "additionalProperties": false
+      },
+      "CreateAssetResponse": {
+        "type": "object",
+        "required": ["ok", "assetId", "queueId", "status", "storagePath"],
+        "properties": {
+          "ok": { "const": true },
+          "assetId": { "type": "string" },
+          "queueId": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/LifecycleState" },
+          "storagePath": { "type": "string" },
+          "requestId": { "type": "string" },
+          "degraded": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "AssetRecord": {
+        "type": "object",
+        "required": ["assetId", "projectId", "assetType", "format", "status", "lifecycleState", "storagePath", "createdAt", "updatedAt", "version"],
+        "properties": {
+          "assetId": { "type": "string" },
+          "tenantId": { "type": "string" },
+          "userId": { "type": "string" },
+          "anonymousSessionId": { "type": "string" },
+          "projectId": { "type": "string" },
+          "assetType": { "$ref": "#/components/schemas/AssetType" },
+          "format": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/LifecycleState" },
+          "lifecycleState": { "$ref": "#/components/schemas/LifecycleState" },
+          "storagePath": { "type": "string" },
+          "prompt": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "dimensions": { "type": "object", "additionalProperties": { "type": "number" } },
+          "createdAt": { "type": "number" },
+          "updatedAt": { "type": "number" },
+          "version": { "type": "string" }
+        },
+        "additionalProperties": true
+      },
+      "GetAssetStatusResponse": {
+        "type": "object",
+        "required": ["ok", "asset"],
+        "properties": {
+          "ok": { "const": true },
+          "asset": { "$ref": "#/components/schemas/AssetRecord" },
+          "requestId": { "type": "string" },
+          "degraded": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "LifeMapEventRequest": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "eventId": { "type": "string" },
+          "type": { "type": "string", "minLength": 1 },
+          "timestamp": { "type": "number" },
+          "source": { "type": "string" },
+          "linkedAssetId": { "type": "string" },
+          "payload": { "type": "object", "additionalProperties": true },
+          "userId": { "type": "string", "description": "Local-proof compatibility only. Production identity must come from auth." }
+        },
+        "additionalProperties": false
+      },
+      "LifeMapEventResponse": {
+        "type": "object",
+        "required": ["ok", "eventId", "status"],
+        "properties": {
+          "ok": { "const": true },
+          "eventId": { "type": "string" },
+          "status": { "type": "string", "enum": ["accepted"] },
+          "requestId": { "type": "string" },
+          "degraded": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["ok", "error"],
+        "properties": {
+          "ok": { "const": false },
+          "error": {
+            "type": "object",
+            "required": ["code", "message", "retryable"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["BAD_REQUEST", "UNAUTHENTICATED", "FORBIDDEN", "TENANT_FORBIDDEN", "NOT_FOUND", "CONFLICT", "RATE_LIMITED", "QUOTA_EXCEEDED", "PROVIDER_UNAVAILABLE", "QUEUE_UNAVAILABLE", "METHOD_NOT_ALLOWED", "INTERNAL"]
+              },
+              "message": { "type": "string" },
+              "requestId": { "type": "string" },
+              "retryable": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "BadRequest": { "description": "Bad request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "Unauthenticated": { "description": "Missing or invalid authentication.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "Forbidden": { "description": "Authenticated but not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "TenantForbidden": { "description": "Cross-tenant access denied.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "NotFound": { "description": "Resource not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "Conflict": { "description": "Idempotency or state conflict.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "RateLimited": { "description": "Rate limited.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } },
+      "MethodNotAllowed": { "description": "Method not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+    }
+  }
+}
