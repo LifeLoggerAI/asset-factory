@@ -1,32 +1,51 @@
-# Asset Factory Custom Domain Blocker
+# Asset Factory Custom Domain Blocker - 2026-05-16
 
-- Environment: production
-- Firebase project: urai-4dc1d
-- Working Firebase URL: https://urai-4dc1d.web.app
-- Intended custom domain: https://uraiassetfactory.com
-- Date/time: 2026-05-16T18:33:12Z
+## Status
 
-## Result
+Asset Factory is live and healthy on Firebase default hosting, but the canonical custom domain is not correctly routing /api/*.
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Firebase default API health | pass | https://urai-4dc1d.web.app/api/health passed smoke |
-| Custom domain API health | fail | https://uraiassetfactory.com/api/health returned Next.js 404 |
-| www custom domain API health | fail | https://www.uraiassetfactory.com/api/health returned ECONNRESET |
-| Firebase site attachment | fail | firebase hosting site urai-4dc1d has no listed custom domain |
+## Verified working
 
-## Diagnosis
+- Firebase default hosting: https://urai-4dc1d.web.app
+- Firebase default API health: https://urai-4dc1d.web.app/api/health
+- Result: PASS
 
-The Asset Factory Firebase hosting site is live at https://urai-4dc1d.web.app, but uraiassetfactory.com is routed to a separate Next.js deployment target and does not use the Firebase Hosting rewrites in this repo.
+## Verified blocker
+
+- Custom domain: https://uraiassetfactory.com
+- Custom domain API health: https://uraiassetfactory.com/api/health
+- Result: FAIL
+- Failure mode: Next.js 404
+- Evidence: response includes x-powered-by: Next.js and 404: This page could not be found
+
+## Conclusion
+
+The app code and Firebase default hosting are not the current blocker. The remaining production blocker is domain routing.
 
 ## Required fix
 
-Attach uraiassetfactory.com to the Firebase Hosting site urai-4dc1d or update DNS/provider routing so /api/* reaches the Firebase Hosting site with Asset Factory rewrites.
+Choose one:
 
-## Decision
+### Option A - Firebase owns the domain
 
-- [x] Firebase default production URL live
-- [x] Firebase default API smoke accepted
-- [ ] Custom domain API smoke accepted
-- [ ] www custom domain smoke accepted
-- [ ] Completion lock can be changed to LOCKED
+Attach uraiassetfactory.com and www.uraiassetfactory.com to Firebase Hosting site urai-4dc1d, then update DNS to the Firebase-provided records.
+
+### Option B - Current domain host keeps the domain
+
+Add a rewrite/proxy on the host currently serving uraiassetfactory.com:
+
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://urai-4dc1d.web.app/api/:path*"
+    }
+  ]
+}
+
+## Final verification command
+
+After domain routing is fixed:
+
+curl -fsS https://uraiassetfactory.com/api/health
+ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com npm run finish:custom-domain
