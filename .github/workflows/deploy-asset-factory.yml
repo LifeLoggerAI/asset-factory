@@ -25,12 +25,21 @@ on:
           - both
         default: readonly
 
+concurrency:
+  group: asset-factory-${{ inputs.environment }}-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy-and-smoke:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      ASSET_FACTORY_FORCE_LOCAL: 'false'
+      ASSET_FACTORY_REQUIRE_API_KEY: 'true'
+      ASSET_FACTORY_REQUIRE_AUTH: 'true'
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'
@@ -49,6 +58,49 @@ jobs:
           npm run test:launch-readiness
           npm run test:completion-lock
           npm run verify:local
+          node scripts/check-deploy-workflow.mjs
+
+      - name: Resolve deployment target
+        id: target
+        shell: bash
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "base_url=https://www.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
+            echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
+            echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_url=https://staging.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
+            echo "tenant_id=smoke-tenant-a" >> "$GITHUB_OUTPUT"
+            echo "other_tenant_id=smoke-tenant-b" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
+          ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          missing=0
+
+          if [ "${{ inputs.deploy }}" = "true" ] && [ -z "$FIREBASE_TOKEN" ]; then
+            echo "Missing required deploy secret: FIREBASE_TOKEN"
+            missing=1
+          fi
+
+          if [ "${{ inputs.smoke_mode }}" = "authenticated" ] || [ "${{ inputs.smoke_mode }}" = "both" ]; then
+            for name in ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN CRON_SECRET; do
+              if [ -z "${!name}" ]; then
+                echo "Missing required authenticated smoke secret: $name"
+                missing=1
+              fi
+            done
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
 
       - name: Install Firebase CLI
         if: ${{ inputs.deploy }}
@@ -64,21 +116,58 @@ jobs:
         if: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
         env:
           ASSET_FACTORY_SMOKE_READONLY: 'true'
-          ASSET_FACTORY_BASE_URL: ${{ inputs.environment == 'production' && 'https://www.uraiassetfactory.com' || 'https://staging.uraiassetfactory.com' }}
+          ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
         run: npm run smoke:website
 
       - name: Authenticated smoke
         if: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
         env:
-          ASSET_FACTORY_BASE_URL: ${{ inputs.environment == 'production' && 'https://www.uraiassetfactory.com' || 'https://staging.uraiassetfactory.com' }}
+          ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
           ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
           ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          ASSET_FACTORY_TENANT_ID: smoke-tenant-a
-          ASSET_FACTORY_OTHER_TENANT_ID: smoke-tenant-b
+          ASSET_FACTORY_TENANT_ID: ${{ steps.target.outputs.tenant_id }}
+          ASSET_FACTORY_OTHER_TENANT_ID: ${{ steps.target.outputs.other_tenant_id }}
         run: |
           if [ "${{ inputs.environment }}" = "production" ]; then
             npm run smoke:prod
           else
             npm run smoke:staging
           fi
+
+      - name: Write release evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p release-evidence
+          cat > "release-evidence/asset-factory-${{ inputs.environment }}-${GITHUB_RUN_ID}.md" <<EOF
+          # Asset Factory ${{ inputs.environment }} deployment evidence
+
+          - Repository: ${GITHUB_REPOSITORY}
+          - Commit: ${GITHUB_SHA}
+          - Workflow run: ${GITHUB_RUN_ID}
+          - Environment: ${{ inputs.environment }}
+          - Base URL: ${{ steps.target.outputs.base_url }}
+          - Deploy requested: ${{ inputs.deploy }}
+          - Smoke mode: ${{ inputs.smoke_mode }}
+          - Local fallback disabled: true
+          - Auth required: true
+          - API key required: true
+
+          ## Gate status
+
+          - Launch gates ran before deploy/smoke.
+          - Read-only smoke requested: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
+          - Authenticated smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
+
+          ## Required follow-up
+
+          Attach this artifact to the release issue and only update the completion lock after staging and production evidence pass.
+          EOF
+
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-${{ inputs.environment }}-evidence-${{ github.run_id }}
+          path: release-evidence/*.md
