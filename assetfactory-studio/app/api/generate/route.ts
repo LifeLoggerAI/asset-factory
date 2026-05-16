@@ -13,6 +13,7 @@ import { evaluateGenerationPolicy } from '@/lib/server/assetGenerationPolicy';
 import { evaluateTenantQuota } from '@/lib/server/assetBilling';
 import { resolveAssetType } from '@/lib/server/assetTypeCatalog';
 import { authorizeAssetRequest } from '@/lib/server/assetAuth';
+import { evaluateProviderReadiness } from '@/lib/server/assetProviderAdapters';
 
 export async function GET(req: NextRequest) {
   const auth = authorizeAssetRequest(req);
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
     }
 
     const definition = resolveAssetType(request.type);
+    const providerReadiness = evaluateProviderReadiness(definition.canonicalType);
+    if (!providerReadiness.ok) {
+      return NextResponse.json({ error: providerReadiness.error, providerReadiness }, { status: 503 });
+    }
 
     const job = {
       ...request,
@@ -81,6 +86,8 @@ export async function POST(req: NextRequest) {
       estimatedUnits: policy.estimatedUnits,
       estimatedCostCents: policy.estimatedCostCents,
       quotaSnapshot: quota,
+      providerReadiness,
+      mediaProvider: providerReadiness.provider,
       createdAt: new Date().toISOString(),
     };
 
@@ -99,6 +106,7 @@ export async function POST(req: NextRequest) {
         estimatedUnits: job.estimatedUnits,
         estimatedCostCents: job.estimatedCostCents,
         quota,
+        providerReadiness,
         persistenceMode: diagnostics.mode,
         fallbackActive: diagnostics.fallbackActive,
       },
