@@ -19,6 +19,7 @@
     "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
     "verify:local": "npm run build && npm test --if-present && npm run test:launch-readiness --if-present && npm run test:completion-lock --if-present",
     "verify:production": "npm run verify:local && npm run deploy:verify",
+    "verify:launch": "node scripts/verify-asset-factory-launch.mjs",
     "test:launch-readiness": "node scripts/test-launch-readiness.mjs",
     "test:completion-lock": "node scripts/check-completion-lock.mjs",
     "check:deploy-workflow": "node scripts/check-deploy-workflow.mjs",
