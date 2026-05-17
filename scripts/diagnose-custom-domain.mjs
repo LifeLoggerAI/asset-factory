@@ -126,8 +126,9 @@ async function diagnoseTarget(target) {
   });
 
   printSection(`HTTPS health ${target}`);
+  let response;
   const health = await safeStep(`GET https://${target}${healthPath}`, async () => {
-    const response = await requestHealth(target);
+    response = await requestHealth(target);
     logResult('statusCode', response.statusCode);
     logResult('server', response.headers.server || 'unknown');
     logResult('x-powered-by', response.headers['x-powered-by'] || 'unknown');
@@ -143,7 +144,6 @@ async function diagnoseTarget(target) {
     return true;
   }
 
-  const response = health.error?.response;
   if (looksLikeNextJs404(response)) {
     console.log('FAIL custom domain is still served by the previous Next.js host.');
   } else {
