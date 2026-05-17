@@ -8,7 +8,7 @@ Status: NOT COMPLETE / NOT LOCKED
 | Area | Status | Evidence / action required |
 | --- | --- | --- |
 | Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, and `docs/OPERATIONS_RUNBOOK.md` are the current evidence spine. |
-| Current commit identified | Verified | `main` at `c880b65d446fdf0a5fae846feda6b35b34e6a6ca`. |
+| Current commit identified | Verified | Use the release evidence file for the exact inspected `HEAD` SHA; do not hardcode a mutable branch SHA here. |
 | Firebase default API slice | Verified by repo evidence | Current docs record `https://urai-4dc1d.web.app` as verified. Live network check was not possible from this audit sandbox. |
 | Custom-domain API routing | Blocked / needs fresh proof | Must prove apex and `www` routes return Asset Factory API responses and pass read-only + authenticated smoke. |
 | API contract version | Verified from docs/scripts | Contract and checks use `asset-factory-api-v1`. |
@@ -30,6 +30,21 @@ Status: NOT COMPLETE / NOT LOCKED
 | Rollback | Needs fix/proof | Last-known-good SHA and rollback command must be recorded. |
 | UrAi Core dependency lock | Blocked | Core may consume only behind feature flag until all contract/smoke/rollback evidence passes. |
 | Completion lock | Blocked | Do not change to LOCKED until all P0 gates pass. |
+
+## Release-closure sequence
+
+Use this order. Do not skip gates or mark a gate complete without attached evidence.
+
+1. Merge audit documentation after review.
+2. Run local verification on a fresh checkout and commit the logs or summary under `docs/release-evidence/`.
+3. Run staging smoke with `ASSET_FACTORY_FORCE_LOCAL=false` and production-like auth.
+4. Fix custom-domain `/api/*` routing so apex and `www` resolve to the Firebase-backed API surface.
+5. Run Firebase default read-only and authenticated production smoke.
+6. Run custom-domain read-only and authenticated production smoke.
+7. Attach monitoring links for health, latency, queue depth, DLQ, provider failures, Stripe failures, storage errors, and spend/cost caps.
+8. Attach legal/privacy/security/support/account export/deletion signoff.
+9. Record rollback SHA, rollback command, deploy command, deploy target, and owner approval.
+10. Only then update completion-lock status to LOCKED and Core dependency status to locked/approved.
 
 ## Exact local verification commands
 
