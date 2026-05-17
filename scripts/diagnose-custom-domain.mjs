@@ -2,7 +2,10 @@ import dns from 'node:dns/promises';
 import https from 'node:https';
 import tls from 'node:tls';
 
-const target = process.env.ASSET_FACTORY_CUSTOM_DOMAIN || 'www.uraiassetfactory.com';
+const targets = (process.env.ASSET_FACTORY_CUSTOM_DOMAIN || 'uraiassetfactory.com,www.uraiassetfactory.com')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
 const healthPath = process.env.ASSET_FACTORY_CUSTOM_HEALTH_PATH || '/api/health';
 const timeoutMs = Number(process.env.ASSET_FACTORY_DOMAIN_TIMEOUT_MS || 10000);
 
@@ -83,11 +86,19 @@ function requestHealth(hostname) {
   });
 }
 
-async function main() {
-  console.log(`Asset Factory custom domain diagnostic target: ${target}`);
+function looksLikeNextJs404(response) {
+  return Boolean(
+    response?.statusCode === 404 &&
+      (String(response.headers?.['x-powered-by'] || '').toLowerCase().includes('next') ||
+        String(response.body || '').includes('This page could not be found'))
+  );
+}
+
+async function diagnoseTarget(target) {
+  printSection(`Target ${target}`);
   console.log(`Health path: ${healthPath}`);
 
-  printSection('DNS');
+  printSection(`DNS ${target}`);
   await safeStep('A records', async () => {
     const records = await dns.resolve4(target);
     logResult('A records', records.join(', ') || 'none');
@@ -101,7 +112,7 @@ async function main() {
     logResult('CNAME records', records.join(', ') || 'none');
   });
 
-  printSection('TLS');
+  printSection(`TLS ${target}`);
   await safeStep('TLS certificate', async () => {
     const tlsInfo = await inspectTls(target);
     logResult('authorized', tlsInfo.authorized);
@@ -114,22 +125,42 @@ async function main() {
     logResult('subjectaltname', tlsInfo.subjectaltname || 'unknown');
   });
 
-  printSection('HTTPS health');
+  printSection(`HTTPS health ${target}`);
   const health = await safeStep(`GET https://${target}${healthPath}`, async () => {
     const response = await requestHealth(target);
     logResult('statusCode', response.statusCode);
     logResult('server', response.headers.server || 'unknown');
+    logResult('x-powered-by', response.headers['x-powered-by'] || 'unknown');
     logResult('content-type', response.headers['content-type'] || 'unknown');
     logResult('body', response.body || '(empty)');
+    if (response.statusCode !== 200) throw new Error(`Expected 200 from ${target}${healthPath}, got ${response.statusCode}`);
+    return response;
   });
 
-  printSection('Interpretation');
+  printSection(`Interpretation ${target}`);
   if (health.ok) {
-    console.log('If statusCode is 200 and body includes ok/service fields, the custom domain is ready for npm run deploy:verify-custom-domain.');
-    console.log('If statusCode is 404/redirect/unexpected body, check Firebase Hosting custom-domain mapping and rewrites.');
-  } else {
-    console.log('Health request failed before an HTTP response. Check DNS records, proxy/CDN settings, and Firebase Hosting certificate/domain status.');
+    console.log('PASS custom domain API health is routed to Asset Factory.');
+    return true;
   }
+
+  const response = health.error?.response;
+  if (looksLikeNextJs404(response)) {
+    console.log('FAIL custom domain is still served by the previous Next.js host.');
+  } else {
+    console.log('FAIL custom domain API health is not routed to Asset Factory.');
+  }
+  console.log('Fix by attaching this host to Firebase Hosting site urai-4dc1d or by adding the /api/:path* proxy rewrite on the current host.');
+  return false;
+}
+
+async function main() {
+  console.log(`Asset Factory custom domain diagnostic targets: ${targets.join(', ')}`);
+  let allOk = true;
+  for (const target of targets) {
+    const ok = await diagnoseTarget(target);
+    allOk = allOk && ok;
+  }
+  if (!allOk && process.env.ASSET_FACTORY_DOMAIN_DIAG_STRICT === 'true') process.exit(1);
 }
 
 main().catch((error) => {
