@@ -1,0 +1,52 @@
+{
+  "jobs": {
+    "e2e-graphic-1779146185477": {
+      "jobId": "e2e-graphic-1779146185477",
+      "tenantId": "e2e",
+      "prompt": "e2e graphic proof",
+      "type": "graphic",
+      "metadata": {},
+      "requestedType": "graphic",
+      "assetFamily": "graphic",
+      "canonicalType": "graphic",
+      "status": "queued",
+      "queueStatus": "pending-materialization",
+      "estimatedUnits": 3,
+      "estimatedCostCents": 6,
+      "quotaSnapshot": {
+        "ok": true,
+        "quota": {
+          "maxMonthlyJobs": 500,
+          "maxMonthlyUnits": 5000,
+          "maxMonthlyCostCents": 10000,
+          "source": "env"
+        },
+        "current": {
+          "jobs": 0,
+          "units": 0,
+          "costCents": 0
+        },
+        "next": {
+          "jobs": 1,
+          "units": 3,
+          "costCents": 6
+        }
+      },
+      "createdAt": "2026-05-18T23:16:25.709Z"
+    }
+  },
+  "assets": {},
+  "usage": {
+    "da913140-9ed9-43ca-ab3e-4a3c9285baf3": {
+      "eventId": "da913140-9ed9-43ca-ab3e-4a3c9285baf3",
+      "action": "job.created",
+      "tenantId": "e2e",
+      "jobId": "e2e-graphic-1779146185477",
+      "assetType": "graphic",
+      "assetFamily": "graphic",
+      "estimatedUnits": 3,
+      "estimatedCostCents": 6,
+      "createdAt": "2026-05-18T23:16:25.716Z"
+    }
+  }
+}
