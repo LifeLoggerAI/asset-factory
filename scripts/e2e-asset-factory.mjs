@@ -1,5 +1,11 @@
 import { spawn } from 'node:child_process';
 
+if (!process.env.ASSET_FACTORY_BASE_URL && !process.env.BASE_URL) {
+  process.env.ASSET_FACTORY_FORCE_LOCAL = 'true';
+  process.env.ASSET_FACTORY_REQUIRE_API_KEY = 'false';
+  process.env.ASSET_FACTORY_REQUIRE_AUTH = 'false';
+}
+
 const base =
   process.env.ASSET_FACTORY_BASE_URL ||
   process.env.BASE_URL ||
@@ -122,9 +128,15 @@ async function run() {
 
       dev = spawn(
         'bash',
-        ['-lc', `cd ${studioDir} && npm run dev -- --hostname 127.0.0.1 --port 3000`],
+        ['-lc', `cd ${studioDir} && ASSET_FACTORY_FORCE_LOCAL=true ASSET_FACTORY_REQUIRE_API_KEY=false ASSET_FACTORY_REQUIRE_AUTH=false npm run dev -- --hostname 127.0.0.1 --port 3000`],
         {
           stdio: 'inherit',
+          env: {
+            ...process.env,
+            ASSET_FACTORY_FORCE_LOCAL: 'true',
+            ASSET_FACTORY_REQUIRE_API_KEY: 'false',
+            ASSET_FACTORY_REQUIRE_AUTH: 'false',
+          },
         }
       );
 
