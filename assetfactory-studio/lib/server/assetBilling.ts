@@ -42,6 +42,10 @@ function stringValue(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
+function forceLocalBackend() {
+  return process.env.ASSET_FACTORY_FORCE_LOCAL === 'true';
+}
+
 export function defaultTenantQuota(): TenantQuota {
   return {
     maxMonthlyJobs: envNumber('ASSET_FACTORY_MAX_MONTHLY_JOBS', 500),
@@ -65,6 +69,8 @@ function quotaFromMetadata(metadata: Record<string, unknown> | undefined, fallba
 }
 
 async function readTenantRecord(tenantId: string) {
+  if (forceLocalBackend()) return null;
+
   const db = getAdminDb();
   if (!db) return null;
   const doc = await db.collection('tenants').doc(tenantId).get();
@@ -72,6 +78,8 @@ async function readTenantRecord(tenantId: string) {
 }
 
 async function quotaFromStripe(tenantId: string, fallback: TenantQuota): Promise<TenantQuota> {
+  if (forceLocalBackend()) return fallback;
+
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) return fallback;
 
