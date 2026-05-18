@@ -2,12 +2,12 @@ import { isFirebaseAdminAvailable } from './firebaseAdmin';
 import * as cloud from './cloudAssetFactoryStore';
 import * as local from './localAssetFactoryStore';
 
-export function useCloudAssetBackend() {
+export function shouldUseCloudAssetBackend() {
   return process.env.ASSET_FACTORY_FORCE_LOCAL !== 'true' && isFirebaseAdminAvailable();
 }
 
 export function activeAssetBackend() {
-  return useCloudAssetBackend()
+  return shouldUseCloudAssetBackend()
     ? {
         mode: 'firestore-storage' as const,
         addJob: cloud.cloudAddJob,
