@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAssetQueueItem, runAssetQueueJob } from '@/lib/server/assetQueue';
+import { findJob, materializeAsset } from '@/lib/server/assetFactoryStore';
 import { requireAssetFactoryApiKey } from '@/lib/server/apiAuth';
 import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 
@@ -11,28 +11,22 @@ export async function POST(
   if (authError) return authError;
 
   const { jobId } = await params;
-  const { searchParams } = new URL(req.url);
-  const asyncMode = searchParams.get('async') === 'true';
+  const job = await findJob(jobId);
 
-  const item = await getAssetQueueItem(jobId);
-  if (!item) {
+  if (!job) {
     return NextResponse.json({ error: 'Job not found' }, { status: 404 });
   }
 
-  const auth = authorizeAssetRequest(req, String(item.tenantId ?? 'default'));
+  const auth = authorizeAssetRequest(req, String(job.tenantId ?? 'default'));
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  if (asyncMode) {
-    return NextResponse.json({ ok: true, queued: true, item }, { status: 202 });
-  }
-
-  const asset = await runAssetQueueJob(jobId);
+  const asset = await materializeAsset(jobId);
 
   if (!asset) {
     return NextResponse.json({ error: 'Job not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, asset });
+  return NextResponse.json({ ok: true, jobId, asset });
 }
