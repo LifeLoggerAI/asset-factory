@@ -15,22 +15,24 @@ The repo contains a functional local proof pipeline and partially wired producti
 ### What is implemented
 
 - Monorepo packages for the deterministic engine, Firebase functions, LifeMap pipeline, and Asset Factory Studio.
-- Asset Factory Studio route surface for generation, job lifecycle, assets, generated files, usage, dashboard, system metadata, cron, and Stripe webhook entrypoints.
+- Asset Factory Studio route surface for generation, job lifecycle, assets, generated files, usage, dashboard, system metadata, cron, support workflows, and Stripe webhook entrypoints.
+- Tenant-admin support workflow routes for account export requests and safe account-deletion requests.
 - Local deterministic proof rendering for `graphic`, `model3d`, `audio`, and `bundle` assets.
 - Local multimodal E2E coverage for generate -> materialize -> generated asset fetch -> publish -> approve.
 - Optional Firebase Admin / Firestore / Cloud Storage production backend seams.
-- Optional API-key, bearer/JWT, tenant, and role guardrails.
+- Optional API-key, signed HS256 bearer/JWT, tenant, and role guardrails.
 - Provider runtime seams for external media providers.
-- Stripe webhook dependency and signature-verification path.
+- Stripe webhook dependency, signature-verification path, and entitlement persistence seam.
 - Public-safe system contract and diagnostic route separation.
+- Durable queue/operator surfaces for worker leases, retries, dead-letter visibility, and controlled requeue.
 
 ### What is not proven complete
 
 - Production Firebase project, service account, Firestore rules, indexes, storage bucket, IAM, and signed/private access policy.
-- Production auth provider, JWT issuer/JWKS/audience, tenant claim model, and role mapping.
+- Production auth provider issuing HS256 bearer tokens with the configured issuer, audience, tenant claim, and role claim.
 - Real provider-backed generation using production credentials and selected model IDs.
-- Durable worker queue with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.
-- Stripe entitlement persistence from verified webhook events into tenant quota/plan records.
+- Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.
+- Production Stripe webhook proof that verified events persist idempotent tenant quota/plan records.
 - Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.
 - Staging smoke proof for auth, tenant isolation, diagnostics redaction, cron secret enforcement, Stripe signatures, and storage downloads.
 - Live domain/DNS/TLS verification for `www.uraiassetfactory.com`.
@@ -45,7 +47,7 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 | Local proof gate | `npm --prefix assetfactory-studio run check` and `npm --prefix assetfactory-studio run e2e` pass | Pending latest run |
 | Staging deploy gate | Staging URL running with `ASSET_FACTORY_FORCE_LOCAL=false` | Pending |
 | Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging | Pending |
-| Auth gate | Production-like JWT/API-key auth enabled, tenant claims enforced, role matrix tested | Pending |
+| Auth gate | Production-like API-key auth plus signed HS256 bearer auth enabled; `ASSET_FACTORY_JWT_HS256_SECRET` configured; tenant and role claims enforced; legacy header auth disabled | Pending |
 | Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files | Pending |
 | Generation gate | Local-proof staging smoke passes; real provider smoke passes for selected launch asset types | Pending |
 | Worker gate | Durable queue/worker path selected and tested for provider-backed jobs | Pending |
@@ -75,10 +77,14 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 
 ### Auth
 
+- `ASSET_FACTORY_REQUIRE_JWT_SIGNATURE=true`
+- `ASSET_FACTORY_JWT_HS256_SECRET` set through a secrets manager.
 - `ASSET_FACTORY_JWT_ISSUER`
-- `ASSET_FACTORY_JWKS_URI`
 - `ASSET_FACTORY_JWT_AUDIENCE`
-- Tenant claim and role claim names documented and tested.
+- `ASSET_FACTORY_TENANT_CLAIM=tenantId`, unless the production issuer uses a different reviewed claim.
+- `ASSET_FACTORY_ROLE_CLAIM=roles`, unless the production issuer uses a different reviewed claim.
+- `ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH=false` in staging and production.
+- Do not require or document `ASSET_FACTORY_JWKS_URI` for production until RS256/JWKS verification is implemented and tested in `assetAuth.ts`.
 
 ### Billing
 
@@ -126,6 +132,7 @@ ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
+ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
 CRON_SECRET=$PROD_CRON_SECRET \
 npm run smoke:prod
 ```
@@ -135,10 +142,11 @@ npm run smoke:prod
 1. Run and capture the local proof gate.
 2. Configure staging secrets and deploy with local fallback disabled.
 3. Run staging smoke and fix every failure before adding real providers.
-4. Finalize auth tenant/role claims and add cross-tenant denial smoke tests.
-5. Persist Stripe entitlements from verified webhook events.
-6. Move provider-backed generation to a durable worker queue.
-7. Configure observability and operator dashboards.
-8. Verify public website DNS/TLS/legal/trust/status pages.
-9. Run production smoke with a test tenant.
-10. Only then announce the system as live.
+4. Finalize HS256 auth issuer/audience/tenant/role claims and keep legacy-header auth disabled.
+5. Run cross-tenant denial smoke tests.
+6. Verify Stripe entitlement persistence from signed webhook events.
+7. Verify durable worker queue leases, retries, idempotency, and dead-letter recovery in staging.
+8. Configure observability and operator dashboards.
+9. Verify public website DNS/TLS/legal/trust/status pages.
+10. Run production smoke with a test tenant.
+11. Only then announce the system as live.
