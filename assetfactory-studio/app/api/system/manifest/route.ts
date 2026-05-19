@@ -5,6 +5,33 @@ import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
 import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
 import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
+const requiredProductionEnv = [
+  'FIREBASE_PROJECT_ID',
+  'FIREBASE_CLIENT_EMAIL',
+  'FIREBASE_PRIVATE_KEY',
+  'FIREBASE_STORAGE_BUCKET',
+  'ASSET_FACTORY_API_KEY',
+  'ASSET_FACTORY_REQUIRE_API_KEY',
+  'ASSET_FACTORY_REQUIRE_AUTH',
+  'ASSET_FACTORY_REQUIRE_JWT_SIGNATURE',
+  'ASSET_FACTORY_JWT_ISSUER',
+  'ASSET_FACTORY_JWT_AUDIENCE',
+  'ASSET_FACTORY_TENANT_CLAIM',
+  'ASSET_FACTORY_ROLE_CLAIM',
+  'ASSET_FACTORY_QUEUE_MODE',
+  'ASSET_FACTORY_WORKER_SECRET',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'CRON_SECRET',
+  'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
+  'ASSET_FACTORY_PROVIDER_MAX_BYTES',
+];
+
+function enabled(name: string) {
+  return process.env[name] === 'true';
+}
+
 export async function GET(req: NextRequest) {
   const diagnostics = getStoreDiagnostics();
   const supportedAssetTypes = listAssetTypeDefinitions();
@@ -16,6 +43,11 @@ export async function GET(req: NextRequest) {
     const authError = requireConfiguredAssetFactoryApiKey(req);
     if (authError) return authError;
   }
+
+  const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const durableQueueConfigured = queue.mode !== 'local-inline';
+  const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
+  const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
 
   const publicPayload = {
     ok: true,
@@ -36,7 +68,20 @@ export async function GET(req: NextRequest) {
       rollbackWorkflow: 'contract-only',
       approvals: 'contract-only',
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providers.adapters.some((provider) => provider.configured),
+      providerBackedRendering: providerConfigured,
+    },
+    productionReadiness: {
+      localFallbackDisabled: !diagnostics.fallbackActive,
+      firebaseBacked: diagnostics.mode === 'firestore-storage',
+      authConfigured,
+      signedJwtRequired,
+      durableQueueConfigured,
+      providerConfigured,
+      stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+      cronSecretConfigured: Boolean(process.env.CRON_SECRET),
+      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && authConfigured && signedJwtRequired && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
+        ? 'ready-for-smoke'
+        : 'not-ready-for-smoke',
     },
   };
 
@@ -53,12 +98,6 @@ export async function GET(req: NextRequest) {
     storageBucket: diagnostics.firebase.storageBucket,
     collections: diagnostics.collections,
     generatedPrefix: diagnostics.generatedPrefix,
-    requiredProductionEnv: [
-      'FIREBASE_PROJECT_ID',
-      'FIREBASE_CLIENT_EMAIL',
-      'FIREBASE_PRIVATE_KEY',
-      'FIREBASE_STORAGE_BUCKET',
-      'ASSET_FACTORY_API_KEY',
-    ],
+    requiredProductionEnv,
   });
 }
