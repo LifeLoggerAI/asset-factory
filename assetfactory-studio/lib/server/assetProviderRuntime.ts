@@ -11,6 +11,9 @@ type ProviderRenderResult = {
 
 type JsonRecord = Record<string, unknown>;
 
+const DEFAULT_PROVIDER_TIMEOUT_MS = 120_000;
+const DEFAULT_PROVIDER_MAX_BYTES = 100 * 1024 * 1024;
+
 function stringValue(value: unknown, fallback = '') {
   return typeof value === 'string' && value.trim() ? value : fallback;
 }
@@ -19,16 +22,64 @@ function env(name: string) {
   return stringValue(process.env[name]);
 }
 
-async function postJson(url: string, headers: Record<string, string>, body: JsonRecord) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...headers,
-    },
-    body: JSON.stringify(body),
-  });
+function numberFromEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
 
+function providerTimeoutMs() {
+  return numberFromEnv('ASSET_FACTORY_PROVIDER_TIMEOUT_MS', DEFAULT_PROVIDER_TIMEOUT_MS);
+}
+
+function providerMaxBytes() {
+  return numberFromEnv('ASSET_FACTORY_PROVIDER_MAX_BYTES', DEFAULT_PROVIDER_MAX_BYTES);
+}
+
+function providerAbortSignal() {
+  return AbortSignal.timeout(providerTimeoutMs());
+}
+
+function isPrivateIpv4(hostname: string) {
+  const parts = hostname.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    a === 0
+  );
+}
+
+function assertPublicProviderUrl(url: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Provider returned an invalid artifact URL');
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error(`Provider artifact URL uses unsupported protocol: ${parsed.protocol}`);
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    hostname.endsWith('.localhost') ||
+    hostname.endsWith('.local') ||
+    isPrivateIpv4(hostname)
+  ) {
+    throw new Error('Provider artifact URL points to a private or local host');
+  }
+
+  return parsed.toString();
+}
+
+async function readProviderPayload(response: Response) {
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json')
     ? await response.json()
@@ -41,17 +92,54 @@ async function postJson(url: string, headers: Record<string, string>, body: Json
   return payload as JsonRecord;
 }
 
+async function postJson(url: string, headers: Record<string, string>, body: JsonRecord) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...headers,
+    },
+    body: JSON.stringify(body),
+    signal: providerAbortSignal(),
+  });
+
+  return readProviderPayload(response);
+}
+
+async function getJson(url: string, headers: Record<string, string>) {
+  const response = await fetch(assertPublicProviderUrl(url), {
+    method: 'GET',
+    headers,
+    signal: providerAbortSignal(),
+  });
+
+  return readProviderPayload(response);
+}
+
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
-  const response = await fetch(url, { headers });
+  const safeUrl = assertPublicProviderUrl(url);
+  const response = await fetch(safeUrl, { headers, signal: providerAbortSignal() });
   if (!response.ok) throw new Error(`Provider artifact fetch failed ${response.status}`);
+
+  const contentLength = Number(response.headers.get('content-length'));
+  const maxBytes = providerMaxBytes();
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(`Provider artifact exceeds max bytes before download: ${contentLength}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.byteLength > maxBytes) {
+    throw new Error(`Provider artifact exceeds max bytes after download: ${buffer.byteLength}`);
+  }
+
   return {
-    buffer: Buffer.from(await response.arrayBuffer()),
+    buffer,
     mimeType: response.headers.get('content-type') ?? 'application/octet-stream',
   };
 }
 
 function firstUrl(value: unknown): string | null {
-  if (typeof value === 'string' && value.startsWith('http')) return value;
+  if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) return value;
   if (Array.isArray(value)) {
     for (const item of value) {
       const nested = firstUrl(item);
@@ -125,6 +213,7 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
         'content-type': 'application/json',
       },
       body: JSON.stringify({ model, voice, input: input.prompt, response_format: 'wav' }),
+      signal: providerAbortSignal(),
     });
     if (!response.ok) throw new Error(`OpenAI audio request failed ${response.status}: ${await response.text()}`);
     return {
@@ -151,6 +240,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
       accept: 'audio/mpeg',
     },
     body: JSON.stringify({ text: input.prompt, model_id: modelId }),
+    signal: providerAbortSignal(),
   });
   if (!response.ok) throw new Error(`ElevenLabs audio request failed ${response.status}: ${await response.text()}`);
   return {
@@ -177,6 +267,7 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
       form.set('output_format', env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png');
       return form;
     })(),
+    signal: providerAbortSignal(),
   });
   if (!response.ok) throw new Error(`Stability image request failed ${response.status}: ${await response.text()}`);
   const mimeType = response.headers.get('content-type') ?? 'image/png';
@@ -210,7 +301,7 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     if (status === 'succeeded') break;
     if (status === 'failed' || status === 'canceled') throw new Error(`Replicate prediction ${status}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    current = await postJson(getUrl, { authorization: `Token ${apiKey}` }, {});
+    current = await getJson(getUrl, { authorization: `Token ${apiKey}` });
   }
 
   const outputUrl = firstUrl(current.output);
