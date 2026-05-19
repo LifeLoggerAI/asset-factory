@@ -35,6 +35,7 @@ const authTests = read('scripts/test-asset-factory-auth.mjs');
 const doctor = read('scripts/doctor.mjs');
 const studioPackage = read('assetfactory-studio/package.json');
 const studioEnvExample = read('assetfactory-studio/.env.example');
+const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
@@ -140,6 +141,32 @@ const requiredStudioEnvCapabilities = [
 for (const capability of requiredStudioEnvCapabilities) {
   assertIncludes(studioEnvExample, capability, 'assetfactory-studio/.env.example');
 }
+
+const requiredManifestCapabilities = [
+  'productionReadiness',
+  'ready-for-smoke',
+  'not-ready-for-smoke',
+  'requiredProductionEnv',
+  'rollbackWorkflow: true',
+  'approvals: true',
+  'versioningWorkflow: true',
+  'workflows: {',
+  'generate: true',
+  'materialize: true',
+  'publish: true',
+  'approve: true',
+  'rollback: true',
+  'createVersion: true',
+];
+
+for (const capability of requiredManifestCapabilities) {
+  assertIncludes(manifestRoute, capability, 'assetfactory-studio/app/api/system/manifest/route.ts');
+}
+
+assert(
+  !manifestRoute.includes("rollbackWorkflow: 'contract-only'") && !manifestRoute.includes("approvals: 'contract-only'"),
+  'assetfactory-studio/app/api/system/manifest/route.ts must not report implemented workflows as contract-only'
+);
 
 const requiredUnitTestCapabilities = [
   'buildStripeEntitlement',
