@@ -146,7 +146,7 @@ const requiredManifestCapabilities = [
   'productionReadiness',
   'ready-for-smoke',
   'not-ready-for-smoke',
-  'requiredProductionEnv',
+  'requiredProductionEnv,',
   'rollbackWorkflow: true',
   'approvals: true',
   'versioningWorkflow: true',
@@ -164,7 +164,8 @@ for (const capability of requiredManifestCapabilities) {
 }
 
 assert(
-  !manifestRoute.includes("rollbackWorkflow: 'contract-only'") && !manifestRoute.includes("approvals: 'contract-only'"),
+  !/rollbackWorkflow:\s*['"]contract-only['"]/.test(manifestRoute) &&
+    !/approvals:\s*['"]contract-only['"]/.test(manifestRoute),
   'assetfactory-studio/app/api/system/manifest/route.ts must not report implemented workflows as contract-only'
 );
 
