@@ -45,8 +45,7 @@ function base64Url(value) {
   return raw.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-function signHs256(payload, secret = 'asset-test-secret') {
-  const header = { alg: 'HS256', typ: 'JWT' };
+function signHs256(payload, secret = 'asset-test-secret', header = { alg: 'HS256', typ: 'JWT' }) {
   const encodedHeader = base64Url(header);
   const encodedPayload = base64Url(payload);
   const signature = createHmac('sha256', secret).update(`${encodedHeader}.${encodedPayload}`).digest();
@@ -191,6 +190,21 @@ try {
     assert.equal(result.ok, false);
     assert.equal(result.status, 503);
     assert.match(result.error, /signature enforcement/i);
+  }
+
+  resetAuthEnv();
+  process.env.ASSET_FACTORY_REQUIRE_AUTH = 'true';
+  process.env.ASSET_FACTORY_JWT_HS256_SECRET = 'asset-test-secret';
+  {
+    const token = signHs256({
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      tenantId: 'tenant-a',
+      roles: ['admin'],
+    }, 'asset-test-secret', { alg: 'none', typ: 'JWT' });
+    const result = authorizeAssetRequest(request({ authorization: `Bearer ${token}` }), 'tenant-a', 'viewer');
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 401);
+    assert.match(result.error, /algorithm is unsupported/);
   }
 
   console.log('PASS Asset Factory auth guard tests');
