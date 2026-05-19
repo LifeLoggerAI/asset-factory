@@ -31,8 +31,10 @@ const readme = read('README.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
 const unitTests = read('scripts/test-asset-factory-units.mjs');
+const authTests = read('scripts/test-asset-factory-auth.mjs');
 const doctor = read('scripts/doctor.mjs');
 const studioPackage = read('assetfactory-studio/package.json');
+const studioEnvExample = read('assetfactory-studio/.env.example');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
@@ -122,6 +124,23 @@ for (const capability of requiredDoctorCapabilities) {
 
 assertIncludes(studioPackage, 'node ../scripts/test-asset-factory-units.mjs', 'assetfactory-studio/package.json');
 
+const requiredStudioEnvCapabilities = [
+  'ASSET_FACTORY_REQUIRE_AUTH=false',
+  'ASSET_FACTORY_REQUIRE_JWT_SIGNATURE=false',
+  'ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH=false',
+  'ASSET_FACTORY_JWT_HS256_SECRET=',
+  'ASSET_FACTORY_JWT_ISSUER=',
+  'ASSET_FACTORY_JWT_AUDIENCE=',
+  'ASSET_FACTORY_AUDIENCE=',
+  'ASSET_FACTORY_TENANT_CLAIM=tenantId',
+  'ASSET_FACTORY_ROLE_CLAIM=roles',
+  'Production should prefer signed bearer tokens',
+];
+
+for (const capability of requiredStudioEnvCapabilities) {
+  assertIncludes(studioEnvExample, capability, 'assetfactory-studio/.env.example');
+}
+
 const requiredUnitTestCapabilities = [
   'buildStripeEntitlement',
   'testStripeEntitlementFromCheckoutSession',
@@ -136,6 +155,23 @@ const requiredUnitTestCapabilities = [
 
 for (const capability of requiredUnitTestCapabilities) {
   assertIncludes(unitTests, capability, 'scripts/test-asset-factory-units.mjs');
+}
+
+const requiredAuthTestCapabilities = [
+  'ASSET_FACTORY_REQUIRE_AUTH',
+  'ASSET_FACTORY_REQUIRE_JWT_SIGNATURE',
+  'ASSET_FACTORY_JWT_HS256_SECRET',
+  'ASSET_FACTORY_JWT_ISSUER',
+  'ASSET_FACTORY_JWT_AUDIENCE',
+  'ASSET_FACTORY_TENANT_CLAIM',
+  'ASSET_FACTORY_ROLE_CLAIM',
+  'Tenant mismatch',
+  'Role publisher required',
+  'JWT is expired',
+];
+
+for (const capability of requiredAuthTestCapabilities) {
+  assertIncludes(authTests, capability, 'scripts/test-asset-factory-auth.mjs');
 }
 
 const requiredSmokeCapabilities = [
