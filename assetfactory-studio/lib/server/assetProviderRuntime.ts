@@ -128,6 +128,7 @@ async function readBinaryWithLimit(response: Response, maxBytes: number) {
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
+  let shouldReleaseLock = true;
 
   try {
     while (true) {
@@ -137,15 +138,17 @@ async function readBinaryWithLimit(response: Response, maxBytes: number) {
 
       totalBytes += value.byteLength;
       if (totalBytes > maxBytes) {
+        shouldReleaseLock = false;
+        await reader.cancel(`Provider artifact exceeds max bytes during download: ${totalBytes}`);
         throw new Error(`Provider artifact exceeds max bytes during download: ${totalBytes}`);
       }
       chunks.push(value);
     }
   } finally {
-    reader.releaseLock();
+    if (shouldReleaseLock) reader.releaseLock();
   }
 
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), totalBytes);
+  return Buffer.concat(chunks, totalBytes);
 }
 
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
