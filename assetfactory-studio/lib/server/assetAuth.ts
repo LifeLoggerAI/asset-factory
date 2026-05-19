@@ -23,7 +23,7 @@ type JwtHeader = Record<string, unknown> & {
 
 const roleRank: Record<AssetRole, number> = { viewer: 1, creator: 2, publisher: 3, admin: 4, operator: 4 };
 const allowedRoles: AssetRole[] = ['viewer', 'creator', 'publisher', 'admin', 'operator'];
-const allowedJwtAlgorithms = new Set(['HS256']);
+const supportedJwtAlgorithms = new Set(['HS256']);
 
 function parseBooleanEnv(name: string) {
   return process.env[name] === 'true';
@@ -51,9 +51,7 @@ function base64UrlEncode(value: Buffer) {
   return value.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-function decodeJwtPart<T>(token: string, partIndex: 0 | 1): T | null {
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
+function decodeJwtPart<T>(parts: string[], partIndex: 0 | 1): T | null {
   try {
     return JSON.parse(base64UrlToBuffer(parts[partIndex]).toString('utf8')) as T;
   } catch {
@@ -61,20 +59,8 @@ function decodeJwtPart<T>(token: string, partIndex: 0 | 1): T | null {
   }
 }
 
-function decodeJwtPayload(token: string): JwtPayload | null {
-  return decodeJwtPart<JwtPayload>(token, 1);
-}
-
-function decodeJwtHeader(token: string): JwtHeader | null {
-  return decodeJwtPart<JwtHeader>(token, 0);
-}
-
-function verifyHs256Signature(token: string, secret: string) {
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
+function verifyHs256Signature(parts: string[], secret: string) {
   const [header, payload, signature] = parts;
-  const jwtHeader = decodeJwtHeader(token);
-  if (!jwtHeader?.alg || !allowedJwtAlgorithms.has(jwtHeader.alg)) return false;
   const expected = base64UrlEncode(createHmac('sha256', secret).update(`${header}.${payload}`).digest());
   const expectedBuffer = Buffer.from(expected);
   const actualBuffer = Buffer.from(signature);
@@ -116,21 +102,27 @@ function authenticateJwt(req: NextRequest): AuthResult {
   const token = getBearerToken(req);
   if (!token) return { ok: false, status: 401, error: 'Authorization bearer token is required when auth is enabled' };
 
-  const header = decodeJwtHeader(token);
-  if (!header?.alg || !allowedJwtAlgorithms.has(header.alg)) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return { ok: false, status: 401, error: 'JWT payload is invalid' };
+
+  const header = decodeJwtPart<JwtHeader>(parts, 0);
+  if (!header?.alg || !supportedJwtAlgorithms.has(header.alg)) {
     return { ok: false, status: 401, error: 'JWT algorithm is unsupported' };
   }
 
   const sharedSecret = process.env.ASSET_FACTORY_JWT_HS256_SECRET;
-  if (sharedSecret && !verifyHs256Signature(token, sharedSecret)) {
-    return { ok: false, status: 401, error: 'JWT signature verification failed' };
+  if (sharedSecret) {
+    if (header.alg !== 'HS256') return { ok: false, status: 401, error: 'JWT algorithm is unsupported' };
+    if (!verifyHs256Signature(parts, sharedSecret)) {
+      return { ok: false, status: 401, error: 'JWT signature verification failed' };
+    }
   }
 
   if (!sharedSecret && parseBooleanEnv('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE')) {
     return { ok: false, status: 503, error: 'JWT signature enforcement is enabled, but no supported verifier is configured' };
   }
 
-  const payload = decodeJwtPayload(token);
+  const payload = decodeJwtPart<JwtPayload>(parts, 1);
   if (!payload) return { ok: false, status: 401, error: 'JWT payload is invalid' };
 
   const claimError = verifyJwtClaims(payload);
