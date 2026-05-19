@@ -393,6 +393,58 @@ async function testProviderArtifactRejectsPrivateUrls() {
   }
 }
 
+async function testProviderArtifactRejectsChunkedOverLimitDownload() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
+  const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.REPLICATE_API_TOKEN = 'test-token';
+  process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
+  process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '3';
+
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url) === 'https://api.replicate.com/v1/predictions') {
+      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-3' } }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://api.replicate.com/v1/predictions/pred-3') {
+      assert.equal(options.method, 'GET');
+      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://cdn.example.com/chunked.png' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://cdn.example.com/chunked.png') {
+      return new Response(new Uint8Array([1, 2, 3, 4]), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
+        resolveAssetType('graphic')
+      ),
+      /exceeds max bytes during download|exceeds max bytes after download/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    process.env.REPLICATE_API_TOKEN = originalToken;
+    process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+    process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
+  }
+}
+
 try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
@@ -402,6 +454,7 @@ try {
   await testRejectsNonRequeueableStatus();
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
+  await testProviderArtifactRejectsChunkedOverLimitDownload();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
   delete globalThis.__ASSET_FACTORY_TEST_DB__;
