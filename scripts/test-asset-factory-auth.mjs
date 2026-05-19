@@ -174,7 +174,7 @@ try {
     const result = authorizeAssetRequest(request({ authorization: `Bearer ${token}` }), 'tenant-a', 'viewer');
     assert.equal(result.ok, false);
     assert.equal(result.status, 401);
-    assert.match(result.error, /expired/);
+    assert.equal(result.error, 'JWT is expired');
   }
 
   resetAuthEnv();
