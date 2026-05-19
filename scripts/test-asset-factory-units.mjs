@@ -44,9 +44,19 @@ fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), '
 
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
+const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
+compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
+compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
+const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
+  ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
+  ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };"] ,
+  ["import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';"],
+]);
 
 const { buildStripeEntitlement } = await import(pathToFileURL(stripeModulePath).href);
 const { requeueAssetQueueJob } = await import(pathToFileURL(queueModulePath).href);
+const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
+const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
 
 function testStripeEntitlementFromCheckoutSession() {
   const entitlement = buildStripeEntitlement({
@@ -283,6 +293,106 @@ async function testRejectsNonRequeueableStatus() {
   assert.equal(db.store.assetFactoryQueue.job_completed.status, 'completed');
 }
 
+async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
+  const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
+  const calls = [];
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.REPLICATE_API_TOKEN = 'test-token';
+  process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
+  process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '1024';
+
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), method: options.method ?? 'GET' });
+    if (String(url) === 'https://api.replicate.com/v1/predictions') {
+      assert.equal(options.method, 'POST');
+      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-1' } }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://api.replicate.com/v1/predictions/pred-1') {
+      assert.equal(options.method, 'GET');
+      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://cdn.example.com/out.png' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://cdn.example.com/out.png') {
+      assert.equal(options.method ?? 'GET', 'GET');
+      return new Response(new Uint8Array([137, 80, 78, 71]), {
+        status: 200,
+        headers: { 'content-type': 'image/png', 'content-length': '4' },
+      });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  try {
+    const result = await renderWithConfiguredProvider(
+      { jobId: 'provider-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
+      resolveAssetType('graphic')
+    );
+    assert.equal(result.extension, 'png');
+    assert.equal(result.assetMimeType, 'image/png');
+    assert.equal(result.assetBuffer.byteLength, 4);
+    assert.deepEqual(calls.map((call) => call.method), ['POST', 'GET', 'GET']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    process.env.REPLICATE_API_TOKEN = originalToken;
+    process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+    process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
+  }
+}
+
+async function testProviderArtifactRejectsPrivateUrls() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.REPLICATE_API_TOKEN = 'test-token';
+  process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
+
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url) === 'https://api.replicate.com/v1/predictions') {
+      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-2' } }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://api.replicate.com/v1/predictions/pred-2') {
+      assert.equal(options.method, 'GET');
+      return new Response(JSON.stringify({ id: 'pred-2', status: 'succeeded', output: 'http://127.0.0.1/internal.png' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'private-url-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
+        resolveAssetType('graphic')
+      ),
+      /private or local host/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    process.env.REPLICATE_API_TOKEN = originalToken;
+    process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+  }
+}
+
 try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
@@ -290,6 +400,8 @@ try {
   await testRequeueDeadLetteredJob();
   await testRejectsTenantMismatch();
   await testRejectsNonRequeueableStatus();
+  await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
+  await testProviderArtifactRejectsPrivateUrls();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
   delete globalThis.__ASSET_FACTORY_TEST_DB__;

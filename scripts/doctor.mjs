@@ -5,6 +5,7 @@ const checks = [];
 let failed = false;
 const MIN_NODE = { major: 20, minor: 19, patch: 0 };
 const MIN_NPM = { major: 10, minor: 8, patch: 0 };
+const skipHeadMatch = process.env.ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH === 'true';
 
 function check(name, ok, details = '') {
   checks.push({ name, ok, details });
@@ -70,7 +71,9 @@ check('unit behavior test exists', fs.existsSync('scripts/test-asset-factory-uni
 check('remote smoke script exists', fs.existsSync('scripts/smoke-asset-factory-remote.mjs'), 'Expected remote smoke script.');
 check('studio node_modules installed', fs.existsSync('assetfactory-studio/node_modules'), 'Run npm --prefix assetfactory-studio install if missing.');
 check('git branch detected', Boolean(gitBranch), 'Run from inside the asset-factory git checkout.');
-if (originMain) {
+if (skipHeadMatch) {
+  check('local HEAD matches origin/main', true, `Skipped by ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH=true; HEAD=${gitHead || 'unknown'} origin/main=${originMain || 'unknown'}`);
+} else if (originMain) {
   check('local HEAD matches origin/main', gitHead === originMain, `HEAD=${gitHead || 'unknown'} origin/main=${originMain}`);
 } else {
   check('origin/main available', false, 'Run git fetch origin.');

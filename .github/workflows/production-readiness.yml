@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,7 +37,15 @@ jobs:
       - name: Install deploy functions dependencies
         run: npm --prefix life-map-pipeline/functions install
 
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+
+      - name: Fetch main for doctor
+        run: git fetch origin main:refs/remotes/origin/main
+
       - name: Doctor
+        env:
+          ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         run: npm run doctor --if-present
 
       - name: Build
