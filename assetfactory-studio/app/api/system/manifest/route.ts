@@ -14,10 +14,12 @@ const requiredProductionEnv = [
   'ASSET_FACTORY_REQUIRE_API_KEY',
   'ASSET_FACTORY_REQUIRE_AUTH',
   'ASSET_FACTORY_REQUIRE_JWT_SIGNATURE',
+  'ASSET_FACTORY_JWT_HS256_SECRET',
   'ASSET_FACTORY_JWT_ISSUER',
   'ASSET_FACTORY_JWT_AUDIENCE',
   'ASSET_FACTORY_TENANT_CLAIM',
   'ASSET_FACTORY_ROLE_CLAIM',
+  'ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH',
   'ASSET_FACTORY_QUEUE_MODE',
   'ASSET_FACTORY_WORKER_SECRET',
   'STRIPE_SECRET_KEY',
@@ -30,6 +32,10 @@ const requiredProductionEnv = [
 
 function enabled(name: string) {
   return process.env[name] === 'true';
+}
+
+function configured(name: string) {
+  return Boolean(process.env[name]);
 }
 
 export async function GET(req: NextRequest) {
@@ -48,6 +54,9 @@ export async function GET(req: NextRequest) {
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
+  const hs256JwtVerifierConfigured = configured('ASSET_FACTORY_JWT_HS256_SECRET');
+  const legacyHeaderAuthDisabled = !enabled('ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH');
+  const productionAuthReady = authConfigured && signedJwtRequired && hs256JwtVerifierConfigured && legacyHeaderAuthDisabled;
 
   const publicPayload = {
     ok: true,
@@ -84,11 +93,14 @@ export async function GET(req: NextRequest) {
       firebaseBacked: diagnostics.mode === 'firestore-storage',
       authConfigured,
       signedJwtRequired,
+      hs256JwtVerifierConfigured,
+      legacyHeaderAuthDisabled,
+      productionAuthReady,
       durableQueueConfigured,
       providerConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && authConfigured && signedJwtRequired && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
+      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
         ? 'ready-for-smoke'
         : 'not-ready-for-smoke',
     },
