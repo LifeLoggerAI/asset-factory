@@ -1,6 +1,7 @@
 const base = process.env.ASSET_FACTORY_BASE_URL || process.env.BASE_URL;
 const apiKey = process.env.ASSET_FACTORY_API_KEY;
 const bearerToken = process.env.ASSET_FACTORY_BEARER_TOKEN;
+const otherBearerToken = process.env.ASSET_FACTORY_OTHER_BEARER_TOKEN;
 const tenantId = process.env.ASSET_FACTORY_TENANT_ID || 'smoke-tenant-a';
 const otherTenantId = process.env.ASSET_FACTORY_OTHER_TENANT_ID || 'smoke-tenant-b';
 const cronSecret = process.env.CRON_SECRET || process.env.ASSET_FACTORY_CRON_SECRET;
@@ -27,7 +28,7 @@ function redact(value) {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
-function defaultHeaders(extra = {}) {
+function defaultHeaders(extra = {}, token = bearerToken) {
   const headers = {
     'content-type': 'application/json',
     'x-tenant-id': tenantId,
@@ -38,7 +39,7 @@ function defaultHeaders(extra = {}) {
   };
 
   if (apiKey) headers['x-asset-factory-key'] = apiKey;
-  if (bearerToken) headers.authorization = `Bearer ${bearerToken}`;
+  if (token) headers.authorization = `Bearer ${token}`;
 
   return headers;
 }
@@ -134,6 +135,13 @@ async function assertContractRoutes() {
     }
   }
 
+  const openapiText = JSON.stringify(openapi).toLowerCase();
+  for (const expected of ['/api/support/account-data', '/api/support/account-deletion']) {
+    if (!openapiText.includes(expected)) {
+      throw new Error(`openapi contract missing ${expected}`);
+    }
+  }
+
   if (!openapi || typeof openapi !== 'object') {
     throw new Error('openapi route did not return JSON metadata');
   }
@@ -223,10 +231,60 @@ async function assertTenantIsolation(jobId) {
   const otherHeaders = defaultHeaders({
     'x-tenant-id': otherTenantId,
     'x-asset-tenant-id': otherTenantId,
-  });
+  }, otherBearerToken || bearerToken);
 
   await requestJson(`/api/jobs/${jobId}`, { headers: otherHeaders }, [401, 403, 404]);
   await requestJson(`/api/assets/${jobId}`, { headers: otherHeaders }, [401, 403, 404]);
+}
+
+async function assertSupportWorkflows() {
+  await requestJson('/api/support/account-data', {}, [401, 403]);
+  await requestJson('/api/support/account-deletion', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ reason: 'unauthenticated remote smoke deletion request must be rejected' }),
+  }, [401, 403]);
+
+  if (!apiKey && !bearerToken) {
+    console.warn('WARN no support credentials provided; skipping support workflow positive smoke');
+    return;
+  }
+
+  const exportResult = await requestJson('/api/support/account-data', {
+    headers: defaultHeaders(),
+  });
+
+  if (!exportResult?.ok || exportResult.tenantId !== tenantId || !exportResult.exportId) {
+    throw new Error(`account data export returned unexpected payload: ${JSON.stringify(exportResult)}`);
+  }
+
+  if (!exportResult.counts || typeof exportResult.counts !== 'object') {
+    throw new Error('account data export did not include counts');
+  }
+
+  const deletionResult = await requestJson('/api/support/account-deletion', {
+    method: 'POST',
+    headers: defaultHeaders(),
+    body: JSON.stringify({ reason: 'remote smoke deletion request - must remain pending manual review' }),
+  }, [202]);
+
+  if (!deletionResult?.ok || deletionResult.tenantId !== tenantId || deletionResult.status !== 'pending-manual-review') {
+    throw new Error(`account deletion request returned unexpected payload: ${JSON.stringify(deletionResult)}`);
+  }
+
+  if (otherBearerToken) {
+    const otherHeaders = defaultHeaders({
+      'x-tenant-id': otherTenantId,
+      'x-asset-tenant-id': otherTenantId,
+    }, otherBearerToken);
+
+    const otherExport = await requestJson('/api/support/account-data', { headers: otherHeaders });
+    if (!otherExport?.ok || otherExport.tenantId !== otherTenantId || otherExport.tenantId === tenantId) {
+      throw new Error(`other-tenant account export returned unexpected payload: ${JSON.stringify(otherExport)}`);
+    }
+  } else {
+    console.warn('WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke');
+  }
 }
 
 async function assertCronSecret() {
@@ -253,7 +311,7 @@ async function assertStripeWebhookRejectsUnsignedPayload() {
 
 async function run() {
   console.log(`Asset Factory remote smoke target: ${base}`);
-  console.log(`Tenant: ${tenantId}; API key: ${redact(apiKey)}; bearer token: ${bearerToken ? 'set' : 'missing'}`);
+  console.log(`Tenant: ${tenantId}; API key: ${redact(apiKey)}; bearer token: ${bearerToken ? 'set' : 'missing'}; other bearer token: ${otherBearerToken ? 'set' : 'missing'}`);
 
   await waitForHealth();
   await assertPublicDiagnosticsRedacted();
@@ -274,6 +332,7 @@ async function run() {
     await assertTenantIsolation(jobIds[0]);
   }
 
+  await assertSupportWorkflows();
   await assertCronSecret();
   await assertStripeWebhookRejectsUnsignedPayload();
 
