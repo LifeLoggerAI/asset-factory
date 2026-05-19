@@ -44,6 +44,8 @@ jobs:
         run: git fetch origin main:refs/remotes/origin/main
 
       - name: Doctor
+        env:
+          ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         run: npm run doctor --if-present
 
       - name: Build
