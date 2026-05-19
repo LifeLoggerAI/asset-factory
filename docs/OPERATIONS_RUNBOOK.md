@@ -52,6 +52,7 @@ Core routes:
 - `GET|POST /api/worker/asset-queue`
 - `GET /api/admin/queue`
 - `POST /api/admin/queue/requeue`
+- `GET /admin/queue`
 
 ## Required environment groups
 
@@ -128,7 +129,7 @@ npm run build
 
 ## Operator queue visibility
 
-Use the admin queue endpoint to inspect failed, dead-lettered, retrying, queued, claimed, and stale-lease queue items.
+Use `/admin/queue` for the browser operator console. It supports tenant-scoped and all-tenant views, queue status filtering, dead-letter/failure inspection, stale-lease visibility, and controlled requeue with an operator-supplied reason. The same capabilities are available through the admin queue APIs below.
 
 Tenant-scoped view:
 
@@ -312,7 +313,7 @@ Provider cost spike:
 
 Queue backlog:
 
-1. Check queue depth and dead-letter count using `/api/admin/queue`.
+1. Check queue depth and dead-letter count using `/api/admin/queue` or `/admin/queue`.
 2. Confirm worker auth and leases.
 3. Requeue retryable jobs only after root cause is known.
 4. Leave permanent failures dead-lettered with reasons.
@@ -387,6 +388,5 @@ Go/no-go decision:
 - Live staging secrets and deploy evidence.
 - Custom-domain API routing evidence for `uraiassetfactory.com` and `www.uraiassetfactory.com`.
 - Real provider-backed generation smoke.
-- Operator UI for failed and dead-lettered jobs.
 - Account deletion/export/support workflows.
 - Final legal/privacy/security review.
