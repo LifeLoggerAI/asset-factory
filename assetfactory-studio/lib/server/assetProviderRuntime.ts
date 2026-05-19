@@ -116,21 +116,51 @@ async function getJson(url: string, headers: Record<string, string>) {
   return readProviderPayload(response);
 }
 
+async function readBinaryWithLimit(response: Response, maxBytes: number) {
+  if (!response.body) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > maxBytes) {
+      throw new Error(`Provider artifact exceeds max bytes after download: ${buffer.byteLength}`);
+    }
+    return buffer;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new Error(`Provider artifact exceeds max bytes during download: ${totalBytes}`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), totalBytes);
+}
+
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
   const safeUrl = assertPublicProviderUrl(url);
   const response = await fetch(safeUrl, { headers, signal: providerAbortSignal() });
   if (!response.ok) throw new Error(`Provider artifact fetch failed ${response.status}`);
 
-  const contentLength = Number(response.headers.get('content-length'));
+  const contentLengthHeader = response.headers.get('content-length');
+  const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
   const maxBytes = providerMaxBytes();
-  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+  if (contentLength !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new Error(`Provider artifact exceeds max bytes before download: ${contentLength}`);
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.byteLength > maxBytes) {
-    throw new Error(`Provider artifact exceeds max bytes after download: ${buffer.byteLength}`);
-  }
+  const buffer = await readBinaryWithLimit(response, maxBytes);
 
   return {
     buffer,
