@@ -75,11 +75,15 @@ Firebase and storage:
 
 Auth:
 
+- `ASSET_FACTORY_REQUIRE_JWT_SIGNATURE=true`
+- `ASSET_FACTORY_JWT_HS256_SECRET`
 - `ASSET_FACTORY_JWT_ISSUER`
-- `ASSET_FACTORY_JWKS_URI`
 - `ASSET_FACTORY_JWT_AUDIENCE`
-- documented tenant claim
-- documented role claim/header model
+- `ASSET_FACTORY_TENANT_CLAIM=tenantId`
+- `ASSET_FACTORY_ROLE_CLAIM=roles`
+- signed bearer tokens with `alg: HS256`, expected issuer, expected audience, tenant claim, and role claim
+
+Legacy header auth must stay disabled in staging and production: `ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH=false`. The current synchronous Studio auth guard supports signed HS256 bearer tokens. Do not configure `ASSET_FACTORY_JWKS_URI` as a production dependency unless RS256/JWKS verification is implemented and tested in `assetAuth.ts` first.
 
 Billing:
 
