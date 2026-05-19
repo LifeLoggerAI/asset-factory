@@ -52,6 +52,8 @@ Core routes:
 - `GET|POST /api/worker/asset-queue`
 - `GET /api/admin/queue`
 - `POST /api/admin/queue/requeue`
+- `GET /api/support/account-data`
+- `POST /api/support/account-deletion`
 - `GET /admin/queue`
 
 ## Required environment groups
@@ -186,6 +188,35 @@ curl -X POST \
 ```
 
 Requeue is only for `failed`, `dead-lettered`, or `retrying` items. Every accepted or rejected requeue attempt records a usage audit event.
+
+## Account support workflows
+
+Tenant admins can export their tenant-scoped account data and record deletion requests through protected support routes. These routes require the Asset Factory API key when key enforcement is enabled and require tenant admin authorization.
+
+Tenant account export:
+
+```bash
+curl -H "x-tenant-id: $TENANT_ID" \
+  -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  "$ASSET_FACTORY_BASE_URL/api/support/account-data"
+```
+
+The export response includes tenant-scoped jobs, generated asset metadata, usage events, counts, actor metadata, and an `account.exported` audit usage event.
+
+Tenant deletion request:
+
+```bash
+curl -X POST \
+  -H "content-type: application/json" \
+  -H "x-tenant-id: $TENANT_ID" \
+  -H "x-asset-role: admin" \
+  -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
+  -d '{"reason":"customer requested account deletion"}' \
+  "$ASSET_FACTORY_BASE_URL/api/support/account-deletion"
+```
+
+Deletion requests are recorded as `account.deletion_requested` audit usage events with `pending-manual-review` status. The endpoint intentionally does not destroy data automatically; destructive deletion must remain an operator-controlled process until legal retention, billing, and asset ownership requirements are confirmed.
 
 ## Staging checklist
 
@@ -325,6 +356,14 @@ Stripe webhook failure:
 3. Confirm unsigned payloads are rejected.
 4. Confirm valid events persist tenant entitlements.
 
+Account support request:
+
+1. Verify the requester is authorized for the tenant.
+2. Use `/api/support/account-data` for export requests.
+3. Use `/api/support/account-deletion` to record deletion requests.
+4. Confirm audit usage events were written.
+5. Do not manually delete tenant data without legal, billing, and retention approval.
+
 ## Rollback procedure
 
 1. Roll back app deployment to the last smoke-green release.
@@ -388,5 +427,4 @@ Go/no-go decision:
 - Live staging secrets and deploy evidence.
 - Custom-domain API routing evidence for `uraiassetfactory.com` and `www.uraiassetfactory.com`.
 - Real provider-backed generation smoke.
-- Account deletion/export/support workflows.
 - Final legal/privacy/security review.
