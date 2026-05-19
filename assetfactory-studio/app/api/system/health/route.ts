@@ -11,26 +11,27 @@ export async function GET(req: NextRequest) {
     if (authError) return authError;
   }
 
+  const publicPayload = {
+    ok: true,
+    service: 'asset-factory-studio',
+    checkedAt: new Date().toISOString(),
+    persistenceMode: diagnostics.mode,
+    fallbackActive: diagnostics.fallbackActive,
+  };
+
+  if (!fullDiagnostics) {
+    return NextResponse.json(publicPayload);
+  }
+
   try {
     const [jobs, assets] = await Promise.all([readJobs(), listAssets()]);
-    const publicPayload = {
-      ok: true,
-      service: 'asset-factory-studio',
-      checkedAt: new Date().toISOString(),
-      persistenceMode: diagnostics.mode,
-      fallbackActive: diagnostics.fallbackActive,
+
+    return NextResponse.json({
+      ...publicPayload,
       counts: {
         jobs: jobs.length,
         assets: assets.length,
       },
-    };
-
-    if (!fullDiagnostics) {
-      return NextResponse.json(publicPayload);
-    }
-
-    return NextResponse.json({
-      ...publicPayload,
       firebase: diagnostics.firebase,
       collections: diagnostics.collections,
       generatedPrefix: diagnostics.generatedPrefix,
