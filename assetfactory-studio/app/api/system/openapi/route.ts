@@ -138,6 +138,31 @@ export async function GET() {
           },
         },
       },
+      '/api/support/account-data': {
+        get: {
+          summary: 'Export the authenticated tenant account data bundle for support/privacy workflows.',
+          security: adminSecurity,
+        },
+      },
+      '/api/support/account-deletion': {
+        post: {
+          summary: 'Record an authenticated tenant account deletion request for operator review.',
+          security: adminSecurity,
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    reason: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       '/api/assets': {
         get: { summary: 'List generated asset metadata visible to the current tenant.' },
       },
