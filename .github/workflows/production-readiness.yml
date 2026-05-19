@@ -35,6 +35,9 @@ jobs:
       - name: Install deploy functions dependencies
         run: npm --prefix life-map-pipeline/functions install
 
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+
       - name: Doctor
         run: npm run doctor --if-present
 
