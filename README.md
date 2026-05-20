@@ -13,9 +13,9 @@ These local proof renderers are intentionally deterministic so API contracts, ma
 
 ## Launch status
 
-Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass in staging and production**.
+Asset Factory repo-side hardening is complete for the current pass, but the system is **not production-locked until `LAUNCH_READINESS.md` gates pass in staging and production with live evidence**.
 
-Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
+Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Use issue #63 as the live production-lock tracker. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
 
 ### Current verified production surface
 
@@ -37,15 +37,16 @@ Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` 
 - `LAUNCH_READINESS.md`: current production launch gate checklist.
 
 ## Requirements
-- Node.js 20.19.0 or newer. Node 20.18.x is too old for current Studio dependencies.
+- Node.js 22.x for Studio/deploy workflow parity. Root packages still accept Node.js 20.19.0 or newer, but use Node 22 when validating the Studio/Firebase deployment path.
 - npm 10.8.0 or newer.
+- Java 21 for current Firebase emulator/CLI tooling.
 - Firebase CLI (`npm i -g firebase-tools`) for emulators/deploy.
 
 ## Quick start
 ```bash
 unset NPM_CONFIG_PREFIX
-nvm install 20.19.0
-nvm use 20.19.0
+nvm install 22
+nvm use 22
 node --version
 npm install
 npm --prefix engine install
@@ -62,8 +63,8 @@ git fetch origin
 git checkout main
 git reset --hard origin/main
 unset NPM_CONFIG_PREFIX
-nvm install 20.19.0
-nvm use 20.19.0
+nvm install 22
+nvm use 22
 npm install
 npm --prefix assetfactory-studio install
 npm run doctor
@@ -157,9 +158,35 @@ npm run e2e
 
 The E2E suite exercises graphic, model3d, audio, and bundle jobs through generate -> materialize -> fetch -> publish -> approve.
 
-### Remote launch smoke checks
+### Preferred remote launch smoke checks
 
-Run these only against deployed staging/production targets with the correct secrets available locally or in CI.
+Use the manual GitHub Actions workflow whenever possible:
+
+```text
+Actions -> Deploy Asset Factory -> Run workflow
+```
+
+Sequence:
+
+```text
+staging / deploy=false / smoke_mode=readonly
+staging / deploy=true / smoke_mode=both
+production / deploy=false / smoke_mode=readonly
+production / deploy=true / smoke_mode=both
+```
+
+Required GitHub environment/repository secrets:
+
+```text
+FIREBASE_TOKEN
+ASSET_FACTORY_API_KEY
+ASSET_FACTORY_BEARER_TOKEN
+CRON_SECRET
+```
+
+### Manual remote smoke checks
+
+Run these only when debugging deployed staging/production targets with the correct secrets available locally or in CI.
 
 ```bash
 ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
@@ -225,21 +252,32 @@ Before using real provider-backed rendering in production:
 - Follow `docs/OPERATIONS_RUNBOOK.md` for release evidence, rollback, and incident response.
 
 ## Deploy notes
-- Firebase Functions deploy from target package:
-  - `cd life-map-pipeline/functions && npm run deploy`
-- Root Firebase deploy and verification scripts:
-  - `npm run deploy:firebase`
-  - `npm run deploy:verify-readonly`
-  - `npm run deploy:verify`
-  - `npm run check:deploy-workflow`
-- Ensure project, service account, and env are configured before deploy.
+
+Preferred deployment path for the Studio/Firebase framework surface is the manual GitHub Actions workflow documented above and in `docs/OPERATIONS_RUNBOOK.md`.
+
+Manual Studio deploy command, when debugging with configured Firebase credentials:
+
+```bash
+npm run deploy:studio
+```
+
+Other deploy scripts exist for explicit lower-level Firebase operations and should only be used with collision-risk review:
+
+```bash
+npm run deploy:firebase
+npm run deploy:verify-readonly
+npm run deploy:verify
+npm run check:deploy-workflow
+```
+
+Ensure project, service account, and env are configured before deploy.
 
 ## Troubleshooting
 - If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
-- If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 20.19.0 && nvm use 20.19.0`.
+- If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 22 && nvm use 22`.
 - If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
 - If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
-- If Firebase build fails, verify Node version and `firebase-tools` auth/project selection.
-- If Studio E2E fails to boot, verify Node 20.19.0+, dependencies, and no conflicting process on port 3000.
+- If Firebase build fails, verify Node version, Java 21, firebase-tools auth, and project selection.
+- If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
 - If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
-- If `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
+- If `https://uraiassetfactory.com/api/system/health` or `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
