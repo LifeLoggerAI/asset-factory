@@ -22,6 +22,10 @@ const requiredPhrases = [
   'environment:',
   'staging',
   'production',
+  'Use Node.js 22',
+  "node-version: '22'",
+  'Use Java 21 for Firebase CLI',
+  "java-version: '21'",
   'npm run doctor',
   'npm run test:launch-readiness',
   'npm run test:completion-lock',
@@ -31,6 +35,8 @@ const requiredPhrases = [
   'ASSET_FACTORY_API_KEY',
   'ASSET_FACTORY_BEARER_TOKEN',
   'CRON_SECRET',
+  'Deploy Firebase Studio',
+  'npm run deploy:studio',
   'https://staging.uraiassetfactory.com',
   'https://www.uraiassetfactory.com',
   'prod-smoke',
@@ -40,6 +46,9 @@ const requiredPhrases = [
   'npm run smoke:website',
   'npm run smoke:staging',
   'npm run smoke:prod',
+  'Deploy command: npm run deploy:studio',
+  'Node runtime: 22',
+  'Java runtime: 21',
   'Upload release evidence',
   'actions/upload-artifact@v4'
 ];
@@ -52,6 +61,8 @@ for (const phrase of requiredPhrases) {
 
 const forbiddenPhrases = [
   'ASSET_FACTORY_TENANT_ID: smoke-tenant-a\n          ASSET_FACTORY_OTHER_TENANT_ID: smoke-tenant-b\n        run: |\n          if [ "${{ inputs.environment }}" = "production" ]',
+  'npm run deploy:firebase -- --token',
+  'Use Node.js 20\n        uses: actions/setup-node@v4\n        with:\n          node-version: \'20.19.0\'',
   'fully production ready',
   'system of systems complete'
 ];
