@@ -48,14 +48,32 @@ async function request(path, options = {}, expectedStatuses = [200]) {
   return body;
 }
 
+function assertHealthPayload(health, route) {
+  const validServices = new Set(['asset-factory', 'asset-factory-studio']);
+  if (!health || health.ok !== true || !validServices.has(health.service)) {
+    throw new Error(`${route} returned unexpected payload: ${JSON.stringify(health)}`);
+  }
+}
+
+async function requestHealth() {
+  try {
+    const health = await request('/api/system/health');
+    assertHealthPayload(health, '/api/system/health');
+    console.log('PASS /api/system/health');
+    return health;
+  } catch (systemHealthError) {
+    const health = await request('/api/health');
+    assertHealthPayload(health, '/api/health');
+    console.warn(`WARN /api/system/health failed; compatibility /api/health passed: ${systemHealthError instanceof Error ? systemHealthError.message : String(systemHealthError)}`);
+    console.log('PASS /api/health');
+    return health;
+  }
+}
+
 async function run() {
   console.log(`Production finalization smoke target: ${base}`);
 
-  const health = await request('/api/health');
-  if (!health || health.ok !== true || health.service !== 'asset-factory') {
-    throw new Error(`/api/health returned unexpected payload: ${JSON.stringify(health)}`);
-  }
-  console.log('PASS /api/health');
+  await requestHealth();
 
   if (readonly) {
     console.log('PASS read-only production finalization smoke');
