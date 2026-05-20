@@ -1,10 +1,10 @@
 # Asset Factory Operations Runbook
 
-Use this runbook with `LAUNCH_READINESS.md`. The readiness file is the source of truth for go/no-go launch gates; this file explains how operators should run deploy, smoke, evidence, and rollback steps.
+Use this runbook with `LAUNCH_READINESS.md` and canonical production-lock issue #63. The readiness file is the go/no-go source of truth; issue #63 is the live tracker; this file explains how operators should run deploy, smoke, evidence, and rollback steps.
 
 ## Operating rule
 
-Asset Factory is not live until staging and production smoke tests pass and the evidence is attached to the release issue.
+Asset Factory is not live until staging and production smoke tests pass and the evidence is attached to issue #63.
 
 Local proof mode is useful for development. It is not proof of production readiness.
 
@@ -26,7 +26,33 @@ Known custom-domain blocker:
 
 - `docs/release-evidence/2026-05-16-custom-domain-blocker.md`
 
-Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as API smoke bases until the custom-domain blocker is closed. If `/api/health` on the custom domain returns a Next.js 404, the domain is still routed to a separate frontend target and is not using this repo's Firebase Hosting API rewrites.
+Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as API smoke bases until the custom-domain blocker is closed. If `/api/system/health` or `/api/health` on the custom domain returns a Next.js 404, the domain is still routed to a separate frontend target and is not using this repo's Firebase Hosting API surface.
+
+## Preferred deploy and smoke path
+
+Use the manual GitHub Actions workflow whenever possible:
+
+```text
+Actions -> Deploy Asset Factory -> Run workflow
+```
+
+Recommended sequence:
+
+1. `environment=staging`, `deploy=false`, `smoke_mode=readonly`
+2. `environment=staging`, `deploy=true`, `smoke_mode=both`
+3. `environment=production`, `deploy=false`, `smoke_mode=readonly`
+4. `environment=production`, `deploy=true`, `smoke_mode=both`
+
+The workflow runs with local fallback disabled and uploads an evidence artifact. Attach successful artifacts to issue #63.
+
+Required GitHub environment/repository secrets:
+
+```text
+FIREBASE_TOKEN
+ASSET_FACTORY_API_KEY
+ASSET_FACTORY_BEARER_TOKEN
+CRON_SECRET
+```
 
 ## Runtime surfaces
 
@@ -35,6 +61,7 @@ Primary package: `assetfactory-studio/`.
 Core routes:
 
 - `GET /api/system/health`
+- `GET /api/health` compatibility alias for smoke/tools
 - `GET /api/system/manifest`
 - `GET /api/system/manifest?full=true`
 - `GET /api/system/integration-contract`
@@ -136,8 +163,7 @@ Use `/admin/queue` for the browser operator console. It supports tenant-scoped a
 Tenant-scoped view:
 
 ```bash
-curl -H "x-tenant-id: $TENANT_ID" \
-  -H "x-asset-role: admin" \
+curl -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   "$ASSET_FACTORY_BASE_URL/api/admin/queue?status=dead-lettered&limit=50"
 ```
@@ -145,7 +171,7 @@ curl -H "x-tenant-id: $TENANT_ID" \
 All-tenant operator view:
 
 ```bash
-curl -H "x-asset-role: admin" \
+curl -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   "$ASSET_FACTORY_BASE_URL/api/admin/queue?allTenants=true&limit=100"
 ```
@@ -169,8 +195,7 @@ Controlled requeue:
 ```bash
 curl -X POST \
   -H "content-type: application/json" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "x-asset-role: admin" \
+  -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   -d '{"jobId":"JOB_ID","reason":"provider outage fixed","resetAttempts":false}' \
   "$ASSET_FACTORY_BASE_URL/api/admin/queue/requeue"
@@ -181,7 +206,7 @@ All-tenant operator requeue:
 ```bash
 curl -X POST \
   -H "content-type: application/json" \
-  -H "x-asset-role: admin" \
+  -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   -d '{"jobId":"JOB_ID","reason":"manual verified retry","allTenants":true,"resetAttempts":true}' \
   "$ASSET_FACTORY_BASE_URL/api/admin/queue/requeue"
@@ -196,8 +221,7 @@ Tenant admins can export their tenant-scoped account data and record deletion re
 Tenant account export:
 
 ```bash
-curl -H "x-tenant-id: $TENANT_ID" \
-  -H "x-asset-role: admin" \
+curl -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   "$ASSET_FACTORY_BASE_URL/api/support/account-data"
 ```
@@ -209,8 +233,7 @@ Tenant deletion request:
 ```bash
 curl -X POST \
   -H "content-type: application/json" \
-  -H "x-tenant-id: $TENANT_ID" \
-  -H "x-asset-role: admin" \
+  -H "authorization: Bearer $ASSET_FACTORY_BEARER_TOKEN" \
   -H "x-asset-factory-key: $ASSET_FACTORY_API_KEY" \
   -d '{"reason":"customer requested account deletion"}' \
   "$ASSET_FACTORY_BASE_URL/api/support/account-deletion"
@@ -219,6 +242,8 @@ curl -X POST \
 Deletion requests are recorded as `account.deletion_requested` audit usage events with `pending-manual-review` status. The endpoint intentionally does not destroy data automatically; destructive deletion must remain an operator-controlled process until legal retention, billing, and asset ownership requirements are confirmed.
 
 ## Staging checklist
+
+Prefer the GitHub Actions workflow. Use manual commands only when debugging a failing workflow run.
 
 1. Confirm staging secrets are present and staging-scoped.
 2. Deploy Firestore rules, Storage rules, and indexes.
@@ -238,10 +263,12 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
-8. Attach smoke output to the release issue.
+8. Attach smoke output to issue #63.
 9. Do not continue to production if staging smoke fails.
 
 ## Production checklist
+
+Prefer the GitHub Actions workflow. Use manual commands only when debugging a failing workflow run.
 
 1. Confirm staging passed on the final release candidate.
 2. Confirm production secrets are production-scoped.
@@ -288,7 +315,7 @@ npm run smoke:prod
 ```
 
 10. Check logs, queue backlog, dead letters, provider failures, and spend.
-11. Attach production smoke evidence to the release issue.
+11. Attach production smoke evidence to issue #63.
 
 ## Custom-domain API blocker closure
 
@@ -296,10 +323,11 @@ The custom-domain blocker is closed only when all of these are true:
 
 - `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
 - `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
-- `https://uraiassetfactory.com/api/health` returns the expected Asset Factory health response, not a Next.js 404 page.
+- `https://uraiassetfactory.com/api/system/health` returns the expected Asset Factory Studio health response.
+- `https://uraiassetfactory.com/api/health` returns the compatibility health response, not a Next.js 404 page.
 - read-only smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
 - authenticated smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
-- new custom-domain evidence is committed under `docs/release-evidence/`.
+- new custom-domain evidence is committed under `docs/release-evidence/` or attached as a successful GitHub Actions artifact linked from issue #63.
 
 Do not update the completion lock to `LOCKED` until this blocker and the remaining `LAUNCH_READINESS.md` P0 gates are closed with evidence.
 
