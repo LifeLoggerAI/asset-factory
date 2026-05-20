@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     env:
+      ACTIONS_STEP_DEBUG: 'true'
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       ASSET_FACTORY_FORCE_LOCAL: 'false'
       ASSET_FACTORY_REQUIRE_API_KEY: 'true'
       ASSET_FACTORY_REQUIRE_AUTH: 'true'
@@ -51,21 +53,41 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install dependencies
+      - name: Print runtime versions
         run: |
-          npm install
-          npm --prefix engine install
-          npm --prefix functions install
-          npm --prefix life-map-pipeline/functions install
-          npm --prefix assetfactory-studio install
+          node --version
+          npm --version
+          java -version
 
-      - name: Launch gates
-        run: |
-          npm run doctor
-          npm run test:launch-readiness
-          npm run test:completion-lock
-          npm run verify:local
-          node scripts/check-deploy-workflow.mjs
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install engine dependencies
+        run: npm --prefix engine install
+
+      - name: Install functions dependencies
+        run: npm --prefix functions install
+
+      - name: Install LifeMap dependencies
+        run: npm --prefix life-map-pipeline/functions install
+
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+
+      - name: Doctor gate
+        run: npm run doctor
+
+      - name: Launch readiness gate
+        run: npm run test:launch-readiness
+
+      - name: Completion lock gate
+        run: npm run test:completion-lock
+
+      - name: Local verification gate
+        run: npm run verify:local
+
+      - name: Deploy workflow gate
+        run: node scripts/check-deploy-workflow.mjs
 
       - name: Resolve deployment target
         id: target
@@ -166,7 +188,11 @@ jobs:
 
           ## Gate status
 
-          - Launch gates ran before deploy/smoke.
+          - Doctor gate requested: true
+          - Launch readiness gate requested: true
+          - Completion lock gate requested: true
+          - Local verification gate requested: true
+          - Deploy workflow gate requested: true
           - Read-only smoke requested: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
           - Authenticated smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
 
