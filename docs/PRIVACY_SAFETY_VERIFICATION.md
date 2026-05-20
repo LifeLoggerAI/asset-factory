@@ -1,11 +1,13 @@
 # Asset Factory Privacy and Safety Verification
 
-Date: 2026-05-19
-Status: BLOCKED UNTIL FINAL REVIEW AND TEST EVIDENCE
+Date: 2026-05-20
+Status: BLOCKED UNTIL FINAL REVIEW AND LIVE TEST EVIDENCE
 
 ## Decision
 
-Asset Factory must not be approved as fully production-ready until privacy, safety, support, account deletion/export, legal/trust/status pages, diagnostics redaction, auth, and tenant-isolation evidence pass and are linked from release evidence.
+Asset Factory must not be approved as production-ready until privacy, safety, support, account deletion/export, legal/trust/status pages, diagnostics redaction, auth, and tenant-isolation evidence pass and are linked from release evidence.
+
+Repo-side hardening is complete for the current pass, but privacy/safety approval remains gated on live staging/production evidence and reviewer signoff.
 
 ## Privacy and safety gates
 
@@ -37,7 +39,7 @@ Do not use these claims in public copy, README, launch notes, website, or Core d
 Allowed language until lock closes:
 
 ```text
-Asset Factory has a production-smoked Firebase API slice and a deterministic local proof pipeline. The full product system remains launch-gated until auth, tenancy, provider-backed generation, worker, billing, observability, website, and production smoke evidence pass.
+Asset Factory repo-side hardening is complete for the current pass, with a production-smoked Firebase API slice and deterministic local proof pipeline. The full product system remains launch-gated until live staging/production auth, tenancy, provider-backed generation, worker, billing, observability, website, rollback, and production smoke evidence pass.
 ```
 
 ## Required production settings
@@ -62,6 +64,8 @@ Do not configure `ASSET_FACTORY_JWKS_URI` as a production dependency unless RS25
 
 ## Required tests before approval
 
+Prefer the GitHub Actions workflow documented in `docs/OPERATIONS_RUNBOOK.md` and issue #63. Manual commands below are for debugging failed workflow runs.
+
 ```bash
 npm run test:launch-readiness
 npm run test:completion-lock
@@ -80,4 +84,4 @@ ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com ASSET_FACTORY_API_KEY=$PROD_
 
 BLOCKED.
 
-The project has privacy/safety scaffolding and static guardrails, but production approval requires fresh executable proof and reviewer signoff. Do not approve public launch or Core dependency lock until this file, the launch readiness checklist, and the completion lock all point to the same passing evidence.
+The project has privacy/safety scaffolding, static guardrails, and current-pass repo-side hardening, but production approval requires fresh executable proof and reviewer signoff. Do not approve public launch or Core dependency lock until this file, the launch readiness checklist, issue #63, and the completion lock all point to the same passing evidence.
