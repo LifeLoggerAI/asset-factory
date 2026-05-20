@@ -11,7 +11,7 @@ on:
           - staging
           - production
       deploy:
-        description: Run firebase deploy before smoke tests
+        description: Run Firebase Studio deploy before smoke tests
         required: true
         type: boolean
         default: false
@@ -40,9 +40,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
         with:
-          node-version: '20.19.0'
+          node-version: '22'
+
+      - name: Use Java 21 for Firebase CLI
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
 
       - name: Install dependencies
         run: |
@@ -106,11 +113,11 @@ jobs:
         if: ${{ inputs.deploy }}
         run: npm install -g firebase-tools
 
-      - name: Deploy Firebase
+      - name: Deploy Firebase Studio
         if: ${{ inputs.deploy }}
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: npm run deploy:firebase -- --token "$FIREBASE_TOKEN"
+        run: npm run deploy:studio -- --token "$FIREBASE_TOKEN"
 
       - name: Read-only smoke
         if: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
@@ -150,9 +157,12 @@ jobs:
           - Base URL: ${{ steps.target.outputs.base_url }}
           - Deploy requested: ${{ inputs.deploy }}
           - Smoke mode: ${{ inputs.smoke_mode }}
+          - Deploy command: npm run deploy:studio
           - Local fallback disabled: true
           - Auth required: true
           - API key required: true
+          - Node runtime: 22
+          - Java runtime: 21
 
           ## Gate status
 
