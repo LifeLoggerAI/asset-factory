@@ -2,15 +2,17 @@
 
 This document is the current launch-readiness source of truth for `LifeLoggerAI/asset-factory`.
 
-It supersedes older historical/lock/final-report documents when those documents imply the system is fully complete, immutable, or already production-live. Older documents may remain useful for context, but public launch decisions should use this checklist plus live staging/production smoke evidence.
+It supersedes older historical/lock/final-report documents when those documents imply the system is complete, immutable, or already production-live. Older documents may remain useful for context, but public launch decisions must use this checklist plus live staging/production smoke evidence.
 
-Operational execution details live in `docs/OPERATIONS_RUNBOOK.md`, including deploy steps, staging/production smoke commands, monitoring checks, incident response, rollback, and the release evidence template.
+Operational execution details live in `docs/OPERATIONS_RUNBOOK.md`, including the GitHub Actions deploy workflow, staging/production smoke sequence, monitoring checks, incident response, rollback, and release evidence requirements.
+
+Canonical live tracker: GitHub issue #63.
 
 ## Current release position
 
-Status: **not production-ready yet**.
+Status: **repo-side hardening complete for current pass; live evidence required before production lock**.
 
-The repo contains a functional local proof pipeline and partially wired production seams. It is not done until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow.
+The repo contains a functional local proof pipeline, the Studio/Firebase deploy path has been aligned, smoke-health compatibility has been fixed, CI/runtime drift has been fixed, and runbooks/evidence/lock docs have been synced. It is still not locked until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow with local fallback disabled.
 
 ### What is implemented
 
@@ -25,9 +27,15 @@ The repo contains a functional local proof pipeline and partially wired producti
 - Stripe webhook dependency, signature-verification path, and entitlement persistence seam.
 - Public-safe system contract and diagnostic route separation.
 - Durable queue/operator surfaces for worker leases, retries, dead-letter visibility, and controlled requeue.
+- GitHub Actions deploy/smoke workflow aligned to Studio runtime.
+- Deploy workflow diagnostics split into actionable named steps.
+- `/api/system/health` primary health route with `/api/health` compatibility for smoke/tools.
+- Release evidence validator for final lock evidence.
 
 ### What is not proven complete
 
+- Live staging workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.
+- Live production workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.
 - Production Firebase project, service account, Firestore rules, indexes, storage bucket, IAM, and signed/private access policy.
 - Production auth provider issuing HS256 bearer tokens with the configured issuer, audience, tenant claim, and role claim.
 - Real provider-backed generation using production credentials and selected model IDs.
@@ -44,19 +52,19 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 
 | Gate | Required evidence | Status |
 | --- | --- | --- |
-| Local proof gate | `npm --prefix assetfactory-studio run check` and `npm --prefix assetfactory-studio run e2e` pass | Pending latest run |
-| Staging deploy gate | Staging URL running with `ASSET_FACTORY_FORCE_LOCAL=false` | Pending |
-| Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging | Pending |
-| Auth gate | Production-like API-key auth plus signed HS256 bearer auth enabled; `ASSET_FACTORY_JWT_HS256_SECRET` configured; tenant and role claims enforced; legacy header auth disabled | Pending |
-| Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files | Pending |
-| Generation gate | Local-proof staging smoke passes; real provider smoke passes for selected launch asset types | Pending |
-| Worker gate | Durable queue/worker path selected and tested for provider-backed jobs | Pending |
-| Billing gate | Stripe webhook verifies signatures and persists idempotent tenant entitlements | Pending |
-| Diagnostics gate | Public health/manifest are redacted; full diagnostics require API key | Pending |
-| Cron gate | Cron endpoints reject missing/wrong `CRON_SECRET` and pass with correct secret | Pending |
-| Observability gate | Errors, latency, queue depth, failed jobs, provider costs, and uptime visible | Pending |
-| Website gate | `www.uraiassetfactory.com` DNS/TLS/routes/legal/trust/status pages verified | Pending |
-| Production smoke gate | Production smoke passes with a test tenant after deploy | Pending |
+| Local proof gate | `npm --prefix assetfactory-studio run check` and `npm --prefix assetfactory-studio run e2e` pass, plus root gates. | Pending fresh workflow evidence |
+| Staging deploy gate | Staging URL running with `ASSET_FACTORY_FORCE_LOCAL=false`. | Pending live workflow evidence |
+| Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging. | Pending live workflow evidence |
+| Auth gate | Production-like API-key auth plus signed HS256 bearer auth enabled; `ASSET_FACTORY_JWT_HS256_SECRET` configured; tenant and role claims enforced; legacy header auth disabled. | Pending live workflow evidence |
+| Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files. | Pending live workflow evidence |
+| Generation gate | Local-proof staging smoke passes; real provider smoke passes for selected launch asset types. | Pending live provider evidence |
+| Worker gate | Durable queue/worker path selected and tested for provider-backed jobs. | Pending live worker/DLQ evidence |
+| Billing gate | Stripe webhook verifies signatures and persists idempotent tenant entitlements. | Pending live Stripe evidence |
+| Diagnostics gate | Public health/manifest are redacted; full diagnostics require API key. | Pending live workflow evidence |
+| Cron gate | Cron endpoints reject missing/wrong `CRON_SECRET` and pass with correct secret. | Pending live workflow evidence |
+| Observability gate | Errors, latency, queue depth, failed jobs, provider costs, and uptime visible. | Pending monitoring links |
+| Website gate | `www.uraiassetfactory.com` DNS/TLS/routes/legal/trust/status pages verified. | Pending custom-domain/legal evidence |
+| Production smoke gate | Production smoke passes with a test tenant after deploy. | Pending live workflow evidence |
 
 ## Required environment groups
 
@@ -103,7 +111,35 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 - Sentry/PostHog/OpenTelemetry/Cloud Logging configuration or documented chosen equivalents.
 - Uptime-check target URLs.
 
-## Smoke commands
+## Preferred smoke path
+
+Use the manual GitHub Actions workflow whenever possible:
+
+```text
+Actions -> Deploy Asset Factory -> Run workflow
+```
+
+Sequence:
+
+```text
+staging / deploy=false / smoke_mode=readonly
+staging / deploy=true / smoke_mode=both
+production / deploy=false / smoke_mode=readonly
+production / deploy=true / smoke_mode=both
+```
+
+Required GitHub environment/repository secrets:
+
+```text
+FIREBASE_TOKEN
+ASSET_FACTORY_API_KEY
+ASSET_FACTORY_BEARER_TOKEN
+CRON_SECRET
+```
+
+## Manual smoke commands
+
+Use these only when debugging a workflow run.
 
 Local proof mode:
 
@@ -139,14 +175,14 @@ npm run smoke:prod
 
 ## Immediate next implementation order
 
-1. Run and capture the local proof gate.
-2. Configure staging secrets and deploy with local fallback disabled.
-3. Run staging smoke and fix every failure before adding real providers.
-4. Finalize HS256 auth issuer/audience/tenant/role claims and keep legacy-header auth disabled.
-5. Run cross-tenant denial smoke tests.
-6. Verify Stripe entitlement persistence from signed webhook events.
-7. Verify durable worker queue leases, retries, idempotency, and dead-letter recovery in staging.
+1. Run the GitHub Actions workflow for staging read-only smoke.
+2. Fix every failing named step before proceeding.
+3. Run staging deploy plus authenticated smoke with secrets.
+4. Run production read-only smoke.
+5. Run production deploy plus authenticated smoke with secrets.
+6. Attach workflow artifacts/logs to issue #63.
+7. Verify provider-backed generation, worker queue/DLQ, Stripe entitlements, diagnostics redaction, cron secret enforcement, and cross-tenant denial.
 8. Configure observability and operator dashboards.
 9. Verify public website DNS/TLS/legal/trust/status pages.
-10. Run production smoke with a test tenant.
-11. Only then announce the system as live.
+10. Record rollback SHA, rollback command, deploy target, monitoring links, and owner approval.
+11. Only then update `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md` to LOCKED and announce the system as live.
