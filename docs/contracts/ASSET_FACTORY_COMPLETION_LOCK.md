@@ -2,7 +2,7 @@
 
 Status: **NOT LOCKED**
 
-This file is the machine-readable human checklist for deciding whether Asset Factory is 100% complete, cohesive, integrated, verified, documented, and safe for UrAi system-of-systems production use.
+This file is the machine-readable human checklist for deciding whether Asset Factory is complete, cohesive, integrated, verified, documented, and safe for UrAi system-of-systems production use.
 
 No older report, local smoke, partial Firebase deploy, demo proof, or roadmap note may override this lock.
 
@@ -10,9 +10,17 @@ No older report, local smoke, partial Firebase deploy, demo proof, or roadmap no
 
 | Area | Status | Meaning |
 | --- | --- | --- |
-| Firebase API slice | `PRODUCTION-SMOKED` | Health, asset request/status, and Life Map event ingestion have smoke evidence on `urai-4dc1d`. |
-| Full Asset Factory product system | `NOT_PRODUCTION_READY` | Studio/provider/worker/billing/auth/tenant/ops/legal gates remain incomplete until proven. |
+| Repo-side hardening | `COMPLETE_FOR_CURRENT_PASS` | Studio deploy/runtime/API routing, CI runtime, deploy workflow, diagnostics, health compatibility, runbooks, and evidence validation have been updated through commit `6aa50f2d3c49b99a0739e80690873a37602f3906`. |
+| Firebase API slice | `PRODUCTION-SMOKED` | Health, asset request/status, and Life Map event ingestion have historical smoke evidence on `urai-4dc1d`. Fresh final evidence is still required before lock. |
+| Full Asset Factory product system | `LIVE_EVIDENCE_REQUIRED` | Staging/production, auth, tenancy, provider, worker, billing, observability, legal/support, rollback, and custom-domain gates remain incomplete until proven by live artifacts. |
 | UrAi Core dependency | `NOT_LOCKED` | Core may integrate only behind a feature flag until this lock is closed. |
+
+## Current source of truth
+
+- Canonical production tracker: GitHub issue #63.
+- Open PRs at latest status sync: 0.
+- Duplicate trackers consolidated: #29, #59, #60.
+- Latest repo-side hardening commit: `6aa50f2d3c49b99a0739e80690873a37602f3906`.
 
 ## Lock owner responsibilities
 
@@ -28,22 +36,36 @@ The lock owner must verify evidence before changing `Status` to `LOCKED`:
 
 | Gate | Required proof | Current state |
 | --- | --- | --- |
-| Contract gate | API contract and OpenAPI match implemented routes and consumer expectations. | Pending |
-| Local proof gate | `npm run doctor`, root readiness, Studio check/e2e, root tests/build pass. | Pending fresh evidence |
-| Staging deploy gate | Staging URL runs with `ASSET_FACTORY_FORCE_LOCAL=false`. | Pending |
-| Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging. | Pending |
-| Auth gate | JWT/API-key auth enabled, issuer/JWKS/audience checked, tenant and role claims enforced. | Pending |
-| Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files. | Pending |
-| Provider generation gate | Local-proof smoke and real provider smoke pass for launch asset types. | Pending |
-| Worker gate | Durable queue/worker path uses leases, retries, idempotency, DLQ, cleanup/retention. | Pending |
-| Billing gate | Stripe webhook verifies signatures and persists idempotent tenant entitlements. | Pending |
-| Diagnostics gate | Public health/manifest are redacted; full diagnostics require API key. | Pending |
-| Cron gate | Cron endpoints reject missing/wrong `CRON_SECRET` and pass with correct secret. | Pending |
-| Observability gate | Errors, latency, queue depth, failed jobs, provider costs, uptime visible. | Pending |
-| Website gate | `www.uraiassetfactory.com` DNS/TLS/routes/legal/trust/status pages verified. | Pending |
-| Production smoke gate | Production smoke passes with a test tenant after deploy. | Pending |
-| Rollback gate | Last known-good SHA and rollback command are recorded. | Pending |
-| Core dependency gate | UrAi Core consumes only documented contract behind feature flag with timeout/retry/rollback path. | Pending |
+| Contract gate | API contract and OpenAPI match implemented routes and consumer expectations. | Repo-side reviewed; final live consumer evidence pending |
+| Local proof gate | `npm run doctor`, root readiness, Studio check/e2e, root tests/build pass. | Pending fresh workflow evidence |
+| Staging deploy gate | Staging URL runs with `ASSET_FACTORY_FORCE_LOCAL=false`. | Pending live workflow evidence |
+| Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging. | Pending live workflow evidence |
+| Auth gate | JWT/API-key auth enabled, issuer/audience checked, tenant and role claims enforced. | Pending live workflow evidence |
+| Tenant isolation gate | Tenant A cannot read/list/download Tenant B jobs/assets/files. | Pending live workflow evidence |
+| Provider generation gate | Local-proof smoke and real provider smoke pass for launch asset types. | Pending live provider evidence |
+| Worker gate | Durable queue/worker path uses leases, retries, idempotency, DLQ, cleanup/retention. | Pending live worker/DLQ evidence |
+| Billing gate | Stripe webhook verifies signatures and persists idempotent tenant entitlements. | Pending live Stripe evidence |
+| Diagnostics gate | Public health/manifest are redacted; full diagnostics require API key. | Pending live workflow evidence |
+| Cron gate | Cron endpoints reject missing/wrong `CRON_SECRET` and pass with correct secret. | Pending live workflow evidence |
+| Observability gate | Errors, latency, queue depth, failed jobs, provider costs, uptime visible. | Pending monitoring links |
+| Website gate | `www.uraiassetfactory.com` DNS/TLS/routes/legal/trust/status pages verified. | Pending custom-domain evidence |
+| Production smoke gate | Production smoke passes with a test tenant after deploy. | Pending live workflow evidence |
+| Rollback gate | Last known-good SHA and rollback command are recorded. | Pending owner-selected rollback evidence |
+| Core dependency gate | UrAi Core consumes only documented contract behind feature flag with timeout/retry/rollback path. | Pending after Asset Factory lock |
+
+## Merged hardening inventory
+
+Completed during the current production-lock pass:
+
+- Studio Firebase deploy runtime/API routing fix.
+- CI emulator Java 21 and Studio Node 22 runtime fix.
+- Manual deploy/smoke workflow aligned to Studio runtime.
+- Deployment verification docs synced to the GitHub Actions evidence path.
+- Release evidence validator added.
+- Deploy workflow diagnostics split into actionable steps.
+- Health route compatibility for production smoke.
+- Operations runbook synced to current workflow/auth/health-route behavior.
+- Duplicate launch/readiness trackers consolidated into issue #63.
 
 ## Required output inventory
 
@@ -127,6 +149,12 @@ release:
   owner: <name>
 ```
 
+Validate final evidence with:
+
+```bash
+node scripts/check-release-evidence.mjs docs/release-evidence/<file>.md
+```
+
 ## Forbidden completion claims
 
 Do not use these phrases in README, launch notes, website, or Core dependency docs until this file is locked:
@@ -142,13 +170,14 @@ Do not use these phrases in README, launch notes, website, or Core dependency do
 Allowed phrase until locked:
 
 ```text
-Asset Factory has a production-smoked Firebase API slice and a deterministic local proof pipeline. The full product system remains launch-gated until auth, tenancy, provider-backed generation, worker, billing, observability, website, and production smoke evidence pass.
+Asset Factory repo-side hardening is complete for the current pass, with a production-smoked Firebase API slice and deterministic local proof pipeline. The full product system remains launch-gated until live staging/production auth, tenancy, provider-backed generation, worker, billing, observability, website, rollback, and production smoke evidence pass.
 ```
 
 ## Lock transition procedure
 
-1. Update every P0 gate in this file and `LAUNCH_READINESS.md` from `Pending` to `Passed` with evidence links.
-2. Attach OpenAPI, smoke logs, CI links, staging evidence, production evidence, and rollback SHA.
-3. Update UrAiProd dependency records.
-4. Change top status from `NOT LOCKED` to `LOCKED` only in the same PR that includes evidence.
-5. Merge only after review.
+1. Run the Deploy Asset Factory workflow in the sequence documented in `docs/OPERATIONS_RUNBOOK.md` and issue #63.
+2. Update every P0 gate in this file and `LAUNCH_READINESS.md` from pending to passed with evidence links.
+3. Attach OpenAPI, smoke logs, CI links, staging evidence, production evidence, monitoring links, and rollback SHA.
+4. Update UrAiProd dependency records.
+5. Change top status from `NOT LOCKED` to `LOCKED` only in the same PR that includes evidence.
+6. Merge only after review.
