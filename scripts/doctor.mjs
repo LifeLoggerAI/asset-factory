@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 const checks = [];
 let failed = false;
 const MIN_NODE = { major: 20, minor: 19, patch: 0 };
+const RECOMMENDED_NODE = '22';
 const MIN_NPM = { major: 10, minor: 8, patch: 0 };
 const skipHeadMatch = process.env.ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH === 'true';
 
@@ -55,17 +56,17 @@ const upstream = command('git rev-parse --abbrev-ref --symbolic-full-name @{u}')
 const nodeVersion = command('node --version');
 const npmVersion = command('npm --version');
 
-check('node is installed', Boolean(nodeVersion), `Expected Node.js >=${versionLabel(MIN_NODE)}.`);
-check('node version is supported', versionAtLeast(nodeVersion, MIN_NODE), `Current ${nodeVersion || 'missing'}; expected >=${versionLabel(MIN_NODE)} because current dependencies require Node ^20.19.0 or newer.`);
+check('node is installed', Boolean(nodeVersion), `Expected Node.js >=${versionLabel(MIN_NODE)}; use Node ${RECOMMENDED_NODE} for Studio/deploy parity.`);
+check('node version is supported', versionAtLeast(nodeVersion, MIN_NODE), `Current ${nodeVersion || 'missing'}; expected >=${versionLabel(MIN_NODE)}. Use Node ${RECOMMENDED_NODE} when validating the Studio/Firebase deploy path.`);
 check('npm is installed', Boolean(npmVersion), `Expected npm >=${versionLabel(MIN_NPM)}.`);
 check('npm version is supported', versionAtLeast(npmVersion, MIN_NPM), `Current ${npmVersion || 'missing'}; expected >=${versionLabel(MIN_NPM)}.`);
 check('NPM_CONFIG_PREFIX is unset', !process.env.NPM_CONFIG_PREFIX, process.env.NPM_CONFIG_PREFIX ? `Currently ${process.env.NPM_CONFIG_PREFIX}` : 'OK');
 check('root package.json readable', !rootPkg.__error, rootPkg.__error ?? 'OK');
 check('studio package.json readable', !studioPkg.__error, studioPkg.__error ?? 'OK');
-check('root test:launch-readiness script exists', Boolean(rootPkg.scripts?.['test:launch-readiness']), 'Run git fetch origin && git reset --hard origin/main if missing.');
-check('root smoke:staging script exists', Boolean(rootPkg.scripts?.['smoke:staging']), 'Run git fetch origin && git reset --hard origin/main if missing.');
-check('studio test script exists', Boolean(studioPkg.scripts?.test), 'Run git fetch origin && git reset --hard origin/main if missing.');
-check('studio typecheck script exists', Boolean(studioPkg.scripts?.typecheck), 'Run git fetch origin && git reset --hard origin/main if missing.');
+check('root test:launch-readiness script exists', Boolean(rootPkg.scripts?.['test:launch-readiness']), 'Update your local checkout from origin/main if missing.');
+check('root smoke:staging script exists', Boolean(rootPkg.scripts?.['smoke:staging']), 'Update your local checkout from origin/main if missing.');
+check('studio test script exists', Boolean(studioPkg.scripts?.test), 'Update your local checkout from origin/main if missing.');
+check('studio typecheck script exists', Boolean(studioPkg.scripts?.typecheck), 'Update your local checkout from origin/main if missing.');
 check('launch readiness file exists', fs.existsSync('LAUNCH_READINESS.md'), 'Expected LAUNCH_READINESS.md at repo root.');
 check('unit behavior test exists', fs.existsSync('scripts/test-asset-factory-units.mjs'), 'Expected targeted unit behavior test script.');
 check('remote smoke script exists', fs.existsSync('scripts/smoke-asset-factory-remote.mjs'), 'Expected remote smoke script.');
@@ -76,7 +77,7 @@ if (skipHeadMatch) {
 } else if (originMain) {
   check('local HEAD matches origin/main', gitHead === originMain, `HEAD=${gitHead || 'unknown'} origin/main=${originMain}`);
 } else {
-  check('origin/main available', false, 'Run git fetch origin.');
+  check('origin/main available', false, 'Fetch from origin before running release checks.');
 }
 
 console.log('\nAsset Factory repo doctor\n');
@@ -94,12 +95,11 @@ for (const item of checks) {
 if (failed) {
   console.log('\nRecommended recovery commands:\n');
   console.log('unset NPM_CONFIG_PREFIX');
-  console.log('nvm install 20.19.0');
-  console.log('nvm use 20.19.0');
+  console.log(`nvm install ${RECOMMENDED_NODE}`);
+  console.log(`nvm use ${RECOMMENDED_NODE}`);
   console.log('node --version');
   console.log('git fetch origin');
   console.log('git checkout main');
-  console.log('git reset --hard origin/main');
   console.log('npm install');
   console.log('npm --prefix assetfactory-studio install');
   console.log('npm run doctor');
