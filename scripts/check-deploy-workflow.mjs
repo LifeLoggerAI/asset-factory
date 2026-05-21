@@ -52,7 +52,16 @@ const requiredPhrases = [
   'Node runtime: 22',
   'Java runtime: 21',
   'Upload release evidence',
-  'actions/upload-artifact@v4'
+  'actions/upload-artifact@v4',
+  'This artifact is a workflow run summary, not final completion-lock evidence.',
+  'Evidence artifact type: workflow run summary (not final completion-lock evidence)',
+  'Workflow run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}',
+  'Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
+  'Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md',
+  'Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md',
+  'Latest evidence validator command: npm run check:release-evidence:latest',
+  'copy concrete evidence into docs/release-evidence/YYYY-MM-DD-environment.md',
+  'only update the completion lock after staging and production evidence pass'
 ];
 
 for (const phrase of requiredPhrases) {
@@ -67,7 +76,10 @@ const forbiddenPhrases = [
   'Use Node.js 20\n        uses: actions/setup-node@v4\n        with:\n          node-version: \'20.19.0\'',
   'fully production ready',
   'system of systems complete',
-  'WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke'
+  'WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke',
+  'This artifact is final completion-lock evidence',
+  'Evidence artifact type: final completion-lock evidence',
+  'update the completion lock after this workflow passes'
 ];
 
 for (const phrase of forbiddenPhrases) {
