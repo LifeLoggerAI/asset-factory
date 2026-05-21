@@ -7,6 +7,7 @@ const requiredMajor = 22;
 const actual = process.versions.node;
 const actualMajor = Number(actual.split('.')[0]);
 const root = process.cwd();
+const installRootDependencies = process.env.ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS === 'true';
 
 function fail(message) {
   console.error(`FAIL local setup: ${message}`);
@@ -52,14 +53,18 @@ if (process.env.NPM_CONFIG_PREFIX) {
 }
 
 // Root package-lock.json is intentionally not committed in this repo. Avoid creating
-// a transient root lockfile during bootstrap; use `npm run lockfile:refresh-root`
+// a transient root lockfile during default bootstrap; use `npm run lockfile:refresh-root`
 // when intentionally refreshing and auditing the root lockfile.
 const rootDeps = rootDependenciesInstalled();
 if (rootDeps.ok) {
   console.log('\n> Root dependencies already installed; skipping root npm install');
-} else {
+} else if (installRootDependencies) {
   console.log(`\n> Missing root dependencies: ${rootDeps.missing.join(', ')}`);
   run('Install root dependencies without generating a root lockfile', 'npm', ['install', '--package-lock=false']);
+} else {
+  console.log(`\n> Missing root dependencies: ${rootDeps.missing.join(', ')}`);
+  console.log('> Skipping root npm install by default because current repo gates do not require root dependencies.');
+  console.log('> To install them intentionally, rerun with ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true.');
 }
 
 run('Install engine dependencies', 'npm', ['--prefix', 'engine', 'install']);
