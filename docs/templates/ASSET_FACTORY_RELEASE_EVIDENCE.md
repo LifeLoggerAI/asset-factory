@@ -1,6 +1,8 @@
 # Asset Factory Release Evidence
 
-Use this template for every staging or production launch decision. Paste completed copies into `docs/release-evidence/<date>-<environment>.md` or attach them to the release PR/issue.
+Use this template for every staging or production launch decision. Paste completed copies into `docs/release-evidence/<date>-<environment>.md` or attach them to issue #63.
+
+This template is aligned with `scripts/check-release-evidence.mjs`. Do not change the field names in the machine-readable block unless the validator is updated in the same PR.
 
 ## Release identity
 
@@ -11,7 +13,40 @@ Use this template for every staging or production launch decision. Paste complet
 - Contract version: `asset-factory-api-v1`
 - Release owner:
 - Reviewers:
-- Date/time:
+- Date/time UTC:
+- Workflow run URL:
+- Artifact URL:
+
+## Machine-readable release block
+
+Replace every placeholder before running `node scripts/check-release-evidence.mjs docs/release-evidence/<file>.md`.
+
+```yaml
+release:
+  repo: LifeLoggerAI/asset-factory
+  branch: main
+  commit: <git-sha>
+  api_contract_version: asset-factory-api-v1
+  local_proof_run: <url-or-docs/release-evidence/path>
+  staging_smoke_run: <url-or-docs/release-evidence/path>
+  production_smoke_run: <url-or-docs/release-evidence/path>
+  firebase_project: urai-4dc1d
+  staging_url: https://staging.uraiassetfactory.com
+  production_url: https://www.uraiassetfactory.com
+  fallback_disabled: true
+  auth_required: true
+  api_key_required: true
+  tenant_isolation_verified: true
+  provider_generation_verified: true
+  worker_queue_verified: true
+  stripe_entitlements_verified: true
+  diagnostics_redacted: true
+  cron_secret_verified: true
+  observability_verified: true
+  legal_pages_verified: true
+  rollback_sha: <git-sha>
+  owner: <name>
+```
 
 ## Status summary
 
@@ -30,17 +65,38 @@ Use this template for every staging or production launch decision. Paste complet
 | Website/legal/trust/status verified | `true` |  |  |
 | Rollback SHA recorded | `true` |  |  |
 
+## Preferred GitHub Actions evidence path
+
+Use the manual workflow unless debugging a failed run locally:
+
+```text
+Actions -> Deploy Asset Factory -> Run workflow
+```
+
+Required sequence:
+
+```text
+staging / deploy=false / smoke_mode=readonly
+staging / deploy=true / smoke_mode=both
+production / deploy=false / smoke_mode=readonly
+production / deploy=true / smoke_mode=both
+```
+
+Required environment/repository secrets are documented in `docs/OPERATIONS_RUNBOOK.md` and issue #63.
+
 ## Commands and outputs
+
+Prefer the GitHub Actions workflow artifact. If debugging manually, use the exact command blocks in `docs/OPERATIONS_RUNBOOK.md` rather than copying commands from this template.
 
 ### Local proof
 
-```bash
-npm run doctor
-npm run test:launch-readiness
-npm --prefix assetfactory-studio run check
-npm --prefix assetfactory-studio run e2e
-npm run verify:local
+Evidence:
+
+```text
+<paste output or link CI run>
 ```
+
+### Staging read-only smoke
 
 Evidence:
 
@@ -48,17 +104,7 @@ Evidence:
 <paste output or link CI run>
 ```
 
-### Staging smoke
-
-```bash
-ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
-ASSET_FACTORY_API_KEY=$STAGING_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$STAGING_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=smoke-tenant-a \
-ASSET_FACTORY_OTHER_TENANT_ID=smoke-tenant-b \
-CRON_SECRET=$STAGING_CRON_SECRET \
-npm run smoke:staging
-```
+### Staging authenticated smoke
 
 Evidence:
 
@@ -66,16 +112,23 @@ Evidence:
 <paste output or link CI run>
 ```
 
-### Production smoke
+### Production read-only smoke
 
-```bash
-ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com \
-ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=prod-smoke \
-CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
+Evidence:
+
+```text
+<paste output or link CI run>
 ```
+
+### Production authenticated smoke
+
+Evidence:
+
+```text
+<paste output or link CI run>
+```
+
+### Custom-domain smoke after DNS/API routing is fixed
 
 Evidence:
 
@@ -87,7 +140,8 @@ Evidence:
 
 | Endpoint | Expected | Actual | Evidence |
 | --- | --- | --- | --- |
-| `GET /api/health` | 200 redacted healthy/degraded |  |  |
+| `GET /api/system/health` | 200 redacted healthy/degraded |  |  |
+| `GET /api/health` | 200 compatibility alias |  |  |
 | `POST /api/assets` | 202 queued |  |  |
 | `GET /api/assets/{assetId}` | 200 own tenant, 403 other tenant |  |  |
 | `POST /api/lifemap/events` | 202 accepted |  |  |
@@ -100,6 +154,10 @@ Evidence:
 | Stripe webhook signed | persisted idempotently |  |  |
 | Cron missing/wrong secret | rejected |  |  |
 | Cron correct secret | accepted |  |  |
+| Admin queue read | tenant-scoped/all-tenant authorized only |  |  |
+| Admin queue requeue | authorized/admin only |  |  |
+| Account export | authorized tenant admin only |  |  |
+| Account deletion request | recorded for manual review |  |  |
 
 ## Output inventory proof
 
@@ -146,6 +204,14 @@ Evidence:
 - Rollback command:
 - Feature flag kill switch:
 - Core rollback path:
+
+## Validation
+
+Final evidence must pass:
+
+```bash
+node scripts/check-release-evidence.mjs docs/release-evidence/<file>.md
+```
 
 ## Decision
 
