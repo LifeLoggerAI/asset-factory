@@ -46,6 +46,19 @@ Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` 
 - Firebase CLI (`npm i -g firebase-tools`) for emulators/deploy.
 
 ## Quick start
+
+Recommended fail-fast setup:
+
+```bash
+unset NPM_CONFIG_PREFIX
+nvm install 22
+nvm use 22
+node --version
+node scripts/setup-local.mjs
+```
+
+Manual setup, if you need to run each step yourself:
+
 ```bash
 unset NPM_CONFIG_PREFIX
 nvm install 22
@@ -68,9 +81,7 @@ git reset --hard origin/main
 unset NPM_CONFIG_PREFIX
 nvm install 22
 nvm use 22
-npm install
-npm --prefix assetfactory-studio install
-npm run doctor
+node scripts/setup-local.mjs
 ```
 
 ## Environment
