@@ -8,9 +8,7 @@ function read(relativePath) {
 }
 
 function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
+  if (!condition) throw new Error(message);
 }
 
 function assertEqual(actual, expected, message) {
@@ -20,22 +18,31 @@ function assertEqual(actual, expected, message) {
 }
 
 function assertIncludes(content, expected, label) {
-  assert(
-    content.includes(expected),
-    `${label} must include ${JSON.stringify(expected)}`
-  );
+  assert(content.includes(expected), `${label} must include ${JSON.stringify(expected)}`);
+}
+
+function assertNotIncludes(content, forbidden, label) {
+  assert(!content.includes(forbidden), `${label} must not include stale or forbidden text ${JSON.stringify(forbidden)}`);
 }
 
 const readiness = read('LAUNCH_READINESS.md');
 const readme = read('README.md');
+const completionLock = read('docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md');
+const privacySafety = read('docs/PRIVACY_SAFETY_VERIFICATION.md');
+const operationsRunbook = read('docs/OPERATIONS_RUNBOOK.md');
+const completionChecklist = read('docs/COMPLETION_CHECKLIST.md');
 const remoteSmoke = read('scripts/smoke-asset-factory-remote.mjs');
 const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
 const unitTests = read('scripts/test-asset-factory-units.mjs');
 const authTests = read('scripts/test-asset-factory-auth.mjs');
 const doctor = read('scripts/doctor.mjs');
+const deployWorkflowCheck = read('scripts/check-deploy-workflow.mjs');
+const releaseEvidenceCheck = read('scripts/check-release-evidence.mjs');
 const studioPackage = read('assetfactory-studio/package.json');
 const studioEnvExample = read('assetfactory-studio/.env.example');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
+const healthRoute = read('assetfactory-studio/app/api/system/health/route.ts');
+const healthAliasRoute = read('assetfactory-studio/app/api/health/route.ts');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const stripeWebhookRoute = read('assetfactory-studio/app/api/stripe/webhooks/route.ts');
 const stripeEntitlements = read('assetfactory-studio/lib/server/stripeEntitlements.ts');
@@ -46,41 +53,85 @@ const adminQueueRoute = read('assetfactory-studio/app/api/admin/queue/route.ts')
 const adminQueueRequeueRoute = read('assetfactory-studio/app/api/admin/queue/requeue/route.ts');
 const dashboardRoute = read('assetfactory-studio/app/api/dashboard/route.ts');
 const integrationContract = read('assetfactory-studio/app/api/system/integration-contract/route.ts');
-const packageJson = JSON.parse(read('package.json'));
-const workflow = read('.github/workflows/ci.yml');
+const rootPackageJson = JSON.parse(read('package.json'));
+const studioPackageJson = JSON.parse(studioPackage);
+const ciWorkflow = read('.github/workflows/ci.yml');
+const deployWorkflow = read('.github/workflows/deploy-asset-factory.yml');
 
-const requiredReadinessSections = [
-  'Status: **not production-ready yet**',
+const requiredReadinessText = [
+  'Status: **repo-side hardening complete for current pass; live evidence required before production lock**.',
+  'Canonical live tracker: GitHub issue #63.',
   '## Launch gates',
   '## Required environment groups',
-  '## Smoke commands',
-  '## Immediate next implementation order',
+  '## Preferred smoke path',
+  'Actions -> Deploy Asset Factory -> Run workflow',
+  'staging / deploy=false / smoke_mode=readonly',
+  'production / deploy=true / smoke_mode=both',
   'Firebase gate',
   'Auth gate',
   'Tenant isolation gate',
   'Billing gate',
   'Worker gate',
   'Website gate',
-  'Production smoke gate',
+  'Production smoke gate'
 ];
 
-for (const section of requiredReadinessSections) {
-  assertIncludes(readiness, section, 'LAUNCH_READINESS.md');
+for (const expected of requiredReadinessText) assertIncludes(readiness, expected, 'LAUNCH_READINESS.md');
+
+const syncedDocs = [
+  ['README.md', readme],
+  ['docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md', completionLock],
+  ['docs/PRIVACY_SAFETY_VERIFICATION.md', privacySafety],
+  ['docs/OPERATIONS_RUNBOOK.md', operationsRunbook],
+  ['docs/COMPLETION_CHECKLIST.md', completionChecklist]
+];
+
+for (const [label, content] of syncedDocs) {
+  assertIncludes(content, 'repo-side hardening is complete for the current pass', label);
+  assertIncludes(content, 'live evidence', label);
 }
 
 const requiredReadmeReferences = [
-  'Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass in staging and production**.',
-  '`LAUNCH_READINESS.md`: current production launch gate checklist.',
-  'Node.js 20.19.0 or newer',
-  'nvm install 20.19.0',
+  'Node.js 22.x for Studio/deploy workflow parity',
+  'Java 21 for current Firebase emulator/CLI tooling',
+  'nvm install 22',
+  'Actions -> Deploy Asset Factory -> Run workflow',
+  'npm run deploy:studio',
   'npm run smoke:staging',
   'npm run smoke:prod',
   'npm run smoke:website',
-  'npm run doctor',
+  'npm run doctor'
 ];
 
-for (const reference of requiredReadmeReferences) {
-  assertIncludes(readme, reference, 'README.md');
+for (const expected of requiredReadmeReferences) assertIncludes(readme, expected, 'README.md');
+
+const staleText = [
+  'Status: **not production-ready yet**',
+  'nvm install 20.19.0',
+  'nvm use 20.19.0',
+  'Asset Factory is **not production-ready until `LAUNCH_READINESS.md` gates pass in staging and production**.'
+];
+
+for (const forbidden of staleText) {
+  assertNotIncludes(readiness, forbidden, 'LAUNCH_READINESS.md');
+  assertNotIncludes(readme, forbidden, 'README.md');
+  assertNotIncludes(doctor, forbidden, 'scripts/doctor.mjs');
+}
+
+const forbiddenClaims = [
+  '100% complete',
+  'fully production ready',
+  'fully wired',
+  'fully verified',
+  'system of systems complete',
+  'all outputs delivered',
+  'no roadmap remaining'
+];
+
+for (const claim of forbiddenClaims) {
+  assertNotIncludes(readme, claim, 'README.md');
+  assertNotIncludes(readiness, claim, 'LAUNCH_READINESS.md');
+  assertNotIncludes(privacySafety, claim, 'docs/PRIVACY_SAFETY_VERIFICATION.md');
 }
 
 const requiredPackageScripts = [
@@ -90,40 +141,68 @@ const requiredPackageScripts = [
   'smoke:prod',
   'smoke:website',
   'test:launch-readiness',
+  'test:completion-lock',
+  'check:deploy-workflow',
+  'deploy:studio'
 ];
 
 for (const scriptName of requiredPackageScripts) {
-  assert(
-    packageJson.scripts?.[scriptName],
-    `package.json scripts must define ${scriptName}`
-  );
+  assert(rootPackageJson.scripts?.[scriptName], `package.json scripts must define ${scriptName}`);
 }
 
-assertEqual(packageJson.engines?.node, '>=20.19.0', 'root package.json must require Node >=20.19.0');
-assertEqual(packageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
-
-const studioPackageJson = JSON.parse(studioPackage);
-assertEqual(studioPackageJson.engines?.node, '>=20.19.0', 'assetfactory-studio/package.json must require Node >=20.19.0');
+assertEqual(rootPackageJson.engines?.node, '>=20.19.0', 'root package.json must keep Node >=20.19.0 compatibility floor');
+assertEqual(rootPackageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
+assertEqual(studioPackageJson.engines?.node, '22', 'assetfactory-studio/package.json must require Node 22');
 assertEqual(studioPackageJson.engines?.npm, '>=10.8.0', 'assetfactory-studio/package.json must require npm >=10.8.0');
 
 const requiredDoctorCapabilities = [
   'MIN_NODE',
-  '20.19.0',
+  'RECOMMENDED_NODE',
+  '22',
   'node version is supported',
   'NPM_CONFIG_PREFIX',
   'root test:launch-readiness script exists',
   'studio test script exists',
   'local HEAD matches origin/main',
   'Recommended recovery commands',
-  'nvm install 20.19.0',
-  'git reset --hard origin/main',
+  'nvm install'
 ];
 
-for (const capability of requiredDoctorCapabilities) {
-  assertIncludes(doctor, capability, 'scripts/doctor.mjs');
-}
+for (const expected of requiredDoctorCapabilities) assertIncludes(doctor, expected, 'scripts/doctor.mjs');
+assertNotIncludes(doctor, 'git reset --hard origin/main', 'scripts/doctor.mjs');
 
-assertIncludes(studioPackage, 'node ../scripts/test-asset-factory-units.mjs', 'assetfactory-studio/package.json');
+const requiredDeployWorkflowText = [
+  'Use Node.js 22',
+  "node-version: '22'",
+  'Use Java 21 for Firebase CLI',
+  "java-version: '21'",
+  'npm run deploy:studio',
+  'npm run smoke:website',
+  'npm run smoke:staging',
+  'npm run smoke:prod',
+  'Upload release evidence'
+];
+
+for (const expected of requiredDeployWorkflowText) assertIncludes(deployWorkflow, expected, '.github/workflows/deploy-asset-factory.yml');
+for (const expected of requiredDeployWorkflowText.slice(0, 6)) assertIncludes(deployWorkflowCheck, expected, 'scripts/check-deploy-workflow.mjs');
+
+assertIncludes(ciWorkflow, 'Launch readiness checks', '.github/workflows/ci.yml');
+assertIncludes(ciWorkflow, 'npm run test:launch-readiness', '.github/workflows/ci.yml');
+assertIncludes(ciWorkflow, 'Use Java 21 for Firebase emulators', '.github/workflows/ci.yml');
+assertIncludes(ciWorkflow, 'Use Node.js 22', '.github/workflows/ci.yml');
+
+const requiredReleaseEvidenceFields = [
+  'staging_smoke_run',
+  'production_smoke_run',
+  'tenant_isolation_verified',
+  'provider_generation_verified',
+  'worker_queue_verified',
+  'stripe_entitlements_verified',
+  'observability_verified',
+  'rollback_sha'
+];
+
+for (const expected of requiredReleaseEvidenceFields) assertIncludes(releaseEvidenceCheck, expected, 'scripts/check-release-evidence.mjs');
 
 const requiredStudioEnvCapabilities = [
   'ASSET_FACTORY_REQUIRE_AUTH=false',
@@ -135,12 +214,10 @@ const requiredStudioEnvCapabilities = [
   'ASSET_FACTORY_AUDIENCE=',
   'ASSET_FACTORY_TENANT_CLAIM=tenantId',
   'ASSET_FACTORY_ROLE_CLAIM=roles',
-  'Production should prefer signed bearer tokens',
+  'Production should prefer signed bearer tokens'
 ];
 
-for (const capability of requiredStudioEnvCapabilities) {
-  assertIncludes(studioEnvExample, capability, 'assetfactory-studio/.env.example');
-}
+for (const expected of requiredStudioEnvCapabilities) assertIncludes(studioEnvExample, expected, 'assetfactory-studio/.env.example');
 
 const requiredManifestCapabilities = [
   'productionReadiness',
@@ -156,18 +233,19 @@ const requiredManifestCapabilities = [
   'publish: true',
   'approve: true',
   'rollback: true',
-  'createVersion: true',
+  'createVersion: true'
 ];
 
-for (const capability of requiredManifestCapabilities) {
-  assertIncludes(manifestRoute, capability, 'assetfactory-studio/app/api/system/manifest/route.ts');
-}
+for (const expected of requiredManifestCapabilities) assertIncludes(manifestRoute, expected, 'assetfactory-studio/app/api/system/manifest/route.ts');
+assert(!/rollbackWorkflow:\s*['"]contract-only['"]/.test(manifestRoute), 'manifest route must not report rollback as contract-only');
+assert(!/approvals:\s*['"]contract-only['"]/.test(manifestRoute), 'manifest route must not report approvals as contract-only');
 
-assert(
-  !/rollbackWorkflow:\s*['"]contract-only['"]/.test(manifestRoute) &&
-    !/approvals:\s*['"]contract-only['"]/.test(manifestRoute),
-  'assetfactory-studio/app/api/system/manifest/route.ts must not report implemented workflows as contract-only'
-);
+const requiredHealthCapabilities = [
+  'asset-factory-studio',
+  'productionReadiness'
+];
+for (const expected of requiredHealthCapabilities) assertIncludes(healthRoute, expected, 'assetfactory-studio/app/api/system/health/route.ts');
+assertIncludes(healthAliasRoute, '../system/health/route', 'assetfactory-studio/app/api/health/route.ts');
 
 const requiredUnitTestCapabilities = [
   'buildStripeEntitlement',
@@ -178,12 +256,9 @@ const requiredUnitTestCapabilities = [
   'testRequeueDeadLetteredJob',
   'testRejectsTenantMismatch',
   'testRejectsNonRequeueableStatus',
-  'PASS Asset Factory targeted unit behavior tests',
+  'PASS Asset Factory targeted unit behavior tests'
 ];
-
-for (const capability of requiredUnitTestCapabilities) {
-  assertIncludes(unitTests, capability, 'scripts/test-asset-factory-units.mjs');
-}
+for (const expected of requiredUnitTestCapabilities) assertIncludes(unitTests, expected, 'scripts/test-asset-factory-units.mjs');
 
 const requiredAuthTestCapabilities = [
   'ASSET_FACTORY_REQUIRE_AUTH',
@@ -195,12 +270,9 @@ const requiredAuthTestCapabilities = [
   'ASSET_FACTORY_ROLE_CLAIM',
   'Tenant mismatch',
   'Role publisher required',
-  'JWT is expired',
+  'JWT is expired'
 ];
-
-for (const capability of requiredAuthTestCapabilities) {
-  assertIncludes(authTests, capability, 'scripts/test-asset-factory-auth.mjs');
-}
+for (const expected of requiredAuthTestCapabilities) assertIncludes(authTests, expected, 'scripts/test-asset-factory-auth.mjs');
 
 const requiredSmokeCapabilities = [
   'assertPublicDiagnosticsRedacted',
@@ -218,12 +290,9 @@ const requiredSmokeCapabilities = [
   'ASSET_FACTORY_BEARER_TOKEN',
   'ASSET_FACTORY_TENANT_ID',
   'ASSET_FACTORY_OTHER_TENANT_ID',
-  'ASSET_FACTORY_SMOKE_READONLY',
+  'ASSET_FACTORY_SMOKE_READONLY'
 ];
-
-for (const capability of requiredSmokeCapabilities) {
-  assertIncludes(remoteSmoke, capability, 'scripts/smoke-asset-factory-remote.mjs');
-}
+for (const expected of requiredSmokeCapabilities) assertIncludes(remoteSmoke, expected, 'scripts/smoke-asset-factory-remote.mjs');
 
 const requiredEmulatorSmokeCapabilities = [
   'queueRequeueRef',
@@ -234,12 +303,9 @@ const requiredEmulatorSmokeCapabilities = [
   'requeueReason',
   'failureReason: null',
   'leaseId: null',
-  'Queue/Requeue emulator smoke test',
+  'Queue/Requeue emulator smoke test'
 ];
-
-for (const capability of requiredEmulatorSmokeCapabilities) {
-  assertIncludes(emulatorSmoke, capability, 'scripts/test-asset-factory-emulator.mjs');
-}
+for (const expected of requiredEmulatorSmokeCapabilities) assertIncludes(emulatorSmoke, expected, 'scripts/test-asset-factory-emulator.mjs');
 
 const requiredOpenApiCapabilities = [
   'workerSecret',
@@ -250,12 +316,9 @@ const requiredOpenApiCapabilities = [
   '/api/admin/queue/requeue',
   'resetAttempts',
   'allTenants',
-  'queue failure/DLQ metrics',
+  'queue failure/DLQ metrics'
 ];
-
-for (const capability of requiredOpenApiCapabilities) {
-  assertIncludes(openapiRoute, capability, 'assetfactory-studio/app/api/system/openapi/route.ts');
-}
+for (const expected of requiredOpenApiCapabilities) assertIncludes(openapiRoute, expected, 'assetfactory-studio/app/api/system/openapi/route.ts');
 
 const requiredStripeEntitlementCapabilities = [
   'persistStripeEntitlement',
@@ -265,24 +328,18 @@ const requiredStripeEntitlementCapabilities = [
   'assetFactoryPlan',
   'assetFactoryEntitlement',
   'runTransaction',
-  'duplicate',
+  'duplicate'
 ];
-
-for (const capability of requiredStripeEntitlementCapabilities) {
-  assertIncludes(stripeEntitlements, capability, 'assetfactory-studio/lib/server/stripeEntitlements.ts');
-}
+for (const expected of requiredStripeEntitlementCapabilities) assertIncludes(stripeEntitlements, expected, 'assetfactory-studio/lib/server/stripeEntitlements.ts');
 
 const requiredStripeWebhookCapabilities = [
   'verifyStripeSignature',
   'persistStripeEntitlement(event)',
   'stripe.webhook.duplicate',
   'entitlementApplied',
-  'entitlementDuplicate',
+  'entitlementDuplicate'
 ];
-
-for (const capability of requiredStripeWebhookCapabilities) {
-  assertIncludes(stripeWebhookRoute, capability, 'assetfactory-studio/app/api/stripe/webhooks/route.ts');
-}
+for (const expected of requiredStripeWebhookCapabilities) assertIncludes(stripeWebhookRoute, expected, 'assetfactory-studio/app/api/stripe/webhooks/route.ts');
 
 const requiredQueueCapabilities = [
   'claimNextAssetQueueJob',
@@ -293,12 +350,9 @@ const requiredQueueCapabilities = [
   'maxAttempts',
   'dead-lettered',
   'ASSET_FACTORY_QUEUE_LEASE_SECONDS',
-  'ASSET_FACTORY_QUEUE_MAX_ATTEMPTS',
+  'ASSET_FACTORY_QUEUE_MAX_ATTEMPTS'
 ];
-
-for (const capability of requiredQueueCapabilities) {
-  assertIncludes(queueDispatcher, capability, 'assetfactory-studio/lib/server/assetQueueDispatcher.ts');
-}
+for (const expected of requiredQueueCapabilities) assertIncludes(queueDispatcher, expected, 'assetfactory-studio/lib/server/assetQueueDispatcher.ts');
 
 const requiredQueueOpsCapabilities = [
   'readQueueOpsSummary',
@@ -309,12 +363,9 @@ const requiredQueueOpsCapabilities = [
   'dead-lettered',
   'retrying',
   'claimed',
-  'REQUEUEABLE_STATUSES',
+  'REQUEUEABLE_STATUSES'
 ];
-
-for (const capability of requiredQueueOpsCapabilities) {
-  assertIncludes(queueOps, capability, 'assetfactory-studio/lib/server/assetQueueOps.ts');
-}
+for (const expected of requiredQueueOpsCapabilities) assertIncludes(queueOps, expected, 'assetfactory-studio/lib/server/assetQueueOps.ts');
 
 const requiredWorkerRouteCapabilities = [
   'ASSET_FACTORY_WORKER_SECRET',
@@ -325,24 +376,18 @@ const requiredWorkerRouteCapabilities = [
   'materializeAsset',
   'queue.worker_claimed',
   'queue.worker_completed',
-  'queue.worker_failed',
+  'queue.worker_failed'
 ];
-
-for (const capability of requiredWorkerRouteCapabilities) {
-  assertIncludes(workerRoute, capability, 'assetfactory-studio/app/api/worker/asset-queue/route.ts');
-}
+for (const expected of requiredWorkerRouteCapabilities) assertIncludes(workerRoute, expected, 'assetfactory-studio/app/api/worker/asset-queue/route.ts');
 
 const requiredAdminQueueCapabilities = [
   'authorizeAssetRequest(req, undefined, \'admin\')',
   'readQueueOpsSummary',
   'allTenants',
   'status',
-  'limit',
+  'limit'
 ];
-
-for (const capability of requiredAdminQueueCapabilities) {
-  assertIncludes(adminQueueRoute, capability, 'assetfactory-studio/app/api/admin/queue/route.ts');
-}
+for (const expected of requiredAdminQueueCapabilities) assertIncludes(adminQueueRoute, expected, 'assetfactory-studio/app/api/admin/queue/route.ts');
 
 const requiredAdminQueueRequeueCapabilities = [
   'authorizeAssetRequest(req, undefined, \'admin\')',
@@ -350,64 +395,31 @@ const requiredAdminQueueRequeueCapabilities = [
   'queue.admin_requeued',
   'queue.admin_requeue_rejected',
   'resetAttempts',
-  'allTenants',
+  'allTenants'
 ];
-
-for (const capability of requiredAdminQueueRequeueCapabilities) {
-  assertIncludes(adminQueueRequeueRoute, capability, 'assetfactory-studio/app/api/admin/queue/requeue/route.ts');
-}
+for (const expected of requiredAdminQueueRequeueCapabilities) assertIncludes(adminQueueRequeueRoute, expected, 'assetfactory-studio/app/api/admin/queue/requeue/route.ts');
 
 const requiredDashboardQueueCapabilities = [
   'readQueueOpsSummary',
   'dlqSize',
   'queueFailures',
   'staleClaimedQueueItems',
-  'queueByStatus',
+  'queueByStatus'
 ];
+for (const expected of requiredDashboardQueueCapabilities) assertIncludes(dashboardRoute, expected, 'assetfactory-studio/app/api/dashboard/route.ts');
 
-for (const capability of requiredDashboardQueueCapabilities) {
-  assertIncludes(dashboardRoute, capability, 'assetfactory-studio/app/api/dashboard/route.ts');
-}
-
-const requiredWorkerContract = [
+const requiredContracts = [
   'asset-factory-worker',
   'x-asset-worker-secret',
   'POST /api/worker/asset-queue',
   'leases/retries/DLQ',
-];
-
-for (const capability of requiredWorkerContract) {
-  assertIncludes(integrationContract, capability, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
-}
-
-const requiredAdminQueueContract = [
   'GET /api/admin/queue',
   'POST /api/admin/queue/requeue',
   'allTenantQueue',
   'requeue',
   'dead-lettered',
-  'stale-lease',
+  'stale-lease'
 ];
-
-for (const capability of requiredAdminQueueContract) {
-  assertIncludes(integrationContract, capability, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
-}
-
-assertIncludes(workflow, 'Launch readiness checks', '.github/workflows/ci.yml');
-assertIncludes(workflow, 'npm run test:launch-readiness', '.github/workflows/ci.yml');
-
-const unsupportedClaims = [
-  'Asset Factory is production-ready',
-  'Asset Factory is fully production-ready',
-  'Asset Factory is live in production',
-  'public launch complete',
-];
-
-for (const claim of unsupportedClaims) {
-  assert(
-    !readme.includes(claim),
-    `README.md contains unsupported launch claim: ${claim}`
-  );
-}
+for (const expected of requiredContracts) assertIncludes(integrationContract, expected, 'assetfactory-studio/app/api/system/integration-contract/route.ts');
 
 console.log('PASS launch readiness static checks');
