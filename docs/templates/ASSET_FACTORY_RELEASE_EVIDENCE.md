@@ -1,6 +1,6 @@
 # Asset Factory Release Evidence
 
-Use this template for every staging or production launch decision. Paste completed copies into `docs/release-evidence/<date>-<environment>.md` or attach them to issue #63.
+Use this template for every staging or production launch decision. Paste completed copies into `docs/release-evidence/YYYY-MM-DD-environment.md` or attach them to issue #63.
 
 This template is aligned with `scripts/check-release-evidence.mjs`. Do not change the field names in the machine-readable block unless the validator is updated in the same PR.
 
@@ -19,7 +19,19 @@ This template is aligned with `scripts/check-release-evidence.mjs`. Do not chang
 
 ## Machine-readable release block
 
-Replace every placeholder before running `node scripts/check-release-evidence.mjs docs/release-evidence/<file>.md`.
+Replace every placeholder before running validation. Do not literally run a command with `<file>` in it; Bash treats angle brackets as redirection.
+
+Validate a specific completed evidence file:
+
+```bash
+npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md
+```
+
+Or validate the newest markdown evidence file in `docs/release-evidence/`:
+
+```bash
+npm run check:release-evidence:latest
+```
 
 ```yaml
 release:
@@ -207,10 +219,11 @@ Evidence:
 
 ## Validation
 
-Final evidence must pass:
+Final evidence must pass one of:
 
 ```bash
-node scripts/check-release-evidence.mjs docs/release-evidence/<file>.md
+npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md
+npm run check:release-evidence:latest
 ```
 
 ## Decision
