@@ -100,6 +100,10 @@ const requiredReadmeReferences = [
   'Java 21 for current Firebase emulator/CLI tooling',
   'nvm install 22',
   'node scripts/setup-local.mjs',
+  'Root dependency installation is skipped by default when root Firebase packages are missing',
+  'the current static validation path does not require them',
+  'root lockfile is intentionally not committed',
+  'ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs',
   'Actions -> Deploy Asset Factory -> Run workflow',
   'npm run deploy:studio',
   'npm run smoke:staging',
@@ -111,6 +115,13 @@ const requiredReadmeReferences = [
 ];
 
 for (const expected of requiredReadmeReferences) assertIncludes(readme, expected, 'README.md');
+
+const forbiddenReadmeSetupText = [
+  'node --version\nnpm install\nnpm --prefix engine install',
+  'node --version\nnpm install --package-lock=false\nnpm --prefix engine install'
+];
+
+for (const forbidden of forbiddenReadmeSetupText) assertNotIncludes(readme, forbidden, 'README.md');
 
 const staleText = [
   'Status: **not production-ready yet**',
@@ -189,6 +200,9 @@ for (const expected of requiredDoctorCapabilities) assertIncludes(doctor, expect
 const requiredSetupLocalCapabilities = [
   'Node ${requiredMajor}.x is required for full local setup and Studio dependency parity',
   'NPM_CONFIG_PREFIX must be unset before setup',
+  'ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS',
+  'Skipping root npm install by default because current repo gates do not require root dependencies.',
+  'To install them intentionally, rerun with ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true.',
   'npm run lockfile:refresh-root',
   "'--package-lock=false'",
   'Run repo doctor'
