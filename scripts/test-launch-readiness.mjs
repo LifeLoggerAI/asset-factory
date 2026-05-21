@@ -36,6 +36,7 @@ const emulatorSmoke = read('scripts/test-asset-factory-emulator.mjs');
 const unitTests = read('scripts/test-asset-factory-units.mjs');
 const authTests = read('scripts/test-asset-factory-auth.mjs');
 const doctor = read('scripts/doctor.mjs');
+const setupLocal = read('scripts/setup-local.mjs');
 const deployWorkflowCheck = read('scripts/check-deploy-workflow.mjs');
 const releaseEvidenceCheck = read('scripts/check-release-evidence.mjs');
 const latestReleaseEvidenceCheck = read('scripts/check-latest-release-evidence.mjs');
@@ -98,6 +99,7 @@ const requiredReadmeReferences = [
   'Node.js 22.x for Studio/deploy workflow parity',
   'Java 21 for current Firebase emulator/CLI tooling',
   'nvm install 22',
+  'node scripts/setup-local.mjs',
   'Actions -> Deploy Asset Factory -> Run workflow',
   'npm run deploy:studio',
   'npm run smoke:staging',
@@ -173,13 +175,25 @@ const requiredDoctorCapabilities = [
   'NPM_CONFIG_PREFIX',
   'root test:launch-readiness script exists',
   'studio test script exists',
+  'fail-fast local setup helper exists',
+  'fail-fast local setup avoids root lockfile generation',
+  'node scripts/setup-local.mjs',
   'local HEAD matches origin/main',
   'Recommended recovery commands',
-  'nvm install'
+  'nvm install',
+  'git reset --hard origin/main'
 ];
 
 for (const expected of requiredDoctorCapabilities) assertIncludes(doctor, expected, 'scripts/doctor.mjs');
-assertNotIncludes(doctor, 'git reset --hard origin/main', 'scripts/doctor.mjs');
+
+const requiredSetupLocalCapabilities = [
+  'Node ${requiredMajor}.x is required for full local setup and Studio dependency parity',
+  'NPM_CONFIG_PREFIX must be unset before setup',
+  'npm run lockfile:refresh-root',
+  "'--package-lock=false'",
+  'Run repo doctor'
+];
+for (const expected of requiredSetupLocalCapabilities) assertIncludes(setupLocal, expected, 'scripts/setup-local.mjs');
 
 const requiredDeployWorkflowText = [
   'Use Node.js 22',
