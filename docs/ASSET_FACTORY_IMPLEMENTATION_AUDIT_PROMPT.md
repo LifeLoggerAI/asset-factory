@@ -55,6 +55,13 @@ Required system-of-systems audit areas:
 - Phased execution roadmap.
 - Final definition-of-done checklist.
 
+Mandatory launch-readiness checks:
+- Confirm staging and production are not treated as locked until live smoke evidence exists with `ASSET_FACTORY_FORCE_LOCAL=false`.
+- Confirm provider-backed generation is either proven with selected production provider credentials and model IDs or explicitly listed as blocked.
+- Confirm Durable queue/worker behavior is proven for leases, retries, retry limits, idempotency, dead-letter handling, cleanup, and retention before production lock.
+- Confirm Stripe webhook signature verification and idempotent tenant entitlement persistence before production lock.
+- Confirm Observability coverage for request IDs, structured logs, error tracking, metrics, uptime checks, provider cost tracking, and queue dashboards before production lock.
+
 Automation is mandatory. Audit and improve the system as if Asset Factory should become a mostly self-operating production system with human approval only where appropriate.
 
 Automation areas to inspect and implement or specify:
