@@ -9,9 +9,12 @@ const requiredFiles = [
   'docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md',
   'docs/openapi/asset-factory.openapi.json',
   'docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
+  'docs/release-evidence/README.md',
   'docs/OPERATIONS_RUNBOOK.md',
   'docs/PRIVACY_SAFETY_VERIFICATION.md',
-  'docs/COMPLETION_CHECKLIST.md'
+  'docs/COMPLETION_CHECKLIST.md',
+  'scripts/check-release-evidence.mjs',
+  'scripts/check-latest-release-evidence.mjs'
 ];
 
 const missing = requiredFiles.filter((file) => !fs.existsSync(path.join(root, file)));
@@ -28,6 +31,11 @@ const openapiPath = path.join(root, 'docs/openapi/asset-factory.openapi.json');
 const privacyPath = path.join(root, 'docs/PRIVACY_SAFETY_VERIFICATION.md');
 const checklistPath = path.join(root, 'docs/COMPLETION_CHECKLIST.md');
 const operationsPath = path.join(root, 'docs/OPERATIONS_RUNBOOK.md');
+const evidenceTemplatePath = path.join(root, 'docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md');
+const evidenceReadmePath = path.join(root, 'docs/release-evidence/README.md');
+const releaseEvidenceCheckerPath = path.join(root, 'scripts/check-release-evidence.mjs');
+const latestReleaseEvidenceCheckerPath = path.join(root, 'scripts/check-latest-release-evidence.mjs');
+const packagePath = path.join(root, 'package.json');
 
 const lock = fs.readFileSync(lockPath, 'utf8');
 const launch = fs.readFileSync(launchPath, 'utf8');
@@ -36,12 +44,26 @@ const openapiRaw = fs.readFileSync(openapiPath, 'utf8');
 const privacy = fs.readFileSync(privacyPath, 'utf8');
 const checklist = fs.readFileSync(checklistPath, 'utf8');
 const operations = fs.readFileSync(operationsPath, 'utf8');
+const evidenceTemplate = fs.readFileSync(evidenceTemplatePath, 'utf8');
+const evidenceReadme = fs.readFileSync(evidenceReadmePath, 'utf8');
+const releaseEvidenceChecker = fs.readFileSync(releaseEvidenceCheckerPath, 'utf8');
+const latestReleaseEvidenceChecker = fs.readFileSync(latestReleaseEvidenceCheckerPath, 'utf8');
+const packageJsonRaw = fs.readFileSync(packagePath, 'utf8');
 
 let openapi;
 try {
   openapi = JSON.parse(openapiRaw);
 } catch (error) {
   console.error('FAIL completion lock: OpenAPI JSON is invalid');
+  console.error(error.message);
+  process.exit(1);
+}
+
+let packageJson;
+try {
+  packageJson = JSON.parse(packageJsonRaw);
+} catch (error) {
+  console.error('FAIL completion lock: package.json is invalid');
   console.error(error.message);
   process.exit(1);
 }
@@ -64,7 +86,12 @@ const requiredPhrases = [
   ['billing gate', lock, 'Stripe webhook'],
   ['observability gate', lock, 'Observability'],
   ['core dependency gate', lock, 'UrAi Core'],
-  ['release evidence validator command', lock, 'node scripts/check-release-evidence.mjs']
+  ['release evidence validator command', lock, 'node scripts/check-release-evidence.mjs'],
+  ['release evidence template concrete command', evidenceTemplate, 'npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md'],
+  ['release evidence latest command', evidenceTemplate, 'npm run check:release-evidence:latest'],
+  ['release evidence readme placeholder warning', evidenceReadme, 'Do not literally run a command containing `docs/release-evidence/<file>.md`'],
+  ['release evidence checker rejects placeholders', releaseEvidenceChecker, 'placeholder angle-bracket content remains in evidence file'],
+  ['latest release evidence checker delegates', latestReleaseEvidenceChecker, 'scripts/check-release-evidence.mjs']
 ];
 
 const phraseFailures = requiredPhrases.filter(([name, text, phrase]) => !text.includes(phrase));
@@ -72,6 +99,20 @@ if (phraseFailures.length > 0) {
   console.error('FAIL completion lock: required lock language missing');
   for (const [name, , phrase] of phraseFailures) console.error(`- ${name}: ${phrase}`);
   process.exit(1);
+}
+
+const requiredScripts = [
+  ['test:completion-lock', 'node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt'],
+  ['check:release-evidence', 'node scripts/check-release-evidence.mjs'],
+  ['check:release-evidence:latest', 'node scripts/check-latest-release-evidence.mjs']
+];
+
+for (const [name, expected] of requiredScripts) {
+  if (packageJson.scripts?.[name] !== expected) {
+    console.error('FAIL completion lock: required package script missing or changed');
+    console.error(`- ${name}: expected ${expected}`);
+    process.exit(1);
+  }
 }
 
 const stalePhrases = [
