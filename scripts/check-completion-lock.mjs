@@ -97,6 +97,9 @@ const requiredPhrases = [
   ['latest release evidence checker delegates', latestReleaseEvidenceChecker, 'scripts/check-release-evidence.mjs'],
   ['local setup requires node 22', setupLocal, 'Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'],
   ['local setup rejects npm prefix', setupLocal, 'NPM_CONFIG_PREFIX must be unset before setup'],
+  ['local setup opt-in root deps flag', setupLocal, 'ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS'],
+  ['local setup skips root install by default', setupLocal, 'Skipping root npm install by default because current repo gates do not require root dependencies.'],
+  ['local setup explains opt-in root install', setupLocal, 'To install them intentionally, rerun with ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true.'],
   ['local setup avoids root lockfile generation', setupLocal, 'npm run lockfile:refresh-root'],
   ['local setup root install package-lock false', setupLocal, "'--package-lock=false'"],
   ['local setup runs doctor', setupLocal, 'Run repo doctor']
