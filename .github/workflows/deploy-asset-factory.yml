@@ -174,9 +174,13 @@ jobs:
           cat > "release-evidence/asset-factory-${{ inputs.environment }}-${GITHUB_RUN_ID}.md" <<EOF
           # Asset Factory ${{ inputs.environment }} deployment evidence
 
+          This artifact is a workflow run summary, not final completion-lock evidence. Copy concrete run details from this artifact into a completed docs/release-evidence/YYYY-MM-DD-environment.md file before attempting production lock.
+
+          - Evidence artifact type: workflow run summary (not final completion-lock evidence)
           - Repository: ${GITHUB_REPOSITORY}
           - Commit: ${GITHUB_SHA}
           - Workflow run: ${GITHUB_RUN_ID}
+          - Workflow run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           - Environment: ${{ inputs.environment }}
           - Base URL: ${{ steps.target.outputs.base_url }}
           - Deploy requested: ${{ inputs.deploy }}
@@ -188,6 +192,10 @@ jobs:
           - Two-token support isolation smoke required: true
           - Node runtime: 22
           - Java runtime: 21
+          - Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md
+          - Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md
+          - Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md
+          - Latest evidence validator command: npm run check:release-evidence:latest
 
           ## Gate status
 
@@ -201,7 +209,7 @@ jobs:
 
           ## Required follow-up
 
-          Attach this artifact to the release issue and only update the completion lock after staging and production evidence pass.
+          Attach this artifact to the release issue, copy concrete evidence into docs/release-evidence/YYYY-MM-DD-environment.md, validate that final evidence file, and only update the completion lock after staging and production evidence pass.
           EOF
 
       - name: Upload release evidence
