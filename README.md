@@ -17,6 +17,8 @@ Asset Factory repo-side hardening is complete for the current pass, but the syst
 
 Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Use issue #63 as the live production-lock tracker. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
 
+For repeatable AI-assisted repo audits and implementation passes, use `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`. Keep it aligned with the launch-readiness contract by running `npm run test:implementation-audit-prompt` or the broader `npm run test:completion-lock` gate.
+
 ### Current verified production surface
 
 - Verified Firebase production API base: `https://urai-4dc1d.web.app`
@@ -34,6 +36,7 @@ Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` 
 - `assetfactory-studio/`: web/studio app and canonical multimodal API surface.
 - `docs/MULTIMODAL_ASSET_WIRING.md`: asset type, renderer, storage, provider, and E2E contract.
 - `docs/OPERATIONS_RUNBOOK.md`: staging/production deploy, smoke, incident, rollback, and release evidence runbook.
+- `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`: automation-first repo audit and safe implementation prompt.
 - `LAUNCH_READINESS.md`: current production launch gate checklist.
 
 ## Requirements
