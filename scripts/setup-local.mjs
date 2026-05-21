@@ -26,7 +26,10 @@ if (process.env.NPM_CONFIG_PREFIX) {
   fail(`NPM_CONFIG_PREFIX must be unset before setup. Current value: ${process.env.NPM_CONFIG_PREFIX}. Run: unset NPM_CONFIG_PREFIX`);
 }
 
-run('Install root dependencies', 'npm', ['install']);
+// Root package-lock.json is intentionally not committed in this repo. Avoid creating
+// a transient root lockfile during bootstrap; use `npm run lockfile:refresh-root`
+// when intentionally refreshing and auditing the root lockfile.
+run('Install root dependencies without generating a root lockfile', 'npm', ['install', '--package-lock=false']);
 run('Install engine dependencies', 'npm', ['--prefix', 'engine', 'install']);
 run('Install functions dependencies', 'npm', ['--prefix', 'functions', 'install']);
 run('Install LifeMap functions dependencies', 'npm', ['--prefix', 'life-map-pipeline/functions', 'install']);
