@@ -38,6 +38,9 @@ const authTests = read('scripts/test-asset-factory-auth.mjs');
 const doctor = read('scripts/doctor.mjs');
 const deployWorkflowCheck = read('scripts/check-deploy-workflow.mjs');
 const releaseEvidenceCheck = read('scripts/check-release-evidence.mjs');
+const latestReleaseEvidenceCheck = read('scripts/check-latest-release-evidence.mjs');
+const releaseEvidenceTemplate = read('docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md');
+const releaseEvidenceReadme = read('docs/release-evidence/README.md');
 const studioPackage = read('assetfactory-studio/package.json');
 const studioEnvExample = read('assetfactory-studio/.env.example');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
@@ -100,7 +103,9 @@ const requiredReadmeReferences = [
   'npm run smoke:staging',
   'npm run smoke:prod',
   'npm run smoke:website',
-  'npm run doctor'
+  'npm run doctor',
+  'docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md',
+  'npm run test:implementation-audit-prompt'
 ];
 
 for (const expected of requiredReadmeReferences) assertIncludes(readme, expected, 'README.md');
@@ -142,6 +147,9 @@ const requiredPackageScripts = [
   'smoke:website',
   'test:launch-readiness',
   'test:completion-lock',
+  'test:implementation-audit-prompt',
+  'check:release-evidence',
+  'check:release-evidence:latest',
   'check:deploy-workflow',
   'deploy:studio'
 ];
@@ -150,6 +158,8 @@ for (const scriptName of requiredPackageScripts) {
   assert(rootPackageJson.scripts?.[scriptName], `package.json scripts must define ${scriptName}`);
 }
 
+assertEqual(rootPackageJson.scripts?.['check:release-evidence'], 'node scripts/check-release-evidence.mjs', 'package.json check:release-evidence must validate a specific file');
+assertEqual(rootPackageJson.scripts?.['check:release-evidence:latest'], 'node scripts/check-latest-release-evidence.mjs', 'package.json check:release-evidence:latest must validate newest evidence file');
 assertEqual(rootPackageJson.engines?.node, '>=20.19.0', 'root package.json must keep Node >=20.19.0 compatibility floor');
 assertEqual(rootPackageJson.engines?.npm, '>=10.8.0', 'root package.json must require npm >=10.8.0');
 assertEqual(studioPackageJson.engines?.node, '22', 'assetfactory-studio/package.json must require Node 22');
@@ -199,10 +209,38 @@ const requiredReleaseEvidenceFields = [
   'worker_queue_verified',
   'stripe_entitlements_verified',
   'observability_verified',
-  'rollback_sha'
+  'rollback_sha',
+  'placeholder angle-bracket content remains in evidence file',
+  'exactly one release decision must be selected with [x]',
+  'decision rationale must be filled'
 ];
 
 for (const expected of requiredReleaseEvidenceFields) assertIncludes(releaseEvidenceCheck, expected, 'scripts/check-release-evidence.mjs');
+
+const requiredLatestReleaseEvidenceCapabilities = [
+  'docs/release-evidence',
+  'Checking latest release evidence',
+  'scripts/check-release-evidence.mjs',
+  'no markdown evidence files found under docs/release-evidence'
+];
+for (const expected of requiredLatestReleaseEvidenceCapabilities) assertIncludes(latestReleaseEvidenceCheck, expected, 'scripts/check-latest-release-evidence.mjs');
+
+const requiredReleaseEvidenceTemplateCapabilities = [
+  'docs/release-evidence/YYYY-MM-DD-environment.md',
+  'Do not literally run a command with `<file>` in it',
+  'npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md',
+  'npm run check:release-evidence:latest'
+];
+for (const expected of requiredReleaseEvidenceTemplateCapabilities) assertIncludes(releaseEvidenceTemplate, expected, 'docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md');
+
+const requiredReleaseEvidenceReadmeCapabilities = [
+  'cp docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md docs/release-evidence/YYYY-MM-DD-environment.md',
+  'npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md',
+  'npm run check:release-evidence:latest',
+  'Do not literally run a command containing `docs/release-evidence/<file>.md`',
+  'Bash treats `<file>` as input redirection'
+];
+for (const expected of requiredReleaseEvidenceReadmeCapabilities) assertIncludes(releaseEvidenceReadme, expected, 'docs/release-evidence/README.md');
 
 const requiredStudioEnvCapabilities = [
   'ASSET_FACTORY_REQUIRE_AUTH=false',
