@@ -28,6 +28,8 @@
     "test:support-smoke-readiness": "node scripts/test-support-smoke-readiness.mjs",
     "test:implementation-audit-prompt": "node scripts/check-implementation-audit-prompt.mjs",
     "test:completion-lock": "node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt",
+    "check:release-evidence": "node scripts/check-release-evidence.mjs",
+    "check:release-evidence:latest": "node scripts/check-latest-release-evidence.mjs",
     "check:deploy-workflow": "node scripts/check-deploy-workflow.mjs",
     "audit:root": "test -f package-lock.json && npm audit --audit-level=high || echo 'Skipping root audit: package-lock.json is not committed yet. Run npm install --package-lock-only to enable root audit.'",
     "audit:functions": "npm --prefix life-map-pipeline/functions audit --audit-level=high || true",
