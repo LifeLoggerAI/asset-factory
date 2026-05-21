@@ -57,6 +57,14 @@ node --version
 node scripts/setup-local.mjs
 ```
 
+The fail-fast setup installs the package workspaces used by the current repo gates. Root dependency installation is skipped by default when root Firebase packages are missing because the current static validation path does not require them and the root lockfile is intentionally not committed.
+
+Install root dependencies only when intentionally working on root-level Firebase packages:
+
+```bash
+ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs
+```
+
 Manual setup, if you need to run each step yourself:
 
 ```bash
@@ -64,7 +72,6 @@ unset NPM_CONFIG_PREFIX
 nvm install 22
 nvm use 22
 node --version
-npm install
 npm --prefix engine install
 npm --prefix functions install
 npm --prefix life-map-pipeline/functions install
@@ -290,6 +297,7 @@ Ensure project, service account, and env are configured before deploy.
 - If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
 - If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 22 && nvm use 22`.
 - If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
+- If root setup reports missing root dependencies, continue with `node scripts/setup-local.mjs` unless you are intentionally working on root-level Firebase packages; use `ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs` only for that case.
 - If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
 - If Firebase build fails, verify Node version, Java 21, firebase-tools auth, and project selection.
 - If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
