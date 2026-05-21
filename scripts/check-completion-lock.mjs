@@ -14,7 +14,8 @@ const requiredFiles = [
   'docs/PRIVACY_SAFETY_VERIFICATION.md',
   'docs/COMPLETION_CHECKLIST.md',
   'scripts/check-release-evidence.mjs',
-  'scripts/check-latest-release-evidence.mjs'
+  'scripts/check-latest-release-evidence.mjs',
+  'scripts/setup-local.mjs'
 ];
 
 const missing = requiredFiles.filter((file) => !fs.existsSync(path.join(root, file)));
@@ -35,6 +36,7 @@ const evidenceTemplatePath = path.join(root, 'docs/templates/ASSET_FACTORY_RELEA
 const evidenceReadmePath = path.join(root, 'docs/release-evidence/README.md');
 const releaseEvidenceCheckerPath = path.join(root, 'scripts/check-release-evidence.mjs');
 const latestReleaseEvidenceCheckerPath = path.join(root, 'scripts/check-latest-release-evidence.mjs');
+const setupLocalPath = path.join(root, 'scripts/setup-local.mjs');
 const packagePath = path.join(root, 'package.json');
 
 const lock = fs.readFileSync(lockPath, 'utf8');
@@ -48,6 +50,7 @@ const evidenceTemplate = fs.readFileSync(evidenceTemplatePath, 'utf8');
 const evidenceReadme = fs.readFileSync(evidenceReadmePath, 'utf8');
 const releaseEvidenceChecker = fs.readFileSync(releaseEvidenceCheckerPath, 'utf8');
 const latestReleaseEvidenceChecker = fs.readFileSync(latestReleaseEvidenceCheckerPath, 'utf8');
+const setupLocal = fs.readFileSync(setupLocalPath, 'utf8');
 const packageJsonRaw = fs.readFileSync(packagePath, 'utf8');
 
 let openapi;
@@ -91,7 +94,12 @@ const requiredPhrases = [
   ['release evidence latest command', evidenceTemplate, 'npm run check:release-evidence:latest'],
   ['release evidence readme placeholder warning', evidenceReadme, 'Do not literally run a command containing `docs/release-evidence/<file>.md`'],
   ['release evidence checker rejects placeholders', releaseEvidenceChecker, 'placeholder angle-bracket content remains in evidence file'],
-  ['latest release evidence checker delegates', latestReleaseEvidenceChecker, 'scripts/check-release-evidence.mjs']
+  ['latest release evidence checker delegates', latestReleaseEvidenceChecker, 'scripts/check-release-evidence.mjs'],
+  ['local setup requires node 22', setupLocal, 'Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'],
+  ['local setup rejects npm prefix', setupLocal, 'NPM_CONFIG_PREFIX must be unset before setup'],
+  ['local setup avoids root lockfile generation', setupLocal, 'npm run lockfile:refresh-root'],
+  ['local setup root install package-lock false', setupLocal, "'--package-lock=false'"],
+  ['local setup runs doctor', setupLocal, 'Run repo doctor']
 ];
 
 const phraseFailures = requiredPhrases.filter(([name, text, phrase]) => !text.includes(phrase));
