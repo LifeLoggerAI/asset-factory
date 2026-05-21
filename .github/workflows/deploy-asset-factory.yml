@@ -109,6 +109,7 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
           ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
+          ASSET_FACTORY_OTHER_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_OTHER_BEARER_TOKEN }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           missing=0
@@ -119,7 +120,7 @@ jobs:
           fi
 
           if [ "${{ inputs.smoke_mode }}" = "authenticated" ] || [ "${{ inputs.smoke_mode }}" = "both" ]; then
-            for name in ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN CRON_SECRET; do
+            for name in ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_OTHER_BEARER_TOKEN CRON_SECRET; do
               if [ -z "${!name}" ]; then
                 echo "Missing required authenticated smoke secret: $name"
                 missing=1
@@ -154,6 +155,7 @@ jobs:
           ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
           ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
           ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
+          ASSET_FACTORY_OTHER_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_OTHER_BEARER_TOKEN }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           ASSET_FACTORY_TENANT_ID: ${{ steps.target.outputs.tenant_id }}
           ASSET_FACTORY_OTHER_TENANT_ID: ${{ steps.target.outputs.other_tenant_id }}
@@ -183,6 +185,7 @@ jobs:
           - Local fallback disabled: true
           - Auth required: true
           - API key required: true
+          - Two-token support isolation smoke required: true
           - Node runtime: 22
           - Java runtime: 21
 
