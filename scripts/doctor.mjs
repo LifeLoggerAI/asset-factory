@@ -21,6 +21,14 @@ function readJson(path) {
   }
 }
 
+function readText(path) {
+  try {
+    return fs.readFileSync(path, 'utf8');
+  } catch (error) {
+    return '';
+  }
+}
+
 function command(commandLine) {
   try {
     return execSync(commandLine, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -49,6 +57,7 @@ function versionLabel(version) {
 
 const rootPkg = readJson('package.json');
 const studioPkg = readJson('assetfactory-studio/package.json');
+const setupLocal = readText('scripts/setup-local.mjs');
 const gitBranch = command('git rev-parse --abbrev-ref HEAD');
 const gitHead = command('git rev-parse --short HEAD');
 const originMain = command('git rev-parse --short origin/main');
@@ -68,6 +77,9 @@ check('root smoke:staging script exists', Boolean(rootPkg.scripts?.['smoke:stagi
 check('studio test script exists', Boolean(studioPkg.scripts?.test), 'Update your local checkout from origin/main if missing.');
 check('studio typecheck script exists', Boolean(studioPkg.scripts?.typecheck), 'Update your local checkout from origin/main if missing.');
 check('launch readiness file exists', fs.existsSync('LAUNCH_READINESS.md'), 'Expected LAUNCH_READINESS.md at repo root.');
+check('fail-fast local setup helper exists', fs.existsSync('scripts/setup-local.mjs'), 'Expected scripts/setup-local.mjs. Recover from origin/main if missing.');
+check('fail-fast local setup uses Node 22', setupLocal.includes('Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'), 'Expected setup helper to require Node 22 before install.');
+check('fail-fast local setup avoids root lockfile generation', setupLocal.includes("'--package-lock=false'"), 'Expected setup helper to avoid transient root package-lock generation.');
 check('unit behavior test exists', fs.existsSync('scripts/test-asset-factory-units.mjs'), 'Expected targeted unit behavior test script.');
 check('remote smoke script exists', fs.existsSync('scripts/smoke-asset-factory-remote.mjs'), 'Expected remote smoke script.');
 check('studio node_modules installed', fs.existsSync('assetfactory-studio/node_modules'), 'Run npm --prefix assetfactory-studio install if missing.');
@@ -100,8 +112,8 @@ if (failed) {
   console.log('node --version');
   console.log('git fetch origin');
   console.log('git checkout main');
-  console.log('npm install');
-  console.log('npm --prefix assetfactory-studio install');
+  console.log('git reset --hard origin/main');
+  console.log('node scripts/setup-local.mjs');
   console.log('npm run doctor');
   console.log('npm run test:launch-readiness');
   console.log('npm --prefix assetfactory-studio test');
