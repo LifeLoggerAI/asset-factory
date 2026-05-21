@@ -34,6 +34,7 @@ const requiredPhrases = [
   'FIREBASE_TOKEN',
   'ASSET_FACTORY_API_KEY',
   'ASSET_FACTORY_BEARER_TOKEN',
+  'ASSET_FACTORY_OTHER_BEARER_TOKEN',
   'CRON_SECRET',
   'Deploy Firebase Studio',
   'npm run deploy:studio',
@@ -47,6 +48,7 @@ const requiredPhrases = [
   'npm run smoke:staging',
   'npm run smoke:prod',
   'Deploy command: npm run deploy:studio',
+  'Two-token support isolation smoke required: true',
   'Node runtime: 22',
   'Java runtime: 21',
   'Upload release evidence',
@@ -64,7 +66,8 @@ const forbiddenPhrases = [
   'npm run deploy:firebase -- --token',
   'Use Node.js 20\n        uses: actions/setup-node@v4\n        with:\n          node-version: \'20.19.0\'',
   'fully production ready',
-  'system of systems complete'
+  'system of systems complete',
+  'WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke'
 ];
 
 for (const phrase of forbiddenPhrases) {
