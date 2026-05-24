@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urai://contracts/ecosystem-schema-v1",
+  "title": "URAI Ecosystem Shared Schema V1",
+  "type": "object",
+  "required": ["users","memories","emotionalFields","lifeMapNodes","generatedAssets","spatialScenes","jobs","contentPacks","b2bAccounts","xrSceneObjects"],
+  "properties": {
+    "users": {"type":"array"},
+    "memories": {"type":"array"},
+    "emotionalFields": {"type":"array"},
+    "lifeMapNodes": {"type":"array"},
+    "generatedAssets": {"type":"array"},
+    "spatialScenes": {"type":"array"},
+    "jobs": {"type":"array"},
+    "contentPacks": {"type":"array"},
+    "b2bAccounts": {"type":"array"},
+    "xrSceneObjects": {"type":"array"}
+  }
+}
