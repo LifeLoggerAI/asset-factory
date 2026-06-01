@@ -2,11 +2,12 @@
 Run the full URAI image asset generator loop in one command.
 
 Pipeline:
-1. Generate missing local proof assets.
-2. Validate declared outputs.
-3. Build preview HTML.
-4. Export asset pack ZIP.
-5. Write validation_report.json with asset hashes and status.
+1. Validate manifest registry contract.
+2. Generate missing local proof assets.
+3. Validate declared outputs.
+4. Build preview HTML.
+5. Export asset pack ZIP.
+6. Write validation_report.json with asset hashes and status.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import create_preview
 import export_assets
 import generate_assets
 import validate_assets
+import validate_manifest
 
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
@@ -79,16 +81,31 @@ def write_report(errors: List[str], zip_path: Path) -> Dict[str, Any]:
     return report
 
 
+def fail(errors: List[str], stage: str) -> None:
+    zip_path = BASE_DIR / "asset_pack.zip"
+    if not zip_path.exists():
+        zip_path.write_bytes(b"")
+    write_report(errors, zip_path)
+    print(f"Image asset pipeline failed during {stage} with {len(errors)} error(s).")
+    for error in errors:
+        print(f"- {error}")
+    raise SystemExit(1)
+
+
 def main() -> None:
+    manifest_errors = validate_manifest.validate_manifest()
+    if manifest_errors:
+        fail(manifest_errors, "manifest validation")
+
     generate_assets.main()
-    errors = validate_assets.validate()
+    asset_errors = validate_assets.validate()
     create_preview.main()
     zip_path = export_assets.export()
-    report = write_report(errors, zip_path)
+    report = write_report(asset_errors, zip_path)
 
-    if errors:
-        print(f"Image asset pipeline failed with {len(errors)} validation error(s).")
-        for error in errors:
+    if asset_errors:
+        print(f"Image asset pipeline failed with {len(asset_errors)} validation error(s).")
+        for error in asset_errors:
             print(f"- {error}")
         raise SystemExit(1)
 
