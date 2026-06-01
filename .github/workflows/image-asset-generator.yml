@@ -39,3 +39,4 @@ jobs:
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
             image_asset_generator/validation_report.json
+            image_asset_generator/firebase_seed.json
