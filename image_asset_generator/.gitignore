@@ -1,0 +1,6 @@
+assets/
+asset_pack.zip
+preview.html
+validation_report.json
+__pycache__/
+*.pyc
