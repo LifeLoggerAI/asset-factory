@@ -6,8 +6,9 @@ Pipeline:
 2. Generate missing local proof assets.
 3. Validate declared outputs.
 4. Build preview HTML.
-5. Export asset pack ZIP.
-6. Write validation_report.json with asset hashes and status.
+5. Create Firebase metadata seed.
+6. Export asset pack ZIP.
+7. Write validation_report.json with asset hashes and status.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+import create_firebase_seed
 import create_preview
 import export_assets
 import generate_assets
@@ -27,6 +29,7 @@ import validate_manifest
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
 REPORT_PATH = BASE_DIR / "validation_report.json"
+FIREBASE_SEED_PATH = BASE_DIR / "firebase_seed.json"
 
 
 def sha256_file(path: Path) -> str:
@@ -72,11 +75,14 @@ def write_report(errors: List[str], zip_path: Path) -> Dict[str, Any]:
         "status": "passed" if not errors else "failed",
         "manifest": str(MANIFEST_PATH.relative_to(BASE_DIR)),
         "preview": "preview.html",
+        "firebase_seed": "firebase_seed.json" if FIREBASE_SEED_PATH.exists() else None,
         "export": str(zip_path.relative_to(BASE_DIR)),
         "asset_count": len(assets),
         "errors": errors,
         "assets": assets,
     }
+    if FIREBASE_SEED_PATH.exists():
+        report["firebase_seed_sha256"] = sha256_file(FIREBASE_SEED_PATH)
     REPORT_PATH.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 
@@ -100,6 +106,7 @@ def main() -> None:
     generate_assets.main()
     asset_errors = validate_assets.validate()
     create_preview.main()
+    create_firebase_seed.main()
     zip_path = export_assets.export()
     report = write_report(asset_errors, zip_path)
 
