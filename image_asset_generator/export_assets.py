@@ -5,6 +5,8 @@ The archive includes:
 - generated assets
 - manifest.json
 - preview.html when present
+- firebase_seed.json when present
+- validation_report.json when present
 """
 
 from __future__ import annotations
@@ -24,7 +26,13 @@ def export(zip_path: Path = DEFAULT_ZIP) -> Path:
                 if file_path.is_file():
                     archive.write(file_path, file_path.relative_to(BASE_DIR))
 
-        for extra_name in ("manifest.json", "preview.html"):
+        for extra_name in (
+            "manifest.json",
+            "manifest.schema.json",
+            "preview.html",
+            "firebase_seed.json",
+            "validation_report.json",
+        ):
             extra_path = BASE_DIR / extra_name
             if extra_path.exists():
                 archive.write(extra_path, extra_path.relative_to(BASE_DIR))
