@@ -28,22 +28,14 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Generate missing local assets
-        run: python image_asset_generator/generate_assets.py
+      - name: Run image asset pipeline
+        run: python image_asset_generator/run_pipeline.py
 
-      - name: Validate generated assets
-        run: python image_asset_generator/validate_assets.py
-
-      - name: Build preview gallery
-        run: python image_asset_generator/create_preview.py
-
-      - name: Export asset pack
-        run: python image_asset_generator/export_assets.py
-
-      - name: Upload asset pack artifact
+      - name: Upload asset artifacts
         uses: actions/upload-artifact@v4
         with:
           name: urai-image-asset-pack
           path: |
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
+            image_asset_generator/validation_report.json
