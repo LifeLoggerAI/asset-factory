@@ -34,6 +34,7 @@ Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` 
 - `functions/`: Firebase Cloud Functions (legacy/root deployment set).
 - `life-map-pipeline/functions/`: TypeScript Firebase Functions for LifeMap ingestion.
 - `assetfactory-studio/`: web/studio app and canonical multimodal API surface.
+- `image_asset_generator/`: manifest-driven image asset loop for generate, validate, preview, and export.
 - `docs/MULTIMODAL_ASSET_WIRING.md`: asset type, renderer, storage, provider, and E2E contract.
 - `docs/OPERATIONS_RUNBOOK.md`: staging/production deploy, smoke, incident, rollback, and release evidence runbook.
 - `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`: automation-first repo audit and safe implementation prompt.
@@ -44,6 +45,7 @@ Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` 
 - npm 10.8.0 or newer.
 - Java 21 for current Firebase emulator/CLI tooling.
 - Firebase CLI (`npm i -g firebase-tools`) for emulators/deploy.
+- Python 3.11+ for the image asset generator loop.
 
 ## Quick start
 
@@ -125,6 +127,17 @@ Then open the Studio and create a `graphic`, `model3d`, `audio`, or `bundle` job
 4. `POST /api/jobs/:jobId/publish`
 5. `POST /api/jobs/:jobId/approve`
 
+### Image asset generator loop
+```bash
+python -m pip install -r image_asset_generator/requirements.txt
+python image_asset_generator/generate_assets.py
+python image_asset_generator/validate_assets.py
+python image_asset_generator/create_preview.py
+python image_asset_generator/export_assets.py
+```
+
+This loop reads `image_asset_generator/manifest.json`, creates missing local proof PNGs, validates dimensions and RGBA requirements, builds a review gallery, and exports a ZIP bundle.
+
 ### Engine API
 ```bash
 cd engine
@@ -168,6 +181,10 @@ npm --prefix functions run build
 npm --prefix functions test
 npm --prefix life-map-pipeline/functions run build
 npm --prefix life-map-pipeline/functions test
+python -m pip install -r image_asset_generator/requirements.txt
+python image_asset_generator/generate_assets.py
+python image_asset_generator/validate_assets.py
+python image_asset_generator/create_preview.py
 ```
 
 ### Studio multimodal checks
@@ -272,6 +289,13 @@ Before using real provider-backed rendering in production:
 - Run the launch gates in `LAUNCH_READINESS.md`.
 - Follow `docs/OPERATIONS_RUNBOOK.md` for release evidence, rollback, and incident response.
 
+For the image asset generator loop specifically:
+
+- Keep `image_asset_generator/manifest.json` as the canonical image registry.
+- Replace the local placeholder renderer while preserving the manifest and validation contract.
+- Store approved renderer version, prompt version, content hash, approval status, and Firebase Storage path in the manifest before production lock.
+- Run the `Image Asset Generator` GitHub Actions workflow for every PR that changes image generator files.
+
 ## Deploy notes
 
 Preferred deployment path for the Studio/Firebase framework surface is the manual GitHub Actions workflow documented above and in `docs/OPERATIONS_RUNBOOK.md`.
@@ -302,4 +326,5 @@ Ensure project, service account, and env are configured before deploy.
 - If Firebase build fails, verify Node version, Java 21, firebase-tools auth, and project selection.
 - If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
 - If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
+- If image asset validation fails, run `python image_asset_generator/generate_assets.py` first, then rerun `python image_asset_generator/validate_assets.py`.
 - If `https://uraiassetfactory.com/api/system/health` or `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
