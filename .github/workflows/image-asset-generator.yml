@@ -1,0 +1,49 @@
+name: Image Asset Generator
+
+on:
+  pull_request:
+    paths:
+      - "image_asset_generator/**"
+      - ".github/workflows/image-asset-generator.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "image_asset_generator/**"
+      - ".github/workflows/image-asset-generator.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-image-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Generate missing local assets
+        run: python image_asset_generator/generate_assets.py
+
+      - name: Validate generated assets
+        run: python image_asset_generator/validate_assets.py
+
+      - name: Build preview gallery
+        run: python image_asset_generator/create_preview.py
+
+      - name: Export asset pack
+        run: python image_asset_generator/export_assets.py
+
+      - name: Upload asset pack artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-image-asset-pack
+          path: |
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/preview.html
