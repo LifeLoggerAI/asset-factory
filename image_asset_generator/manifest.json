@@ -1,0 +1,47 @@
+[
+  {
+    "name": "sky_clear_day",
+    "category": "sky",
+    "prompt": "a clear blue sky with a few wispy white clouds",
+    "sizes": [512, 1024],
+    "alpha": true,
+    "status": "prompted",
+    "path_template": "assets/sky/sky_clear_day_{size}.png"
+  },
+  {
+    "name": "sky_night_stars",
+    "category": "sky",
+    "prompt": "a dark night sky filled with twinkling stars",
+    "sizes": [512, 1024],
+    "alpha": true,
+    "status": "prompted",
+    "path_template": "assets/sky/sky_night_stars_{size}.png"
+  },
+  {
+    "name": "ground_plain",
+    "category": "ground",
+    "prompt": "a simple grassy field",
+    "sizes": [512, 1024],
+    "alpha": true,
+    "status": "prompted",
+    "path_template": "assets/ground/ground_plain_{size}.png"
+  },
+  {
+    "name": "ground_mountain",
+    "category": "ground",
+    "prompt": "snow capped mountains in the distance",
+    "sizes": [512, 1024],
+    "alpha": true,
+    "status": "prompted",
+    "path_template": "assets/ground/ground_mountain_{size}.png"
+  },
+  {
+    "name": "orb_normal",
+    "category": "orb",
+    "prompt": "a glowing orb with soft light",
+    "sizes": [256, 512],
+    "alpha": true,
+    "status": "prompted",
+    "path_template": "assets/orb/orb_normal_{size}.png"
+  }
+]
