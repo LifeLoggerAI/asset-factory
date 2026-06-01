@@ -41,13 +41,8 @@ def require_string(entry: Dict[str, Any], field: str, index: int, errors: List[s
     return value
 
 
-def validate_manifest() -> List[str]:
+def validate_manifest_entries(manifest: Any) -> List[str]:
     errors: List[str] = []
-
-    try:
-        manifest = load_manifest()
-    except Exception as exc:
-        return [f"manifest could not be loaded: {exc}"]
 
     if not isinstance(manifest, list):
         return ["manifest root must be a list"]
@@ -103,6 +98,15 @@ def validate_manifest() -> List[str]:
                         seen_paths.add(output)
 
     return errors
+
+
+def validate_manifest() -> List[str]:
+    try:
+        manifest = load_manifest()
+    except Exception as exc:
+        return [f"manifest could not be loaded: {exc}"]
+
+    return validate_manifest_entries(manifest)
 
 
 def main() -> None:
