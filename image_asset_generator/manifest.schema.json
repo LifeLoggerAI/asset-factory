@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://urai.local/schemas/image-asset-generator-manifest.schema.json",
+  "title": "URAI Image Asset Generator Manifest",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "name",
+      "category",
+      "prompt",
+      "sizes",
+      "alpha",
+      "status",
+      "path_template"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      "category": {
+        "type": "string",
+        "minLength": 1
+      },
+      "prompt": {
+        "type": "string",
+        "minLength": 1
+      },
+      "sizes": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "alpha": {
+        "type": "boolean"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "prompted",
+          "generated",
+          "validated",
+          "previewed",
+          "approved",
+          "committed",
+          "shipped"
+        ]
+      },
+      "path_template": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_./{}-]+\\.png$"
+      },
+      "description": {
+        "type": "string"
+      },
+      "renderer": {
+        "type": "string"
+      },
+      "prompt_version": {
+        "type": "string"
+      },
+      "firebase_storage_prefix": {
+        "type": "string"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
