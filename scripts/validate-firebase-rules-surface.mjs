@@ -39,6 +39,7 @@ for (const rule of [
   'isAdmin()',
   'isPublicDemoSafeAsset()',
   'containsUserData == false',
+  'containsUserMemoryData == false',
   'sanitizedForDemo == true',
   'allow write: if false',
 ]) {
