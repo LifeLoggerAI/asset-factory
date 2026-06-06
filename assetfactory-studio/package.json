@@ -14,7 +14,9 @@
     "test": "node ../scripts/test-asset-factory-units.mjs && node ../scripts/test-asset-factory-auth.mjs && node ../scripts/test-asset-factory-local.mjs && node ../scripts/test-asset-factory-multimodal.mjs",
     "typecheck": "tsc -p tsconfig.asset-factory.json",
     "e2e": "node ../scripts/e2e-asset-factory.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "validate:assets": "node ../scripts/validate-asset-factory-production.mjs",
+    "validate:production": "npm run validate:assets",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run validate:production && npm run build"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
