@@ -17,7 +17,8 @@
     "validate:assets": "node ../scripts/validate-asset-factory-production.mjs",
     "validate:runtime": "node ../scripts/verify-spatial-runtime-contract.mjs",
     "validate:rules": "node ../scripts/validate-firebase-rules-surface.mjs",
-    "validate:production": "npm run validate:assets && npm run validate:runtime && npm run validate:rules",
+    "validate:deploy": "node ../scripts/validate-firebase-deploy-preflight.mjs",
+    "validate:production": "npm run validate:assets && npm run validate:runtime && npm run validate:rules && npm run validate:deploy",
     "verify:live": "node ../scripts/verify-live-deploy-health.mjs",
     "check": "npm run lint && npm run typecheck && npm run test && npm run validate:production && npm run build"
   },
