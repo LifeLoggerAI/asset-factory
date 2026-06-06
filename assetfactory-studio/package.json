@@ -16,7 +16,7 @@
     "e2e": "node ../scripts/e2e-asset-factory.mjs",
     "validate:assets": "node ../scripts/validate-asset-factory-production.mjs",
     "validate:runtime": "node ../scripts/verify-spatial-runtime-contract.mjs",
-    "validate:rules": "firebase firestore:rules:test --rules ../firestore.rules || true && firebase storage:rules:test --rules ../storage.rules || true",
+    "validate:rules": "node ../scripts/validate-firebase-rules-surface.mjs",
     "validate:production": "npm run validate:assets && npm run validate:runtime && npm run validate:rules",
     "check": "npm run lint && npm run typecheck && npm run test && npm run validate:production && npm run build"
   },
