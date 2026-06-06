@@ -1,9 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(scriptDir, '..');
 const defaultManifestPath = 'schemas/examples/urai-runtime-spatial-proof.json';
 const manifestPath = process.argv[2] || defaultManifestPath;
-const manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), manifestPath), 'utf8'));
+const manifest = JSON.parse(fs.readFileSync(path.resolve(root, manifestPath), 'utf8'));
 const modelUrl = manifest.glbUrl || manifest.gltfUrl || manifest.modelUrl || '';
 const cleanModelUrl = String(modelUrl).toLowerCase().split('?')[0].split('#')[0];
 const errors = [];
