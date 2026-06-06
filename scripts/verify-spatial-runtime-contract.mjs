@@ -1,12 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const manifestPath = process.argv[2];
-if (!manifestPath) {
-  console.error('usage: node scripts/verify-spatial-runtime-contract.mjs <manifest.json>');
-  process.exit(1);
-}
-
+const defaultManifestPath = 'schemas/examples/urai-runtime-spatial-proof.json';
+const manifestPath = process.argv[2] || defaultManifestPath;
 const manifest = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), manifestPath), 'utf8'));
 const modelUrl = manifest.glbUrl || manifest.gltfUrl || manifest.modelUrl || '';
 const cleanModelUrl = String(modelUrl).toLowerCase().split('?')[0].split('#')[0];
