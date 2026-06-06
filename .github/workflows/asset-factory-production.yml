@@ -1,0 +1,56 @@
+name: Asset Factory Production Checks
+
+on:
+  push:
+    paths:
+      - 'assetfactory-studio/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-production.yml'
+  pull_request:
+    paths:
+      - 'assetfactory-studio/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assetfactory-studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: assetfactory-studio/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate production assets
+        run: npm run validate:assets
+
+      - name: Validate runtime contract
+        run: npm run validate:runtime
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
