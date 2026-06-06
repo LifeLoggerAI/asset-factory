@@ -43,6 +43,13 @@ if (functionsSource) {
   requireText(source, sourcePath, 'await assertUserAccess(req, asset.userId);');
   requireText(source, sourcePath, 'assertAnonymousSessionAccess(asset.anonymousSessionId');
   requireText(source, sourcePath, 'await assertUserAccess(req, event.userId);');
+  requireText(source, sourcePath, 'function requireSessionId');
+  requireText(source, sourcePath, 'value.length < 12');
+  requireText(source, sourcePath, 'function isAuthError');
+  requireText(source, sourcePath, 'function authErrorStatus');
+  requireText(source, sourcePath, 'authErrorStatus(error)');
+  requireText(source, sourcePath, '401');
+  requireText(source, sourcePath, '403');
   requireText(source, sourcePath, "export const assetFactoryHealth");
   requireText(source, sourcePath, "export const createAssetRequest");
   requireText(source, sourcePath, "export const getAssetStatus");
