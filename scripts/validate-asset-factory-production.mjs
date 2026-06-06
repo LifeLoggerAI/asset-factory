@@ -86,8 +86,9 @@ function validateManifestObject(asset, label) {
   }
   if (!asset.permissions || typeof asset.permissions !== 'object') errors.push(`${label}: missing permissions`);
   if (!asset.validation || typeof asset.validation !== 'object') errors.push(`${label}: missing validation`);
+  if (asset.permissions && typeof asset.permissions.containsUserMemoryData !== 'boolean') errors.push(`${label}: missing permissions.containsUserMemoryData`);
   if (asset.visibility === 'public-demo' && asset.permissions?.sanitizedForDemo !== true) errors.push(`${label}: public-demo must be sanitized`);
-  if ((asset.visibility === 'public-demo' || asset.visibility === 'public-marketing') && asset.permissions?.containsUserData === true) errors.push(`${label}: public asset contains user data`);
+  if ((asset.visibility === 'public-demo' || asset.visibility === 'public-marketing') && (asset.permissions?.containsUserData === true || asset.permissions?.containsUserMemoryData === true)) errors.push(`${label}: public asset contains user data`);
   if (asset.status === 'published' && !asset.thumbnailUrl && !asset.previewUrl) errors.push(`${label}: published asset missing thumbnail or preview`);
   if (asset.productionReady === true && !asset.fallbackAsset) errors.push(`${label}: production asset missing fallbackAsset`);
   if (['model-glb', 'model-gltf', 'spatial-scene', 'scene-manifest', 'particle-system'].includes(asset.assetType)) {
