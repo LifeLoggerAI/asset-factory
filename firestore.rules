@@ -47,6 +47,7 @@ service cloud.firestore {
     function isPublicSafeAsset() {
       return resource.data.permissions.publicReadable == true
         && resource.data.permissions.containsUserData == false
+        && resource.data.permissions.containsUserMemoryData == false
         && resource.data.validation.noPrivateData == true;
     }
 
