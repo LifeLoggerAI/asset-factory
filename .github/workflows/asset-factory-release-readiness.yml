@@ -1,0 +1,61 @@
+name: Asset Factory Release Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      live_url:
+        description: 'Optional live base URL to verify after deployment'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assetfactory-studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Validate production assets
+        run: npm run validate:assets
+
+      - name: Validate runtime contract
+        run: npm run validate:runtime
+
+      - name: Validate Firebase rules surface
+        run: npm run validate:rules
+
+      - name: Validate Firebase deploy preflight
+        run: npm run validate:deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify live deployment
+        if: ${{ inputs.live_url != '' }}
+        env:
+          ASSET_FACTORY_LIVE_URL: ${{ inputs.live_url }}
+        run: npm run verify:live
