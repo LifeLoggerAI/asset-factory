@@ -2,6 +2,15 @@ import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalo
 
 const safeIdSegment = /^[a-zA-Z0-9._-]+$/;
 const safeTenant = /^[a-zA-Z0-9._:-]+$/;
+const blockedGeneratedAssetNames = [
+  '_audit',
+  'outputs',
+  '.bak',
+  '.body',
+  '.log',
+  'proof',
+  'audit',
+];
 
 export type GenerateRequest = {
   jobId: string;
@@ -39,13 +48,19 @@ export function validateTenantId(value: unknown): value is string {
   );
 }
 
+function isBlockedGeneratedAssetName(value: string) {
+  const lower = value.toLowerCase();
+  return blockedGeneratedAssetNames.some((blocked) => lower.includes(blocked));
+}
+
 export function validateFileName(value: unknown): value is string {
   return (
     typeof value === 'string' &&
     value.length > 0 &&
     value.length < 256 &&
     safeIdSegment.test(value) &&
-    !value.includes('..')
+    !value.includes('..') &&
+    !isBlockedGeneratedAssetName(value)
   );
 }
 
