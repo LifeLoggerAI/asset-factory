@@ -14,9 +14,6 @@ permissions:
 jobs:
   release-readiness:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: assetfactory-studio
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,35 +24,53 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Install dependencies
+      - name: Install studio dependencies
+        working-directory: assetfactory-studio
         run: npm install
 
       - name: Validate production assets
+        working-directory: assetfactory-studio
         run: npm run validate:assets
 
       - name: Validate runtime contract
+        working-directory: assetfactory-studio
         run: npm run validate:runtime
 
       - name: Validate Firebase rules surface
+        working-directory: assetfactory-studio
         run: npm run validate:rules
 
       - name: Validate Firebase deploy preflight
+        working-directory: assetfactory-studio
         run: npm run validate:deploy
 
-      - name: Lint
+      - name: Lint studio
+        working-directory: assetfactory-studio
         run: npm run lint
 
-      - name: Typecheck
+      - name: Typecheck studio
+        working-directory: assetfactory-studio
         run: npm run typecheck
 
-      - name: Run tests
+      - name: Run studio tests
+        working-directory: assetfactory-studio
         run: npm run test
 
-      - name: Build
+      - name: Build studio
+        working-directory: assetfactory-studio
+        run: npm run build
+
+      - name: Install functions dependencies
+        working-directory: life-map-pipeline/functions
+        run: npm ci
+
+      - name: Build functions
+        working-directory: life-map-pipeline/functions
         run: npm run build
 
       - name: Verify live deployment
         if: ${{ inputs.live_url != '' }}
+        working-directory: assetfactory-studio
         env:
           ASSET_FACTORY_LIVE_URL: ${{ inputs.live_url }}
         run: npm run verify:live
