@@ -75,6 +75,32 @@ function newDocId(collection: string): string {
   return db.collection(collection).doc().id;
 }
 
+function bearerToken(req: HttpsRequest): string | undefined {
+  const raw = req.get('authorization') || req.get('Authorization');
+  if (!raw) return undefined;
+  const [scheme, token] = raw.split(' ');
+  return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
+}
+
+async function authenticatedUid(req: HttpsRequest): Promise<string | undefined> {
+  const token = bearerToken(req);
+  if (!token) return undefined;
+  const decoded = await admin.auth().verifyIdToken(token);
+  return decoded.uid;
+}
+
+async function assertUserAccess(req: HttpsRequest, userId?: string): Promise<void> {
+  if (!userId) return;
+  const uid = await authenticatedUid(req);
+  if (!uid) throw new Error('authentication required');
+  if (uid !== userId) throw new Error('asset owner mismatch');
+}
+
+function assertAnonymousSessionAccess(expected?: string, provided?: string): void {
+  if (!expected) return;
+  if (!provided || provided !== expected) throw new Error('anonymousSessionId mismatch');
+}
+
 function createInitialAssetManifest(input: {
   assetId: string;
   projectId: string;
@@ -180,6 +206,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
     const userId = optionalString(body.userId);
     const anonymousSessionId = optionalString(body.anonymousSessionId);
     if (!userId && !anonymousSessionId) throw new Error('userId or anonymousSessionId is required');
+    await assertUserAccess(req, userId);
 
     const assetId = optionalString(body.assetId) || newDocId('assetFactoryRequests');
     const timestamp = now();
@@ -223,7 +250,10 @@ export const getAssetStatus = functions.https.onRequest(async (req, res) => {
   try {
     const doc = await db.collection('assetFactoryRequests').doc(assetId).get();
     if (!doc.exists) return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
-    return sendJson(res, 200, { ok: true, asset: doc.data() });
+    const asset = doc.data() as AssetFactoryRequest;
+    await assertUserAccess(req, asset.userId);
+    assertAnonymousSessionAccess(asset.anonymousSessionId, optionalString(req.query.anonymousSessionId));
+    return sendJson(res, 200, { ok: true, asset });
   } catch (error) {
     if (!isRuntimeStoreWriteBlocked(error)) throw error;
     console.error('getAssetStatus persistence degraded', error);
