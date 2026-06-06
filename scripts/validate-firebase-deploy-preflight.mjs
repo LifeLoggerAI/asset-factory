@@ -10,9 +10,17 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
 }
 
+function readText(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), 'utf8');
+}
+
 function hasDependency(lock, name) {
   const packages = lock.packages || {};
   return Object.keys(packages).some((pkgPath) => pkgPath === `node_modules/${name}` || pkgPath.endsWith(`/node_modules/${name}`));
+}
+
+function requireText(source, label, text) {
+  if (!source.includes(text)) errors.push(`${label} missing required text: ${text}`);
 }
 
 const firebaseConfig = readJson('firebase.json');
@@ -26,7 +34,20 @@ if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/ap
 if (functionsSource) {
   const packagePath = `${functionsSource}/package.json`;
   const lockPath = `${functionsSource}/package-lock.json`;
+  const sourcePath = `${functionsSource}/src/index.ts`;
   const packageJson = readJson(packagePath);
+  const source = readText(sourcePath);
+
+  requireText(source, sourcePath, 'admin.auth().verifyIdToken');
+  requireText(source, sourcePath, 'await assertUserAccess(req, userId);');
+  requireText(source, sourcePath, 'await assertUserAccess(req, asset.userId);');
+  requireText(source, sourcePath, 'assertAnonymousSessionAccess(asset.anonymousSessionId');
+  requireText(source, sourcePath, 'await assertUserAccess(req, event.userId);');
+  requireText(source, sourcePath, "export const assetFactoryHealth");
+  requireText(source, sourcePath, "export const createAssetRequest");
+  requireText(source, sourcePath, "export const getAssetStatus");
+  requireText(source, sourcePath, "export const ingestLifeMapEvent");
+
   if (!fs.existsSync(path.join(root, lockPath))) {
     errors.push(`${lockPath} is missing`);
   } else {
