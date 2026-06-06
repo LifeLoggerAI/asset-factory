@@ -76,6 +76,7 @@
         "publicReadable": { "type": "boolean" },
         "adminOnly": { "type": "boolean" },
         "containsUserData": { "type": "boolean" },
+        "containsUserMemoryData": { "type": "boolean" },
         "sanitizedForDemo": { "type": "boolean" }
       },
       "additionalProperties": false
