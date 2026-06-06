@@ -3,6 +3,8 @@
   "compilerOptions": {"noEmit": true},
   "include": [
     "lib/server/**/*.ts",
+    "lib/assets/**/*.ts",
+    "lib/spatial/**/*.ts",
     "app/**/*.tsx",
     "components/**/*.tsx",
     "app/api/generate/route.ts",
