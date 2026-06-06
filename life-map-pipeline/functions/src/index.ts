@@ -40,6 +40,12 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function requireSessionId(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.length < 12) throw new Error('anonymousSessionId must be at least 12 characters');
+  return value;
+}
+
 function safeTags(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 50);
@@ -69,6 +75,15 @@ function errorMessage(error: unknown): string {
 function isRuntimeStoreWriteBlocked(error: unknown): boolean {
   const message = errorMessage(error);
   return message.includes('PERMISSION_DENIED') || message.includes('Missing or insufficient permissions');
+}
+
+function isAuthError(error: unknown): boolean {
+  const message = errorMessage(error);
+  return message === 'authentication required' || message === 'asset owner mismatch' || message === 'anonymousSessionId mismatch';
+}
+
+function authErrorStatus(error: unknown): number {
+  return errorMessage(error) === 'authentication required' ? 401 : 403;
 }
 
 function newDocId(collection: string): string {
@@ -204,7 +219,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
     const source = optionalString(body.source) || 'api';
     const format = optionalString(body.format) || 'unknown';
     const userId = optionalString(body.userId);
-    const anonymousSessionId = optionalString(body.anonymousSessionId);
+    const anonymousSessionId = requireSessionId(optionalString(body.anonymousSessionId));
     if (!userId && !anonymousSessionId) throw new Error('userId or anonymousSessionId is required');
     await assertUserAccess(req, userId);
 
@@ -237,6 +252,7 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
 
     return sendJson(res, 202, { ok: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
   } catch (error) {
+    if (isAuthError(error)) return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
     console.error('createAssetRequest failed', error);
     return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
   }
@@ -252,9 +268,10 @@ export const getAssetStatus = functions.https.onRequest(async (req, res) => {
     if (!doc.exists) return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
     const asset = doc.data() as AssetFactoryRequest;
     await assertUserAccess(req, asset.userId);
-    assertAnonymousSessionAccess(asset.anonymousSessionId, optionalString(req.query.anonymousSessionId));
+    assertAnonymousSessionAccess(asset.anonymousSessionId, requireSessionId(optionalString(req.query.anonymousSessionId)));
     return sendJson(res, 200, { ok: true, asset });
   } catch (error) {
+    if (isAuthError(error)) return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
     if (!isRuntimeStoreWriteBlocked(error)) throw error;
     console.error('getAssetStatus persistence degraded', error);
     return sendJson(res, 200, { ok: true, degraded: true, asset: { assetId, status: 'queued', lifecycleState: 'queued', source: 'degraded-status-fallback', updatedAt: now() } });
@@ -281,6 +298,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
     }
     return sendJson(res, 202, { ok: true, eventId, status: 'accepted' });
   } catch (error) {
+    if (isAuthError(error)) return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
     console.error('ingestLifeMapEvent failed', error);
     return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
   }
