@@ -73,7 +73,8 @@ service firebase.storage {
     }
 
     match /admin-assets/{assetId}/{version}/{filePath=**} {
-      allow read, write: if isAdmin() && (request.method == 'get' || request.method == 'list' || isReasonableAssetUpload());
+      allow read: if isAdmin();
+      allow write: if isAdmin() && isReasonableAssetUpload();
     }
 
     match /asset-previews/{assetId}/{version}/{filePath=**} {
