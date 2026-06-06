@@ -1,4 +1,3 @@
-
 # Node
 node_modules/
 _modules/
@@ -7,6 +6,17 @@ _modules/
 engine/node_modules/
 engine/logs/
 engine/outputs/
+
+# Asset factory generated and historical artifacts
+outputs/
+generated/
+.asset-cache/
+.assetfactory-cache/
+_audit/
+**/*.bak
+**/*.body
+**/*PROOF*.json
+**/*proof*.json
 
 # Firebase
 .firebase/
