@@ -48,6 +48,9 @@ jobs:
       - name: Validate runtime contract
         run: npm run validate:runtime
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
