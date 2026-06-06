@@ -75,6 +75,74 @@ function newDocId(collection: string): string {
   return db.collection(collection).doc().id;
 }
 
+function createInitialAssetManifest(input: {
+  assetId: string;
+  projectId: string;
+  assetType: string;
+  format: string;
+  storagePath: string;
+  userId?: string;
+  anonymousSessionId?: string;
+  source?: string;
+  tags: string[];
+  timestamp: number;
+}): Record<string, unknown> {
+  const ownerId = input.userId || input.anonymousSessionId || 'anonymous';
+  return {
+    id: input.assetId,
+    assetId: input.assetId,
+    slug: input.assetId,
+    title: `Asset ${input.assetId}`,
+    description: 'Queued URAI asset factory request.',
+    assetType: input.assetType,
+    symbolicCategory: input.projectId,
+    visualLayer: 'ui',
+    environment: input.projectId,
+    geometryType: 'none',
+    version: '1.0.0',
+    status: 'queued',
+    visibility: input.userId ? 'private-user' : 'internal-only',
+    ownerId,
+    userId: input.userId,
+    anonymousSessionId: input.anonymousSessionId,
+    projectId: input.projectId,
+    format: input.format,
+    storagePath: input.storagePath,
+    source: input.source,
+    permissions: {
+      ownerId,
+      publicReadable: false,
+      adminOnly: false,
+      containsUserData: Boolean(input.userId),
+      containsUserMemoryData: false,
+      sanitizedForDemo: false,
+    },
+    createdBy: input.userId || 'anonymous-session',
+    createdAt: input.timestamp,
+    updatedAt: input.timestamp,
+    tags: input.tags,
+    dependencies: [],
+    compatibleScenes: [input.projectId],
+    performanceTier: 'mobile-mid',
+    mobileReady: false,
+    arReady: false,
+    vrReady: false,
+    xrReady: false,
+    spatialReady: false,
+    productionReady: false,
+    validation: {
+      schemaValid: true,
+      filesExist: false,
+      urlsReachable: false,
+      noPlaceholderText: true,
+      noDebugText: true,
+      noPrivateData: !input.userId,
+      errors: [],
+      warnings: ['Asset request has not been rendered or approved yet.'],
+    },
+  };
+}
+
 export const assetFactoryHealth = functions.https.onRequest(async (req, res) => {
   if (applyCors(req, res)) return;
   if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
@@ -117,20 +185,22 @@ export const createAssetRequest = functions.https.onRequest(async (req, res) => 
     const timestamp = now();
     const storageOwner = userId || anonymousSessionId || 'unknown';
     const storagePath = `assets/${storageOwner}/${assetId}/manifest.json`;
+    const tags = safeTags(body.tags);
     const asset: AssetFactoryRequest = {
       assetId, userId, anonymousSessionId, projectId, assetType, format: format as AssetFactoryRequest['format'],
-      status: 'queued', storagePath, source, prompt: optionalString(body.prompt), tags: safeTags(body.tags),
+      status: 'queued', storagePath, source, prompt: optionalString(body.prompt), tags,
       dimensions: optionalNumberRecord(body.dimensions), version: '1.0.0', lifecycleState: 'queued', createdAt: timestamp, updatedAt: timestamp,
     };
     const queueItem: AssetFactoryQueueItem = {
       queueId: newDocId('assetFactoryQueue'), assetId, userId, anonymousSessionId, status: 'queued', attempts: 0, createdAt: timestamp, updatedAt: timestamp,
     };
+    const manifest = createInitialAssetManifest({ assetId, projectId, assetType, format, storagePath, userId, anonymousSessionId, source, tags, timestamp });
 
     try {
       await db.runTransaction(async (transaction: FirestoreTransaction) => {
         transaction.set(db.collection('assetFactoryRequests').doc(assetId), cleanFirestoreData(asset));
         transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), cleanFirestoreData(queueItem));
-        transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData({ assetId, projectId, assetType, format, storagePath, createdAt: timestamp, updatedAt: timestamp }));
+        transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData(manifest));
       });
     } catch (error) {
       if (!isRuntimeStoreWriteBlocked(error)) throw error;
