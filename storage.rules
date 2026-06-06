@@ -10,6 +10,14 @@ service firebase.storage {
       return isUserAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isUserAuthenticated()
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.assetAdmin == true
+        );
+    }
+
     function validUpload(maxBytes) {
       return request.resource != null
         && request.resource.size < maxBytes;
@@ -23,6 +31,9 @@ service firebase.storage {
           || request.resource.contentType.matches('text/.*')
           || request.resource.contentType.matches('audio/.*')
           || request.resource.contentType.matches('video/.*')
+          || request.resource.contentType == 'model/gltf+json'
+          || request.resource.contentType == 'model/gltf-binary'
+          || request.resource.contentType == 'application/octet-stream'
         );
     }
 
@@ -44,6 +55,34 @@ service firebase.storage {
     function isReasonableProfileImageUpload() {
       return validUpload(5 * 1024 * 1024)
         && isAllowedProfileImageContentType();
+    }
+
+    match /system-assets/{assetId}/{version}/{filePath=**} {
+      allow read: if isUserAuthenticated();
+      allow write: if isAdmin() && isReasonableAssetUpload();
+    }
+
+    match /public-demo-assets/{assetId}/{version}/{filePath=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isReasonableAssetUpload();
+    }
+
+    match /users/{userId}/assets/{assetId}/{version}/{filePath=**} {
+      allow read: if isRequestingUser(userId) || isAdmin();
+      allow write: if isRequestingUser(userId) && isReasonableAssetUpload();
+    }
+
+    match /admin-assets/{assetId}/{version}/{filePath=**} {
+      allow read, write: if isAdmin() && (request.method == 'get' || request.method == 'list' || isReasonableAssetUpload());
+    }
+
+    match /asset-previews/{assetId}/{version}/{filePath=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isReasonableAssetUpload();
+    }
+
+    match /asset-audit-redacted/{assetId}/{timestamp}.json {
+      allow read, write: if isAdmin();
     }
 
     match /assets/{ownerId}/{assetOrJobId}/{filePath=**} {
