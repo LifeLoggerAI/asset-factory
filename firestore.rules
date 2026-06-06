@@ -10,6 +10,14 @@ service cloud.firestore {
       return isUserAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isUserAuthenticated()
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.assetAdmin == true
+        );
+    }
+
     function ownsExistingResource() {
       return isUserAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
@@ -34,6 +42,25 @@ service cloud.firestore {
     function hasAnonymousSession() {
       return request.resource.data.anonymousSessionId is string
         && request.resource.data.anonymousSessionId.size() >= 12;
+    }
+
+    function isPublicSafeAsset() {
+      return resource.data.permissions.publicReadable == true
+        && resource.data.permissions.containsUserData == false
+        && resource.data.validation.noPrivateData == true;
+    }
+
+    function isPublicDemoSafeAsset() {
+      return isPublicSafeAsset()
+        && resource.data.permissions.sanitizedForDemo == true;
+    }
+
+    function canReadAssetManifest() {
+      return isAdmin()
+        || (resource.data.visibility == 'public-demo' && isPublicDemoSafeAsset())
+        || (resource.data.visibility == 'public-marketing' && isPublicSafeAsset())
+        || (resource.data.visibility == 'system' && resource.data.permissions.publicReadable == true)
+        || (resource.data.visibility == 'private-user' && resource.data.ownerId == request.auth.uid);
     }
 
     function isSyntheticDemoDoc() {
@@ -127,7 +154,42 @@ service cloud.firestore {
     }
 
     match /assetManifests/{assetId} {
-      allow read: if true;
+      allow read: if canReadAssetManifest();
+      allow write: if false;
+    }
+
+    match /assetJobs/{jobId} {
+      allow read: if ownsExistingUserResource() || isAdmin();
+      allow write: if false;
+    }
+
+    match /assetPromptTemplates/{templateId} {
+      allow read: if isUserAuthenticated();
+      allow write: if false;
+    }
+
+    match /assetApprovals/{approvalId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /assetAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /users/{userId}/assets/{assetId} {
+      allow read: if isRequestingUser(userId) || isAdmin();
+      allow write: if false;
+    }
+
+    match /publicDemoAssets/{assetId} {
+      allow read: if resource.data.visibility == 'public-demo' && isPublicDemoSafeAsset();
+      allow write: if false;
+    }
+
+    match /systemAssets/{assetId} {
+      allow read: if isAdmin() || resource.data.permissions.publicReadable == true;
       allow write: if false;
     }
 
