@@ -56,6 +56,20 @@ function assertNoUserFacingTerms(errors, file) {
   }
 }
 
+function assertGeneratedRouteGuard(errors) {
+  const validationFile = path.join(root, 'assetfactory-studio/lib/server/assetFactoryValidation.ts');
+  const routeFile = path.join(root, 'assetfactory-studio/app/api/generated-assets/[file]/route.ts');
+  const validationSource = fs.existsSync(validationFile) ? fs.readFileSync(validationFile, 'utf8') : '';
+  const routeSource = fs.existsSync(routeFile) ? fs.readFileSync(routeFile, 'utf8') : '';
+  const markers = ['blockedGeneratedAssetNames', 'isBlockedGeneratedAssetName', '!isBlockedGeneratedAssetName(value)'];
+  for (const marker of markers) {
+    if (!validationSource.includes(marker)) errors.push(`Generated asset filename guard missing marker: ${marker}`);
+  }
+  if (!routeSource.includes('validateFileName(file)')) {
+    errors.push('Generated asset route must call validateFileName(file) before serving files');
+  }
+}
+
 function validateManifestObject(asset, label) {
   const errors = [];
   const requiredStrings = ['id', 'slug', 'title', 'assetType', 'symbolicCategory', 'version', 'status', 'visibility', 'createdBy', 'createdAt', 'updatedAt', 'performanceTier'];
@@ -109,6 +123,7 @@ for (const sourceRoot of sourceRoots) {
     assertNoUserFacingTerms(errors, file);
   }
 }
+assertGeneratedRouteGuard(errors);
 validateManifestFiles(errors);
 
 if (errors.length) {
