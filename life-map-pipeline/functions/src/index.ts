@@ -271,6 +271,7 @@ export const ingestLifeMapEvent = functions.https.onRequest(async (req, res) => 
       eventId, userId: requireString(body.userId, 'userId'), timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
       source: optionalString(body.source) || 'api', type: requireString(body.type, 'type'), payload: objectPayload(body.payload), linkedAssetId: optionalString(body.linkedAssetId),
     };
+    await assertUserAccess(req, event.userId);
     try {
       await db.collection('lifeMapEvents').doc(eventId).set(cleanFirestoreData(event), { merge: false });
     } catch (error) {
