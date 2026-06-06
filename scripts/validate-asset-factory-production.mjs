@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(scriptDir, '..');
 const sourceRoots = ['assetfactory-studio', 'functions', 'life-map-pipeline/functions', 'schemas', 'spatial-renderer-v1'];
 const textExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json', '.rules']);
 
@@ -25,7 +27,7 @@ function walk(dir, files = []) {
 }
 
 function normalize(file) {
-  return file.replaceAll('\\', '/');
+  return path.relative(root, file).replaceAll('\\', '/');
 }
 
 function readJson(file) {
