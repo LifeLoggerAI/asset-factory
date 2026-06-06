@@ -1,6 +1,30 @@
 name: Asset Factory Release Readiness
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'assetfactory-studio/**'
+      - 'life-map-pipeline/functions/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-release-readiness.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'assetfactory-studio/**'
+      - 'life-map-pipeline/functions/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-release-readiness.yml'
   workflow_dispatch:
     inputs:
       live_url:
@@ -69,7 +93,7 @@ jobs:
         run: npm run build
 
       - name: Verify live deployment
-        if: ${{ inputs.live_url != '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.live_url != '' }}
         working-directory: assetfactory-studio
         env:
           ASSET_FACTORY_LIVE_URL: ${{ inputs.live_url }}
