@@ -14,7 +14,7 @@
   },
   "scripts": {
     "doctor": "node scripts/doctor.mjs",
-    "install:all": "npm install && npm --prefix engine install && npm --prefix functions install && npm --prefix life-map-pipeline/functions install",
+    "install:all": "node scripts/setup-local.mjs",
     "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test",
     "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
     "verify:local": "npm run build && npm test --if-present && npm run test:launch-readiness --if-present && npm run test:completion-lock --if-present && npm run image:check",
