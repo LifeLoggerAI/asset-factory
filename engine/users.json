@@ -1,10 +1,9 @@
-
 [
   {
     "id": "user_1",
     "apiKey": "test-key-123",
     "usage": {
-      "jobsThisMonth": 0,
+      "jobsThisMonth": 4,
       "lastReset": "2026-02-16T00:00:00Z"
     },
     "quota": {

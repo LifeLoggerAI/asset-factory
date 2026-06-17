@@ -1,96 +1,96 @@
+const fs = require('fs/promises')
+const path = require('path')
 
-const fs = require('fs/promises');
-const path = require('path');
-const admin = require('firebase-admin');
-
-// --- Initialize Firebase Admin SDK ---
-// This assumes the service account credentials are set in the environment
-// (e.g., GOOGLE_APPLICATION_CREDENTIALS)
-try {
-  admin.initializeApp();
-} catch (e) {
-  console.log('[Worker] Firebase Admin SDK already initialized.');
-}
-const db = admin.firestore();
-console.log('[Worker] Connected to Firestore database.');
-
-// --- Simulated Asset Generation (Unchanged) ---
-// This function simulates the asset generation process. It remains a placeholder.
-async function generateAssets(job) {
-  console.log(`[Worker] Generating assets for job ${job.id}`);
-  // Simulate a delay for asset generation
-  await new Promise(resolve => setTimeout(resolve, 5000)); 
-
-  const outputDir = path.join(__dirname, '..', 'outputs', job.id);
-  await fs.mkdir(outputDir, { recursive: true });
-  const outputPath = path.join(outputDir, 'final_asset.txt');
-  // Use the actual prompt from the job data
-  await fs.writeFile(outputPath, `Asset for prompt: \"${job.input.prompt}\"`);
-
-  console.log(`[Worker] Finished generating assets for job ${job.id}`);
-  return [{ type: 'text', path: `/outputs/${job.id}/final_asset.txt` }];
+async function readJson(filePath) {
+  return JSON.parse(await fs.readFile(filePath, 'utf8'))
 }
 
+async function writeJson(filePath, data) {
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2))
+}
 
-// --- Real Job Processing Logic ---
-async function processJob(jobId) {
-    console.log(`[Worker] Processing job ${jobId} from Firestore.`);
-    const jobRef = db.collection('jobs').doc(jobId);
-    
-    try {
-        const jobDoc = await jobRef.get();
-        if (!jobDoc.exists) {
-            console.error(`[Worker] CRITICAL: Job ${jobId} not found in Firestore.`);
-            return;
-        }
+async function updateLocalJob(dbPath, jobId, patch) {
+  const db = await readJson(dbPath)
+  const job = db.jobs.find((entry) => entry.id === jobId)
 
-        // 1. Mark job as 'running' in Firestore
-        await jobRef.update({ status: 'running', startedAt: new Date().toISOString() });
-        console.log(`[Worker] Job ${jobId} status updated to 'running'.`);
+  if (!job) {
+    throw new Error(`Job ${jobId} not found in ${dbPath}`)
+  }
 
-        // 2. Generate the assets (using the existing simulation)
-        const assets = await generateAssets({ id: jobId, ...jobDoc.data() });
+  Object.assign(job, patch)
+  await writeJson(dbPath, db)
+  return job
+}
 
-        // 3. Mark job as 'completed' in Firestore
-        await jobRef.update({
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            assets: assets,
-        });
-        console.log(`[Worker] ✅ Job ${jobId} completed successfully.`);
+async function generateLocalAsset(job) {
+  const outputDir = path.join(__dirname, '..', 'outputs', job.id)
+  await fs.mkdir(outputDir, { recursive: true })
 
-    } catch (error) {
-        // 4. Handle failures and update Firestore
-        console.error(`[Worker] ❌ Job ${jobId} failed. Error: ${error.message}`);
-        await jobRef.update({
+  const outputPath = path.join(outputDir, 'final_asset.txt')
+  const contents = [
+    `URAI Asset Factory local proof`,
+    `jobId=${job.id}`,
+    `format=${job.format}`,
+    `prompt=${job.prompt}`,
+    `generatedAt=${new Date().toISOString()}`,
+  ].join('\n')
+
+  await fs.writeFile(outputPath, contents)
+
+  return [
+    {
+      type: job.format || 'text',
+      path: `/outputs/${job.id}/final_asset.txt`,
+      localPath: outputPath,
+    },
+  ]
+}
+
+async function processLocalMessage(message) {
+  const { jobId, dbPath } = message || {}
+
+  if (!jobId || !dbPath) {
+    throw new Error('Local worker requires jobId and dbPath')
+  }
+
+  console.log(`[Worker] Processing local db job ${jobId}`)
+
+  const runningJob = await updateLocalJob(dbPath, jobId, {
+    status: 'running',
+    startedAt: new Date().toISOString(),
+  })
+
+  const assets = await generateLocalAsset(runningJob)
+
+  await updateLocalJob(dbPath, jobId, {
+    status: 'completed',
+    completedAt: new Date().toISOString(),
+    assets,
+  })
+
+  console.log(`[Worker] ✅ Local job ${jobId} completed`)
+}
+
+process.on('message', (message) => {
+  processLocalMessage(message)
+    .then(() => process.exit(0))
+    .catch(async (error) => {
+      console.error(`[Worker] ❌ Local job failed: ${error.message}`)
+
+      if (message && message.jobId && message.dbPath) {
+        try {
+          await updateLocalJob(message.dbPath, message.jobId, {
             status: 'failed',
             failedAt: new Date().toISOString(),
             error: error.message,
-        });
-    }
-}
+          })
+        } catch (writeError) {
+          console.error(`[Worker] ❌ Failed to record failure: ${writeError.message}`)
+        }
+      }
 
-// --- Firestore Real-time Listener ---
-// This function listens for new documents in the 'jobs' collection where the status is 'queued'.
-function listenForJobs() {
-    console.log('[Worker] Listening for queued jobs in Firestore...');
-    const query = db.collection('jobs').where('status', '==', 'queued');
+      process.exit(1)
+    })
+})
 
-    query.onSnapshot(snapshot => {
-        snapshot.docChanges().forEach(change => {
-            if (change.type === 'added') {
-                const job = change.doc.data();
-                console.log(`[Worker] Detected new queued job: ${change.doc.id}`);
-                // Process the job. No 'await' here, to allow multiple jobs to be processed concurrently.
-                processJob(change.doc.id);
-            }
-        });
-    }, err => {
-        console.error('[Worker] CRITICAL: Snapshot listener failed:', err);
-        // In a production system, this should trigger a restart or an alert.
-        process.exit(1);
-    });
-}
-
-// Start the worker's main listener.
-listenForJobs();
+console.log('[Worker] Local Asset Factory worker ready')

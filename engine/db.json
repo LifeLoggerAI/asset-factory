@@ -1,3 +1,50 @@
 {
-  "jobs": []
+  "jobs": [
+    {
+      "id": "f58e3a3f-10b4-4fef-ac29-ab567a480d47",
+      "status": "queued",
+      "prompt": "URAI launch glyph asset proof",
+      "format": "text",
+      "createdAt": "2026-06-17T07:33:22.335Z"
+    },
+    {
+      "id": "338622ea-e923-4467-b6b8-2b7a0a30f7d7",
+      "status": "queued",
+      "prompt": "URAI launch glyph asset proof",
+      "format": "text",
+      "createdAt": "2026-06-17T07:35:49.712Z"
+    },
+    {
+      "id": "70cbc1e4-06b0-465e-bb63-3b63e35aa04a",
+      "status": "completed",
+      "prompt": "URAI completed local worker asset proof",
+      "format": "text",
+      "createdAt": "2026-06-17T07:42:27.183Z",
+      "startedAt": "2026-06-17T07:42:27.241Z",
+      "completedAt": "2026-06-17T07:42:27.245Z",
+      "assets": [
+        {
+          "type": "text",
+          "path": "/outputs/70cbc1e4-06b0-465e-bb63-3b63e35aa04a/final_asset.txt",
+          "localPath": "/tmp/urai-parked-repos/asset-factory/outputs/70cbc1e4-06b0-465e-bb63-3b63e35aa04a/final_asset.txt"
+        }
+      ]
+    },
+    {
+      "id": "4dfb8f8c-1bf6-43c0-866d-8a155c9f6d34",
+      "status": "completed",
+      "prompt": "URAI final asset worker lock proof",
+      "format": "text",
+      "createdAt": "2026-06-17T07:43:44.597Z",
+      "startedAt": "2026-06-17T07:43:44.649Z",
+      "completedAt": "2026-06-17T07:43:44.653Z",
+      "assets": [
+        {
+          "type": "text",
+          "path": "/outputs/4dfb8f8c-1bf6-43c0-866d-8a155c9f6d34/final_asset.txt",
+          "localPath": "/tmp/urai-parked-repos/asset-factory/outputs/4dfb8f8c-1bf6-43c0-866d-8a155c9f6d34/final_asset.txt"
+        }
+      ]
+    }
+  ]
 }
