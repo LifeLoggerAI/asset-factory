@@ -63,6 +63,13 @@ function requireString(value, field) {
 function optionalString(value) {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
+function requireSessionId(value) {
+    if (!value)
+        return undefined;
+    if (value.length < 12)
+        throw new Error('anonymousSessionId must be at least 12 characters');
+    return value;
+}
 function safeTags(value) {
     if (!Array.isArray(value))
         return [];
@@ -91,8 +98,100 @@ function isRuntimeStoreWriteBlocked(error) {
     const message = errorMessage(error);
     return message.includes('PERMISSION_DENIED') || message.includes('Missing or insufficient permissions');
 }
+function isAuthError(error) {
+    const message = errorMessage(error);
+    return message === 'authentication required' || message === 'asset owner mismatch' || message === 'anonymousSessionId mismatch';
+}
+function authErrorStatus(error) {
+    return errorMessage(error) === 'authentication required' ? 401 : 403;
+}
 function newDocId(collection) {
     return db.collection(collection).doc().id;
+}
+function bearerToken(req) {
+    const raw = req.get('authorization') || req.get('Authorization');
+    if (!raw)
+        return undefined;
+    const [scheme, token] = raw.split(' ');
+    return scheme?.toLowerCase() === 'bearer' && token ? token : undefined;
+}
+async function authenticatedUid(req) {
+    const token = bearerToken(req);
+    if (!token)
+        return undefined;
+    const decoded = await admin.auth().verifyIdToken(token);
+    return decoded.uid;
+}
+async function assertUserAccess(req, userId) {
+    if (!userId)
+        return;
+    const uid = await authenticatedUid(req);
+    if (!uid)
+        throw new Error('authentication required');
+    if (uid !== userId)
+        throw new Error('asset owner mismatch');
+}
+function assertAnonymousSessionAccess(expected, provided) {
+    if (!expected)
+        return;
+    if (!provided || provided !== expected)
+        throw new Error('anonymousSessionId mismatch');
+}
+function createInitialAssetManifest(input) {
+    const ownerId = input.userId || input.anonymousSessionId || 'anonymous';
+    return {
+        id: input.assetId,
+        assetId: input.assetId,
+        slug: input.assetId,
+        title: `Asset ${input.assetId}`,
+        description: 'Queued URAI asset factory request.',
+        assetType: input.assetType,
+        symbolicCategory: input.projectId,
+        visualLayer: 'ui',
+        environment: input.projectId,
+        geometryType: 'none',
+        version: '1.0.0',
+        status: 'queued',
+        visibility: input.userId ? 'private-user' : 'internal-only',
+        ownerId,
+        userId: input.userId,
+        anonymousSessionId: input.anonymousSessionId,
+        projectId: input.projectId,
+        format: input.format,
+        storagePath: input.storagePath,
+        source: input.source,
+        permissions: {
+            ownerId,
+            publicReadable: false,
+            adminOnly: false,
+            containsUserData: Boolean(input.userId),
+            containsUserMemoryData: false,
+            sanitizedForDemo: false,
+        },
+        createdBy: input.userId || 'anonymous-session',
+        createdAt: input.timestamp,
+        updatedAt: input.timestamp,
+        tags: input.tags,
+        dependencies: [],
+        compatibleScenes: [input.projectId],
+        performanceTier: 'mobile-mid',
+        mobileReady: false,
+        arReady: false,
+        vrReady: false,
+        xrReady: false,
+        spatialReady: false,
+        productionReady: false,
+        validation: {
+            schemaValid: true,
+            filesExist: false,
+            urlsReachable: false,
+            noPlaceholderText: true,
+            noDebugText: true,
+            noPrivateData: !input.userId,
+            errors: [],
+            warnings: ['Asset request has not been rendered or approved yet.'],
+        },
+    };
 }
 exports.assetFactoryHealth = functions.https.onRequest(async (req, res) => {
     if (applyCors(req, res))
@@ -129,26 +228,29 @@ exports.createAssetRequest = functions.https.onRequest(async (req, res) => {
         const source = optionalString(body.source) || 'api';
         const format = optionalString(body.format) || 'unknown';
         const userId = optionalString(body.userId);
-        const anonymousSessionId = optionalString(body.anonymousSessionId);
+        const anonymousSessionId = requireSessionId(optionalString(body.anonymousSessionId));
         if (!userId && !anonymousSessionId)
             throw new Error('userId or anonymousSessionId is required');
+        await assertUserAccess(req, userId);
         const assetId = optionalString(body.assetId) || newDocId('assetFactoryRequests');
         const timestamp = now();
         const storageOwner = userId || anonymousSessionId || 'unknown';
         const storagePath = `assets/${storageOwner}/${assetId}/manifest.json`;
+        const tags = safeTags(body.tags);
         const asset = {
             assetId, userId, anonymousSessionId, projectId, assetType, format: format,
-            status: 'queued', storagePath, source, prompt: optionalString(body.prompt), tags: safeTags(body.tags),
+            status: 'queued', storagePath, source, prompt: optionalString(body.prompt), tags,
             dimensions: optionalNumberRecord(body.dimensions), version: '1.0.0', lifecycleState: 'queued', createdAt: timestamp, updatedAt: timestamp,
         };
         const queueItem = {
             queueId: newDocId('assetFactoryQueue'), assetId, userId, anonymousSessionId, status: 'queued', attempts: 0, createdAt: timestamp, updatedAt: timestamp,
         };
+        const manifest = createInitialAssetManifest({ assetId, projectId, assetType, format, storagePath, userId, anonymousSessionId, source, tags, timestamp });
         try {
             await db.runTransaction(async (transaction) => {
                 transaction.set(db.collection('assetFactoryRequests').doc(assetId), cleanFirestoreData(asset));
                 transaction.set(db.collection('assetFactoryQueue').doc(queueItem.queueId), cleanFirestoreData(queueItem));
-                transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData({ assetId, projectId, assetType, format, storagePath, createdAt: timestamp, updatedAt: timestamp }));
+                transaction.set(db.collection('assetManifests').doc(assetId), cleanFirestoreData(manifest));
             });
         }
         catch (error) {
@@ -160,6 +262,8 @@ exports.createAssetRequest = functions.https.onRequest(async (req, res) => {
         return sendJson(res, 202, { ok: true, assetId, queueId: queueItem.queueId, status: asset.status, storagePath });
     }
     catch (error) {
+        if (isAuthError(error))
+            return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
         console.error('createAssetRequest failed', error);
         return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
     }
@@ -176,9 +280,14 @@ exports.getAssetStatus = functions.https.onRequest(async (req, res) => {
         const doc = await db.collection('assetFactoryRequests').doc(assetId).get();
         if (!doc.exists)
             return sendJson(res, 404, { ok: false, error: 'Asset not found', assetId });
-        return sendJson(res, 200, { ok: true, asset: doc.data() });
+        const asset = doc.data();
+        await assertUserAccess(req, asset.userId);
+        assertAnonymousSessionAccess(asset.anonymousSessionId, requireSessionId(optionalString(req.query.anonymousSessionId)));
+        return sendJson(res, 200, { ok: true, asset });
     }
     catch (error) {
+        if (isAuthError(error))
+            return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
         if (!isRuntimeStoreWriteBlocked(error))
             throw error;
         console.error('getAssetStatus persistence degraded', error);
@@ -197,6 +306,7 @@ exports.ingestLifeMapEvent = functions.https.onRequest(async (req, res) => {
             eventId, userId: requireString(body.userId, 'userId'), timestamp: typeof body.timestamp === 'number' ? body.timestamp : now(),
             source: optionalString(body.source) || 'api', type: requireString(body.type, 'type'), payload: objectPayload(body.payload), linkedAssetId: optionalString(body.linkedAssetId),
         };
+        await assertUserAccess(req, event.userId);
         try {
             await db.collection('lifeMapEvents').doc(eventId).set(cleanFirestoreData(event), { merge: false });
         }
@@ -209,6 +319,8 @@ exports.ingestLifeMapEvent = functions.https.onRequest(async (req, res) => {
         return sendJson(res, 202, { ok: true, eventId, status: 'accepted' });
     }
     catch (error) {
+        if (isAuthError(error))
+            return sendJson(res, authErrorStatus(error), { ok: false, error: errorMessage(error) });
         console.error('ingestLifeMapEvent failed', error);
         return sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Invalid request' });
     }
