@@ -318,6 +318,8 @@ ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
 
+Important: issue `#63` previously listed `FIREBASE_TOKEN`, `ASSET_FACTORY_API_KEY`, `ASSET_FACTORY_BEARER_TOKEN`, and `CRON_SECRET`; the workflow also requires `ASSET_FACTORY_OTHER_BEARER_TOKEN` for authenticated/both smoke so cross-tenant denial can be proven.
+
 Then confirm `staging.uraiassetfactory.com` and `www.uraiassetfactory.com` resolve to the deployed Asset Factory health surface, or update the workflow target mapping to the correct live Firebase/App Hosting URLs before retrying.
 
 ## Required next commands
