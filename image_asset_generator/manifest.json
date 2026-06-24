@@ -1,62 +1,110 @@
 [
   {
-    "name": "sky_clear_day",
-    "category": "sky",
-    "prompt": "a clear blue sky with a few wispy white clouds",
-    "sizes": [
-      512,
-      1024
-    ],
-    "alpha": true,
-    "status": "generated",
-    "path_template": "assets/sky/sky_clear_day_{size}.png"
+    "name": "home_threshold_main",
+    "category": "urai_spatial_home",
+    "prompt": "cinematic URAI home threshold, warm embodied real-life command floor below, luminous galaxy memory sky above, glowing companion orb bridging ground and sky, premium spatial product art, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/home/home-threshold-main_{size}.png"
   },
   {
-    "name": "sky_night_stars",
-    "category": "sky",
-    "prompt": "a dark night sky filled with twinkling stars",
-    "sizes": [
-      512,
-      1024
-    ],
-    "alpha": true,
-    "status": "generated",
-    "path_template": "assets/sky/sky_night_stars_{size}.png"
+    "name": "home_ground_portal",
+    "category": "urai_spatial_home",
+    "prompt": "private real-life operations portal inside URAI, reception, calendar, logistics, wellness, consent vault and archive stations suggested visually, warm premium cinematic interface, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/home/home-ground-portal_{size}.png"
   },
   {
-    "name": "ground_plain",
-    "category": "ground",
-    "prompt": "a simple grassy field",
-    "sizes": [
-      512,
-      1024
-    ],
-    "alpha": true,
-    "status": "generated",
-    "path_template": "assets/ground/ground_plain_{size}.png"
+    "name": "home_sky_ascent",
+    "category": "urai_spatial_home",
+    "prompt": "ascent from URAI home into a Life Map galaxy, memory stars connected by soft light, glowing orb trail, emotional weather atmosphere, premium immersive spatial art, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/home/home-sky-ascent_{size}.png"
   },
   {
-    "name": "ground_mountain",
-    "category": "ground",
-    "prompt": "snow capped mountains in the distance",
-    "sizes": [
-      512,
-      1024
-    ],
-    "alpha": true,
-    "status": "generated",
-    "path_template": "assets/ground/ground_mountain_{size}.png"
+    "name": "ground_world_main",
+    "category": "urai_spatial_ground",
+    "prompt": "URAI Ground World private command room for real life, autonomous support stations for reception, schedule, errands, wellness, relationships, archive, consent controls, cinematic warm futuristic headquarters, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/ground/ground-world-main_{size}.png"
   },
   {
-    "name": "orb_normal",
-    "category": "orb",
-    "prompt": "a glowing orb with soft light",
-    "sizes": [
-      256,
-      512
-    ],
+    "name": "life_map_galaxy_main",
+    "category": "urai_spatial_lifemap",
+    "prompt": "URAI Life Map memory galaxy, constellation of personal memory stars, emotional weather clouds, luminous pathways between chapters, premium VR spatial universe art, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/life-map/life-map-galaxy-main_{size}.png"
+  },
+  {
+    "name": "focus_memory_chamber_main",
+    "category": "urai_spatial_focus",
+    "prompt": "URAI Focus selected memory chamber, one glowing memory artifact suspended in a quiet protected room, soft narration light, cinematic premium interface, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/focus/focus-memory-chamber-main_{size}.png"
+  },
+  {
+    "name": "replay_memory_film_main",
+    "category": "urai_spatial_replay",
+    "prompt": "URAI Replay living memory film, immersive VR memory scene with interactive beat frames, protected people represented as soft silhouettes until permission, cinematic emotional timeline, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/replay/replay-memory-film-main_{size}.png"
+  },
+  {
+    "name": "mirror_chamber_main",
+    "category": "urai_spatial_mirror",
+    "prompt": "URAI Mirror chamber, reflective pattern room showing becoming, emotional signal arcs, private identity reflection, premium cinematic spatial product art, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/mirror/mirror-chamber-main_{size}.png"
+  },
+  {
+    "name": "passport_consent_vault_main",
+    "category": "urai_spatial_passport",
+    "prompt": "URAI Passport consent vault, premium ownership controls, identity key, export and delete signals shown as elegant secure UI objects, trustworthy warm cinematic scene, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/passport/passport-consent-vault-main_{size}.png"
+  },
+  {
+    "name": "location_map_emotional_weather",
+    "category": "urai_spatial_location_map",
+    "prompt": "URAI Location Map global emotional weather, glowing earth map with mood climate layers, consent-safe signal points, private and public layers clearly separated, cinematic data art, no text",
+    "sizes": [1024, 1600],
+    "alpha": false,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/location-map/location-map-emotional-weather_{size}.png"
+  },
+  {
+    "name": "orb_states",
+    "category": "urai_spatial_ui",
+    "prompt": "three premium URAI companion orb states, idle, active, listening, warm glass light, cyan and gold glow, transparent background, no text",
+    "sizes": [256, 512],
     "alpha": true,
-    "status": "generated",
-    "path_template": "assets/orb/orb_normal_{size}.png"
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/ui/orb-states_{size}.png"
+  },
+  {
+    "name": "workforce_avatar_pack",
+    "category": "urai_spatial_avatars",
+    "prompt": "premium URAI private workforce avatar pack, receptionist, privacy steward, schedule steward, wellness guide, logistics helper, archivist, warm human-centered symbolic portraits, transparent background, no text",
+    "sizes": [512, 1024],
+    "alpha": true,
+    "status": "ready_for_generation",
+    "path_template": "assets/urai/avatars/workforce-avatar-pack_{size}.png"
   }
 ]
