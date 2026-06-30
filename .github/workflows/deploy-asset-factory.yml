@@ -94,7 +94,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ inputs.environment }}" = "production" ]; then
-            echo "base_url=https://www.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
+            echo "base_url=https://urai-4dc1d.web.app" >> "$GITHUB_OUTPUT"
             echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
             echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
           else
