@@ -1,0 +1,87 @@
+name: Asset Factory Pipeline Proof
+
+on:
+  push:
+    paths:
+      - 'assetfactory-studio/**'
+      - 'image_asset_generator/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-pipeline-proof.yml'
+      - 'LAUNCH_READINESS.md'
+      - 'README.md'
+  pull_request:
+    paths:
+      - 'assetfactory-studio/**'
+      - 'image_asset_generator/**'
+      - 'scripts/**'
+      - 'schemas/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'firebase.json'
+      - '.github/workflows/asset-factory-pipeline-proof.yml'
+      - 'LAUNCH_READINESS.md'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  asset-factory-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: assetfactory-studio/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: image_asset_generator/requirements.txt
+
+      - name: Install studio dependencies
+        working-directory: assetfactory-studio
+        run: npm install
+
+      - name: Run launch static gates
+        run: |
+          npm run test:launch-readiness
+          npm run test:completion-lock
+          npm run check:deploy-workflow
+
+      - name: Run studio check
+        working-directory: assetfactory-studio
+        run: npm run check
+
+      - name: Run studio multimodal E2E
+        run: npm --prefix assetfactory-studio run e2e
+
+      - name: Install image pipeline dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Run image asset pipeline
+        run: python image_asset_generator/run_pipeline.py
+
+      - name: Upload image pipeline proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-image-pipeline-proof
+          path: |
+            image_asset_generator/validation_report.json
+            image_asset_generator/firebase_seed.json
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/preview.html
+          if-no-files-found: warn
