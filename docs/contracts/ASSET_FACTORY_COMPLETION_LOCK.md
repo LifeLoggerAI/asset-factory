@@ -10,7 +10,7 @@ No older report, local smoke, partial Firebase deploy, demo proof, or roadmap no
 
 | Area | Status | Meaning |
 | --- | --- | --- |
-| Repo-side hardening | `COMPLETE_FOR_CURRENT_PASS` | Studio deploy/runtime/API routing, CI runtime, deploy workflow, diagnostics, health compatibility, runbooks, and evidence validation have been updated through commit `6aa50f2d3c49b99a0739e80690873a37602f3906`. |
+| Repo-side hardening | `COMPLETE_FOR_CURRENT_PASS` | Studio deploy/runtime/API routing, CI runtime, deploy workflow, diagnostics, health compatibility, runbooks, evidence validation, route guard coverage, multimodal E2E proof path, and final repo-side evidence addenda have been updated through commit `7e5174417736ec83cf19507589f40ce4356c25a9`. |
 | Firebase API slice | `PRODUCTION-SMOKED` | Health, asset request/status, and Life Map event ingestion have historical smoke evidence on `urai-4dc1d`. Fresh final evidence is still required before lock. |
 | Full Asset Factory product system | `LIVE_EVIDENCE_REQUIRED` | Staging/production, auth, tenancy, provider, worker, billing, observability, legal/support, rollback, and custom-domain gates remain incomplete until proven by live artifacts. |
 | UrAi Core dependency | `NOT_LOCKED` | Core may integrate only behind a feature flag until this lock is closed. |
@@ -20,7 +20,7 @@ No older report, local smoke, partial Firebase deploy, demo proof, or roadmap no
 - Canonical production tracker: GitHub issue #63.
 - Open PRs at latest status sync: 0.
 - Duplicate trackers consolidated: #29, #59, #60.
-- Latest repo-side hardening commit: `6aa50f2d3c49b99a0739e80690873a37602f3906`.
+- Latest repo-side hardening commit: `7e5174417736ec83cf19507589f40ce4356c25a9`.
 
 ## Lock owner responsibilities
 
@@ -66,6 +66,12 @@ Completed during the current production-lock pass:
 - Health route compatibility for production smoke.
 - Operations runbook synced to current workflow/auth/health-route behavior.
 - Duplicate launch/readiness trackers consolidated into issue #63.
+- Asset approval route tenant/publisher authorization hardened.
+- Multimodal generate/materialize/fetch/publish/approve E2E proof path strengthened.
+- Image manifest status normalized to the validator contract.
+- Route guard check added and wired into launch readiness.
+- Pipeline proof and release-readiness proof artifact paths added.
+- Operator documentation drift around second tenant smoke proof recorded in launch proof.
 
 ## Required output inventory
 
