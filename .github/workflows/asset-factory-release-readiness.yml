@@ -116,7 +116,7 @@ jobs:
 
       - name: Install functions dependencies
         working-directory: life-map-pipeline/functions
-        run: npm ci
+        run: npm i
 
       - name: Build functions
         working-directory: life-map-pipeline/functions
