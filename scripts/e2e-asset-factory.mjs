@@ -8,10 +8,29 @@ if (!process.env.ASSET_FACTORY_BASE_URL && !process.env.BASE_URL) {
 
 const base = process.env.ASSET_FACTORY_BASE_URL || process.env.BASE_URL || 'http://127.0.0.1:3000';
 const shouldSpawnDevServer = !process.env.ASSET_FACTORY_BASE_URL && !process.env.BASE_URL;
+const tenantId = process.env.ASSET_FACTORY_TENANT_ID || 'e2e';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function request(path, options) {
-  const response = await fetch(`${base}${path}`, options);
+function authHeaders(extra = {}) {
+  const headers = { ...extra };
+  const apiKey = process.env.ASSET_FACTORY_API_KEY;
+  const bearerToken = process.env.ASSET_FACTORY_BEARER_TOKEN;
+
+  if (apiKey) headers['x-api-key'] = apiKey;
+  if (bearerToken) headers.authorization = `Bearer ${bearerToken}`;
+  if (process.env.ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH === 'true') {
+    headers['x-tenant-id'] = tenantId;
+    headers['x-asset-roles'] = 'publisher';
+  }
+
+  return headers;
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(`${base}${path}`, {
+    ...options,
+    headers: authHeaders(options.headers ?? {}),
+  });
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); } catch { body = text; }
@@ -37,10 +56,10 @@ async function waitForServer(timeoutMs = 120000) {
 }
 
 const cases = [
-  { type: 'graphic', prompt: 'e2e graphic proof' },
-  { type: 'model3d', prompt: 'e2e model proof' },
-  { type: 'audio', prompt: 'e2e sound proof', metadata: { durationSeconds: 1 } },
-  { type: 'bundle', prompt: 'e2e bundle proof', metadata: { assets: [] } },
+  { type: 'graphic', prompt: 'e2e graphic proof', expectedExtension: '.svg' },
+  { type: 'model3d', prompt: 'e2e model proof', expectedExtension: '.gltf' },
+  { type: 'audio', prompt: 'e2e sound proof', metadata: { durationSeconds: 1 }, expectedExtension: '.wav' },
+  { type: 'bundle', prompt: 'e2e bundle proof', metadata: { assets: [] }, expectedExtension: '.json' },
 ];
 
 async function exerciseCase(testCase) {
@@ -50,7 +69,7 @@ async function exerciseCase(testCase) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       jobId: requestedJobId,
-      tenantId: 'e2e',
+      tenantId,
       prompt: testCase.prompt,
       type: testCase.type,
       metadata: testCase.metadata ?? {},
@@ -65,6 +84,25 @@ async function exerciseCase(testCase) {
   if (!Array.isArray(jobs) || !jobs.some((job) => job.jobId === jobId)) {
     throw new Error(`${testCase.type} job missing from jobs list`);
   }
+
+  const materialized = await requestJson(`/api/jobs/${jobId}/materialize`, { method: 'POST' });
+  const asset = materialized?.asset;
+  if (!asset?.fileName?.endsWith(testCase.expectedExtension)) {
+    throw new Error(`${testCase.type} materialized file extension mismatch`);
+  }
+
+  const fetched = await request(`/api/generated-assets/${asset.fileName}`);
+  if (!fetched.body) throw new Error(`${testCase.type} generated asset fetch returned empty body`);
+
+  const published = await requestJson(`/api/jobs/${jobId}/publish`, { method: 'POST' });
+  if (!published?.asset?.published) throw new Error(`${testCase.type} publish failed`);
+
+  const approved = await requestJson(`/api/jobs/${jobId}/approve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ status: 'approved', approvedBy: 'e2e-smoke' }),
+  });
+  if (approved?.asset?.approvalStatus !== 'approved') throw new Error(`${testCase.type} approve failed`);
 
   return jobId;
 }
