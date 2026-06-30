@@ -39,7 +39,7 @@ const requiredPhrases = [
   'Deploy Firebase Studio',
   'npm run deploy:studio',
   'https://staging.uraiassetfactory.com',
-  'https://www.uraiassetfactory.com',
+  'https://urai-4dc1d.web.app',
   'prod-smoke',
   'prod-smoke-denied',
   'smoke-tenant-a',
