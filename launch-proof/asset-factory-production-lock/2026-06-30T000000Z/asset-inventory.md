@@ -4,22 +4,22 @@
 
 Source: `image_asset_generator/manifest.json`.
 
-The manifest declares 12 logical image assets with 24 expected PNG outputs across two sizes each:
+The manifest declares 12 logical image assets with 24 expected PNG outputs across two sizes each. During this completion pass the pending manifest status was normalized from `ready_for_generation` to the validator-accepted `prompted` state so `python image_asset_generator/run_pipeline.py` can pass the manifest gate before generating assets.
 
 | Name | Category | Sizes | Alpha | Path template | Status in manifest |
 | --- | --- | --- | --- | --- | --- |
-| home_threshold_main | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-threshold-main_{size}.png | ready_for_generation |
-| home_ground_portal | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-ground-portal_{size}.png | ready_for_generation |
-| home_sky_ascent | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-sky-ascent_{size}.png | ready_for_generation |
-| ground_world_main | urai_spatial_ground | 1024, 1600 | false | assets/urai/ground/ground-world-main_{size}.png | ready_for_generation |
-| life_map_galaxy_main | urai_spatial_lifemap | 1024, 1600 | false | assets/urai/life-map/life-map-galaxy-main_{size}.png | ready_for_generation |
-| focus_memory_chamber_main | urai_spatial_focus | 1024, 1600 | false | assets/urai/focus/focus-memory-chamber-main_{size}.png | ready_for_generation |
-| replay_memory_film_main | urai_spatial_replay | 1024, 1600 | false | assets/urai/replay/replay-memory-film-main_{size}.png | ready_for_generation |
-| mirror_chamber_main | urai_spatial_mirror | 1024, 1600 | false | assets/urai/mirror/mirror-chamber-main_{size}.png | ready_for_generation |
-| passport_consent_vault_main | urai_spatial_passport | 1024, 1600 | false | assets/urai/passport/passport-consent-vault-main_{size}.png | ready_for_generation |
-| location_map_emotional_weather | urai_spatial_location_map | 1024, 1600 | false | assets/urai/location-map/location-map-emotional-weather_{size}.png | ready_for_generation |
-| orb_states | urai_spatial_ui | 256, 512 | true | assets/urai/ui/orb-states_{size}.png | ready_for_generation |
-| workforce_avatar_pack | urai_spatial_avatars | 512, 1024 | true | assets/urai/avatars/workforce-avatar-pack_{size}.png | ready_for_generation |
+| home_threshold_main | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-threshold-main_{size}.png | prompted |
+| home_ground_portal | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-ground-portal_{size}.png | prompted |
+| home_sky_ascent | urai_spatial_home | 1024, 1600 | false | assets/urai/home/home-sky-ascent_{size}.png | prompted |
+| ground_world_main | urai_spatial_ground | 1024, 1600 | false | assets/urai/ground/ground-world-main_{size}.png | prompted |
+| life_map_galaxy_main | urai_spatial_lifemap | 1024, 1600 | false | assets/urai/life-map/life-map-galaxy-main_{size}.png | prompted |
+| focus_memory_chamber_main | urai_spatial_focus | 1024, 1600 | false | assets/urai/focus/focus-memory-chamber-main_{size}.png | prompted |
+| replay_memory_film_main | urai_spatial_replay | 1024, 1600 | false | assets/urai/replay/replay-memory-film-main_{size}.png | prompted |
+| mirror_chamber_main | urai_spatial_mirror | 1024, 1600 | false | assets/urai/mirror/mirror-chamber-main_{size}.png | prompted |
+| passport_consent_vault_main | urai_spatial_passport | 1024, 1600 | false | assets/urai/passport/passport-consent-vault-main_{size}.png | prompted |
+| location_map_emotional_weather | urai_spatial_location_map | 1024, 1600 | false | assets/urai/location-map/location-map-emotional-weather_{size}.png | prompted |
+| orb_states | urai_spatial_ui | 256, 512 | true | assets/urai/ui/orb-states_{size}.png | prompted |
+| workforce_avatar_pack | urai_spatial_avatars | 512, 1024 | true | assets/urai/avatars/workforce-avatar-pack_{size}.png | prompted |
 
 Notes:
 - The manifest is ready to generate local proof assets.
