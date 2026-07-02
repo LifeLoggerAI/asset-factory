@@ -1,26 +1,9 @@
 """Provider-backed image renderer for the URAI Asset Factory.
 
-The adapter is intentionally provider-neutral. Configure an HTTPS endpoint that accepts
-JSON and returns either base64 image bytes or a temporary image URL. This keeps the
-manifest, Jobs worker, Studio, and Spatial handoff stable when providers change.
-
-Environment:
-  ASSET_RENDERER_MODE=auto|provider|offline
-  ASSET_RENDERER_ENDPOINT=https://...
-  ASSET_RENDERER_API_KEY=...
-  ASSET_RENDERER_AUTH_HEADER=Authorization
-  ASSET_RENDERER_AUTH_SCHEME=Bearer
-  ASSET_RENDERER_TIMEOUT_SEC=180
-  ASSET_RENDERER_MAX_ATTEMPTS=3
-  ASSET_RENDERER_MODEL=<optional provider model>
-
-Accepted response shapes:
-  {"image_base64": "..."}
-  {"b64_json": "..."}
-  {"data": [{"b64_json": "..."}]}
-  {"image_url": "https://..."}
-  {"url": "https://..."}
-  {"data": [{"url": "https://..."}]}
+The adapter is provider-neutral. Configure an HTTPS endpoint that accepts JSON and
+returns base64 image bytes, an image URL, or raw image bytes. Desktop and mobile
+assets may declare ``aspect_ratio`` such as ``16:10`` or ``2:3``; ``sizes`` then
+represents the longest target edge.
 """
 
 from __future__ import annotations
@@ -34,9 +17,9 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 @dataclass(frozen=True)
@@ -65,10 +48,29 @@ def renderer_mode() -> str:
     return mode
 
 
+def target_dimensions(entry: Dict[str, Any], size: int) -> Tuple[int, int]:
+    ratio_value = str(entry.get("aspect_ratio", "1:1")).strip()
+    try:
+        left, right = ratio_value.split(":", 1)
+        ratio = float(left) / float(right)
+        if ratio <= 0:
+            raise ValueError
+    except (ValueError, ZeroDivisionError):
+        ratio = 1.0
+
+    if ratio >= 1:
+        width = size
+        height = max(1, round(size / ratio))
+    else:
+        height = size
+        width = max(1, round(size * ratio))
+    return width, height
+
+
 def _request_headers() -> Dict[str, str]:
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        "Accept": "application/json,image/*",
         "User-Agent": "urai-asset-factory/1.0",
     }
     api_key = os.environ.get("ASSET_RENDERER_API_KEY", "").strip()
@@ -104,12 +106,15 @@ def _extract_image_bytes(payload: Dict[str, Any], timeout: int) -> bytes:
     raise ValueError("Renderer response did not contain image bytes or an image URL")
 
 
-def _normalize_image(raw: bytes, size: int, alpha: bool) -> Image.Image:
-    image = Image.open(io.BytesIO(raw))
-    image.load()
+def _normalize_image(raw: bytes | Image.Image, width: int, height: int, alpha: bool) -> Image.Image:
+    if isinstance(raw, Image.Image):
+        image = raw.copy()
+    else:
+        image = Image.open(io.BytesIO(raw))
+        image.load()
     image = image.convert("RGBA" if alpha else "RGB")
-    if image.size != (size, size):
-        image = image.resize((size, size), Image.Resampling.LANCZOS)
+    if image.size != (width, height):
+        image = ImageOps.fit(image, (width, height), method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
     return image
 
 
@@ -120,20 +125,22 @@ def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional
     if not endpoint.startswith("https://") and os.environ.get("ASSET_RENDERER_ALLOW_HTTP") != "1":
         raise RuntimeError("ASSET_RENDERER_ENDPOINT must use HTTPS unless ASSET_RENDERER_ALLOW_HTTP=1")
 
+    width, height = target_dimensions(entry, size)
     timeout = _env_int("ASSET_RENDERER_TIMEOUT_SEC", 180)
     max_attempts = _env_int("ASSET_RENDERER_MAX_ATTEMPTS", 3)
     model = os.environ.get("ASSET_RENDERER_MODEL", "").strip() or None
     prompt_version = entry.get("prompt_version", "v1")
 
     request_payload: Dict[str, Any] = {
-        "request_id": f"{entry['name']}:{size}:{prompt_version}",
+        "request_id": f"{entry['name']}:{width}x{height}:{prompt_version}",
         "name": entry["name"],
         "category": entry["category"],
         "prompt": entry["prompt"],
         "prompt_version": prompt_version,
-        "width": size,
-        "height": size,
-        "size": f"{size}x{size}",
+        "width": width,
+        "height": height,
+        "size": f"{width}x{height}",
+        "aspect_ratio": entry.get("aspect_ratio", "1:1"),
         "alpha": bool(entry.get("alpha")),
         "output_format": "png",
         "quality": entry.get("quality", "high"),
@@ -166,7 +173,8 @@ def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional
                     "provider_model": payload.get("model") or model,
                 }
 
-            image = _normalize_image(raw, size, bool(entry.get("alpha")))
+            image = _normalize_image(raw, width, height, bool(entry.get("alpha")))
+            metadata.update({"target_width": width, "target_height": height})
             return RenderResult(image=image, renderer="provider", attempt=attempt, metadata=metadata)
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             last_error = exc
@@ -184,8 +192,11 @@ def render_asset(
     feedback: Optional[str] = None,
 ) -> RenderResult:
     mode = renderer_mode()
+    width, height = target_dimensions(entry, size)
+
     if mode == "offline":
-        return RenderResult(offline_renderer(entry, size), "offline", 1, {})
+        image = _normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
+        return RenderResult(image, "offline", 1, {"target_width": width, "target_height": height})
 
     if provider_configured():
         try:
@@ -196,7 +207,9 @@ def render_asset(
 
     if mode == "provider":
         raise RuntimeError("Provider mode requested but no provider endpoint is configured")
-    return RenderResult(offline_renderer(entry, size), "offline-fallback", 1, {})
+
+    image = _normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
+    return RenderResult(image, "offline-fallback", 1, {"target_width": width, "target_height": height})
 
 
 def write_render_metadata(output_path: Path, entry: Dict[str, Any], result: RenderResult) -> None:
@@ -207,6 +220,7 @@ def write_render_metadata(output_path: Path, entry: Dict[str, Any], result: Rend
                 "name": entry["name"],
                 "category": entry["category"],
                 "prompt_version": entry.get("prompt_version", "v1"),
+                "aspect_ratio": entry.get("aspect_ratio", "1:1"),
                 "renderer": result.renderer,
                 "attempt": result.attempt,
                 "metadata": result.metadata,
