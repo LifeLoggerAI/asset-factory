@@ -90,7 +90,7 @@ jobs:
           ASSET_QUALITY_REQUIRE_PROVIDER: "1"
         run: python image_asset_generator/forge_v1.py
 
-      - name: Upload forge evidence
+      - name: Upload forge evidence and partial render checkpoint
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -101,6 +101,8 @@ jobs:
             image_asset_generator/quality_report.json
             image_asset_generator/upgrade_feedback.json
             image_asset_generator/forge_receipt.json
+            image_asset_generator/manifest.json
+            image_asset_generator/assets/**
             image_asset_generator/preview.html
             image_asset_generator/asset_pack.zip
             image_asset_generator/spatial_handoff/**
