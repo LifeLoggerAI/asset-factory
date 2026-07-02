@@ -1,0 +1,77 @@
+name: Promote Finalized V1 Checkpoint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Asset Factory
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Download provider checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: urai-v1-aaa-forge-28619946804
+          path: .v1-checkpoint
+          repository: LifeLoggerAI/asset-factory
+          github-token: ${{ github.token }}
+          run-id: 28619946804
+
+      - name: Restore and finalize checkpoint
+        shell: bash
+        env:
+          ASSET_QUALITY_REQUIRE_PROVIDER: "1"
+        run: |
+          test -d .v1-checkpoint/assets/urai
+          test -f .v1-checkpoint/manifest.json
+          rsync -a .v1-checkpoint/assets/ image_asset_generator/assets/
+          cp .v1-checkpoint/manifest.json image_asset_generator/manifest.json
+          python image_asset_generator/resume_v1_checkpoint.py
+
+      - name: Checkout Spatial target
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: main
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+
+      - name: Copy V1 handoff into Spatial
+        shell: bash
+        run: |
+          test -f image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
+          rsync -a image_asset_generator/spatial_handoff/ spatial/urai-tier1/public/
+
+      - name: Commit promoted V1 assets
+        working-directory: spatial
+        shell: bash
+        run: |
+          git config user.name "URAI Production Wheel"
+          git config user.email "urai-wheel@users.noreply.github.com"
+          git add urai-tier1/public/assets/urai
+          if git diff --cached --quiet; then
+            echo "No V1 asset changes to promote."
+          else
+            git commit -m "Promote finalized V1 AAA asset checkpoint"
+            git pull --rebase origin main
+            git push origin main
+          fi
