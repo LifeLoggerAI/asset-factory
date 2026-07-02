@@ -1,22 +1,15 @@
-"""
-Validate generated image assets against manifest.json.
-
-Checks:
-- every declared file exists
-- each image has the requested square dimensions
-- alpha-required assets are stored as RGBA
-
-The script exits non-zero when validation fails, so it can be used in CI.
-"""
+"""Validate generated image assets against manifest.json."""
 
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from PIL import Image
+
+from provider_renderer import target_dimensions
 
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
@@ -34,9 +27,10 @@ def validate() -> List[str]:
     for entry in entries:
         template = entry.get("path_template")
         alpha_required = bool(entry.get("alpha", False))
-        for size in entry.get("sizes", []):
-            expected_size = int(size)
-            relative_path = template.format(size=expected_size)
+        for raw_size in entry.get("sizes", []):
+            size = int(raw_size)
+            expected_width, expected_height = target_dimensions(entry, size)
+            relative_path = template.format(size=size)
             file_path = BASE_DIR / relative_path
 
             if not file_path.exists():
@@ -46,10 +40,10 @@ def validate() -> List[str]:
             try:
                 with Image.open(file_path) as image:
                     width, height = image.size
-                    if (width, height) != (expected_size, expected_size):
+                    if (width, height) != (expected_width, expected_height):
                         errors.append(
-                            f"Incorrect dimensions for {relative_path}: "
-                            f"expected {expected_size}x{expected_size}, found {width}x{height}"
+                            f"Incorrect dimensions for {relative_path}: expected "
+                            f"{expected_width}x{expected_height}, found {width}x{height}"
                         )
                     if alpha_required and image.mode != "RGBA":
                         errors.append(
