@@ -1,9 +1,12 @@
 """Provider-backed image renderer for the URAI Asset Factory.
 
-The adapter is provider-neutral. Configure an HTTPS endpoint that accepts JSON and
-returns base64 image bytes, an image URL, or raw image bytes. Desktop and mobile
-assets may declare ``aspect_ratio`` such as ``16:10`` or ``2:3``; ``sizes`` then
-represents the longest target edge.
+Supported providers:
+- ``openai``: direct OpenAI Image API integration using ``OPENAI_API_KEY``.
+- ``custom``: provider-neutral HTTPS JSON endpoint.
+- ``offline`` mode remains available only for CI and local mechanical proof.
+
+Desktop and mobile entries declare ``aspect_ratio``; ``sizes`` represents the longest
+final edge. Provider output is safely cropped and resized into the canonical target.
 """
 
 from __future__ import annotations
@@ -37,7 +40,14 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def provider_name() -> str:
+    return os.environ.get("ASSET_RENDERER_PROVIDER", "custom").strip().lower() or "custom"
+
+
 def provider_configured() -> bool:
+    provider = provider_name()
+    if provider == "openai":
+        return bool(os.environ.get("OPENAI_API_KEY", "").strip() or os.environ.get("ASSET_RENDERER_API_KEY", "").strip())
     return bool(os.environ.get("ASSET_RENDERER_ENDPOINT", "").strip())
 
 
@@ -71,7 +81,7 @@ def _request_headers() -> Dict[str, str]:
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json,image/*",
-        "User-Agent": "urai-asset-factory/1.0",
+        "User-Agent": "urai-asset-factory/1.1",
     }
     api_key = os.environ.get("ASSET_RENDERER_API_KEY", "").strip()
     if api_key:
@@ -99,7 +109,7 @@ def _extract_image_bytes(payload: Dict[str, Any], timeout: int) -> bytes:
         for key in ("image_url", "url"):
             value = item.get(key)
             if isinstance(value, str) and value.startswith(("https://", "http://")):
-                req = urllib.request.Request(value, headers={"User-Agent": "urai-asset-factory/1.0"})
+                req = urllib.request.Request(value, headers={"User-Agent": "urai-asset-factory/1.1"})
                 with urllib.request.urlopen(req, timeout=timeout) as response:
                     return response.read()
 
@@ -118,10 +128,92 @@ def _normalize_image(raw: bytes | Image.Image, width: int, height: int, alpha: b
     return image
 
 
-def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional[str] = None) -> RenderResult:
+def _openai_request_size(width: int, height: int) -> str:
+    ratio = width / max(1, height)
+    if ratio > 1.2:
+        return "1536x1024"
+    if ratio < 0.83:
+        return "1024x1536"
+    return "1024x1024"
+
+
+def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) -> RenderResult:
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip() or os.environ.get("ASSET_RENDERER_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required for the OpenAI image provider")
+
+    width, height = target_dimensions(entry, size)
+    alpha = bool(entry.get("alpha"))
+    model = (
+        os.environ.get("ASSET_RENDERER_ALPHA_MODEL", "").strip() if alpha else ""
+    ) or os.environ.get("ASSET_RENDERER_MODEL", "").strip() or ("gpt-image-1.5" if alpha else "gpt-image-2")
+    endpoint = os.environ.get("ASSET_RENDERER_ENDPOINT", "").strip() or "https://api.openai.com/v1/images/generations"
+    timeout = _env_int("ASSET_RENDERER_TIMEOUT_SEC", 240)
+    max_attempts = _env_int("ASSET_RENDERER_MAX_ATTEMPTS", 3)
+
+    prompt = entry["prompt"]
+    if feedback:
+        prompt = f"{prompt}\n\nUpgrade requirements: {feedback}"
+
+    request_payload: Dict[str, Any] = {
+        "model": model,
+        "prompt": prompt,
+        "n": 1,
+        "size": _openai_request_size(width, height),
+        "quality": entry.get("quality", "high"),
+        "output_format": "png",
+        "background": "transparent" if alpha else "opaque",
+    }
+    body = json.dumps(request_payload).encode("utf-8")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "urai-asset-factory/1.1",
+    }
+
+    last_error: Optional[Exception] = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                response_body = response.read()
+                request_id = response.headers.get("x-request-id")
+            payload = json.loads(response_body.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("OpenAI image response must be a JSON object")
+            raw = _extract_image_bytes(payload, timeout)
+            image = _normalize_image(raw, width, height, alpha)
+            return RenderResult(
+                image=image,
+                renderer="provider",
+                attempt=attempt,
+                metadata={
+                    "provider": "openai",
+                    "provider_request_id": request_id,
+                    "provider_model": model,
+                    "provider_size": request_payload["size"],
+                    "target_width": width,
+                    "target_height": height,
+                },
+            )
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:1200]
+            last_error = RuntimeError(f"OpenAI HTTP {exc.code}: {detail}")
+            if exc.code not in {408, 409, 429} and exc.code < 500:
+                break
+        except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+        if attempt < max_attempts:
+            time.sleep(min(30, 2 ** attempt))
+
+    raise RuntimeError(f"OpenAI rendering failed after {max_attempts} attempt(s): {last_error}")
+
+
+def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) -> RenderResult:
     endpoint = os.environ.get("ASSET_RENDERER_ENDPOINT", "").strip()
     if not endpoint:
-        raise RuntimeError("ASSET_RENDERER_ENDPOINT is required for provider rendering")
+        raise RuntimeError("ASSET_RENDERER_ENDPOINT is required for custom provider rendering")
     if not endpoint.startswith("https://") and os.environ.get("ASSET_RENDERER_ALLOW_HTTP") != "1":
         raise RuntimeError("ASSET_RENDERER_ENDPOINT must use HTTPS unless ASSET_RENDERER_ALLOW_HTTP=1")
 
@@ -130,7 +222,6 @@ def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional
     max_attempts = _env_int("ASSET_RENDERER_MAX_ATTEMPTS", 3)
     model = os.environ.get("ASSET_RENDERER_MODEL", "").strip() or None
     prompt_version = entry.get("prompt_version", "v1")
-
     request_payload: Dict[str, Any] = {
         "request_id": f"{entry['name']}:{width}x{height}:{prompt_version}",
         "name": entry["name"],
@@ -169,6 +260,7 @@ def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional
                     raise ValueError("Renderer response JSON must be an object")
                 raw = _extract_image_bytes(payload, timeout)
                 metadata = {
+                    "provider": "custom",
                     "provider_request_id": payload.get("id") or payload.get("request_id"),
                     "provider_model": payload.get("model") or model,
                 }
@@ -181,7 +273,16 @@ def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional
             if attempt < max_attempts:
                 time.sleep(min(20, 2 ** attempt))
 
-    raise RuntimeError(f"Provider rendering failed after {max_attempts} attempts: {last_error}")
+    raise RuntimeError(f"Custom provider rendering failed after {max_attempts} attempts: {last_error}")
+
+
+def render_with_provider(entry: Dict[str, Any], size: int, *, feedback: Optional[str] = None) -> RenderResult:
+    provider = provider_name()
+    if provider == "openai":
+        return _render_openai(entry, size, feedback)
+    if provider == "custom":
+        return _render_custom(entry, size, feedback)
+    raise RuntimeError(f"Unsupported ASSET_RENDERER_PROVIDER={provider!r}")
 
 
 def render_asset(
@@ -206,7 +307,7 @@ def render_asset(
                 raise
 
     if mode == "provider":
-        raise RuntimeError("Provider mode requested but no provider endpoint is configured")
+        raise RuntimeError(f"Provider mode requested but {provider_name()} is not configured")
 
     image = _normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
     return RenderResult(image, "offline-fallback", 1, {"target_width": width, "target_height": height})
