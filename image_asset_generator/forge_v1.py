@@ -17,7 +17,7 @@ import create_preview
 import export_assets
 import export_spatial_handoff
 import generate_assets
-import score_assets
+import score_v1_assets
 import validate_assets
 import validate_manifest
 
@@ -52,7 +52,7 @@ def main() -> int:
         print(f"=== V1 ASSET FORGE ROUND {round_number}/{max_rounds} ===")
         generate_assets.main()
         validation_errors = validate_assets.validate()
-        quality_exit = score_assets.main()
+        quality_exit = score_v1_assets.main()
         rounds.append(
             {
                 "round": round_number,
@@ -70,7 +70,7 @@ def main() -> int:
 
     if final_status != "passed":
         receipt = {
-            "schemaVersion": "1.0.0",
+            "schemaVersion": "1.1.0",
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "status": "failed",
             "rounds": rounds,
@@ -102,7 +102,7 @@ def main() -> int:
         return 5
 
     receipt = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "1.1.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "status": "passed",
         "rounds": rounds,
