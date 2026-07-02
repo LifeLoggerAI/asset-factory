@@ -27,6 +27,20 @@ def env_int(name: str, default: int) -> int:
         return default
 
 
+def write_blocked_receipt(*, round_number: int, error: str, rounds: list[dict]) -> None:
+    receipt = {
+        "schemaVersion": "1.2.0",
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "status": "blocked-billing",
+        "blockedRound": round_number,
+        "errorCode": "billing_hard_limit_reached",
+        "error": error,
+        "rounds": rounds,
+        "resolution": "Restore API billing/credits for the organization or project that owns the GitHub Actions image-renderer key, then rerun V1 AAA Asset Forge.",
+    }
+    RECEIPT_PATH.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     max_rounds = env_int("ASSET_FORGE_MAX_ROUNDS", 3)
     require_provider = os.environ.get("ASSET_FORGE_REQUIRE_PROVIDER", "1") == "1"
@@ -44,7 +58,17 @@ def main() -> int:
 
     for round_number in range(1, max_rounds + 1):
         print(f"=== V1 ASSET ROUND {round_number}/{max_rounds} ===")
-        generation = render_v1_round.render_round(round_number)
+        try:
+            generation = render_v1_round.render_round(round_number)
+        except RuntimeError as exc:
+            message = str(exc)
+            if "billing_hard_limit_reached" in message or "Billing hard limit has been reached" in message:
+                write_blocked_receipt(round_number=round_number, error=message, rounds=rounds)
+                print("::error title=V1 forge blocked by API billing::The image-provider key reached its billing hard limit. Restore billing for the API organization/project tied to the GitHub secret, then rerun this workflow.")
+                print(f"FORGE_RECEIPT={RECEIPT_PATH}")
+                return 6
+            raise
+
         validation_errors = validate_assets.validate()
         quality_exit = score_v1_assets.main()
         rounds.append({
