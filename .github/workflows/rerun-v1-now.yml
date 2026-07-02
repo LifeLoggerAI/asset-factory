@@ -23,3 +23,5 @@ jobs:
               event_type: 'urai-v1-forge-requested',
               client_payload: { rounds: '3', job_id: `rerun-${context.runId}`, callback_url: '' }
             })
+
+# Funding restored; rerun requested 2026-07-02.
