@@ -40,9 +40,12 @@ jobs:
     outputs:
       spatial_sha: ${{ steps.promote.outputs.spatial_sha }}
       job_id: ${{ steps.context.outputs.job_id }}
+      can_promote: ${{ steps.promotion.outputs.can_promote }}
     env:
-      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
-      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_PROVIDER: openai
+      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT || 'https://api.openai.com/v1/images/generations' }}
+      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY || secrets.OPENAI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.ASSET_RENDERER_API_KEY }}
       ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
       ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
       ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
@@ -78,17 +81,28 @@ jobs:
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Production secret preflight
+      - name: Production renderer preflight
         shell: bash
         run: |
-          missing=0
-          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name is not configured. The production forge will not fall back to placeholder art."
-              missing=1
-            fi
-          done
-          [ "$missing" = "0" ]
+          if [ -z "$ASSET_RENDERER_API_KEY" ]; then
+            echo "::error::Neither ASSET_RENDERER_API_KEY nor OPENAI_API_KEY is configured. Add one repository Actions secret to run provider image generation."
+            exit 1
+          fi
+          echo "Renderer provider: $ASSET_RENDERER_PROVIDER"
+          echo "Renderer endpoint configured: yes"
+          echo "Renderer API key configured: yes"
+
+      - name: Resolve promotion availability
+        id: promotion
+        shell: bash
+        run: |
+          if [ -n "$URAI_WHEEL_GITHUB_TOKEN" ]; then
+            echo "can_promote=true" >> "$GITHUB_OUTPUT"
+            echo "Cross-repository promotion: enabled"
+          else
+            echo "can_promote=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::URAI_WHEEL_GITHUB_TOKEN is not configured. Generation and evidence upload will continue; automatic promotion to urai-spatial will be skipped."
+          fi
 
       - name: Run feedback-driven V1 forge
         env:
@@ -114,6 +128,7 @@ jobs:
             image_asset_generator/spatial_handoff/**
 
       - name: Checkout Spatial promotion target
+        if: steps.promotion.outputs.can_promote == 'true'
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -122,12 +137,14 @@ jobs:
           path: spatial
 
       - name: Copy canonical handoff into Spatial
+        if: steps.promotion.outputs.can_promote == 'true'
         shell: bash
         run: |
           test -f image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
           rsync -a image_asset_generator/spatial_handoff/ spatial/urai-tier1/public/
 
       - name: Commit and push promoted V1 assets
+        if: steps.promotion.outputs.can_promote == 'true'
         id: promote
         working-directory: spatial
         shell: bash
@@ -145,6 +162,7 @@ jobs:
           echo "spatial_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Spatial build deploy and proof
+        if: steps.promotion.outputs.can_promote == 'true'
         shell: bash
         run: |
           curl --fail-with-body -sS \
