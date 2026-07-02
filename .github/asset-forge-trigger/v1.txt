@@ -1,5 +1,6 @@
 URAI V1 AAA asset forge trigger
-requested_at_utc=2026-07-02T08:00:00Z
+requested_at_utc=2026-07-02T13:32:50Z
 rounds=3
 mode=provider-only
-promote=true
+promote=when-token-present
+reason=preflight-unblocked
