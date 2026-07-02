@@ -1,0 +1,4 @@
+V1 production forge requested by Adam Clamp.
+Requested at: 2026-07-02 UTC
+Rounds: 3
+Mode: provider-backed generation, measurable scoring, targeted retries, Spatial promotion, deployment proof.
