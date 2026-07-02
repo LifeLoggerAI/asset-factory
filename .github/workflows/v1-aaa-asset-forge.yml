@@ -42,10 +42,9 @@ jobs:
       job_id: ${{ steps.context.outputs.job_id }}
       can_promote: ${{ steps.promotion.outputs.can_promote }}
     env:
-      ASSET_RENDERER_PROVIDER: openai
-      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT || 'https://api.openai.com/v1/images/generations' }}
-      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY || secrets.OPENAI_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_ENDPOINT_SECRET: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+      ASSET_RENDERER_API_KEY_SECRET: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      OPENAI_API_KEY_SECRET: ${{ secrets.OPENAI_API_KEY }}
       ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
       ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
       ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
@@ -81,16 +80,46 @@ jobs:
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Production renderer preflight
+      - name: Resolve production renderer configuration
         shell: bash
         run: |
-          if [ -z "$ASSET_RENDERER_API_KEY" ]; then
-            echo "::error::Neither ASSET_RENDERER_API_KEY nor OPENAI_API_KEY is configured. Add one repository Actions secret to run provider image generation."
-            exit 1
+          endpoint="$ASSET_RENDERER_ENDPOINT_SECRET"
+          api_key="$ASSET_RENDERER_API_KEY_SECRET"
+          [ -n "$api_key" ] || api_key="$OPENAI_API_KEY_SECRET"
+
+          if [ -n "$endpoint" ]; then
+            echo "ASSET_RENDERER_ENDPOINT=$endpoint" >> "$GITHUB_ENV"
+            case "$endpoint" in
+              *api.openai.com*)
+                provider="openai"
+                if [ -z "$api_key" ]; then
+                  echo "::error::The OpenAI renderer endpoint is configured but neither ASSET_RENDERER_API_KEY nor OPENAI_API_KEY is present."
+                  exit 1
+                fi
+                ;;
+              *)
+                provider="custom"
+                ;;
+            esac
+          else
+            if [ -z "$api_key" ]; then
+              echo "::error::No renderer is configured. Add ASSET_RENDERER_ENDPOINT for the existing custom renderer, or add ASSET_RENDERER_API_KEY/OPENAI_API_KEY for direct OpenAI generation."
+              exit 1
+            fi
+            provider="openai"
+            echo "ASSET_RENDERER_ENDPOINT=https://api.openai.com/v1/images/generations" >> "$GITHUB_ENV"
           fi
-          echo "Renderer provider: $ASSET_RENDERER_PROVIDER"
+
+          echo "ASSET_RENDERER_PROVIDER=$provider" >> "$GITHUB_ENV"
+          echo "ASSET_RENDERER_API_KEY=$api_key" >> "$GITHUB_ENV"
+          echo "OPENAI_API_KEY=$api_key" >> "$GITHUB_ENV"
+          echo "Renderer provider resolved: $provider"
           echo "Renderer endpoint configured: yes"
-          echo "Renderer API key configured: yes"
+          if [ -n "$api_key" ]; then
+            echo "Renderer API key configured: yes"
+          else
+            echo "Renderer API key configured: no (custom endpoint mode)"
+          fi
 
       - name: Resolve promotion availability
         id: promotion
