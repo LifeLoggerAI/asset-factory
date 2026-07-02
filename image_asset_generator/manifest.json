@@ -1,110 +1,60 @@
 [
-  {
-    "name": "home_threshold_main",
-    "category": "urai_spatial_home",
-    "prompt": "cinematic URAI home threshold, warm embodied real-life command floor below, luminous galaxy memory sky above, glowing companion orb bridging ground and sky, premium spatial product art, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/home/home-threshold-main_{size}.png"
-  },
-  {
-    "name": "home_ground_portal",
-    "category": "urai_spatial_home",
-    "prompt": "private real-life operations portal inside URAI, reception, calendar, logistics, wellness, consent vault and archive stations suggested visually, warm premium cinematic interface, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/home/home-ground-portal_{size}.png"
-  },
-  {
-    "name": "home_sky_ascent",
-    "category": "urai_spatial_home",
-    "prompt": "ascent from URAI home into a Life Map galaxy, memory stars connected by soft light, glowing orb trail, emotional weather atmosphere, premium immersive spatial art, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/home/home-sky-ascent_{size}.png"
-  },
-  {
-    "name": "ground_world_main",
-    "category": "urai_spatial_ground",
-    "prompt": "URAI Ground World private command room for real life, autonomous support stations for reception, schedule, errands, wellness, relationships, archive, consent controls, cinematic warm futuristic headquarters, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/ground/ground-world-main_{size}.png"
-  },
-  {
-    "name": "life_map_galaxy_main",
-    "category": "urai_spatial_lifemap",
-    "prompt": "URAI Life Map memory galaxy, constellation of personal memory stars, emotional weather clouds, luminous pathways between chapters, premium VR spatial universe art, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/life-map/life-map-galaxy-main_{size}.png"
-  },
-  {
-    "name": "focus_memory_chamber_main",
-    "category": "urai_spatial_focus",
-    "prompt": "URAI Focus selected memory chamber, one glowing memory artifact suspended in a quiet protected room, soft narration light, cinematic premium interface, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/focus/focus-memory-chamber-main_{size}.png"
-  },
-  {
-    "name": "replay_memory_film_main",
-    "category": "urai_spatial_replay",
-    "prompt": "URAI Replay living memory film, immersive VR memory scene with interactive beat frames, protected people represented as soft silhouettes until permission, cinematic emotional timeline, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/replay/replay-memory-film-main_{size}.png"
-  },
-  {
-    "name": "mirror_chamber_main",
-    "category": "urai_spatial_mirror",
-    "prompt": "URAI Mirror chamber, reflective pattern room showing becoming, emotional signal arcs, private identity reflection, premium cinematic spatial product art, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/mirror/mirror-chamber-main_{size}.png"
-  },
-  {
-    "name": "passport_consent_vault_main",
-    "category": "urai_spatial_passport",
-    "prompt": "URAI Passport consent vault, premium ownership controls, identity key, export and delete signals shown as elegant secure UI objects, trustworthy warm cinematic scene, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/passport/passport-consent-vault-main_{size}.png"
-  },
-  {
-    "name": "location_map_emotional_weather",
-    "category": "urai_spatial_location_map",
-    "prompt": "URAI Location Map global emotional weather, glowing earth map with mood climate layers, consent-safe signal points, private and public layers clearly separated, cinematic data art, no text",
-    "sizes": [1024, 1600],
-    "alpha": false,
-    "status": "prompted",
-    "path_template": "assets/urai/location-map/location-map-emotional-weather_{size}.png"
-  },
-  {
-    "name": "orb_states",
-    "category": "urai_spatial_ui",
-    "prompt": "three premium URAI companion orb states, idle, active, listening, warm glass light, cyan and gold glow, transparent background, no text",
-    "sizes": [256, 512],
-    "alpha": true,
-    "status": "prompted",
-    "path_template": "assets/urai/ui/orb-states_{size}.png"
-  },
-  {
-    "name": "workforce_avatar_pack",
-    "category": "urai_spatial_avatars",
-    "prompt": "premium URAI private workforce avatar pack, receptionist, privacy steward, schedule steward, wellness guide, logistics helper, archivist, warm human-centered symbolic portraits, transparent background, no text",
-    "sizes": [512, 1024],
-    "alpha": true,
-    "status": "prompted",
-    "path_template": "assets/urai/avatars/workforce-avatar-pack_{size}.png"
-  }
+  {"name":"home_threshold_main","category":"home","prompt":"Cinematic URAI home threshold as one embodied world: warm private real-life operations floor below, luminous personal memory galaxy above, living companion orb bridging both, premium architectural materials, emotional atmosphere, no text, no dashboard cards","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/home/home-threshold-main_{size}.png","prompt_version":"v3","quality":"high"},
+  {"name":"home_threshold_mobile","category":"home","prompt":"Portrait mobile-safe URAI home threshold, private real-life floor below and memory galaxy above, living orb centered between them, strong safe zones for controls, premium cinematic depth, no text, no dashboard cards","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/home/home-threshold-mobile_{size}.png","prompt_version":"v1","quality":"high"},
+  {"name":"home_ground_portal","category":"home","prompt":"Believable portal view down into a private life operations headquarters with reception, work table, consent vault, wellness and archive visible as physical spaces, warm premium cinematic architecture, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/home/home-ground-portal_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"home_sky_ascent","category":"home","prompt":"Cinematic ascent from URAI Home into a deep personal memory galaxy, unmistakable luminous memory stars with photographic cores, organic dust and emotional depth, no ground, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/home/home-sky-ascent_{size}.png","prompt_version":"v2","quality":"high"},
+
+  {"name":"ground_world_main","category":"ground","prompt":"Wide first-person view inside a believable private operations floor for real life, architectural room depth, sculptural reception desk, physical work table, consent vault, logistics bay, wellness nook, memory archive and five subtle embodied helper figures, warm futuristic headquarters, no floating cards, no text, no orb","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-world-main_{size}.png","prompt_version":"v4","quality":"high"},
+  {"name":"ground_world_mobile","category":"ground","prompt":"Portrait mobile-safe first-person view inside a believable private operations room, central reception architecture, physical work table, consent vault, wellness nook, archive and embodied helpers, uncluttered lower safe zone, no floating cards, no text, no orb","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-world-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"ground_reception","category":"ground_station","prompt":"Premium physical reception desk inside a private futuristic life operations room, sculptural wood glass and soft cyan task light, believable object photographed in its environment, no labels, no text","sizes":[1024],"aspect_ratio":"4:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-reception_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"ground_privacy_sanctuary","category":"ground_station","prompt":"Physical consent vault and privacy sanctuary built into a premium spatial operations room, protected warm light, secure tactile controls, believable materials, no labels, no text","sizes":[1024],"aspect_ratio":"4:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-privacy-sanctuary_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"ground_logistics","category":"ground_station","prompt":"Physical logistics bay in a private life operations floor, organized delivery cubbies, errands objects and approval staging area, elegant cinematic architecture, no labels, no text","sizes":[1024],"aspect_ratio":"4:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-logistics_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"ground_wellness","category":"ground_station","prompt":"Quiet physical wellness nook in a private operations room, seating, ambient body rhythm light, restorative materials, intimate cinematic realism, no labels, no text","sizes":[1024],"aspect_ratio":"4:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-wellness_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"ground_memory_archive","category":"ground_station","prompt":"Physical memory archive case in a private future operations room, protected drawers and luminous personal artifacts, premium museum-like object, no labels, no text","sizes":[1024],"aspect_ratio":"4:3","alpha":false,"status":"prompted","path_template":"assets/urai/ground/ground-memory-archive_{size}.png","prompt_version":"v2","quality":"high"},
+
+  {"name":"life_map_galaxy_main","category":"life_map","prompt":"Explorable deep-space personal Life Map, dozens of unmistakable luminous memory stars with tiny photographic memory cores, organic galaxy dust and constellation paths, strong three-dimensional depth and parallax, no ground, no horizon, no orb, no avatar, almost no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/life-map/life-map-galaxy-main_{size}.png","prompt_version":"v4","quality":"high"},
+  {"name":"life_map_galaxy_mobile","category":"life_map","prompt":"Portrait mobile-safe personal galaxy, clear luminous memory stars at multiple depths, photographic memory cores, organic nebula dust, central interaction space, no ground, no horizon, no orb, no avatar, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/life-map/life-map-galaxy-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"life_map_node_threshold","category":"life_map_node","prompt":"Single premium luminous threshold memory star with a tiny cinematic doorway memory image visible inside, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/life-map/life-map-node-threshold_{size}.png","prompt_version":"v1","quality":"high"},
+  {"name":"life_map_node_becoming","category":"life_map_node","prompt":"Single premium luminous becoming memory star with a tiny cinematic transformation memory image inside, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/life-map/life-map-node-becoming_{size}.png","prompt_version":"v1","quality":"high"},
+  {"name":"life_map_node_studio","category":"life_map_node","prompt":"Single premium luminous studio memory star with a tiny cinematic creative workspace image inside, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/life-map/life-map-node-studio_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"focus_memory_chamber_main","category":"focus","prompt":"One dominant selected memory star suspended inside a deep protected chamber, actual quiet sunrise memory scene visible inside the star, concentric depth rings, particles, reflections and soft volumetric light, cinematic intimate environment, no dashboard, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/focus/focus-memory-chamber-main_{size}.png","prompt_version":"v4","quality":"high"},
+  {"name":"focus_memory_chamber_mobile","category":"focus","prompt":"Portrait mobile-safe selected memory chamber, one large luminous memory star containing a detailed quiet sunrise scene, protected depth rings, atmospheric particles, uncluttered lower action zone, no dashboard, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/focus/focus-memory-chamber-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"replay_memory_film_main","category":"replay","prompt":"Full-world immersive living memory at sunrise, first-person emotional scene with a lone human silhouette inside the environment, layered past and future moments at depth, film grain, volumetric light and environmental storytelling, no television, no poster frame, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/replay/replay-memory-film-main_{size}.png","prompt_version":"v4","quality":"high"},
+  {"name":"replay_memory_film_mobile","category":"replay","prompt":"Portrait mobile-safe immersive sunrise memory, lone silhouette inside the environment, cinematic atmospheric depth, emotional light and safe caption zones, no television, no poster, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/replay/replay-memory-film-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+
+  {"name":"mirror_reflection_main","category":"mirror","prompt":"Private URAI reflection realm as a real architectural chamber of soft reflections, becoming patterns and subtle human presence without judgement, emotional signal arcs embedded in space, premium cinematic environment, no dashboard, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/mirror/mirror-reflection-main_{size}.png","prompt_version":"v3","quality":"high"},
+  {"name":"mirror_reflection_mobile","category":"mirror","prompt":"Portrait mobile-safe private reflection chamber, soft architectural reflections and becoming patterns, calm safe zones for controls, cinematic and non-judgmental, no dashboard, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/mirror/mirror-reflection-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"mirror_pattern_glyph","category":"mirror","prompt":"Premium abstract personal pattern glyph made of soft reflective arcs and becoming signals, elegant transparent overlay, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/mirror/mirror-pattern-glyph_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"passport_vault_main","category":"passport","prompt":"Premium private identity and consent vault as a real spatial room, ownership key, provenance artifacts, export and deletion controls represented as secure physical objects, warm trustworthy cinematic architecture, no admin dashboard, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/passport/passport-vault-main_{size}.png","prompt_version":"v3","quality":"high"},
+  {"name":"passport_vault_mobile","category":"passport","prompt":"Portrait mobile-safe private identity and consent vault, ownership key and provenance artifacts in a secure premium room, uncluttered safe zone for controls, no admin dashboard, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/passport/passport-vault-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"passport_ownership_seal","category":"passport","prompt":"Premium URAI ownership and provenance seal, secure key geometry with subtle warm gold and cyan light, transparent background, no words, no letters","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/passport/passport-ownership-seal_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"privacy_controls_main","category":"privacy","prompt":"Private consent control sanctuary as a real spatial console room, model access, location precision, export and deletion represented by clear secure physical controls, premium trustworthy cinematic environment, no dashboard grid, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/privacy-controls/privacy-controls-main_{size}.png","prompt_version":"v3","quality":"high"},
+  {"name":"privacy_controls_mobile","category":"privacy","prompt":"Portrait mobile-safe private consent sanctuary with secure physical controls and clean lower action zone, premium materials, no dashboard grid, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/privacy-controls/privacy-controls-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"privacy_model_access","category":"privacy","prompt":"Premium physical model-access consent object, protected aperture and approval key, transparent background, no labels, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/privacy-controls/privacy-model-access_{size}.png","prompt_version":"v1","quality":"high"},
+  {"name":"privacy_location_precision","category":"privacy","prompt":"Premium location-precision privacy object, nested consent rings and protected map signal, transparent background, no labels, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/privacy-controls/privacy-location-precision_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"location_emotional_weather_main","category":"location_map","prompt":"Immersive planetary emotional weather atlas, luminous earth geography, consent-safe mood climate layers and protected place signals, clear private/public separation, cinematic data art, no dashboard, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/location-map/location-emotional-weather-main_{size}.png","prompt_version":"v3","quality":"high"},
+  {"name":"location_emotional_weather_mobile","category":"location_map","prompt":"Portrait mobile-safe global emotional weather atlas, luminous earth and consent-safe signal layers, central geography and safe control zone, no dashboard, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/location-map/location-emotional-weather-mobile_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"location_place_node","category":"location_map","prompt":"Premium symbolic place-memory node with protected location signal and tiny photographic place core, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/location-map/location-place-node_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"status_route_matrix_main","category":"status","prompt":"Cinematic URAI system status realm, connected route constellation and calm operational health signals embedded in a spatial command environment, premium and readable, not an admin spreadsheet, no text","sizes":[1600],"aspect_ratio":"16:10","alpha":false,"status":"prompted","path_template":"assets/urai/status/status-route-matrix-main_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"status_route_matrix_mobile","category":"status","prompt":"Portrait mobile-safe URAI system status realm, connected route constellation and calm health signals, premium spatial environment, no text","sizes":[1536],"aspect_ratio":"2:3","alpha":false,"status":"prompted","path_template":"assets/urai/status/status-route-matrix-mobile_{size}.png","prompt_version":"v1","quality":"high"},
+  {"name":"status_health_pill","category":"status","prompt":"Small premium launch-health indicator object with calm cyan and warm gold core light, transparent background, no words, no letters","sizes":[512],"aspect_ratio":"2:1","alpha":true,"status":"prompted","path_template":"assets/urai/status/status-health-pill_{size}.png","prompt_version":"v1","quality":"high"},
+
+  {"name":"avatar_receptionist","category":"avatar","prompt":"Full-body premium light-form private workforce receptionist, warm human presence, subtle cinematic materials, suitable for standing and walking in a spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/receptionist_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"avatar_privacy_steward","category":"avatar","prompt":"Full-body premium light-form privacy steward, protective calm posture, subtle cinematic materials, suitable for spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/privacy-steward_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"avatar_schedule_steward","category":"avatar","prompt":"Full-body premium light-form schedule steward, attentive practical posture, subtle cinematic materials, suitable for spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/schedule-steward_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"avatar_wellness_guide","category":"avatar","prompt":"Full-body premium light-form wellness guide, restorative calm posture, subtle cinematic materials, suitable for spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/wellness-guide_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"avatar_logistics_helper","category":"avatar","prompt":"Full-body premium light-form logistics helper, capable practical posture, subtle cinematic materials, suitable for spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/logistics-helper_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"avatar_archivist","category":"avatar","prompt":"Full-body premium light-form memory archivist, careful reflective posture, subtle cinematic materials, suitable for spatial room, transparent background, no text","sizes":[1024],"aspect_ratio":"2:3","alpha":true,"status":"prompted","path_template":"assets/urai/avatars/archivist_{size}.png","prompt_version":"v2","quality":"high"},
+
+  {"name":"orb_idle","category":"ui","prompt":"Premium URAI companion orb idle state, living glass sphere with quiet cyan and warm gold inner motion, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/ui/orb-idle_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"orb_active","category":"ui","prompt":"Premium URAI companion orb active state, living glass sphere with energetic cyan and warm gold inner motion, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/ui/orb-active_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"orb_listening","category":"ui","prompt":"Premium URAI companion orb listening state, living glass sphere with attentive soft pulse and cyan-gold inner motion, transparent background, no text","sizes":[768],"aspect_ratio":"1:1","alpha":true,"status":"prompted","path_template":"assets/urai/ui/orb-listening_{size}.png","prompt_version":"v2","quality":"high"},
+
+  {"name":"open_graph_launch","category":"social","prompt":"Cinematic URAI launch key art, one threshold connecting a private real-life operations world below and an explorable memory galaxy above, premium global technology reveal, no logo, no text","sizes":[1600],"aspect_ratio":"16:9","alpha":false,"status":"prompted","path_template":"assets/urai/social/open-graph-launch_{size}.png","prompt_version":"v2","quality":"high"},
+  {"name":"open_graph_life_map","category":"social","prompt":"Cinematic social share art of an explorable private memory galaxy made of unmistakable stars and photographic memory cores, organic dust and emotional depth, no ground, no avatar, no text","sizes":[1600],"aspect_ratio":"16:9","alpha":false,"status":"prompted","path_template":"assets/urai/social/open-graph-life-map_{size}.png","prompt_version":"v2","quality":"high"}
 ]
