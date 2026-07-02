@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "1.0.0",
+  "defaultVersion": "v1",
+  "versions": {
+    "v1": {
+      "label": "URAI V1 — Public Life Layer",
+      "status": "active",
+      "manifest": "manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "targetRoot": "urai-tier1/public",
+      "assetPrefix": "assets/urai",
+      "proofProfile": "v1-public-loop",
+      "dispatchEvent": "urai-version-assets-ready",
+      "expectedOutputs": 47,
+      "requiresSpatialWiring": false,
+      "artDirection": "Cinematic embodied private life layer: Home, Ground, Life Map, Focus, Replay, Mirror, Passport, Privacy, Location and Status.",
+      "routes": [
+        "/home",
+        "/ground",
+        "/life-map",
+        "/focus?memoryId=quiet-reset",
+        "/replay?memoryId=quiet-reset&manifestId=replay-recovery-thread",
+        "/mirror",
+        "/passport",
+        "/privacy-controls",
+        "/location-map",
+        "/status"
+      ]
+    },
+    "v2": {
+      "label": "URAI V2 — Autonomous Operations",
+      "status": "manifest-ready",
+      "manifest": "manifests/v2.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "targetRoot": "urai-tier1/public",
+      "assetPrefix": "assets/urai/v2",
+      "proofProfile": "v2-autonomous-operations",
+      "dispatchEvent": "urai-version-assets-ready",
+      "expectedOutputs": 14,
+      "requiresSpatialWiring": true,
+      "artDirection": "Embodied autonomous workforce, council, scheduling, logistics, wellness, communications, jobs and analytics as one coherent private headquarters.",
+      "routes": [
+        "/ground",
+        "/world",
+        "/status",
+        "/privacy-controls"
+      ]
+    },
+    "v3": {
+      "label": "URAI V3 — Relationships and Legacy",
+      "status": "manifest-ready",
+      "manifest": "manifests/v3.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "targetRoot": "urai-tier1/public",
+      "assetPrefix": "assets/urai/v3",
+      "proofProfile": "v3-relationships-legacy",
+      "dispatchEvent": "urai-version-assets-ready",
+      "expectedOutputs": 14,
+      "requiresSpatialWiring": true,
+      "artDirection": "Private relationship constellations, family roots, mentors, past friendships, legacy sanctuaries, community and storytime.",
+      "routes": [
+        "/life-map",
+        "/focus",
+        "/replay",
+        "/u/adamclamp",
+        "/place/legacy"
+      ]
+    },
+    "v4": {
+      "label": "URAI V4 — XR Embodiment",
+      "status": "manifest-ready",
+      "manifest": "manifests/v4.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "targetRoot": "urai-tier1/public",
+      "assetPrefix": "assets/urai/v4",
+      "proofProfile": "v4-xr-embodiment",
+      "dispatchEvent": "urai-version-assets-ready",
+      "expectedOutputs": 13,
+      "requiresSpatialWiring": true,
+      "artDirection": "AR, VR and XR embodiment with hand presence, haptics, spatial sound, portals, biomes and a continuous cross-device world.",
+      "routes": [
+        "/spatial/xr",
+        "/spatial/biome",
+        "/spatial/life-map",
+        "/replay"
+      ]
+    },
+    "v5": {
+      "label": "URAI V5 — Whole-Life Convergence",
+      "status": "manifest-ready",
+      "manifest": "manifests/v5.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "targetRoot": "urai-tier1/public",
+      "assetPrefix": "assets/urai/v5",
+      "proofProfile": "v5-whole-life-convergence",
+      "dispatchEvent": "urai-version-assets-ready",
+      "expectedOutputs": 13,
+      "requiresSpatialWiring": true,
+      "artDirection": "The final coherent life layer: private operations, memory universe, identity, global signals, world council and cross-device continuity.",
+      "routes": [
+        "/home",
+        "/ground",
+        "/life-map",
+        "/replay",
+        "/mirror",
+        "/passport",
+        "/location-map",
+        "/status"
+      ]
+    }
+  }
+}
