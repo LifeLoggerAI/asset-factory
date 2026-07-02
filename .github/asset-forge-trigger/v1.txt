@@ -1,0 +1,5 @@
+URAI V1 AAA asset forge trigger
+requested_at_utc=2026-07-02T08:00:00Z
+rounds=3
+mode=provider-only
+promote=true
