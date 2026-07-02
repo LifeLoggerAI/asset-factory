@@ -1,0 +1,214 @@
+name: Versioned AAA Asset Forge
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: URAI release lane to forge
+        required: true
+        default: v1
+        type: choice
+        options:
+          - v1
+          - v2
+          - v3
+          - v4
+          - v5
+      rounds:
+        description: Maximum provider generation and targeted retry rounds
+        required: true
+        default: "3"
+        type: string
+      promote:
+        description: Copy approved assets into urai-spatial and dispatch proof
+        required: true
+        default: true
+        type: boolean
+      job_id:
+        description: Optional URAI Jobs job ID
+        required: false
+        default: manual
+        type: string
+      callback_url:
+        description: Optional URAI Jobs callback URL
+        required: false
+        default: ""
+        type: string
+  repository_dispatch:
+    types: [urai-version-forge-requested]
+
+concurrency:
+  group: urai-versioned-forge-${{ github.event.inputs.version || github.event.client_payload.version || 'v1' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forge-and-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      spatial_sha: ${{ steps.promote.outputs.spatial_sha }}
+      job_id: ${{ steps.context.outputs.job_id }}
+    env:
+      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+      ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+      ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
+      URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+    steps:
+      - name: Resolve version request
+        id: context
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            version="${{ github.event.client_payload.version || 'v1' }}"
+            rounds="${{ github.event.client_payload.rounds || '3' }}"
+            promote="${{ github.event.client_payload.promote || 'true' }}"
+            job_id="${{ github.event.client_payload.job_id || 'dispatch' }}"
+            callback_url="${{ github.event.client_payload.callback_url || '' }}"
+          else
+            version="${{ inputs.version }}"
+            rounds="${{ inputs.rounds }}"
+            promote="${{ inputs.promote }}"
+            job_id="${{ inputs.job_id }}"
+            callback_url="${{ inputs.callback_url }}"
+          fi
+          case "$version" in v1|v2|v3|v4|v5) ;; *) echo "::error::Unsupported version $version"; exit 1 ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "rounds=$rounds" >> "$GITHUB_OUTPUT"
+          echo "promote=$promote" >> "$GITHUB_OUTPUT"
+          echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
+          echo "callback_url=$callback_url" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Asset Factory
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Validate version catalog
+        run: |
+          python image_asset_generator/forge_versioned.py --list
+          python -m json.tool image_asset_generator/version_catalog.json >/dev/null
+          python -m json.tool "image_asset_generator/manifests/${{ steps.context.outputs.version }}.manifest.json" >/dev/null || \
+            test "${{ steps.context.outputs.version }}" = "v1"
+
+      - name: Production secret preflight
+        shell: bash
+        run: |
+          missing=0
+          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured. The production forge will not fall back to placeholder art."
+              missing=1
+            fi
+          done
+          [ "$missing" = "0" ]
+
+      - name: Run versioned feedback-driven forge
+        env:
+          URAI_VERSION: ${{ steps.context.outputs.version }}
+          ASSET_FORGE_MAX_ROUNDS: ${{ steps.context.outputs.rounds }}
+          ASSET_RENDERER_MODE: provider
+          ASSET_FORGE_REQUIRE_PROVIDER: "1"
+          ASSET_QUALITY_REQUIRE_PROVIDER: "1"
+        run: python image_asset_generator/forge_versioned.py --version "${{ steps.context.outputs.version }}"
+
+      - name: Upload versioned forge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-${{ steps.context.outputs.version }}-aaa-forge-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            image_asset_generator/quality_report.json
+            image_asset_generator/upgrade_feedback.json
+            image_asset_generator/forge_receipt.json
+            image_asset_generator/forge_receipt_${{ steps.context.outputs.version }}.json
+            image_asset_generator/preview.html
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/spatial_handoff/**
+
+      - name: Checkout Spatial promotion target
+        if: steps.context.outputs.promote == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: main
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+
+      - name: Copy canonical handoff into Spatial
+        if: steps.context.outputs.promote == 'true'
+        shell: bash
+        run: |
+          test -f image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
+          rsync -a image_asset_generator/spatial_handoff/ spatial/urai-tier1/public/
+
+      - name: Commit and push promoted version assets
+        if: steps.context.outputs.promote == 'true'
+        id: promote
+        working-directory: spatial
+        shell: bash
+        run: |
+          version="${{ steps.context.outputs.version }}"
+          git config user.name "URAI Production Wheel"
+          git config user.email "urai-wheel@users.noreply.github.com"
+          git add urai-tier1/public/assets/urai
+          if git diff --cached --quiet; then
+            echo "No $version asset changes to promote."
+          else
+            git commit -m "Promote provider-scored ${version^^} AAA asset pack"
+            git pull --rebase origin main
+            git push origin main
+          fi
+          echo "spatial_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger versioned Spatial build deploy and proof
+        if: steps.context.outputs.promote == 'true'
+        shell: bash
+        run: |
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $URAI_WHEEL_GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/LifeLoggerAI/urai-spatial/dispatches \
+            -d '{"event_type":"urai-version-assets-ready","client_payload":{"version":"${{ steps.context.outputs.version }}","asset_factory_run":"${{ github.run_id }}","spatial_sha":"${{ steps.promote.outputs.spatial_sha }}","job_id":"${{ steps.context.outputs.job_id }}"}}'
+
+  notify-jobs:
+    if: always()
+    needs: [forge-and-promote]
+    runs-on: ubuntu-latest
+    env:
+      CALLBACK_SECRET: ${{ secrets.URAI_JOBS_CALLBACK_SECRET }}
+      MANUAL_CALLBACK: ${{ inputs.callback_url }}
+      DISPATCH_CALLBACK: ${{ github.event.client_payload.callback_url }}
+    steps:
+      - name: Notify URAI Jobs when requested
+        shell: bash
+        run: |
+          callback="$MANUAL_CALLBACK"
+          [ "${{ github.event_name }}" = "repository_dispatch" ] && callback="$DISPATCH_CALLBACK"
+          [ -n "$callback" ] || exit 0
+          [ -n "$CALLBACK_SECRET" ] || { echo "::error::URAI_JOBS_CALLBACK_SECRET missing"; exit 1; }
+          conclusion="${{ needs.forge-and-promote.result }}"
+          status="FAILED"
+          [ "$conclusion" = "success" ] && status="SUCCESS"
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer $CALLBACK_SECRET" \
+            -H "Content-Type: application/json" \
+            "$callback" \
+            -d '{"jobId":"${{ needs.forge-and-promote.outputs.job_id }}","status":"'"$status"'","summary":"${{ needs.forge-and-promote.outputs.version }} AAA asset forge '"$conclusion"'","spatialSha":"${{ needs.forge-and-promote.outputs.spatial_sha }}","assetFactoryRun":"${{ github.run_id }}"}'
