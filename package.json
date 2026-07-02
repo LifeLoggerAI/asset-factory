@@ -1,6 +1,6 @@
 {
   "name": "asset-factory-root",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "URAI Asset Factory orchestration and production image forge",
   "dependencies": {
     "firebase-admin": "^11.8.0",
@@ -37,7 +37,7 @@
     "image:generate": "python image_asset_generator/generate_assets.py",
     "image:upgrade": "ASSET_RENDERER_FORCE=1 python image_asset_generator/generate_assets.py",
     "image:validate": "python image_asset_generator/validate_assets.py",
-    "image:score": "python image_asset_generator/score_assets.py",
+    "image:score": "python image_asset_generator/score_v1_assets.py",
     "image:preview": "python image_asset_generator/create_preview.py",
     "image:seed": "python image_asset_generator/create_firebase_seed.py",
     "image:export": "python image_asset_generator/export_assets.py",
