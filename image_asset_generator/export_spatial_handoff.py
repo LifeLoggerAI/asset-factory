@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -16,6 +17,7 @@ HANDOFF_DIR = BASE_DIR / "spatial_handoff"
 
 CANONICAL_PATHS: Dict[str, str] = {
     "home_threshold_main": "assets/urai/home/home-threshold-main.webp",
+    "home_threshold_mobile": "assets/urai/home/home-threshold-mobile.webp",
     "home_ground_portal": "assets/urai/home/home-ground-portal.webp",
     "home_sky_ascent": "assets/urai/home/home-sky-ascent.webp",
     "ground_world_main": "assets/urai/ground/ground-world-main.webp",
@@ -27,18 +29,38 @@ CANONICAL_PATHS: Dict[str, str] = {
     "ground_memory_archive": "assets/urai/ground/ground-memory-archive.webp",
     "life_map_galaxy_main": "assets/urai/life-map/life-map-galaxy-main.webp",
     "life_map_galaxy_mobile": "assets/urai/life-map/life-map-galaxy-mobile.webp",
+    "life_map_node_threshold": "assets/urai/life-map/life-map-node-threshold.webp",
+    "life_map_node_becoming": "assets/urai/life-map/life-map-node-becoming.webp",
+    "life_map_node_studio": "assets/urai/life-map/life-map-node-studio.webp",
     "focus_memory_chamber_main": "assets/urai/focus/focus-memory-chamber-main.webp",
     "focus_memory_chamber_mobile": "assets/urai/focus/focus-memory-chamber-mobile.webp",
     "replay_memory_film_main": "assets/urai/replay/replay-memory-film-main.webp",
     "replay_memory_film_mobile": "assets/urai/replay/replay-memory-film-mobile.webp",
-    "mirror_chamber_main": "assets/urai/mirror/mirror-chamber-main.webp",
-    "mirror_chamber_mobile": "assets/urai/mirror/mirror-chamber-mobile.webp",
-    "passport_consent_vault_main": "assets/urai/passport/passport-consent-vault-main.webp",
-    "passport_consent_vault_mobile": "assets/urai/passport/passport-consent-vault-mobile.webp",
-    "location_map_emotional_weather": "assets/urai/location-map/location-map-emotional-weather.webp",
-    "location_map_emotional_weather_mobile": "assets/urai/location-map/location-map-emotional-weather-mobile.webp",
-    "orb_states": "assets/urai/ui/orb-states.webp",
-    "workforce_avatar_pack": "assets/urai/avatars/workforce-avatar-pack.webp",
+    "mirror_reflection_main": "assets/urai/mirror/mirror-reflection-main.webp",
+    "mirror_reflection_mobile": "assets/urai/mirror/mirror-reflection-mobile.webp",
+    "mirror_pattern_glyph": "assets/urai/mirror/mirror-pattern-glyph.webp",
+    "passport_vault_main": "assets/urai/passport/passport-vault-main.webp",
+    "passport_vault_mobile": "assets/urai/passport/passport-vault-mobile.webp",
+    "passport_ownership_seal": "assets/urai/passport/passport-ownership-seal.webp",
+    "privacy_controls_main": "assets/urai/privacy-controls/privacy-controls-main.webp",
+    "privacy_controls_mobile": "assets/urai/privacy-controls/privacy-controls-mobile.webp",
+    "privacy_model_access": "assets/urai/privacy-controls/privacy-model-access.webp",
+    "privacy_location_precision": "assets/urai/privacy-controls/privacy-location-precision.webp",
+    "location_emotional_weather_main": "assets/urai/location-map/location-emotional-weather-main.webp",
+    "location_emotional_weather_mobile": "assets/urai/location-map/location-emotional-weather-mobile.webp",
+    "location_place_node": "assets/urai/location-map/location-place-node.webp",
+    "status_route_matrix_main": "assets/urai/status/status-route-matrix-main.webp",
+    "status_route_matrix_mobile": "assets/urai/status/status-route-matrix-mobile.webp",
+    "status_health_pill": "assets/urai/status/status-health-pill.webp",
+    "avatar_receptionist": "assets/urai/avatars/receptionist.webp",
+    "avatar_privacy_steward": "assets/urai/avatars/privacy-steward.webp",
+    "avatar_schedule_steward": "assets/urai/avatars/schedule-steward.webp",
+    "avatar_wellness_guide": "assets/urai/avatars/wellness-guide.webp",
+    "avatar_logistics_helper": "assets/urai/avatars/logistics-helper.webp",
+    "avatar_archivist": "assets/urai/avatars/archivist.webp",
+    "orb_idle": "assets/urai/ui/orb-idle.webp",
+    "orb_active": "assets/urai/ui/orb-active.webp",
+    "orb_listening": "assets/urai/ui/orb-listening.webp",
     "open_graph_launch": "assets/urai/social/open-graph-launch.webp",
     "open_graph_life_map": "assets/urai/social/open-graph-life-map.webp"
 }
@@ -75,7 +97,7 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
     image.load()
     alpha = bool(entry.get("alpha"))
     image = image.convert("RGBA" if alpha else "RGB")
-    image.save(destination, "WEBP", quality=92, method=6, lossless=alpha)
+    image.save(destination, "WEBP", quality=94, method=6, lossless=alpha)
 
     metadata_path = source_path.with_suffix(source_path.suffix + ".render.json")
     metadata: Dict[str, Any] = {}
@@ -91,6 +113,7 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         "sourceSize": size,
         "width": image.width,
         "height": image.height,
+        "aspectRatio": entry.get("aspect_ratio", "1:1"),
         "alpha": alpha,
         "sha256": sha256(destination),
         "bytes": destination.stat().st_size,
@@ -102,6 +125,9 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
 def main() -> None:
     entries = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     by_name = {entry["name"]: entry for entry in entries}
+
+    if HANDOFF_DIR.exists():
+        shutil.rmtree(HANDOFF_DIR)
     HANDOFF_DIR.mkdir(parents=True, exist_ok=True)
 
     assets = []
@@ -115,7 +141,7 @@ def main() -> None:
     ready = [asset for asset in assets if asset["status"] == "ready"]
     missing = [asset for asset in assets if asset["status"] != "ready"]
     handoff = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "2.0.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "producer": "LifeLoggerAI/asset-factory",
         "consumer": "LifeLoggerAI/urai-spatial",
