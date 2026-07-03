@@ -1,6 +1,10 @@
 name: V2 Living State Forge
 
 on:
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - urai-v2-living-states-requested
   push:
     branches:
       - forge/v2-living-states
@@ -46,10 +50,10 @@ jobs:
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate V2 canon and exact inventory
+      - name: Validate isolated V2 canon and exact inventory
         shell: bash
         run: |
-          python image_asset_generator/build_version_manifests.py
+          python image_asset_generator/build_v2_manifest.py
           python image_asset_generator/forge_versioned.py --list
           python - <<'PY'
           import json
@@ -60,6 +64,7 @@ jobs:
           assert all(item['name'].startswith('v2_') for item in entries)
           assert all(item['canonical_path'].startswith('assets/urai/v2/') for item in entries)
           print('V2_CANONICAL_ASSET_COUNT=80')
+          print('V2_FUTURE_CATALOG_ISOLATION=passed')
           PY
 
       - name: Production provider preflight
@@ -98,8 +103,10 @@ jobs:
           assert receipt.get('forgeExitCode') == 0, receipt
           assert handoff.get('missing') == 0, handoff
           failed = [entry for entry in quality.get('assets', []) if entry.get('status') != 'passed']
+          assert len(quality.get('assets', [])) == 80, quality
           assert not failed, f'V2 quality failures: {[entry.get("name") for entry in failed]}'
           print('V2_FORGE_STATUS=passed')
+          print('V2_QUALITY_PASSED=80')
           print('V2_HANDOFF_MISSING=0')
           PY
 
@@ -112,6 +119,7 @@ jobs:
           if-no-files-found: warn
           path: |
             image_asset_generator/manifests/generated/v2.manifest.json
+            image_asset_generator/manifests/generated/v2-manifest-build-summary.json
             image_asset_generator/quality_report.json
             image_asset_generator/quality_report_v2.json
             image_asset_generator/upgrade_feedback.json
@@ -154,7 +162,7 @@ jobs:
         env:
           BRANCH: ${{ steps.promote.outputs.branch }}
           BODY: |
-            Promotes the provider-rendered URAI V2 living-system state pack after the complete 80-state manifest passed generation, validation, targeted quality retries, and zero-missing Spatial handoff checks.
+            Promotes the provider-rendered URAI V2 living-system state pack after all 80 canonical states passed generation, validation, targeted quality retries, and zero-missing Spatial handoff checks.
 
             V2 remains the living-state layer over the locked V1 public route world. It does not claim V3 hardware or XR proof.
         run: |

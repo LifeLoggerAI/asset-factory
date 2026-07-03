@@ -16,6 +16,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict
 
+import build_v2_manifest
 import build_version_manifests
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -107,6 +108,24 @@ def write_version_receipt(version: str, config: Dict[str, Any], manifest_path: P
     )
 
 
+def print_catalog() -> None:
+    """List declared versions without building unrelated manifests."""
+    catalog = load_catalog()
+    for name, config in catalog["versions"].items():
+        label = config.get("label", "Unknown")
+        status = config.get("status", "unknown")
+        count = config.get("expectedOutputs", "?")
+        print(f"{name}: {label} [{status}] assets={count}")
+
+
+def build_selected_manifest(version: str) -> None:
+    """Build V2 in isolation; preserve legacy all-version behavior elsewhere."""
+    if version == "v2":
+        build_v2_manifest.build()
+        return
+    build_version_manifests.build_all()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the URAI versioned asset forge")
     parser.add_argument(
@@ -117,15 +136,12 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="Print the version catalog and exit")
     args = parser.parse_args()
 
-    generated = build_version_manifests.build_all()
-    catalog = load_catalog()
     if args.list:
-        for name, config in catalog["versions"].items():
-            count = generated.get(name, {}).get("count", "?")
-            print(f"{name}: {config['label']} [{config['status']}] assets={count}")
+        print_catalog()
         return 0
 
     version = args.version
+    build_selected_manifest(version)
     config, selected_manifest = resolve_version(version)
     entries = load_entries(selected_manifest)
     expected = int(config.get("expectedOutputs", 0))
