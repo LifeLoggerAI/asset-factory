@@ -1,18 +1,22 @@
 """Version-selecting entry point for the URAI V1–V5 production wheel.
 
-The current production forge remains the proven core. This wrapper stages the
-selected version manifest into that core for the duration of one isolated CI
-run, injects the version's canonical Spatial paths, and restores the checked-in
-V1 manifest before exiting.
+The selected canonical manifest is generated from the release-version contract,
+staged into the proven forge core for one isolated run, and restored afterward.
+Version-specific receipts, quality reports, feedback, and handoff manifests are
+preserved so V1/V2/V3 cannot overwrite or masquerade as one another.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Dict
+
+import build_version_manifests
 
 BASE_DIR = Path(__file__).resolve().parent
 CATALOG_PATH = BASE_DIR / "version_catalog.json"
@@ -52,18 +56,34 @@ def canonical_paths(version: str, entries: list[Dict[str, Any]]) -> Dict[str, st
     if version == "v1":
         return None
     result: Dict[str, str] = {}
+    expected_prefix = "assets/urai/xr/" if version == "v3" else f"assets/urai/{version}/"
     for entry in entries:
         name = entry.get("name")
         canonical = entry.get("canonical_path")
         if not isinstance(name, str) or not name:
             raise ValueError("Every versioned asset requires a non-empty name")
-        if not isinstance(canonical, str) or not canonical.startswith(f"assets/urai/{version}/"):
-            raise ValueError(f"{name} requires canonical_path under assets/urai/{version}/")
+        if not isinstance(canonical, str) or not canonical.startswith(expected_prefix):
+            raise ValueError(f"{name} requires canonical_path under {expected_prefix}")
         result[name] = canonical
     return result
 
 
-def write_version_receipt(version: str, config: Dict[str, Any], exit_code: int) -> None:
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def preserve_version_outputs(version: str) -> None:
+    for source_name, target_name in (
+        ("quality_report.json", f"quality_report_{version}.json"),
+        ("upgrade_feedback.json", f"upgrade_feedback_{version}.json"),
+        ("forge_receipt.json", f"forge_receipt_{version}.json"),
+    ):
+        source = BASE_DIR / source_name
+        if source.exists():
+            shutil.copy2(source, BASE_DIR / target_name)
+
+
+def write_version_receipt(version: str, config: Dict[str, Any], manifest_path: Path, exit_code: int) -> None:
     receipt_path = BASE_DIR / "forge_receipt.json"
     if receipt_path.exists():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -76,6 +96,9 @@ def write_version_receipt(version: str, config: Dict[str, Any], exit_code: int) 
         "targetRepo": config["targetRepo"],
         "requiresSpatialWiring": bool(config.get("requiresSpatialWiring")),
         "forgeExitCode": exit_code,
+        "manifest": str(manifest_path.relative_to(BASE_DIR)),
+        "manifestSha256": sha256(manifest_path),
+        "expectedOutputs": int(config.get("expectedOutputs", 0)),
     })
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     (BASE_DIR / f"forge_receipt_{version}.json").write_text(
@@ -94,10 +117,12 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="Print the version catalog and exit")
     args = parser.parse_args()
 
+    generated = build_version_manifests.build_all()
     catalog = load_catalog()
     if args.list:
         for name, config in catalog["versions"].items():
-            print(f"{name}: {config['label']} [{config['status']}]")
+            count = generated.get(name, {}).get("count", "?")
+            print(f"{name}: {config['label']} [{config['status']}] assets={count}")
         return 0
 
     version = args.version
@@ -120,11 +145,11 @@ def main() -> int:
     print(f"URAI_VERSION={version}")
     print(f"VERSION_LABEL={config['label']}")
     print(f"VERSION_MANIFEST={selected_manifest}")
+    print(f"VERSION_MANIFEST_SHA256={sha256(selected_manifest)}")
     print(f"VERSION_ASSET_COUNT={len(entries)}")
 
     try:
-        if selected_manifest != ACTIVE_MANIFEST_PATH:
-            ACTIVE_MANIFEST_PATH.write_bytes(selected_bytes)
+        ACTIVE_MANIFEST_PATH.write_bytes(selected_bytes)
 
         import export_spatial_handoff
 
@@ -135,7 +160,8 @@ def main() -> int:
         from forge_v1_cost_aware import main as run_core_forge
 
         exit_code = int(run_core_forge())
-        write_version_receipt(version, config, exit_code)
+        write_version_receipt(version, config, selected_manifest, exit_code)
+        preserve_version_outputs(version)
         print(f"VERSION_FORGE_EXIT={exit_code}")
         return exit_code
     finally:
