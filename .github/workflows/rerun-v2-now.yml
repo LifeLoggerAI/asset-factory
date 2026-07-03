@@ -1,0 +1,34 @@
+name: Rerun V2 Now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/rerun-v2-now.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dispatch-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch canonical V2 forge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'urai-version-forge-requested',
+              client_payload: {
+                version: 'v2',
+                rounds: '3',
+                promote: 'true',
+                job_id: `canonical-v2-${context.runId}`,
+                callback_url: ''
+              }
+            })
+
+# Canonical versioned V2 rebuild requested 2026-07-02.
