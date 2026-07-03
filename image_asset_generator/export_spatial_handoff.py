@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -58,6 +59,12 @@ CANONICAL_PATHS: Dict[str, str] = {
     "avatar_wellness_guide": "assets/urai/avatars/wellness-guide.webp",
     "avatar_logistics_helper": "assets/urai/avatars/logistics-helper.webp",
     "avatar_archivist": "assets/urai/avatars/archivist.webp",
+    "avatar_relationship_liaison": "assets/urai/avatars/relationship-liaison.webp",
+    "avatar_operator": "assets/urai/avatars/operator.webp",
+    "avatar_builder": "assets/urai/avatars/builder.webp",
+    "avatar_protector": "assets/urai/avatars/protector.webp",
+    "avatar_mirror": "assets/urai/avatars/mirror.webp",
+    "avatar_guide": "assets/urai/avatars/guide.webp",
     "orb_idle": "assets/urai/ui/orb-idle.webp",
     "orb_active": "assets/urai/ui/orb-active.webp",
     "orb_listening": "assets/urai/ui/orb-listening.webp",
@@ -118,13 +125,15 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         "sha256": sha256(destination),
         "bytes": destination.stat().st_size,
         "promptVersion": entry.get("prompt_version", "v1"),
-        "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown"
+        "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown",
+        "claimGate": entry.get("claim_gate")
     }
 
 
 def main() -> None:
     entries = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     by_name = {entry["name"]: entry for entry in entries}
+    version = os.environ.get("URAI_VERSION", "v1").strip().lower() or "v1"
 
     if HANDOFF_DIR.exists():
         shutil.rmtree(HANDOFF_DIR)
@@ -141,22 +150,29 @@ def main() -> None:
     ready = [asset for asset in assets if asset["status"] == "ready"]
     missing = [asset for asset in assets if asset["status"] != "ready"]
     handoff = {
-        "schemaVersion": "2.0.0",
+        "schemaVersion": "3.0.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "version": version,
         "producer": "LifeLoggerAI/asset-factory",
         "consumer": "LifeLoggerAI/urai-spatial",
         "copyRoot": "urai-tier1/public",
+        "providerRequired": True,
         "ready": len(ready),
         "missing": len(missing),
         "assets": assets
     }
-    manifest_out = HANDOFF_DIR / "assets" / "urai" / "final" / "manifests" / "asset-factory-spatial-handoff.json"
-    manifest_out.parent.mkdir(parents=True, exist_ok=True)
-    manifest_out.write_text(json.dumps(handoff, indent=2) + "\n", encoding="utf-8")
+    manifest_dir = HANDOFF_DIR / "assets" / "urai" / "final" / "manifests"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    generic_out = manifest_dir / "asset-factory-spatial-handoff.json"
+    version_out = manifest_dir / f"{version}-asset-factory-spatial-handoff.json"
+    payload = json.dumps(handoff, indent=2) + "\n"
+    generic_out.write_text(payload, encoding="utf-8")
+    version_out.write_text(payload, encoding="utf-8")
 
-    print(f"Spatial handoff ready={len(ready)} missing={len(missing)}")
+    print(f"Spatial handoff version={version} ready={len(ready)} missing={len(missing)}")
     print(f"HANDOFF_DIR={HANDOFF_DIR}")
-    print(f"HANDOFF_MANIFEST={manifest_out}")
+    print(f"HANDOFF_MANIFEST={generic_out}")
+    print(f"VERSION_HANDOFF_MANIFEST={version_out}")
     for asset in missing:
         print(f"MISSING {asset['name']} -> {asset['canonicalPath']}")
 
