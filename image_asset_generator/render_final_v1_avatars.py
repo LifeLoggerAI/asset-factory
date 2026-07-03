@@ -6,6 +6,7 @@ import json
 import time
 import traceback
 from pathlib import Path
+from typing import Optional
 
 import build_version_manifests
 import generate_assets as base
@@ -23,11 +24,16 @@ TARGETS = (
 MODERATION_RETRIES = 6
 
 
-def render_with_bounded_retry(entry: dict, size: int):
+def render_with_bounded_retry(entry: dict, size: int, feedback: Optional[str] = None):
     last_error: Exception | None = None
     for attempt in range(1, MODERATION_RETRIES + 1):
         try:
-            return base.render_via_adapter(entry, size, base.offline_render_asset)
+            return base.render_via_adapter(
+                entry,
+                size,
+                base.offline_render_asset,
+                feedback=feedback,
+            )
         except RuntimeError as exc:
             last_error = exc
             if "moderation_blocked" not in str(exc) or attempt == MODERATION_RETRIES:
