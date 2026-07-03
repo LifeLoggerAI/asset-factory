@@ -19,7 +19,7 @@ permissions:
 jobs:
   extend-checkpoint:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     outputs:
       spatial_branch: ${{ steps.promote.outputs.spatial_branch }}
     env:
@@ -72,6 +72,7 @@ jobs:
           rm -rf image_asset_generator/assets
           cp -a checkpoint/assets image_asset_generator/assets
           cp checkpoint/manifest.json image_asset_generator/manifest.json
+          rm -f image_asset_generator/quality_report.json image_asset_generator/upgrade_feedback.json image_asset_generator/forge_receipt.json
 
       - name: Render only six remaining avatars
         id: render
@@ -102,10 +103,43 @@ jobs:
         if: steps.render.outcome == 'failure'
         run: exit 1
 
-      - name: Validate, score, and export complete V1 checkpoint
+      - name: Validate, repair, score, and export complete V1 checkpoint
+        shell: bash
         env:
+          ASSET_RENDERER_MODE: provider
           ASSET_QUALITY_REQUIRE_PROVIDER: '1'
-        run: python image_asset_generator/resume_v1_checkpoint.py
+        run: |
+          set -euo pipefail
+          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then
+            unset ASSET_RENDERER_AUTH_HEADER
+          fi
+          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then
+            unset ASSET_RENDERER_AUTH_SCHEME
+          fi
+
+          for quality_round in 1 2 3; do
+            echo "=== FINAL AVATAR QUALITY ROUND ${quality_round}/3 ==="
+            if python image_asset_generator/resume_v1_checkpoint.py; then
+              exit 0
+            fi
+
+            if [ "$quality_round" = "3" ]; then
+              echo "::error::Final avatar quality gate still failed after three rounds."
+              exit 1
+            fi
+
+            test -s image_asset_generator/upgrade_feedback.json
+            repaired=0
+            for provider_attempt in 1 2 3 4 5 6; do
+              echo "=== TARGETED PROVIDER REPAIR ${provider_attempt}/6 ==="
+              if python image_asset_generator/generate_assets.py; then
+                repaired=1
+                break
+              fi
+              sleep $((provider_attempt * 3))
+            done
+            [ "$repaired" = "1" ] || { echo "::error::Provider repair failed after bounded retries."; exit 1; }
+          done
 
       - name: Upload complete forge evidence
         if: always()
