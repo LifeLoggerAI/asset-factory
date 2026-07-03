@@ -1,0 +1,178 @@
+name: V2 Living State Forge
+
+on:
+  push:
+    branches:
+      - forge/v2-living-states
+    paths:
+      - '.github/workflows/v2-living-state-forge.yml'
+      - 'image_asset_generator/**'
+
+concurrency:
+  group: urai-v2-living-state-forge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  forge-promote-and-open-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+      ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+      ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+      ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
+      URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+      URAI_VERSION: v2
+      ASSET_FORGE_MAX_ROUNDS: '3'
+      ASSET_RENDERER_MODE: provider
+      ASSET_FORGE_REQUIRE_PROVIDER: '1'
+      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+
+    steps:
+      - name: Checkout Asset Factory V2 lane
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Validate V2 canon and exact inventory
+        shell: bash
+        run: |
+          python image_asset_generator/build_version_manifests.py
+          python image_asset_generator/forge_versioned.py --list
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('image_asset_generator/manifests/generated/v2.manifest.json')
+          entries = json.loads(path.read_text())
+          assert len(entries) == 80, f'V2 requires exactly 80 canonical states, found {len(entries)}'
+          assert all(item['name'].startswith('v2_') for item in entries)
+          assert all(item['canonical_path'].startswith('assets/urai/v2/') for item in entries)
+          print('V2_CANONICAL_ASSET_COUNT=80')
+          PY
+
+      - name: Production provider preflight
+        shell: bash
+        run: |
+          missing=0
+          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured. V2 will not fall back to placeholder art."
+              missing=1
+            fi
+          done
+          [ "$missing" = "0" ]
+
+      - name: Forge, score, and retry V2 living states
+        shell: bash
+        run: |
+          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then unset ASSET_RENDERER_AUTH_HEADER; fi
+          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then unset ASSET_RENDERER_AUTH_SCHEME; fi
+          python image_asset_generator/forge_versioned.py --version v2
+
+      - name: Certify V2 receipt and handoff
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('image_asset_generator')
+          receipt = json.loads((root / 'forge_receipt_v2.json').read_text())
+          quality = json.loads((root / 'quality_report_v2.json').read_text())
+          handoff_path = root / 'spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json'
+          handoff = json.loads(handoff_path.read_text())
+          assert receipt.get('version') == 'v2', receipt
+          assert receipt.get('status') == 'passed', receipt
+          assert receipt.get('expectedOutputs') == 80, receipt
+          assert receipt.get('forgeExitCode') == 0, receipt
+          assert handoff.get('missing') == 0, handoff
+          failed = [entry for entry in quality.get('assets', []) if entry.get('status') != 'passed']
+          assert not failed, f'V2 quality failures: {[entry.get("name") for entry in failed]}'
+          print('V2_FORGE_STATUS=passed')
+          print('V2_HANDOFF_MISSING=0')
+          PY
+
+      - name: Upload complete V2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-v2-living-states-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            image_asset_generator/manifests/generated/v2.manifest.json
+            image_asset_generator/quality_report.json
+            image_asset_generator/quality_report_v2.json
+            image_asset_generator/upgrade_feedback.json
+            image_asset_generator/upgrade_feedback_v2.json
+            image_asset_generator/forge_receipt.json
+            image_asset_generator/forge_receipt_v2.json
+            image_asset_generator/preview.html
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/assets/urai/v2/**
+            image_asset_generator/spatial_handoff/**
+
+      - name: Checkout Spatial promotion target
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: main
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+
+      - name: Create reviewed Spatial V2 asset branch
+        id: promote
+        shell: bash
+        working-directory: spatial
+        run: |
+          test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
+          rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
+          branch="asset-factory/v2-living-states-${GITHUB_RUN_ID}"
+          git checkout -b "$branch"
+          git config user.name "URAI Production Wheel"
+          git config user.email "urai-wheel@users.noreply.github.com"
+          git add urai-tier1/public/assets/urai
+          git diff --cached --quiet && { echo "::error::No V2 asset changes were produced."; exit 1; }
+          git commit -m "Promote provider-scored V2 living-state asset pack"
+          git push origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open Spatial V2 promotion pull request
+        shell: bash
+        env:
+          BRANCH: ${{ steps.promote.outputs.branch }}
+          BODY: |
+            Promotes the provider-rendered URAI V2 living-system state pack after the complete 80-state manifest passed generation, validation, targeted quality retries, and zero-missing Spatial handoff checks.
+
+            V2 remains the living-state layer over the locked V1 public route world. It does not claim V3 hardware or XR proof.
+        run: |
+          payload=$(python - <<'PY'
+          import json
+          import os
+          print(json.dumps({
+              'title': 'Promote the complete V2 living-state asset pack',
+              'head': os.environ['BRANCH'],
+              'base': 'main',
+              'body': os.environ['BODY'],
+          }))
+          PY
+          )
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $URAI_WHEEL_GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/LifeLoggerAI/urai-spatial/pulls \
+            -d "$payload" | python -m json.tool
