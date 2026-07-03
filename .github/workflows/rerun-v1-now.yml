@@ -20,8 +20,14 @@ jobs:
             await github.rest.repos.createDispatchEvent({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              event_type: 'urai-v1-forge-requested',
-              client_payload: { rounds: '3', job_id: `rerun-${context.runId}`, callback_url: '' }
+              event_type: 'urai-version-forge-requested',
+              client_payload: {
+                version: 'v1',
+                rounds: '3',
+                promote: 'true',
+                job_id: `canonical-v1-${context.runId}`,
+                callback_url: ''
+              }
             })
 
-# Manual V1 forge trigger requested 2026-07-02.
+# Canonical versioned V1 rebuild requested 2026-07-02.
