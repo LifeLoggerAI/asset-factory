@@ -92,6 +92,7 @@ def category_aware_record(entry: dict) -> dict:
 
 def main() -> int:
     targets = selected_targets()
+    force = os.environ.get("ASSET_RENDERER_FORCE") == "1"
     checkpoint_entries = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     contract_entries = build_version_manifests._v1_manifest()
     contract_by_name = {entry.get("name"): entry for entry in contract_entries}
@@ -109,6 +110,7 @@ def main() -> int:
             entries_by_name[name] = entry
 
     rendered: list[str] = []
+    reused: list[str] = []
 
     for name in targets:
         entry = entries_by_name[name]
@@ -117,6 +119,22 @@ def main() -> int:
         note = UPGRADE_NOTES.get(name)
         if note:
             entry["prompt"] = f"{entry['prompt']}\n\nFinal refinement: {note}"
+
+        outputs = list(base.iter_outputs(entry))
+        existing_outputs = [output_path for _, output_path in outputs if output_path.exists()]
+        if existing_outputs and len(existing_outputs) == len(outputs) and not force:
+            entry["status"] = "generated"
+            entry["renderer"] = "provider"
+            record = category_aware_record(entry)
+            print(
+                f"CHECKPOINT_RESULT name={entry['name']} status={record['status']} "
+                f"issues={' | '.join(record.get('issues', [])) or 'none'}",
+                flush=True,
+            )
+            if record["status"] == "passed":
+                reused.extend(str(path.relative_to(BASE_DIR)) for path in existing_outputs)
+                MANIFEST_PATH.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
+                continue
 
         print(
             f"RENDER_START name={entry['name']} ratio={entry.get('aspect_ratio')} "
@@ -127,7 +145,7 @@ def main() -> int:
             feedback: Optional[str] = None
             accepted = False
             for quality_round in range(1, QUALITY_ROUNDS + 1):
-                for size, output_path in base.iter_outputs(entry):
+                for size, output_path in outputs:
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     result = render_with_bounded_retry(entry, size, feedback=feedback)
                     if result.renderer != "provider":
@@ -173,8 +191,11 @@ def main() -> int:
     print(f"FINAL_MANIFEST_COUNT={len(entries)}")
     print(f"TARGET_COUNT={len(targets)}")
     print(f"RENDERED_COUNT={len(rendered)}")
+    print(f"REUSED_COUNT={len(reused)}")
     for path in rendered:
         print(f"PROVIDER_RENDERED={path}")
+    for path in reused:
+        print(f"PROVIDER_REUSED={path}")
     return 0
 
 
