@@ -1,0 +1,123 @@
+name: Final V1 Avatar Extension
+
+on:
+  push:
+    branches:
+      - fix/final-v1-avatars
+
+concurrency:
+  group: urai-final-v1-avatar-extension
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  extend-checkpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      spatial_branch: ${{ steps.promote.outputs.spatial_branch }}
+    env:
+      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+      ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+      ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+      ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
+      URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout Asset Factory
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Provider secret preflight
+        shell: bash
+        run: |
+          missing=0
+          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured."
+              missing=1
+            fi
+          done
+          [ "$missing" = "0" ]
+
+      - name: Download approved V1 checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: urai-v1-aaa-forge-28619946804
+          run-id: 28619946804
+          github-token: ${{ github.token }}
+          path: checkpoint
+
+      - name: Restore approved checkpoint
+        shell: bash
+        run: |
+          test -d checkpoint/assets
+          test -f checkpoint/manifest.json
+          rm -rf image_asset_generator/assets
+          cp -a checkpoint/assets image_asset_generator/assets
+          cp checkpoint/manifest.json image_asset_generator/manifest.json
+
+      - name: Render only six remaining avatars
+        env:
+          ASSET_RENDERER_MODE: provider
+          ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+        run: python image_asset_generator/render_final_v1_avatars.py
+
+      - name: Validate, score, and export complete V1 checkpoint
+        env:
+          ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+        run: python image_asset_generator/resume_v1_checkpoint.py
+
+      - name: Upload complete forge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-v1-final-avatar-extension-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            image_asset_generator/quality_report.json
+            image_asset_generator/upgrade_feedback.json
+            image_asset_generator/forge_receipt.json
+            image_asset_generator/manifest.json
+            image_asset_generator/assets/**
+            image_asset_generator/preview.html
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/spatial_handoff/**
+
+      - name: Checkout Spatial promotion target
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: main
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+
+      - name: Create Spatial asset branch
+        id: promote
+        shell: bash
+        working-directory: spatial
+        run: |
+          test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
+          rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
+          branch="asset-factory/final-v1-avatars-${GITHUB_RUN_ID}"
+          git checkout -b "$branch"
+          git config user.name "URAI Production Wheel"
+          git config user.email "urai-wheel@users.noreply.github.com"
+          git add urai-tier1/public/assets/urai
+          git diff --cached --quiet && { echo "::error::No promoted asset changes were produced."; exit 1; }
+          git commit -m "Promote final provider-rendered V1 avatars"
+          git push origin "$branch"
+          echo "spatial_branch=$branch" >> "$GITHUB_OUTPUT"
