@@ -1,4 +1,4 @@
-name: Rerun V2 Now
+name: Rerun V3 Now
 
 on:
   push:
@@ -22,12 +22,12 @@ jobs:
               repo: context.repo.repo,
               event_type: 'urai-version-forge-requested',
               client_payload: {
-                version: 'v2',
+                version: 'v3',
                 rounds: '3',
                 promote: 'true',
-                job_id: `canonical-v2-${context.runId}`,
+                job_id: `canonical-v3-${context.runId}`,
                 callback_url: ''
               }
             })
 
-# Canonical versioned V2 rebuild requested 2026-07-02.
+# Canonical versioned V3 rebuild requested 2026-07-02.
