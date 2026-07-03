@@ -73,10 +73,27 @@ jobs:
           cp checkpoint/manifest.json image_asset_generator/manifest.json
 
       - name: Render only six remaining avatars
+        id: render
+        continue-on-error: true
+        shell: bash
         env:
           ASSET_RENDERER_MODE: provider
           ASSET_QUALITY_REQUIRE_PROVIDER: '1'
-        run: python image_asset_generator/render_final_v1_avatars.py
+        run: |
+          set -o pipefail
+          python image_asset_generator/render_final_v1_avatars.py 2>&1 | tee avatar-render.log
+
+      - name: Upload render diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-v1-avatar-render-log-${{ github.run_id }}
+          path: avatar-render.log
+          if-no-files-found: error
+
+      - name: Preserve render result
+        if: steps.render.outcome == 'failure'
+        run: exit 1
 
       - name: Validate, score, and export complete V1 checkpoint
         env:
