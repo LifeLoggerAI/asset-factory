@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import traceback
 from pathlib import Path
 
@@ -19,6 +20,25 @@ TARGETS = (
     "avatar_protector",
     "avatar_relationship_liaison",
 )
+MODERATION_RETRIES = 6
+
+
+def render_with_bounded_retry(entry: dict, size: int):
+    last_error: Exception | None = None
+    for attempt in range(1, MODERATION_RETRIES + 1):
+        try:
+            return base.render_via_adapter(entry, size, base.offline_render_asset)
+        except RuntimeError as exc:
+            last_error = exc
+            if "moderation_blocked" not in str(exc) or attempt == MODERATION_RETRIES:
+                raise
+            print(
+                f"RENDER_RETRY name={entry['name']} reason=moderation_false_positive "
+                f"attempt={attempt + 1}/{MODERATION_RETRIES}",
+                flush=True,
+            )
+            time.sleep(min(20, 2**attempt))
+    raise RuntimeError(f"Provider rendering failed after bounded retries: {last_error}")
 
 
 def main() -> int:
@@ -48,7 +68,7 @@ def main() -> int:
         try:
             for size, output_path in base.iter_outputs(entry):
                 output_path.parent.mkdir(parents=True, exist_ok=True)
-                result = base.render_via_adapter(entry, size, base.offline_render_asset)
+                result = render_with_bounded_retry(entry, size)
                 if result.renderer != "provider":
                     raise RuntimeError(f"Non-provider output for {entry['name']}: {result.renderer}")
                 result.image.save(output_path, format="PNG", optimize=True)
