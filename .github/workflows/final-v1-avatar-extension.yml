@@ -81,6 +81,15 @@ jobs:
           ASSET_QUALITY_REQUIRE_PROVIDER: '1'
         run: |
           set -o pipefail
+          # GitHub exposes unset optional secrets as empty strings. The renderer
+          # treats an unset auth override as "Authorization: Bearer" but an empty
+          # override as an invalid blank header, so normalize empty values away.
+          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then
+            unset ASSET_RENDERER_AUTH_HEADER
+          fi
+          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then
+            unset ASSET_RENDERER_AUTH_SCHEME
+          fi
           python image_asset_generator/render_final_v1_avatars.py 2>&1 | tee avatar-render.log
 
       - name: Upload render diagnostic
