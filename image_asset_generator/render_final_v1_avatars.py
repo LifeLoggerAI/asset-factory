@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import traceback
 from pathlib import Path
 
 import build_version_manifests
@@ -10,14 +11,14 @@ import generate_assets as base
 
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
-TARGETS = {
-    "avatar_relationship_liaison",
-    "avatar_operator",
+TARGETS = (
     "avatar_builder",
-    "avatar_protector",
-    "avatar_mirror",
     "avatar_guide",
-}
+    "avatar_mirror",
+    "avatar_operator",
+    "avatar_protector",
+    "avatar_relationship_liaison",
+)
 
 
 def main() -> int:
@@ -27,34 +28,44 @@ def main() -> int:
     entries = list(checkpoint_entries)
     existing_names = {entry.get("name") for entry in entries}
 
-    missing_contract = sorted(TARGETS - set(contract_by_name))
+    missing_contract = [name for name in TARGETS if name not in contract_by_name]
     if missing_contract:
         raise RuntimeError(f"Missing target contract entries: {missing_contract}")
 
-    for name in sorted(TARGETS):
+    for name in TARGETS:
         if name not in existing_names:
             entries.append(contract_by_name[name])
 
-    selected = [entry for entry in entries if entry.get("name") in TARGETS]
-    found = {entry.get("name") for entry in selected}
-    missing = sorted(TARGETS - found)
-    if missing:
-        raise RuntimeError(f"Missing target manifest entries: {missing}")
+    selected = [contract_by_name[name] for name in TARGETS]
+    rendered: list[str] = []
 
-    rendered = []
     for entry in selected:
-        for size, output_path in base.iter_outputs(entry):
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            result = base.render_via_adapter(entry, size, base.offline_render_asset)
-            if result.renderer != "provider":
-                raise RuntimeError(f"Non-provider output for {entry['name']}: {result.renderer}")
-            result.image.save(output_path, format="PNG", optimize=True)
-            base.write_render_metadata(output_path, entry, result)
-            rendered.append(str(output_path.relative_to(BASE_DIR)))
-        entry["status"] = "generated"
-        entry["renderer"] = "provider"
-
-    MANIFEST_PATH.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
+        print(
+            f"RENDER_START name={entry['name']} ratio={entry.get('aspect_ratio')} "
+            f"alpha={entry.get('alpha')} sizes={entry.get('sizes')}",
+            flush=True,
+        )
+        try:
+            for size, output_path in base.iter_outputs(entry):
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                result = base.render_via_adapter(entry, size, base.offline_render_asset)
+                if result.renderer != "provider":
+                    raise RuntimeError(f"Non-provider output for {entry['name']}: {result.renderer}")
+                result.image.save(output_path, format="PNG", optimize=True)
+                base.write_render_metadata(output_path, entry, result)
+                rendered.append(str(output_path.relative_to(BASE_DIR)))
+                print(
+                    f"RENDER_OK name={entry['name']} path={output_path.relative_to(BASE_DIR)} "
+                    f"attempt={result.attempt}",
+                    flush=True,
+                )
+            entry["status"] = "generated"
+            entry["renderer"] = "provider"
+            MANIFEST_PATH.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
+        except Exception as exc:
+            print(f"RENDER_ERROR name={entry['name']} error={type(exc).__name__}: {exc}", flush=True)
+            traceback.print_exc()
+            raise
 
     print(f"CHECKPOINT_COUNT={len(checkpoint_entries)}")
     print(f"FINAL_MANIFEST_COUNT={len(entries)}")
