@@ -112,8 +112,10 @@ def print_catalog() -> None:
     """List declared versions without building unrelated manifests."""
     catalog = load_catalog()
     for name, config in catalog["versions"].items():
+        label = config.get("label", "Unknown")
+        status = config.get("status", "unknown")
         count = config.get("expectedOutputs", "?")
-        print(f"{name}: {config['label']} [{config['status']}] assets={count}")
+        print(f"{name}: {label} [{status}] assets={count}")
 
 
 def build_selected_manifest(version: str) -> None:
