@@ -20,10 +20,12 @@ def build() -> dict[str, object]:
     names = [entry["name"] for entry in entries]
     paths = [entry["path_template"] for entry in entries]
 
-    if len(names) != len(set(names)):
-        raise ValueError("v2 generated duplicate asset names")
-    if len(paths) != len(set(paths)):
-        raise ValueError("v2 generated duplicate output paths")
+    duplicate_names = sorted({name for name in names if names.count(name) > 1})
+    if duplicate_names:
+        raise ValueError(f"v2 generated duplicate asset names: {duplicate_names}")
+    duplicate_paths = sorted({path for path in paths if paths.count(path) > 1})
+    if duplicate_paths:
+        raise ValueError(f"v2 generated duplicate output paths: {duplicate_paths}")
     if len(entries) != 80:
         raise ValueError(f"v2 expected 80 canonical assets, found {len(entries)}")
 
