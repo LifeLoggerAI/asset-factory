@@ -1,4 +1,5 @@
-import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';
+import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog';
+import { validateSpatialModelContract } from './assetSpatialContract';
 
 const safeIdSegment = /^[a-zA-Z0-9._-]+$/;
 const safeTenant = /^[a-zA-Z0-9._:-]+$/;
@@ -128,6 +129,14 @@ export function validateGenerateRequest(value: unknown): string | null {
   if (body.metadata !== undefined && (typeof body.metadata !== 'object' || body.metadata === null || Array.isArray(body.metadata))) {
     return 'invalid metadata';
   }
+
+  const metadata = body.metadata as Record<string, unknown> | undefined;
+  const spatialContract = metadata?.spatialModelContract;
+  if (spatialContract !== undefined && resolveAssetType(body.type).canonicalType !== 'model3d') {
+    return 'spatialModelContract requires model3d type';
+  }
+  const spatialContractError = validateSpatialModelContract(spatialContract);
+  if (spatialContractError) return spatialContractError;
 
   return null;
 }
