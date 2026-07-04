@@ -13,8 +13,7 @@ const PrivacyPolicyPage = () => {
                 </header>
 
                 <div style={{ color: '#ccc', lineHeight: 1.6 }}>
-                    <p>Coming soon. Please check back later.</p>
-                    {/* Placeholder for full Privacy Policy content */}
+                    <p>Asset Factory keeps release evidence, manifests, and provider receipts inside the controlled production workflow. Generated assets and operational metadata are used to validate rendering quality, handoff completeness, and promotion readiness.</p>
                 </div>
             </div>
         </AppShell>
