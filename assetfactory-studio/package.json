@@ -1,0 +1,47 @@
+{
+  "name": "assetfactory-studio",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "22",
+    "npm": ">=10.8.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint lib/server lib/assets lib/spatial app/api/generate app/api/generated-assets app/api/jobs app/api/system app/api/assets app/api/usage app/api/dashboard app/api/stripe app/api/cron app/api/presets --max-warnings=0",
+    "test": "node ../scripts/test-asset-factory-units.mjs && node ../scripts/test-spatial-model-contract.mjs && node ../scripts/test-asset-factory-auth.mjs && node ../scripts/test-asset-factory-local.mjs && node ../scripts/test-asset-factory-multimodal.mjs",
+    "typecheck": "tsc -p tsconfig.asset-factory.json",
+    "e2e": "node ../scripts/e2e-asset-factory.mjs",
+    "validate:assets": "node ../scripts/validate-asset-factory-production.mjs",
+    "validate:runtime": "node ../scripts/verify-spatial-runtime-contract.mjs",
+    "validate:rules": "node ../scripts/validate-firebase-rules-surface.mjs",
+    "validate:deploy": "node ../scripts/validate-firebase-deploy-preflight.mjs",
+    "validate:production": "npm run validate:assets && npm run validate:runtime && npm run validate:rules && npm run validate:deploy",
+    "verify:live": "node ../scripts/verify-live-deploy-health.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run validate:production && npm run build"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^3.2.2",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "uuid": "^13.0.0",
+    "firebase": "^12.0.0",
+    "firebase-admin": "^13.0.0",
+    "stripe": "^19.3.0",
+    "@radix-ui/themes": "^3.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
