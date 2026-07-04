@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "versions": {
+    "v1": {
+      "label": "URAI V1 — Genesis Public Route World",
+      "manifest": "manifests/generated/v1.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "assetPrefix": "assets/urai",
+      "proofProfile": "v1-genesis-public-route-world",
+      "expectedOutputs": 53,
+      "requiresSpatialWiring": false
+    },
+    "v2": {
+      "label": "URAI V2 — Living System States",
+      "manifest": "manifests/generated/v2.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "assetPrefix": "assets/urai/v2",
+      "proofProfile": "v2-living-system-states",
+      "expectedOutputs": 80,
+      "requiresSpatialWiring": true
+    },
+    "v3": {
+      "label": "URAI V3 — Relationship, Shadow and Pattern World",
+      "manifest": "manifests/generated/v3-canonical.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "assetPrefix": "assets/urai/v3",
+      "proofProfile": "v3-relationship-shadow-pattern-consent-safe",
+      "expectedOutputs": 14,
+      "requiresSpatialWiring": true
+    },
+    "v4": {
+      "label": "URAI V4 — WebXR, AR and VR Pathway",
+      "manifest": "manifests/generated/v4-canonical.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "assetPrefix": "assets/urai/xr",
+      "proofProfile": "v4-xr-graphics-no-fake-device-proof",
+      "expectedOutputs": 39,
+      "requiresSpatialWiring": true
+    },
+    "v5": {
+      "label": "URAI V5 — Mirror of Becoming and Autonomous Legacy",
+      "manifest": "manifests/generated/v5-canonical.manifest.json",
+      "targetRepo": "LifeLoggerAI/urai-spatial",
+      "assetPrefix": "assets/urai/v5",
+      "proofProfile": "v5-mirror-becoming-autonomous-legacy-governance",
+      "expectedOutputs": 27,
+      "requiresSpatialWiring": true
+    }
+  }
+}
