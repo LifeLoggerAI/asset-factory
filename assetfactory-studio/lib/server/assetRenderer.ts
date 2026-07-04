@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { GenerateRequest } from './assetFactoryValidation';
 import { resolveAssetType } from './assetTypeCatalog';
 import { renderWithConfiguredProvider } from './assetProviderRuntime';
+import { normalizeSpatialModelContract } from './assetSpatialContract';
 
 type AssetSize = {
   width?: number;
@@ -106,6 +107,9 @@ function renderGraphic(input: GenerateRequest & Record<string, unknown>, width: 
 function renderModel(input: GenerateRequest & Record<string, unknown>) {
   const hash = stableHash(input);
   const color = colorFromHash(hash, 1);
+  const spatialModelContract = normalizeSpatialModelContract(
+    (input.metadata as Record<string, unknown> | undefined)?.spatialModelContract,
+  );
   const gltf = {
     asset: { version: '2.0', generator: 'assetfactory-studio deterministic spatial-renderer' },
     scene: 0,
@@ -126,7 +130,12 @@ function renderModel(input: GenerateRequest & Record<string, unknown>) {
     ],
     bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }, { buffer: 0, byteOffset: 36, byteLength: 6 }],
     buffers: [{ byteLength: 42, uri: 'data:application/octet-stream;base64,AAAAvwAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAC/AAAAAAAAgD8AAAAAPwAAAAAAAAABAAIA' }],
-    extras: { prompt: input.prompt, deterministicSeed: hash, note: 'Proof GLTF; replace adapter with provider-backed mesh generation for production.' },
+    extras: {
+      prompt: input.prompt,
+      deterministicSeed: hash,
+      spatialModelContract,
+      note: 'Proof GLTF; replace adapter with provider-backed mesh generation for production.',
+    },
   };
   return Buffer.from(JSON.stringify(gltf, null, 2));
 }
@@ -176,6 +185,9 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
   const width = finiteDimension(size.width, definition.defaultSize?.width ?? 1440);
   const height = finiteDimension(size.height, definition.defaultSize?.height ?? 1440);
   const format = String(input.format ?? definition.defaultFormat).toLowerCase();
+  const spatialModelContract = definition.canonicalType === 'model3d'
+    ? normalizeSpatialModelContract((input.metadata as Record<string, unknown> | undefined)?.spatialModelContract)
+    : null;
   const providerResult = await renderWithConfiguredProvider(input, definition);
 
   if (providerResult) {
@@ -186,7 +198,12 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
       width: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : width,
       height: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : height,
       previewPath: null,
-      metadata: { format: providerResult.extension, providerBacked: true, ...providerResult.metadata },
+      metadata: {
+        format: providerResult.extension,
+        providerBacked: true,
+        ...providerResult.metadata,
+        ...(spatialModelContract ? { spatialModelContract } : {}),
+      },
       rendererContract: 'provider-backed-v1',
     });
     return { ok: true as const, assetBuffer: providerResult.assetBuffer, assetMimeType: providerResult.assetMimeType, assetFileName, manifest, mode: definition.rendererMode };
@@ -195,7 +212,18 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
   const assetFileName = `${input.jobId}.${definition.extension}`;
 
   if (definition.canonicalType === 'model3d') {
-    const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width, height, previewPath: null, metadata: { format, spatial: { coordinateSystem: 'right-handed-y-up', unit: 'meter' } } });
+    const manifest = buildManifest(input, {
+      rendererMode: definition.rendererMode,
+      formats: definition.formats,
+      width,
+      height,
+      previewPath: null,
+      metadata: {
+        format,
+        spatial: { coordinateSystem: 'right-handed-y-up', unit: 'meter' },
+        spatialModelContract,
+      },
+    });
     return { ok: true as const, assetBuffer: renderModel(input), assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
   }
 
