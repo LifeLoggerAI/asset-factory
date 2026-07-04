@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - fix/final-v1-avatars
-  pull_request:
-    branches:
-      - main
 
 concurrency:
   group: urai-final-v1-avatar-extension
