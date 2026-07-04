@@ -57,7 +57,11 @@ export function validateSpatialModelContract(value: unknown): string | null {
     const high = typeof lod.high === 'number' ? lod.high : null;
     const medium = typeof lod.medium === 'number' ? lod.medium : null;
     const low = typeof lod.low === 'number' ? lod.low : null;
-    if ((high !== null && medium !== null && high < medium) || (medium !== null && low !== null && medium < low)) {
+    if (
+      (high !== null && medium !== null && high < medium) ||
+      (medium !== null && low !== null && medium < low) ||
+      (high !== null && low !== null && high < low)
+    ) {
       return 'invalid spatialModelContract.lodTriangleBudgets.order';
     }
   }
