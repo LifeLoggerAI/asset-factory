@@ -59,9 +59,37 @@ jobs:
           npm run test:completion-lock
           npm run check:deploy-workflow
 
-      - name: Run studio check
+      - name: Lint Studio
         working-directory: assetfactory-studio
-        run: npm run check
+        run: npm run lint
+
+      - name: Typecheck Studio
+        working-directory: assetfactory-studio
+        run: npm run typecheck
+
+      - name: Test Studio
+        working-directory: assetfactory-studio
+        run: npm test
+
+      - name: Validate production assets
+        working-directory: assetfactory-studio
+        run: npm run validate:assets
+
+      - name: Validate runtime contract
+        working-directory: assetfactory-studio
+        run: npm run validate:runtime
+
+      - name: Validate Firebase rules
+        working-directory: assetfactory-studio
+        run: npm run validate:rules
+
+      - name: Validate Firebase deploy preflight
+        working-directory: assetfactory-studio
+        run: npm run validate:deploy
+
+      - name: Build Studio
+        working-directory: assetfactory-studio
+        run: npm run build
 
       - name: Run studio multimodal E2E
         run: npm --prefix assetfactory-studio run e2e
