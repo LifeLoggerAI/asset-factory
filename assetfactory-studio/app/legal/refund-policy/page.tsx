@@ -8,13 +8,12 @@ const RefundPolicyPage = () => {
                 <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>Refund Policy</h1>
                     <p style={{ fontSize: '1.1rem', color: '#aaa', marginTop: '0.5rem' }}>
-                        Last Updated: {new Date().toLocaleDateString()}
+                        Publication status: not published
                     </p>
                 </header>
 
                 <div style={{ color: '#ccc', lineHeight: 1.6 }}>
-                    <p>Coming soon. Please check back later.</p>
-                    {/* Placeholder for full Refund Policy content */}
+                    <p>This policy is not currently published.</p>
                 </div>
             </div>
         </AppShell>

@@ -8,14 +8,13 @@ const StatusPage = () => {
                 <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold' }}>System Status</h1>
                     <p style={{ fontSize: '1.1rem', color: '#aaa', marginTop: '0.5rem' }}>
-                        Real-time and historical data on system performance.
+                        Verified deployment and service-health evidence.
                     </p>
                 </header>
 
                 <div style={{ color: '#ccc', lineHeight: 1.6, textAlign: 'center' }}>
-                    <p>A dedicated system status page is coming soon.</p>
-                    <p>For any urgent issues, please contact <a href="mailto:support@assetfactory.com" style={{ color: '#00aaff' }}>support@assetfactory.com</a>.</p>
-                    {/* Placeholder for status monitoring components */}
+                    <p>No public status dashboard is currently published.</p>
+                    <p>Treat service health as unverified unless it is supported by a current deployment receipt.</p>
                 </div>
             </div>
         </AppShell>

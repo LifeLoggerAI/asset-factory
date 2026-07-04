@@ -73,7 +73,18 @@ jobs:
 
       - name: Validate production assets
         working-directory: assetfactory-studio
-        run: npm run validate:assets
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run validate:assets 2>&1 | tee ../asset-factory-production-validation.log
+
+      - name: Upload production validation diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-production-validation-${{ github.run_id }}
+          path: asset-factory-production-validation.log
+          if-no-files-found: error
 
       - name: Validate runtime contract
         working-directory: assetfactory-studio
