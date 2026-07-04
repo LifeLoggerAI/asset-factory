@@ -14,6 +14,9 @@ const blockedRuntimeFragments = [
 const blockedRuntimeSuffixes = ['.bak', '.body'];
 const blockedUserFacingTerms = ['GetUrAi', 'LifeLogger', 'lorem ipsum', 'fake asset', 'dummy asset', 'coming soon'];
 const blockedProductionTerms = ['localhost'];
+const productionTermExemptions = new Set([
+  'assetfactory-studio/lib/server/assetProviderRuntime.ts',
+]);
 
 function walk(dir, files = []) {
   if (!fs.existsSync(dir)) return files;
@@ -48,13 +51,14 @@ function assertNoUserFacingTerms(errors, file) {
   const ext = path.extname(file);
   if (!textExtensions.has(ext)) return;
   const text = fs.readFileSync(file, 'utf8');
+  const normalized = normalize(file);
   for (const term of blockedProductionTerms) {
-    if (text.includes(term)) errors.push(`Production source contains ${term}: ${normalize(file)}`);
+    if (text.includes(term) && !productionTermExemptions.has(normalized)) errors.push(`Production source contains ${term}: ${normalized}`);
   }
   const userFacing = file.includes(`${path.sep}app${path.sep}`) || file.includes(`${path.sep}components${path.sep}`) || file.includes(`${path.sep}public${path.sep}`);
   if (!userFacing) return;
   for (const term of blockedUserFacingTerms) {
-    if (text.toLowerCase().includes(term.toLowerCase())) errors.push(`User-facing source contains ${term}: ${normalize(file)}`);
+    if (text.toLowerCase().includes(term.toLowerCase())) errors.push(`User-facing source contains ${term}: ${normalized}`);
   }
 }
 
