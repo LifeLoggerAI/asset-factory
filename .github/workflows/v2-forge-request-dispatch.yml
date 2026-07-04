@@ -1,30 +1,11 @@
-name: V2 Forge Request Dispatch
+name: V2 Forge Request Dispatch (disabled)
 
 on:
-  push:
-    branches:
-      - forge/v2-living-states
-    paths:
-      - image_asset_generator/V2_FORGE_REQUEST.md
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  dispatch-v2-forge:
+  disabled:
+    if: false
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch canonical V2 living-state forge
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: 'urai-v2-living-states-requested',
-              client_payload: {
-                requested_ref: context.sha,
-                request_run: String(context.runId)
-              }
-            })
+      - run: echo "Redundant dispatcher disabled; canonical V2 forge owns request handling."
