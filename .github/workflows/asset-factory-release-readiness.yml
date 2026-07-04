@@ -45,8 +45,10 @@ jobs:
   release-readiness:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout exact source head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -66,7 +68,18 @@ jobs:
 
       - name: Validate production assets
         working-directory: assetfactory-studio
-        run: npm run validate:assets
+        run: |
+          mkdir -p ../artifacts/release-readiness
+          npm run validate:assets 2>&1 | tee ../artifacts/release-readiness/asset-validation.log
+
+      - name: Upload production validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-release-readiness-validation
+          path: artifacts/release-readiness/asset-validation.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Validate runtime contract
         working-directory: assetfactory-studio
