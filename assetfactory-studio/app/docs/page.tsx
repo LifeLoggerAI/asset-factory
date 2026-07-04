@@ -4,7 +4,7 @@ const DocsPage = () => {
   return (
     <div>
       <h1>Documentation</h1>
-      <p>API and usage documentation is coming soon. Please refer to the project's README for more information.</p>
+      <p>Use the repository README and release evidence files for current setup, provider gates, and promotion workflow.</p>
     </div>
   );
 };
