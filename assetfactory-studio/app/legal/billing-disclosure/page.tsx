@@ -13,8 +13,7 @@ const BillingDisclosurePage = () => {
                 </header>
 
                 <div style={{ color: '#ccc', lineHeight: 1.6 }}>
-                    <p>Coming soon. Please check back later.</p>
-                    {/* Placeholder for full Billing Disclosure content */}
+                    <p>Asset Factory production rendering uses configured provider accounts and fails closed when billing, credentials, or promotion permissions are unavailable. Provider costs, limits, and account controls are managed through the configured provider and hosting accounts.</p>
                 </div>
             </div>
         </AppShell>
