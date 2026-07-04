@@ -50,6 +50,10 @@ assert.equal(
   validateSpatialModelContract({ lodTriangleBudgets: { high: 1000, medium: 2000, low: 500 } }),
   'invalid spatialModelContract.lodTriangleBudgets.order',
 );
+assert.equal(
+  validateSpatialModelContract({ lodTriangleBudgets: { high: 1000, low: 5000 } }),
+  'invalid spatialModelContract.lodTriangleBudgets.order',
+);
 
 const defaults = normalizeSpatialModelContract(undefined);
 assert.equal(defaults.contractVersion, 1);
