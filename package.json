@@ -15,8 +15,8 @@
   "scripts": {
     "doctor": "node scripts/doctor.mjs",
     "install:all": "node scripts/setup-local.mjs",
-    "test": "pnpm --dir engine test && pnpm --dir life-map-pipeline/functions test && pnpm --dir functions test",
-    "build": "pnpm --dir life-map-pipeline/functions run build && pnpm --dir functions run build",
+    "test": "npm --prefix engine test && npm --prefix life-map-pipeline/functions test && npm --prefix functions test",
+    "build": "npm --prefix life-map-pipeline/functions run build && npm --prefix functions run build",
     "verify:local": "corepack enable && corepack prepare pnpm@9.15.9 --activate && npm run image:install && npm run build && npm test --if-present && npm run test:launch-readiness --if-present && npm run test:completion-lock --if-present && npm run image:check",
     "verify:production": "npm run verify:local && npm run deploy:verify",
     "verify:launch": "node scripts/verify-asset-factory-launch.mjs",
