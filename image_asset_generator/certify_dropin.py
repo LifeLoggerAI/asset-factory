@@ -78,16 +78,17 @@ def certify(version: str) -> Path:
     expected = positive_integer(config.get("expectedOutputs"), f"{version}/expectedOutputs")
     prefix = required_text(config, "assetPrefix", version).rstrip("/") + "/"
     manifest_path = BASE / required_text(config, "manifest", version)
-    entries = load_asset_list(manifest_path)
-    if len(entries) != expected:
-        raise ValueError(f"{version}: expected {expected} manifest entries, found {len(entries)}")
-
     receipt_path = BASE / f"forge_receipt_{version}.json"
     quality_path = BASE / f"quality_report_{version}.json"
-    if version == "v1" and (not receipt_path.exists() or not quality_path.exists()):
+
+    if version == "v1":
         import normalize_v1_checkpoint_receipt
 
         normalize_v1_checkpoint_receipt.main()
+
+    entries = load_asset_list(manifest_path)
+    if len(entries) != expected:
+        raise ValueError(f"{version}: expected {expected} manifest entries, found {len(entries)}")
 
     receipt = load_object(receipt_path)
     if receipt.get("version") != version:
