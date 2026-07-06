@@ -92,24 +92,25 @@ jobs:
             test "$MAX_ROUNDS" = "1" || { echo "::error::Provider smoke requires max_rounds=1"; exit 1; }
             args+=(--limit-outputs 1)
           fi
-          python - "$MAX_UNIT_COST_USD" <<'PY'
+          unit_cost_enabled=$(python - "$MAX_UNIT_COST_USD" <<'PY'
           import sys
           from decimal import Decimal, InvalidOperation
           try:
               value = Decimal(sys.argv[1])
-          except InvalidOperation:
-              raise SystemExit(1)
-          raise SystemExit(0 if value > 0 else 1)
+          except InvalidOperation as exc:
+              raise SystemExit(f'invalid max_unit_cost_usd: {exc}')
+          if value < 0:
+              raise SystemExit('max_unit_cost_usd cannot be negative')
+          print('1' if value > 0 else '0')
           PY
-          if [ "$?" = "0" ]; then
+          )
+          if [ "$unit_cost_enabled" = "1" ]; then
             args+=(--max-unit-cost-usd "$MAX_UNIT_COST_USD")
           fi
           python scripts/plan_versioned_forge.py "${args[@]}"
 
       - name: Verify free plan receipt
         shell: bash
-        env:
-          MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -222,7 +223,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${OPENAI_API_KEY:-}" ] && { [ -z "${ASSET_RENDERER_ENDPOINT:-}" ] || [ -z "${ASSET_RENDERER_API_KEY:-}" ]; }; then
+          if [ -n "${OPENAI_API_KEY:-}" ]; then
+            echo "ASSET_RENDERER_PROVIDER=openai" >> "$GITHUB_ENV"
+          elif [ -n "${ASSET_RENDERER_ENDPOINT:-}" ] && [ -n "${ASSET_RENDERER_API_KEY:-}" ]; then
+            echo "ASSET_RENDERER_PROVIDER=custom" >> "$GITHUB_ENV"
+          else
             echo "::error::No usable provider credential path is configured."
             exit 1
           fi
@@ -247,7 +252,8 @@ jobs:
           receipt = json.loads((root / 'forge_receipt_v2.json').read_text())
           quality = json.loads((root / 'quality_report_v2.json').read_text())
           handoff = json.loads((root / 'spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json').read_text())
-          ledger = json.loads(Path('operations/receipts/assets/cost-control').glob('v2-*-paid-request-state.json').__next__().read_text())
+          ledger_path = next(Path('operations/receipts/assets/cost-control').glob('v2-*-paid-request-state.json'))
+          ledger = json.loads(ledger_path.read_text())
           assert receipt.get('version') == 'v2', receipt
           assert receipt.get('status') == 'passed', receipt
           assert receipt.get('expectedOutputs') == 80, receipt
