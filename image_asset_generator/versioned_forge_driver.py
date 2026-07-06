@@ -71,6 +71,12 @@ def preserve_outputs(version: str) -> None:
             shutil.copy2(source, BASE_DIR / target_name)
 
 
+def persist_active_manifest(manifest: Path) -> None:
+    if not ACTIVE_MANIFEST_PATH.exists():
+        raise FileNotFoundError(f"Active forge manifest is missing: {ACTIVE_MANIFEST_PATH}")
+    manifest.write_bytes(ACTIVE_MANIFEST_PATH.read_bytes())
+
+
 def write_version_receipt(version: str, config: dict[str, Any], manifest: Path, exit_code: int) -> None:
     receipt_path = BASE_DIR / "forge_receipt.json"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8")) if receipt_path.exists() else {}
@@ -129,11 +135,17 @@ def main() -> int:
             export_spatial_handoff.CANONICAL_PATHS = paths
         from forge_v1_cost_aware import main as run_core_forge
         exit_code = int(run_core_forge())
+        persist_active_manifest(manifest)
         write_version_receipt(version, config, manifest, exit_code)
         preserve_outputs(version)
         print(f"VERSION_FORGE_EXIT={exit_code}")
         return exit_code
     finally:
+        # The core forge persists progress in the temporary active manifest after
+        # each asset. Copy that state back even when a later step raises, then
+        # restore the caller's original active manifest for repository isolation.
+        if ACTIVE_MANIFEST_PATH.exists():
+            persist_active_manifest(manifest)
         ACTIVE_MANIFEST_PATH.write_bytes(active_before)
 
 
