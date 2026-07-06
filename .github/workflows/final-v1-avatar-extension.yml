@@ -2,16 +2,19 @@ name: Final V1 Avatar Extension
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/final-v1-avatars
-  pull_request:
-    branches:
-      - main
+    inputs:
+      confirm:
+        description: "Type GENERATE_V1_AVATARS to authorize paid provider rendering"
+        required: true
+        default: "NO"
+      checkpoint_run_id:
+        description: "Workflow run containing the complete 53-asset provider checkpoint"
+        required: true
+        default: "28643082583"
 
 concurrency:
   group: urai-final-v1-avatar-extension
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -19,8 +22,10 @@ permissions:
 
 jobs:
   extend-checkpoint:
+    if: github.event.inputs.confirm == 'GENERATE_V1_AVATARS'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    environment: paid-asset-generation
     outputs:
       spatial_branch: ${{ steps.promote.outputs.spatial_branch }}
     env:
@@ -34,6 +39,13 @@ jobs:
       URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
 
     steps:
+      - name: Record paid-action authorization
+        shell: bash
+        run: |
+          test "${{ github.event.inputs.confirm }}" = "GENERATE_V1_AVATARS"
+          echo "Authorized workflow actor: $GITHUB_ACTOR"
+          echo "Authorized checkpoint run: ${{ github.event.inputs.checkpoint_run_id }}"
+
       - name: Checkout Asset Factory
         uses: actions/checkout@v4
 
@@ -60,8 +72,8 @@ jobs:
       - name: Download complete 53-asset provider checkpoint
         uses: actions/download-artifact@v4
         with:
-          name: urai-v1-final-avatar-extension-28643082583
-          run-id: 28643082583
+          name: urai-v1-final-avatar-extension-${{ github.event.inputs.checkpoint_run_id }}
+          run-id: ${{ github.event.inputs.checkpoint_run_id }}
           github-token: ${{ github.token }}
           path: checkpoint
 
