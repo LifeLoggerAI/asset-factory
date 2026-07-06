@@ -2,19 +2,29 @@ name: V2 Living State Forge
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types:
-      - urai-v2-living-states-requested
-  push:
-    branches:
-      - forge/v2-living-states
-    paths:
-      - '.github/workflows/v2-living-state-forge.yml'
-      - 'image_asset_generator/**'
+    inputs:
+      confirm:
+        description: "Type GENERATE_V2_80 to authorize the paid 80-asset provider forge"
+        required: true
+        default: "NO"
+      rounds:
+        description: "Maximum provider quality rounds"
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+        default: "3"
+      promote:
+        description: "Create and push a Spatial promotion branch after certification"
+        required: true
+        type: boolean
+        default: true
 
 concurrency:
   group: urai-v2-living-state-forge
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -22,8 +32,10 @@ permissions:
 
 jobs:
   forge-promote-and-open-pr:
+    if: github.event.inputs.confirm == 'GENERATE_V2_80'
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    environment: paid-asset-generation
     env:
       ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
       ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
@@ -33,13 +45,22 @@ jobs:
       ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
       URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
       URAI_VERSION: v2
-      ASSET_FORGE_MAX_ROUNDS: '3'
+      ASSET_FORGE_MAX_ROUNDS: ${{ github.event.inputs.rounds }}
       ASSET_RENDERER_MODE: provider
       ASSET_FORGE_REQUIRE_PROVIDER: '1'
       ASSET_QUALITY_REQUIRE_PROVIDER: '1'
 
     steps:
-      - name: Checkout Asset Factory V2 lane
+      - name: Record paid-action authorization
+        shell: bash
+        run: |
+          test "${{ github.event.inputs.confirm }}" = "GENERATE_V2_80"
+          echo "Authorized workflow actor: $GITHUB_ACTOR"
+          echo "Authorized exact output count: 80"
+          echo "Authorized quality rounds: ${{ github.event.inputs.rounds }}"
+          echo "Promotion requested: ${{ github.event.inputs.promote }}"
+
+      - name: Checkout Asset Factory
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -50,10 +71,10 @@ jobs:
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate isolated V2 canon and exact inventory
+      - name: Validate canonical contract and exact V2 inventory
         shell: bash
         run: |
-          python image_asset_generator/build_v2_manifest.py
+          python image_asset_generator/check_canonical_version_contract.py
           python image_asset_generator/forge_versioned.py --list
           python - <<'PY'
           import json
@@ -64,7 +85,6 @@ jobs:
           assert all(item['name'].startswith('v2_') for item in entries)
           assert all(item['canonical_path'].startswith('assets/urai/v2/') for item in entries)
           print('V2_CANONICAL_ASSET_COUNT=80')
-          print('V2_FUTURE_CATALOG_ISOLATION=passed')
           PY
 
       - name: Production provider preflight
@@ -73,7 +93,7 @@ jobs:
           missing=0
           for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
             if [ -z "${!name}" ]; then
-              echo "::error::$name is not configured. V2 will not fall back to placeholder art."
+              echo "::error::$name is not configured. V2 will not fall back to local art."
               missing=1
             fi
           done
@@ -132,6 +152,7 @@ jobs:
             image_asset_generator/spatial_handoff/**
 
       - name: Checkout Spatial promotion target
+        if: github.event.inputs.promote == 'true'
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -140,6 +161,7 @@ jobs:
           path: spatial
 
       - name: Create reviewed Spatial V2 asset branch
+        if: github.event.inputs.promote == 'true'
         id: promote
         shell: bash
         working-directory: spatial
@@ -158,13 +180,14 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Open Spatial V2 promotion pull request
+        if: github.event.inputs.promote == 'true'
         shell: bash
         env:
           BRANCH: ${{ steps.promote.outputs.branch }}
           BODY: |
-            Promotes the provider-rendered URAI V2 living-system state pack after all 80 canonical states passed generation, validation, targeted quality retries, and zero-missing Spatial handoff checks.
+            Promotes the provider-rendered URAI V2 living-system state pack after all 80 canonical states passed generation, validation, quality retries, and zero-missing Spatial handoff checks.
 
-            V2 remains the living-state layer over the locked V1 public route world. It does not claim V3 hardware or XR proof.
+            This receipt does not certify V3, V4, physical-device behavior, or any other version.
         run: |
           payload=$(python - <<'PY'
           import json
