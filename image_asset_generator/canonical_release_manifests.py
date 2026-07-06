@@ -37,6 +37,26 @@ def load_catalog() -> dict[str, Any]:
     return payload
 
 
+def canonical_path_from_template(template: str) -> str:
+    value = template.replace("_{size}", "")
+    suffix = Path(value).suffix
+    if suffix:
+        value = value[: -len(suffix)]
+    return f"{value}.webp"
+
+
+def normalize_v1(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for index, source in enumerate(entries):
+        entry = dict(source)
+        template = required_text(
+            entry, "path_template", f"v1 manifest entry {index}"
+        )
+        entry.setdefault("canonical_path", canonical_path_from_template(template))
+        normalized.append(entry)
+    return normalized
+
+
 def remap(
     entries: list[dict[str, Any]], old: str, new: str, paths: bool
 ) -> list[dict[str, Any]]:
@@ -142,7 +162,13 @@ def build(version: str) -> Path:
     generated = build_version_manifests.build_all()
     if version == "v1":
         source = BASE / generated["v1"]["manifest"]
-        return write(version, configured_name, load(source), expected, prefix)
+        return write(
+            version,
+            configured_name,
+            normalize_v1(load(source)),
+            expected,
+            prefix,
+        )
     if version == "v3":
         return write(
             version,
