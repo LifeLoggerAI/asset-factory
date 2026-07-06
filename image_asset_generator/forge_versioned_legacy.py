@@ -1,9 +1,9 @@
-"""Version-selecting entry point for the URAI V1–V5 production wheel.
+"""Compatibility core for the canonical URAI versioned forge.
 
-The selected canonical manifest is generated from the release-version contract,
-staged into the proven forge core for one isolated run, and restored afterward.
-Version-specific receipts, quality reports, feedback, and handoff manifests are
-preserved so V1/V2/V3 cannot overwrite or masquerade as one another.
+This module retains the shared forge implementation used by ``forge_versioned.py``.
+It is not an operator entry point and its default ``version_catalog.json`` is legacy
+source material. The supported entry point injects ``canonical_version_catalog.json``
+and canonical release-manifest builders before calling ``main``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def load_catalog() -> Dict[str, Any]:
     payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     versions = payload.get("versions")
     if not isinstance(versions, dict) or not versions:
-        raise ValueError("version_catalog.json must contain a non-empty versions object")
+        raise ValueError("version catalog must contain a non-empty versions object")
     return payload
 
 
@@ -119,7 +119,7 @@ def print_catalog() -> None:
 
 
 def build_selected_manifest(version: str) -> None:
-    """Build V2 in isolation; preserve legacy all-version behavior elsewhere."""
+    """Build V2 in isolation; preserve compatibility behavior elsewhere."""
     if version == "v2":
         build_v2_manifest.build()
         return
@@ -185,4 +185,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(
+        "forge_versioned_legacy.py is compatibility code, not an operator entry point. "
+        "Use image_asset_generator/forge_versioned.py."
+    )
