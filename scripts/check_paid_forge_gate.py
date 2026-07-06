@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -82,7 +83,11 @@ def main() -> int:
             "ASSET_RENDERER_PROVIDER": "openai",
         }
     ):
-        expect_exception("authorization required", ValueError, lambda: forge.build_cost_policy(1))
+        expect_exception(
+            "authorization required",
+            ValueError,
+            lambda: forge.build_cost_policy(1),
+        )
 
     with environment(
         {
@@ -114,7 +119,11 @@ def main() -> int:
             "ASSET_FORGE_MAX_COST_USD": "1.00",
         }
     ):
-        expect_exception("cost ceiling enforced", ValueError, lambda: forge.build_cost_policy(1))
+        expect_exception(
+            "cost ceiling enforced",
+            ValueError,
+            lambda: forge.build_cost_policy(1),
+        )
 
     with environment(
         {
@@ -130,11 +139,13 @@ def main() -> int:
     ):
         default_state_path = paid_request_guard._policy()["statePath"]
         assert not is_inside_repository(default_state_path), (
-            f"default paid budget state must remain outside the repository: {default_state_path}"
+            "default paid budget state must remain outside the repository: "
+            f"{default_state_path}"
         )
 
     with tempfile.TemporaryDirectory() as directory:
-        state_path = str(Path(directory) / "budget.json")
+        state_file = Path(directory) / "budget.json"
+        state_path = str(state_file)
         boundary = {
             **common,
             "ASSET_RENDERER_MODE": "auto",
@@ -173,7 +184,9 @@ def main() -> int:
                     lambda _entry, size: Image.new("RGB", (size, size)),
                 ),
             )
-            assert not Path(state_path).exists(), "unauthorized attempts must not create paid state"
+            assert not state_file.exists(), (
+                "unauthorized attempts must not create paid state"
+            )
 
         with environment(
             {
@@ -194,6 +207,8 @@ def main() -> int:
             snapshot = paid_request_guard.snapshot()
             assert snapshot["providerCallsExecuted"] == 1
             assert snapshot["reservedEstimatedCostUsd"] == "0.10"
+            assert snapshot["attempts"][0]["status"] == "reserved"
+
             expect_exception(
                 "second request blocked before network",
                 paid_request_guard.PaidRequestLimitReached,
@@ -205,6 +220,39 @@ def main() -> int:
                 ),
             )
             assert paid_request_guard.snapshot()["providerCallsExecuted"] == 1
+
+            paid_request_guard.record(
+                first["attemptId"],
+                status="succeeded",
+                request_id="provider-request-test-1",
+            )
+            completed = paid_request_guard.snapshot()
+            assert completed["attempts"][0]["status"] == "succeeded"
+            assert (
+                completed["attempts"][0]["providerRequestId"]
+                == "provider-request-test-1"
+            )
+            expect_exception(
+                "completed request cannot be recorded twice",
+                paid_request_guard.PaidRequestUnauthorized,
+                lambda: paid_request_guard.record(
+                    first["attemptId"],
+                    status="failed",
+                    error="duplicate completion",
+                ),
+            )
+
+            tampered = json.loads(state_file.read_text(encoding="utf-8"))
+            tampered["providerCallsExecuted"] = 0
+            state_file.write_text(
+                json.dumps(tampered, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            expect_exception(
+                "tampered budget state fails closed",
+                paid_request_guard.PaidRequestUnauthorized,
+                paid_request_guard.snapshot,
+            )
 
     print(
         "paid forge request-boundary checks passed; "
