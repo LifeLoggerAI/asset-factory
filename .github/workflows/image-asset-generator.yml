@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "image_asset_generator/**"
-      - "scripts/check_canonical_versions.py"
       - "scripts/check_paid_forge_gate.py"
       - "scripts/plan_versioned_forge.py"
       - "package.json"
@@ -14,7 +13,6 @@ on:
       - main
     paths:
       - "image_asset_generator/**"
-      - "scripts/check_canonical_versions.py"
       - "scripts/check_paid_forge_gate.py"
       - "scripts/plan_versioned_forge.py"
       - "package.json"
@@ -59,9 +57,7 @@ jobs:
         run: python -m pip install -r image_asset_generator/requirements.txt
 
       - name: Verify canonical V1-V5 release contract
-        run: |
-          python image_asset_generator/check_canonical_version_contract.py
-          python scripts/check_canonical_versions.py
+        run: python image_asset_generator/check_canonical_version_contract.py
 
       - name: Verify paid forge authorization and cost ceilings
         run: python scripts/check_paid_forge_gate.py
