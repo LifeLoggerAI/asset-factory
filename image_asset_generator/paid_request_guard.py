@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -54,6 +55,15 @@ def _positive_decimal(name: str) -> Decimal:
     return value
 
 
+def _default_state_path(run_id: str) -> Path:
+    return (
+        Path(tempfile.gettempdir())
+        / "urai-asset-factory"
+        / run_id
+        / "paid-request-state.json"
+    )
+
+
 def _policy() -> dict[str, Any]:
     if os.environ.get("ASSET_FORGE_PAID_RUN_AUTHORIZED", "0") != "1":
         raise PaidRequestUnauthorized(
@@ -63,20 +73,22 @@ def _policy() -> dict[str, Any]:
     unit_cost = _positive_decimal("ASSET_FORGE_MAX_UNIT_COST_USD")
     max_cost = _positive_decimal("ASSET_FORGE_MAX_COST_USD")
     if unit_cost * Decimal(max_calls) > max_cost:
-        raise PaidRequestUnauthorized("Declared provider exposure exceeds the authorized cost ceiling")
+        raise PaidRequestUnauthorized(
+            "Declared provider exposure exceeds the authorized cost ceiling"
+        )
     run_id = (
         os.environ.get("ASSET_FORGE_RUN_ID", "").strip()
         or os.environ.get("GITHUB_RUN_ID", "").strip()
         or f"local-{os.getpid()}"
     )
     configured = os.environ.get("ASSET_FORGE_BUDGET_STATE_PATH", "").strip()
-    state_path = Path(configured) if configured else BASE_DIR / f"paid_request_state_{run_id}.json"
+    state_path = Path(configured).expanduser() if configured else _default_state_path(run_id)
     return {
         "runId": run_id,
         "maxCalls": max_calls,
         "unitCost": unit_cost,
         "maxCost": max_cost,
-        "statePath": state_path,
+        "statePath": state_path.resolve(),
     }
 
 
@@ -168,7 +180,9 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str) 
         next_call = int(state.get("providerCallsExecuted", 0)) + 1
         next_cost = policy["unitCost"] * Decimal(next_call)
         if next_call > policy["maxCalls"] or next_cost > policy["maxCost"]:
-            raise PaidRequestLimitReached("Provider call or cost ceiling reached before network access")
+            raise PaidRequestLimitReached(
+                "Provider call or cost ceiling reached before network access"
+            )
         attempt = {
             "attemptId": f"{policy['runId']}:{next_call}",
             "reservedAt": datetime.now(timezone.utc).isoformat(),
@@ -188,7 +202,13 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str) 
         return attempt
 
 
-def record(attempt_id: str, *, status: str, request_id: str | None = None, error: str | None = None) -> None:
+def record(
+    attempt_id: str,
+    *,
+    status: str,
+    request_id: str | None = None,
+    error: str | None = None,
+) -> None:
     policy = _policy()
     with _state_lock(policy):
         state = _load(policy)
