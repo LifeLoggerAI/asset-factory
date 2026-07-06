@@ -25,6 +25,9 @@ on:
           - both
         default: readonly
 
+permissions:
+  contents: read
+
 concurrency:
   group: asset-factory-${{ inputs.environment }}-deploy
   cancel-in-progress: false
@@ -33,14 +36,26 @@ jobs:
   deploy-and-smoke:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    timeout-minutes: 60
     env:
       ACTIONS_STEP_DEBUG: 'true'
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       ASSET_FACTORY_FORCE_LOCAL: 'false'
       ASSET_FACTORY_REQUIRE_API_KEY: 'true'
       ASSET_FACTORY_REQUIRE_AUTH: 'true'
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Record exact workflow commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -106,16 +121,17 @@ jobs:
       - name: Validate required secrets
         shell: bash
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
           ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
           ASSET_FACTORY_OTHER_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_OTHER_BEARER_TOKEN }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          set -euo pipefail
           missing=0
 
-          if [ "${{ inputs.deploy }}" = "true" ] && [ -z "$FIREBASE_TOKEN" ]; then
-            echo "Missing required deploy secret: FIREBASE_TOKEN"
+          if [ "${{ inputs.deploy }}" = "true" ] && [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "Missing required deploy secret: FIREBASE_SERVICE_ACCOUNT_JSON"
             missing=1
           fi
 
@@ -136,11 +152,20 @@ jobs:
         if: ${{ inputs.deploy }}
         run: npm install -g firebase-tools
 
+      - name: Write Firebase service account
+        if: ${{ inputs.deploy }}
+        shell: bash
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          python -m json.tool "$GOOGLE_APPLICATION_CREDENTIALS" > /dev/null
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+
       - name: Deploy Firebase Studio
         if: ${{ inputs.deploy }}
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: npm run deploy:studio -- --token "$FIREBASE_TOKEN"
+        run: npm run deploy:studio
 
       - name: Read-only smoke
         if: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
@@ -186,6 +211,7 @@ jobs:
           - Deploy requested: ${{ inputs.deploy }}
           - Smoke mode: ${{ inputs.smoke_mode }}
           - Deploy command: npm run deploy:studio
+          - Firebase authentication: application default credentials from environment-scoped service-account JSON
           - Local fallback disabled: true
           - Auth required: true
           - API key required: true
@@ -211,6 +237,11 @@ jobs:
 
           Attach this artifact to the release issue, copy concrete evidence into docs/release-evidence/YYYY-MM-DD-environment.md, validate that final evidence file, and only update the completion lock after staging and production evidence pass.
           EOF
+
+      - name: Remove Firebase service account
+        if: always()
+        shell: bash
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Upload release evidence
         if: always()
