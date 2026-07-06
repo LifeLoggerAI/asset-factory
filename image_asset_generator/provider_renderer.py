@@ -188,16 +188,16 @@ def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 response_body = response.read()
                 request_id = response.headers.get("x-request-id")
-            paid_request_guard.record(
-                budget_attempt_id,
-                status="succeeded",
-                request_id=request_id,
-            )
             payload = json.loads(response_body.decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("OpenAI image response must be a JSON object")
             raw = _extract_image_bytes(payload, timeout)
             image = _normalize_image(raw, width, height, alpha)
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="succeeded",
+                request_id=request_id,
+            )
             return RenderResult(
                 image=image,
                 renderer="provider",
@@ -224,7 +224,7 @@ def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
             )
             if exc.code not in {408, 409, 429} and exc.code < 500:
                 break
-        except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        except Exception as exc:
             last_error = exc
             paid_request_guard.record(
                 budget_attempt_id,
@@ -304,12 +304,12 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
                     "provider_model": payload.get("model") or model,
                 }
 
+            image = _normalize_image(raw, width, height, bool(entry.get("alpha")))
             paid_request_guard.record(
                 budget_attempt_id,
                 status="succeeded",
                 request_id=response_request_id,
             )
-            image = _normalize_image(raw, width, height, bool(entry.get("alpha")))
             metadata.update(
                 {
                     "target_width": width,
@@ -320,7 +320,7 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
             return RenderResult(image=image, renderer="provider", attempt=attempt, metadata=metadata)
         except paid_request_guard.PaidRequestGuardError:
             raise
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        except Exception as exc:
             last_error = exc
             paid_request_guard.record(
                 budget_attempt_id,
