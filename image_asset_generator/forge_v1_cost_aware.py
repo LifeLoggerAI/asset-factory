@@ -13,6 +13,7 @@ import create_firebase_seed
 import create_preview
 import export_assets
 import export_spatial_handoff
+import paid_request_guard
 import render_v1_round
 import score_v1_assets
 import validate_assets
@@ -62,7 +63,10 @@ def provider_calls_possible() -> bool:
     if mode not in {"auto", "provider"}:
         raise ValueError(f"Unsupported ASSET_RENDERER_MODE={mode!r}")
 
-    provider = os.environ.get("ASSET_RENDERER_PROVIDER", "custom").strip().lower() or "custom"
+    provider = (
+        os.environ.get("ASSET_RENDERER_PROVIDER", "custom").strip().lower()
+        or "custom"
+    )
     if provider == "openai":
         configured = bool(
             os.environ.get("OPENAI_API_KEY", "").strip()
@@ -83,7 +87,9 @@ def build_cost_policy(max_rounds: int) -> dict[str, Any]:
         }
 
     if os.environ.get("ASSET_FORGE_PAID_RUN_AUTHORIZED", "0") != "1":
-        raise ValueError("ASSET_FORGE_PAID_RUN_AUTHORIZED=1 is required before provider calls")
+        raise ValueError(
+            "ASSET_FORGE_PAID_RUN_AUTHORIZED=1 is required before provider calls"
+        )
 
     max_provider_calls = required_positive_int("ASSET_FORGE_MAX_PROVIDER_CALLS")
     max_unit_cost = required_positive_decimal("ASSET_FORGE_MAX_UNIT_COST_USD")
@@ -110,6 +116,63 @@ def build_cost_policy(max_rounds: int) -> dict[str, Any]:
     }
 
 
+def paid_request_evidence(cost_policy: dict[str, Any]) -> dict[str, Any]:
+    if not cost_policy.get("paidRun"):
+        return {
+            "paidRun": False,
+            "ledgerAvailable": True,
+            "providerCallsExecuted": 0,
+            "reservedEstimatedCostUsd": "0",
+            "attempts": [],
+        }
+    try:
+        snapshot = paid_request_guard.snapshot()
+    except paid_request_guard.PaidRequestGuardError as exc:
+        return {
+            "paidRun": True,
+            "ledgerAvailable": False,
+            "error": str(exc),
+        }
+    return {
+        "paidRun": True,
+        "ledgerAvailable": True,
+        **snapshot,
+    }
+
+
+def sync_actual_cost_policy(cost_policy: dict[str, Any]) -> dict[str, Any]:
+    evidence = paid_request_evidence(cost_policy)
+    if evidence.get("ledgerAvailable"):
+        cost_policy["providerCallsExecuted"] = int(
+            evidence.get("providerCallsExecuted", 0)
+        )
+        cost_policy["reservedEstimatedCostUsd"] = str(
+            evidence.get("reservedEstimatedCostUsd", "0")
+        )
+    return evidence
+
+
+def require_completed_paid_ledger(cost_policy: dict[str, Any]) -> dict[str, Any]:
+    evidence = sync_actual_cost_policy(cost_policy)
+    if not cost_policy.get("paidRun"):
+        return evidence
+    if not evidence.get("ledgerAvailable"):
+        raise RuntimeError(
+            "Paid provider run cannot be receipted because the request ledger is unavailable"
+        )
+    incomplete = [
+        attempt.get("attemptId")
+        for attempt in evidence.get("attempts", [])
+        if attempt.get("status") == "reserved"
+    ]
+    if incomplete:
+        raise RuntimeError(
+            "Paid provider run has incomplete request attempts: "
+            + ", ".join(str(value) for value in incomplete)
+        )
+    return evidence
+
+
 def write_blocked_receipt(
     *,
     status: str,
@@ -119,8 +182,9 @@ def write_blocked_receipt(
     cost_policy: dict[str, Any],
     blocked_round: int | None = None,
 ) -> None:
+    evidence = sync_actual_cost_policy(cost_policy)
     receipt = {
-        "schemaVersion": "1.3.0",
+        "schemaVersion": "1.4.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "status": status,
         "blockedRound": blocked_round,
@@ -128,8 +192,12 @@ def write_blocked_receipt(
         "error": error,
         "rounds": rounds,
         "costPolicy": cost_policy,
+        "paidRequestLedger": evidence,
     }
-    RECEIPT_PATH.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    RECEIPT_PATH.write_text(
+        json.dumps(receipt, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
@@ -166,7 +234,9 @@ def main() -> int:
     passed = False
     final_quality_exit = 4
     conservative_provider_calls = 0
-    configured_output_limit = os.environ.get("ASSET_FORGE_LIMIT_OUTPUTS", "").strip()
+    configured_output_limit = os.environ.get(
+        "ASSET_FORGE_LIMIT_OUTPUTS", ""
+    ).strip()
 
     for round_number in range(1, max_rounds + 1):
         if cost_policy.get("paidRun"):
@@ -175,16 +245,24 @@ def main() -> int:
             remaining_calls = max_provider_calls - conservative_provider_calls
             remaining_outputs = remaining_calls // max_attempts
             if remaining_outputs < 1:
-                cost_policy["providerCallsExecuted"] = conservative_provider_calls
+                cost_policy[
+                    "conservativeProviderCallCeilingUsed"
+                ] = conservative_provider_calls
                 write_blocked_receipt(
                     status="blocked-cost-ceiling",
                     error_code="provider_call_ceiling_reached",
-                    error="The conservative provider-call ceiling was exhausted before another quality round.",
+                    error=(
+                        "The conservative provider-call ceiling was exhausted "
+                        "before another quality round."
+                    ),
                     rounds=rounds,
                     cost_policy=cost_policy,
                     blocked_round=round_number,
                 )
-                print("::error title=Asset forge stopped at cost ceiling::No further provider calls are authorized.")
+                print(
+                    "::error title=Asset forge stopped at cost ceiling::"
+                    "No further provider calls are authorized."
+                )
                 print(f"FORGE_RECEIPT={RECEIPT_PATH}")
                 return 8
 
@@ -198,26 +276,39 @@ def main() -> int:
             generation = render_v1_round.render_round(round_number)
         except RuntimeError as exc:
             message = str(exc)
-            cost_policy["providerCallsExecuted"] = conservative_provider_calls
-            if "billing_hard_limit_reached" in message or "Billing hard limit has been reached" in message:
-                write_blocked_receipt(
-                    status="blocked-billing",
-                    error_code="billing_hard_limit_reached",
-                    error=message,
-                    rounds=rounds,
-                    cost_policy=cost_policy,
-                    blocked_round=round_number,
-                )
-                print("::error title=Asset forge blocked by API billing::Restore billing for the provider project tied to the GitHub secret, then rerun the same capped plan.")
-                print(f"FORGE_RECEIPT={RECEIPT_PATH}")
-                return 6
-            raise
+            if (
+                "billing_hard_limit_reached" in message
+                or "Billing hard limit has been reached" in message
+            ):
+                status = "blocked-billing"
+                error_code = "billing_hard_limit_reached"
+                exit_code = 6
+                title = "Asset forge blocked by API billing"
+            else:
+                status = "blocked-provider-error"
+                error_code = "provider_render_failed"
+                exit_code = 9
+                title = "Asset forge provider request failed"
+            write_blocked_receipt(
+                status=status,
+                error_code=error_code,
+                error=message,
+                rounds=rounds,
+                cost_policy=cost_policy,
+                blocked_round=round_number,
+            )
+            print(f"::error title={title}::{message}")
+            print(f"FORGE_RECEIPT={RECEIPT_PATH}")
+            return exit_code
 
         if cost_policy.get("paidRun"):
-            conservative_provider_calls += int(generation.get("outputRequests", 0)) * int(
-                cost_policy["maxAttemptsPerOutput"]
-            )
-            cost_policy["providerCallsExecuted"] = conservative_provider_calls
+            conservative_provider_calls += int(
+                generation.get("outputRequests", 0)
+            ) * int(cost_policy["maxAttemptsPerOutput"])
+            cost_policy[
+                "conservativeProviderCallCeilingUsed"
+            ] = conservative_provider_calls
+            sync_actual_cost_policy(cost_policy)
 
         validation_errors = validate_assets.validate()
         quality_exit = score_v1_assets.main()
@@ -235,17 +326,35 @@ def main() -> int:
             break
         print("The next round will render entries listed in upgrade_feedback.json.")
 
+    try:
+        request_evidence = require_completed_paid_ledger(cost_policy)
+    except RuntimeError as exc:
+        write_blocked_receipt(
+            status="blocked-incomplete-provider-ledger",
+            error_code="provider_request_ledger_incomplete",
+            error=str(exc),
+            rounds=rounds,
+            cost_policy=cost_policy,
+        )
+        print(f"::error title=Asset forge request receipt incomplete::{exc}")
+        print(f"FORGE_RECEIPT={RECEIPT_PATH}")
+        return 10
+
     if not passed:
         receipt = {
-            "schemaVersion": "1.3.0",
+            "schemaVersion": "1.4.0",
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "status": "needs-upgrade",
             "rounds": rounds,
             "costPolicy": cost_policy,
+            "paidRequestLedger": request_evidence,
             "qualityReport": "quality_report.json",
             "upgradeFeedback": "upgrade_feedback.json",
         }
-        RECEIPT_PATH.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+        RECEIPT_PATH.write_text(
+            json.dumps(receipt, indent=2) + "\n",
+            encoding="utf-8",
+        )
         print(f"Asset cycle needs another art pass after {max_rounds} round(s).")
         print(f"FORGE_RECEIPT={RECEIPT_PATH}")
         return final_quality_exit or 4
@@ -266,22 +375,34 @@ def main() -> int:
     )
     handoff = json.loads(handoff_manifest.read_text(encoding="utf-8"))
     if handoff.get("missing"):
+        write_blocked_receipt(
+            status="blocked-incomplete-handoff",
+            error_code="spatial_handoff_missing_assets",
+            error=f"Spatial handoff has {handoff['missing']} missing asset(s).",
+            rounds=rounds,
+            cost_policy=cost_policy,
+        )
         print(f"Spatial handoff has {handoff['missing']} missing asset(s).")
+        print(f"FORGE_RECEIPT={RECEIPT_PATH}")
         return 5
 
     receipt = {
-        "schemaVersion": "1.3.0",
+        "schemaVersion": "1.4.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "status": "passed",
         "rounds": rounds,
         "costPolicy": cost_policy,
+        "paidRequestLedger": request_evidence,
         "assetPack": str(asset_pack.relative_to(BASE_DIR)),
         "spatialHandoff": str(handoff_manifest.relative_to(BASE_DIR)),
         "ready": handoff.get("ready"),
         "missing": handoff.get("missing"),
         "qualityReport": "quality_report.json",
     }
-    RECEIPT_PATH.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+    RECEIPT_PATH.write_text(
+        json.dumps(receipt, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print("Asset cycle passed.")
     print(f"FORGE_RECEIPT={RECEIPT_PATH}")
     print(f"SPATIAL_HANDOFF={BASE_DIR / 'spatial_handoff'}")
