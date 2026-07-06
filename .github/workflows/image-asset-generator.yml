@@ -4,12 +4,18 @@ on:
   pull_request:
     paths:
       - "image_asset_generator/**"
+      - "scripts/check_canonical_versions.py"
+      - "scripts/check_paid_forge_gate.py"
+      - "scripts/plan_versioned_forge.py"
       - ".github/workflows/image-asset-generator.yml"
   push:
     branches:
       - main
     paths:
       - "image_asset_generator/**"
+      - "scripts/check_canonical_versions.py"
+      - "scripts/check_paid_forge_gate.py"
+      - "scripts/plan_versioned_forge.py"
       - ".github/workflows/image-asset-generator.yml"
   workflow_dispatch:
 
@@ -28,15 +34,37 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
+      - name: Verify canonical V1-V5 contract
+        run: python scripts/check_canonical_versions.py
+
+      - name: Verify paid forge authorization and cost ceiling
+        run: python scripts/check_paid_forge_gate.py
+
+      - name: Create zero-provider-call exposure plans
+        run: |
+          mkdir -p artifacts/forge-plans
+          for version in v1 v2 v3 v4 v5; do
+            python scripts/plan_versioned_forge.py \
+              --version "$version" \
+              --max-rounds 1 \
+              --output "artifacts/forge-plans/${version}.json"
+            grep -q '"providerCallsExecuted": 0' "artifacts/forge-plans/${version}.json"
+          done
+
       - name: Run image asset pipeline
+        env:
+          ASSET_RENDERER_MODE: offline
         run: python image_asset_generator/run_pipeline.py
 
-      - name: Upload asset artifacts
+      - name: Upload asset and cost-control artifacts
         uses: actions/upload-artifact@v4
         with:
           name: urai-image-asset-pack
           path: |
+            artifacts/forge-plans/*.json
+            image_asset_generator/manifests/generated/*.json
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
             image_asset_generator/validation_report.json
             image_asset_generator/firebase_seed.json
+          if-no-files-found: error
