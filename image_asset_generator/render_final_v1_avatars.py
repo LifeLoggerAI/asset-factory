@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import build_version_manifests
+import cost_guarded_renderer
 import generate_assets as base
 import score_v1_assets
 
@@ -38,11 +39,13 @@ def selected_targets() -> tuple[str, ...]:
     return requested
 
 
-def render_with_bounded_retry(entry: dict, size: int, feedback: Optional[str] = None):
+def render_with_bounded_retry(
+    entry: dict, size: int, feedback: Optional[str] = None
+):
     last_error: Exception | None = None
     for attempt in range(1, MODERATION_RETRIES + 1):
         try:
-            return base.render_via_adapter(
+            return cost_guarded_renderer.render_asset(
                 entry,
                 size,
                 base.offline_render_asset,
@@ -71,7 +74,11 @@ def category_aware_record(entry: dict) -> dict:
         and float(metrics.get("edgeDensity", 0.0)) >= 0.04
         and float(metrics.get("alphaCoverage", 0.0)) >= 0.15
     ):
-        issues = [issue for issue in issues if issue != "visible subject lacks production detail"]
+        issues = [
+            issue
+            for issue in issues
+            if issue != "visible subject lacks production detail"
+        ]
     record["issues"] = issues
     record["status"] = "passed" if not issues else "failed"
     return record
@@ -100,7 +107,13 @@ def main() -> int:
     for name in targets:
         entry = entries_by_name[name]
         contract = contract_by_name[name]
-        entry.update({key: value for key, value in contract.items() if key not in {"status", "renderer"}})
+        entry.update(
+            {
+                key: value
+                for key, value in contract.items()
+                if key not in {"status", "renderer"}
+            }
+        )
         print(
             f"RENDER_START name={entry['name']} ratio={entry.get('aspect_ratio')} "
             f"alpha={entry.get('alpha')} sizes={entry.get('sizes')}",
@@ -112,11 +125,17 @@ def main() -> int:
             for quality_round in range(1, QUALITY_ROUNDS + 1):
                 for size, output_path in base.iter_outputs(entry):
                     output_path.parent.mkdir(parents=True, exist_ok=True)
-                    result = render_with_bounded_retry(entry, size, feedback=feedback)
+                    result = render_with_bounded_retry(
+                        entry, size, feedback=feedback
+                    )
                     if result.renderer != "provider":
-                        raise RuntimeError(f"Non-provider output for {entry['name']}: {result.renderer}")
+                        raise RuntimeError(
+                            f"Non-provider output for {entry['name']}: {result.renderer}"
+                        )
                     result.image.save(output_path, format="PNG", optimize=True)
-                    base.write_render_metadata(output_path, entry, result)
+                    cost_guarded_renderer.write_render_metadata(
+                        output_path, entry, result
+                    )
                     relative_path = str(output_path.relative_to(BASE_DIR))
                     if relative_path not in rendered:
                         rendered.append(relative_path)
@@ -128,7 +147,9 @@ def main() -> int:
 
                 entry["status"] = "generated"
                 entry["renderer"] = "provider"
-                MANIFEST_PATH.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
+                MANIFEST_PATH.write_text(
+                    json.dumps(entries, indent=2) + "\n", encoding="utf-8"
+                )
                 record = category_aware_record(entry)
                 print(
                     f"QUALITY_RESULT name={entry['name']} round={quality_round} status={record['status']} "
@@ -145,9 +166,14 @@ def main() -> int:
                 )
 
             if not accepted:
-                raise RuntimeError(f"Quality rounds exhausted for {entry['name']}")
+                raise RuntimeError(
+                    f"Quality rounds exhausted for {entry['name']}"
+                )
         except Exception as exc:
-            print(f"RENDER_ERROR name={entry['name']} error={type(exc).__name__}: {exc}", flush=True)
+            print(
+                f"RENDER_ERROR name={entry['name']} error={type(exc).__name__}: {exc}",
+                flush=True,
+            )
             traceback.print_exc()
             raise
 
