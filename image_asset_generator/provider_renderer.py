@@ -24,6 +24,8 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 from PIL import Image, ImageOps
 
+import paid_request_guard
+
 
 @dataclass(frozen=True)
 class RenderResult:
@@ -174,11 +176,23 @@ def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
 
     last_error: Optional[Exception] = None
     for attempt in range(1, max_attempts + 1):
+        budget_attempt = paid_request_guard.reserve(
+            provider="openai",
+            model=model,
+            asset=str(entry.get("name", "unknown")),
+            request_size=str(request_payload["size"]),
+        )
+        budget_attempt_id = str(budget_attempt["attemptId"])
         try:
             req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 response_body = response.read()
                 request_id = response.headers.get("x-request-id")
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="succeeded",
+                request_id=request_id,
+            )
             payload = json.loads(response_body.decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("OpenAI image response must be a JSON object")
@@ -195,15 +209,28 @@ def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
                     "provider_size": request_payload["size"],
                     "target_width": width,
                     "target_height": height,
+                    "budget_attempt_id": budget_attempt_id,
                 },
             )
+        except paid_request_guard.PaidRequestGuardError:
+            raise
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:1200]
             last_error = RuntimeError(f"OpenAI HTTP {exc.code}: {detail}")
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="failed",
+                error=str(last_error),
+            )
             if exc.code not in {408, 409, 429} and exc.code < 500:
                 break
         except (urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             last_error = exc
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="failed",
+                error=str(exc),
+            )
         if attempt < max_attempts:
             time.sleep(min(30, 2 ** attempt))
 
@@ -245,31 +272,61 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
     body = json.dumps(request_payload).encode("utf-8")
     last_error: Optional[Exception] = None
     for attempt in range(1, max_attempts + 1):
+        budget_attempt = paid_request_guard.reserve(
+            provider="custom",
+            model=model,
+            asset=str(entry.get("name", "unknown")),
+            request_size=str(request_payload["size"]),
+        )
+        budget_attempt_id = str(budget_attempt["attemptId"])
         try:
             req = urllib.request.Request(endpoint, data=body, headers=_request_headers(), method="POST")
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 response_body = response.read()
                 content_type = response.headers.get("content-type", "")
+                response_request_id = response.headers.get("x-request-id")
 
             if content_type.startswith("image/"):
                 raw = response_body
-                metadata: Dict[str, Any] = {"content_type": content_type}
+                metadata: Dict[str, Any] = {
+                    "content_type": content_type,
+                    "provider_request_id": response_request_id,
+                }
             else:
                 payload = json.loads(response_body.decode("utf-8"))
                 if not isinstance(payload, dict):
                     raise ValueError("Renderer response JSON must be an object")
                 raw = _extract_image_bytes(payload, timeout)
+                response_request_id = str(payload.get("id") or payload.get("request_id") or response_request_id or "") or None
                 metadata = {
                     "provider": "custom",
-                    "provider_request_id": payload.get("id") or payload.get("request_id"),
+                    "provider_request_id": response_request_id,
                     "provider_model": payload.get("model") or model,
                 }
 
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="succeeded",
+                request_id=response_request_id,
+            )
             image = _normalize_image(raw, width, height, bool(entry.get("alpha")))
-            metadata.update({"target_width": width, "target_height": height})
+            metadata.update(
+                {
+                    "target_width": width,
+                    "target_height": height,
+                    "budget_attempt_id": budget_attempt_id,
+                }
+            )
             return RenderResult(image=image, renderer="provider", attempt=attempt, metadata=metadata)
+        except paid_request_guard.PaidRequestGuardError:
+            raise
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
             last_error = exc
+            paid_request_guard.record(
+                budget_attempt_id,
+                status="failed",
+                error=str(exc),
+            )
             if attempt < max_attempts:
                 time.sleep(min(20, 2 ** attempt))
 
@@ -294,6 +351,10 @@ def render_asset(
 ) -> RenderResult:
     mode = renderer_mode()
     width, height = target_dimensions(entry, size)
+    require_provider = (
+        os.environ.get("ASSET_FORGE_REQUIRE_PROVIDER", "0") == "1"
+        or os.environ.get("ASSET_QUALITY_REQUIRE_PROVIDER", "0") == "1"
+    )
 
     if mode == "offline":
         image = _normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
@@ -302,12 +363,14 @@ def render_asset(
     if provider_configured():
         try:
             return render_with_provider(entry, size, feedback=feedback)
+        except paid_request_guard.PaidRequestGuardError:
+            raise
         except Exception:
-            if mode == "provider":
+            if mode == "provider" or require_provider:
                 raise
 
-    if mode == "provider":
-        raise RuntimeError(f"Provider mode requested but {provider_name()} is not configured")
+    if mode == "provider" or require_provider:
+        raise RuntimeError(f"Provider rendering is required but {provider_name()} is not configured or failed")
 
     image = _normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
     return RenderResult(image, "offline-fallback", 1, {"target_width": width, "target_height": height})
