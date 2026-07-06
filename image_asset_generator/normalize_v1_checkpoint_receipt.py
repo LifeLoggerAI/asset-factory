@@ -9,6 +9,9 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import canonical_release_manifests
+import validate_manifest
+
 BASE = Path(__file__).resolve().parent
 CATALOG = BASE / "canonical_version_catalog.json"
 
@@ -20,12 +23,43 @@ def load_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def required_text(mapping: dict[str, Any], key: str, context: str) -> str:
+    value = mapping.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{context}: missing required {key}")
+    return value
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as file:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def materialize_canonical_manifest(config: dict[str, Any], expected: int) -> Path:
+    active_manifest = BASE / "manifest.json"
+    active_entries = json.loads(active_manifest.read_text(encoding="utf-8"))
+    errors = validate_manifest.validate_manifest_entries(active_entries)
+    if errors:
+        raise ValueError(f"V1 active checkpoint manifest is invalid: {errors[:10]}")
+
+    configured_manifest = required_text(config, "manifest", "v1")
+    prefix = required_text(config, "assetPrefix", "v1")
+    target = canonical_release_manifests.write(
+        "v1",
+        Path(configured_manifest).name,
+        canonical_release_manifests.normalize_v1(active_entries),
+        expected,
+        prefix,
+    )
+    expected_target = (BASE / configured_manifest).resolve()
+    if target.resolve() != expected_target:
+        raise ValueError(
+            f"V1 canonical manifest target mismatch: expected {expected_target}, wrote {target.resolve()}"
+        )
+    return target
 
 
 def main() -> int:
@@ -38,14 +72,6 @@ def main() -> int:
     expected = config.get("expectedOutputs")
     if isinstance(expected, bool) or not isinstance(expected, int) or expected <= 0:
         raise ValueError("V1 expectedOutputs must be a positive integer")
-
-    manifest_value = config.get("manifest")
-    if not isinstance(manifest_value, str) or not manifest_value.strip():
-        raise ValueError("V1 catalog entry is missing manifest")
-    manifest = BASE / manifest_value
-    manifest_entries = json.loads(manifest.read_text(encoding="utf-8"))
-    if not isinstance(manifest_entries, list) or len(manifest_entries) != expected:
-        raise ValueError(f"V1 manifest must contain exactly {expected} entries")
 
     receipt_path = BASE / "forge_receipt.json"
     quality_path = BASE / "quality_report.json"
@@ -61,11 +87,12 @@ def main() -> int:
     if not quality_path.is_file():
         raise ValueError("V1 quality report is missing")
 
+    manifest = materialize_canonical_manifest(config, expected)
     receipt.update({
         "version": "v1",
-        "versionLabel": config.get("label"),
-        "proofProfile": config.get("proofProfile"),
-        "targetRepo": config.get("targetRepo"),
+        "versionLabel": required_text(config, "label", "v1"),
+        "proofProfile": required_text(config, "proofProfile", "v1"),
+        "targetRepo": required_text(config, "targetRepo", "v1"),
         "requiresSpatialWiring": bool(config.get("requiresSpatialWiring")),
         "forgeExitCode": 0,
         "manifest": str(manifest.relative_to(BASE)),
@@ -82,7 +109,7 @@ def main() -> int:
     if feedback.exists():
         shutil.copy2(feedback, BASE / "upgrade_feedback_v1.json")
 
-    print("Normalized V1 checkpoint receipt for canonical certification.")
+    print("Materialized the canonical V1 manifest and normalized checkpoint receipts.")
     return 0
 
 
