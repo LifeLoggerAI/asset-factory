@@ -1,0 +1,38 @@
+name: Canonical Asset Contract
+
+on:
+  pull_request:
+    paths:
+      - "image_asset_generator/**"
+      - ".github/workflows/v2-living-state-forge.yml"
+      - ".github/workflows/canonical-asset-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r image_asset_generator/requirements.txt
+      - run: |
+          python -m py_compile image_asset_generator/canonical_contract.py image_asset_generator/forge_budget.py image_asset_generator/provider_smoke.py image_asset_generator/render_v1_round.py image_asset_generator/versioned_forge_driver.py image_asset_generator/forge_versioned.py
+          python image_asset_generator/test_canonical_contract.py
+      - run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/v2-living-state-forge.yml').read_text()
+          assert 'workflow_dispatch:' in source
+          assert 'repository_dispatch:' not in source
+          assert '\n  push:' not in source
+          assert 'default: dry-run' in source
+          entry = Path('image_asset_generator/forge_versioned.py').read_text()
+          assert 'versioned_forge_driver' in entry
+          print('PASS canonical asset entry and manual V2 workflow')
+          PY
