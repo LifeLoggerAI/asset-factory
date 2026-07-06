@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "receiptId": "ASSET-COST-GUARD-20260706-001",
   "recordedAt": "2026-07-06T00:00:00-05:00",
   "status": "IMPLEMENTED BUT NOT DEPLOYED",
@@ -7,23 +7,33 @@
   "branch": "fix/canonical-version-cost-plan-20260706",
   "baseBranch": "main",
   "pullRequest": 141,
+  "currentHeadAtReceiptUpdate": "e991e36f152f4a014c516a55c4a473e48df5c2a3",
   "implementationCommits": [
     "dc9a90f9daf62298c1403d1116409ff8707a709f",
     "92a6a673e40bedd5ba17f508b4eb0ecd63fa4a3e",
-    "12c42135256ac241736d6068092f0b37733e5c09"
+    "12c42135256ac241736d6068092f0b37733e5c09",
+    "6c974d2f3c9e83dc1d90a3661795274a588e3109",
+    "647e40b140cd763ce4d92cafc98ef6954f65761d",
+    "e991e36f152f4a014c516a55c4a473e48df5c2a3"
   ],
   "changedFiles": [
     "image_asset_generator/paid_request_guard.py",
     "image_asset_generator/provider_renderer.py",
+    "image_asset_generator/forge_v1_cost_aware.py",
     "scripts/check_paid_forge_gate.py"
   ],
-  "requirement": "Every paid image-generation HTTP attempt must fail closed before network access unless an explicit run authorization, provider-call ceiling, declared maximum unit cost and total dollar ceiling are present.",
+  "requirement": "Every paid image-generation HTTP attempt must fail closed before network access unless an explicit run authorization, provider-call ceiling, declared maximum unit cost and total dollar ceiling are present, and every material forge result must retain the authoritative per-attempt request ledger.",
   "implementationEvidence": {
     "requestBoundary": "provider_renderer reserves budget immediately before each provider POST attempt",
     "retryAccounting": "every retry consumes one authorized provider call",
     "offlineFallbackBoundary": "authorization and ceiling errors are rethrown and cannot be converted into offline fallback output",
-    "stateReceipt": "paid_request_state_<run-id>.json records call count, reserved estimated exposure and request IDs without prompts or secrets",
-    "zeroNetworkRegression": "check_paid_forge_gate.py tests missing authorization and exhausted ceilings without calling a provider"
+    "stateLocation": "default paid-request state is outside the repository and can be redirected to a retained artifact path",
+    "stateIntegrity": "call counts, attempt IDs, call numbers, statuses, unit cost and cumulative cost are validated before every read and write",
+    "atomicity": "cross-process lock plus atomic replace prevents concurrent overspend and torn state writes",
+    "immutableCompletion": "a reserved attempt can be completed exactly once with succeeded or failed status",
+    "providerIdentifiers": "OpenAI and custom-provider request IDs are retained when available",
+    "forgeReceiptLinkage": "passed, upgrade-needed and blocked forge receipts include the authoritative paidRequestLedger",
+    "zeroNetworkRegression": "check_paid_forge_gate.py tests authorization, cost, state location, maximum-call enforcement, immutable completion and tamper failure without calling a provider"
   },
   "paidProviderCallsExecutedByChange": 0,
   "assetsGeneratedByChange": 0,
@@ -32,18 +42,59 @@
   "deployedSha": null,
   "rollbackSha": null,
   "workflowRuns": [
-    28773229615,
-    28773229619,
-    28773229609,
-    28773229614,
-    28773229618,
-    28773229616,
-    28773229640,
-    28773229622
+    {
+      "name": "URAI Production Verify",
+      "runId": 28773461558,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Asset Factory Release Readiness",
+      "runId": 28773461556,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Asset Factory Production Checks",
+      "runId": 28773461552,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Asset Factory Production Readiness",
+      "runId": 28773461597,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Asset Factory Pipeline Proof",
+      "runId": 28773461562,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Image Asset Generator",
+      "runId": 28773461629,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "CI",
+      "runId": 28773461620,
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "name": "Final V1 Avatar Extension",
+      "runId": 28773461600,
+      "status": "queued",
+      "conclusion": null
+    }
   ],
   "testCommands": [
     "python scripts/check_paid_forge_gate.py",
     "python scripts/check_canonical_versions.py",
+    "python scripts/plan_versioned_forge.py --version v2 --limit-outputs 1 --max-rounds 1 --max-unit-cost-usd 0.01",
     "npm run image:check"
   ],
   "testResult": "PENDING_GITHUB_ACTIONS_QUEUE",
@@ -51,8 +102,9 @@
   "runtimeVerification": "NOT APPLICABLE UNTIL MERGED AND A SEPARATELY AUTHORIZED CAPPED PAID RUN IS EXECUTED",
   "remainingCaveats": [
     "Exact-head CI has not completed.",
-    "The receipt reserves estimated maximum cost; provider invoice reconciliation remains a separate promotion receipt.",
+    "Reserved cost is an authorization ceiling; provider invoice reconciliation remains a separate promotion receipt.",
+    "A provider response that supplies a separate image URL creates a non-generation download request; host and transport restrictions remain subject to provider-adapter security review.",
     "No paid forge may run until explicit authorization and sufficient provider balance exist.",
-    "Asset promotion still requires provider request receipts, checksums, provenance, optimized derivatives, runtime wiring and visual review."
+    "Asset promotion still requires successful/expected count equality, checksums, provenance, optimized derivatives, mobile crops, runtime wiring and visual review."
   ]
 }
