@@ -26,9 +26,10 @@ def render_asset(
         os.environ.get("ASSET_FORGE_REQUIRE_PROVIDER") == "1"
         or os.environ.get("ASSET_QUALITY_REQUIRE_PROVIDER") == "1"
     )
-    if mode == "offline" or not provider_renderer.provider_configured():
-        if provider_required and mode != "offline":
-            raise RuntimeError("Required provider is not configured")
+    provider_configured = provider_renderer.provider_configured()
+    if provider_required and (mode == "offline" or not provider_configured):
+        raise RuntimeError("Required provider is not configured for a provider-backed run")
+    if mode == "offline" or not provider_configured:
         return provider_renderer.render_asset(
             entry, size, offline_renderer, feedback=feedback
         )
