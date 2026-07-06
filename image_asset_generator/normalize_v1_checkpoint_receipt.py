@@ -38,13 +38,60 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def materialize_canonical_manifest(config: dict[str, Any], expected: int) -> Path:
-    active_manifest = BASE / "manifest.json"
-    active_entries = json.loads(active_manifest.read_text(encoding="utf-8"))
-    errors = validate_manifest.validate_manifest_entries(active_entries)
+def validate_manifest_file(path: Path, expected: int, context: str) -> list[dict[str, Any]]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, list):
+        raise ValueError(f"{context}: manifest must be a JSON asset list")
+    errors = validate_manifest.validate_manifest_entries(value)
     if errors:
-        raise ValueError(f"V1 active checkpoint manifest is invalid: {errors[:10]}")
+        raise ValueError(f"{context}: manifest is invalid: {errors[:10]}")
+    if len(value) != expected:
+        raise ValueError(f"{context}: expected {expected} assets, found {len(value)}")
+    return value
 
+
+def receipt_manifest(config: dict[str, Any], receipt: dict[str, Any], expected: int) -> Path | None:
+    manifest_value = receipt.get("manifest")
+    if receipt.get("version") != "v1" or not isinstance(manifest_value, str) or not manifest_value.strip():
+        return None
+
+    configured_manifest = required_text(config, "manifest", "v1")
+    expected_target = (BASE / configured_manifest).resolve()
+    candidate = (BASE / manifest_value).resolve()
+    try:
+        candidate.relative_to(BASE.resolve())
+    except ValueError as error:
+        raise ValueError("V1 receipt manifest escapes image_asset_generator") from error
+    if candidate != expected_target:
+        raise ValueError(f"V1 receipt manifest mismatch: expected {expected_target}, got {candidate}")
+    if not candidate.is_file():
+        raise ValueError(f"V1 receipt manifest is missing: {candidate}")
+
+    expected_sha = receipt.get("manifestSha256")
+    if not isinstance(expected_sha, str) or len(expected_sha) != 64:
+        raise ValueError("V1 receipt manifestSha256 is missing or malformed")
+    try:
+        int(expected_sha, 16)
+    except ValueError as error:
+        raise ValueError("V1 receipt manifestSha256 is not hexadecimal") from error
+    if sha256(candidate) != expected_sha.lower():
+        raise ValueError("V1 receipt manifest SHA-256 does not match the forged manifest")
+
+    validate_manifest_file(candidate, expected, "V1 forged manifest")
+    return candidate
+
+
+def materialize_canonical_manifest(
+    config: dict[str, Any],
+    receipt: dict[str, Any],
+    expected: int,
+) -> Path:
+    forged_manifest = receipt_manifest(config, receipt, expected)
+    if forged_manifest is not None:
+        return forged_manifest
+
+    active_manifest = BASE / "manifest.json"
+    active_entries = validate_manifest_file(active_manifest, expected, "V1 checkpoint manifest")
     configured_manifest = required_text(config, "manifest", "v1")
     prefix = required_text(config, "assetPrefix", "v1")
     target = canonical_release_manifests.write(
@@ -59,6 +106,7 @@ def materialize_canonical_manifest(config: dict[str, Any], expected: int) -> Pat
         raise ValueError(
             f"V1 canonical manifest target mismatch: expected {expected_target}, wrote {target.resolve()}"
         )
+    validate_manifest_file(target, expected, "V1 materialized manifest")
     return target
 
 
@@ -87,7 +135,7 @@ def main() -> int:
     if not quality_path.is_file():
         raise ValueError("V1 quality report is missing")
 
-    manifest = materialize_canonical_manifest(config, expected)
+    manifest = materialize_canonical_manifest(config, receipt, expected)
     receipt.update({
         "version": "v1",
         "versionLabel": required_text(config, "label", "v1"),
@@ -109,7 +157,7 @@ def main() -> int:
     if feedback.exists():
         shutil.copy2(feedback, BASE / "upgrade_feedback_v1.json")
 
-    print("Materialized the canonical V1 manifest and normalized checkpoint receipts.")
+    print("Validated the forged V1 manifest or materialized a fresh checkpoint manifest, then normalized receipts.")
     return 0
 
 
