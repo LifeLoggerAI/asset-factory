@@ -1,117 +1,50 @@
 {
-  "schemaVersion": "2.0.0",
-  "defaultVersion": "v1",
-  "contract": "V1 public world, V2 living states, V3 XR graphics, V4 autonomous council, V5 legacy governance and whole-life convergence",
+  "schemaVersion": "1.0.0",
   "versions": {
     "v1": {
-      "label": "URAI V1 — Public Route World Final",
-      "status": "production-rebuild",
+      "label": "URAI V1 — Genesis Public Route World",
       "manifest": "manifests/generated/v1.manifest.json",
       "targetRepo": "LifeLoggerAI/urai-spatial",
-      "targetRoot": "urai-tier1/public",
       "assetPrefix": "assets/urai",
-      "proofProfile": "v1-public-route-world",
-      "dispatchEvent": "urai-version-assets-ready",
+      "proofProfile": "v1-genesis-public-route-world",
       "expectedOutputs": 53,
-      "requiresSpatialWiring": false,
-      "artDirection": "One cinematic public world across Home, Ground, Life Map, Focus, Replay, Mirror, Passport, Privacy, Location and Status.",
-      "routes": [
-        "/home",
-        "/ground",
-        "/life-map",
-        "/focus?memoryId=quiet-reset",
-        "/replay?memoryId=quiet-reset&manifestId=replay-recovery-thread",
-        "/mirror",
-        "/passport",
-        "/privacy-controls",
-        "/location-map",
-        "/status"
-      ]
+      "requiresSpatialWiring": false
     },
     "v2": {
       "label": "URAI V2 — Living System States",
-      "status": "production-rebuild",
       "manifest": "manifests/generated/v2.manifest.json",
       "targetRepo": "LifeLoggerAI/urai-spatial",
-      "targetRoot": "urai-tier1/public",
       "assetPrefix": "assets/urai/v2",
       "proofProfile": "v2-living-system-states",
-      "dispatchEvent": "urai-version-assets-ready",
       "expectedOutputs": 80,
-      "requiresSpatialWiring": true,
-      "artDirection": "Stateful helper, object, memory-star, Focus, Replay, Mirror, Passport, onboarding and accessibility visuals that make URAI feel alive and personal.",
-      "routes": [
-        "/home",
-        "/ground",
-        "/life-map",
-        "/focus",
-        "/replay",
-        "/mirror",
-        "/passport"
-      ]
+      "requiresSpatialWiring": true
     },
     "v3": {
-      "label": "URAI V3 — Spatial XR Graphics",
-      "status": "production-rebuild",
-      "manifest": "manifests/generated/v3.manifest.json",
+      "label": "URAI V3 — Relationship, Shadow and Pattern World",
+      "manifest": "manifests/generated/v3-canonical.manifest.json",
       "targetRepo": "LifeLoggerAI/urai-spatial",
-      "targetRoot": "urai-tier1/public",
-      "assetPrefix": "assets/urai/xr",
-      "proofProfile": "v3-xr-graphics-no-fake-device-proof",
-      "dispatchEvent": "urai-version-assets-ready",
-      "expectedOutputs": 39,
-      "requiresSpatialWiring": true,
-      "artDirection": "XR entry, input, comfort, AR tabletop and mobile spatial graphics. Hardware screenshots, GLB models, audio, haptics and Quest proof remain separate physical-proof gates.",
-      "routes": [
-        "/spatial/ar-vr",
-        "/spatial/xr",
-        "/spatial/life-map",
-        "/focus",
-        "/replay"
-      ]
+      "assetPrefix": "assets/urai/v3",
+      "proofProfile": "v3-relationship-shadow-pattern-consent-safe",
+      "expectedOutputs": 14,
+      "requiresSpatialWiring": true
     },
     "v4": {
-      "label": "URAI V4 — Autonomous Council",
-      "status": "manifest-generated",
-      "manifest": "manifests/generated/v4.manifest.json",
+      "label": "URAI V4 — WebXR, AR and VR Pathway",
+      "manifest": "manifests/generated/v4-canonical.manifest.json",
       "targetRepo": "LifeLoggerAI/urai-spatial",
-      "targetRoot": "urai-tier1/public",
-      "assetPrefix": "assets/urai/v4",
-      "proofProfile": "v4-autonomous-council",
-      "dispatchEvent": "urai-version-assets-ready",
-      "expectedOutputs": 14,
-      "requiresSpatialWiring": true,
-      "artDirection": "Embodied autonomous workforce, council, scheduling, logistics, wellness, communications, jobs and analytics as one coherent private headquarters.",
-      "routes": [
-        "/ground",
-        "/world",
-        "/status",
-        "/privacy-controls"
-      ]
+      "assetPrefix": "assets/urai/xr",
+      "proofProfile": "v4-xr-graphics-no-fake-device-proof",
+      "expectedOutputs": 39,
+      "requiresSpatialWiring": true
     },
     "v5": {
-      "label": "URAI V5 — Legacy Governance and Whole-Life Convergence",
-      "status": "manifest-generated",
-      "manifest": "manifests/generated/v5.manifest.json",
+      "label": "URAI V5 — Mirror of Becoming and Autonomous Legacy",
+      "manifest": "manifests/generated/v5-canonical.manifest.json",
       "targetRepo": "LifeLoggerAI/urai-spatial",
-      "targetRoot": "urai-tier1/public",
       "assetPrefix": "assets/urai/v5",
-      "proofProfile": "v5-legacy-governance-convergence",
-      "dispatchEvent": "urai-version-assets-ready",
+      "proofProfile": "v5-mirror-becoming-autonomous-legacy-governance",
       "expectedOutputs": 27,
-      "requiresSpatialWiring": true,
-      "artDirection": "Relationships, family roots, mentors, protected legacy, ownership, consent, global signals and final whole-life convergence.",
-      "routes": [
-        "/home",
-        "/ground",
-        "/life-map",
-        "/focus",
-        "/replay",
-        "/mirror",
-        "/passport",
-        "/location-map",
-        "/status"
-      ]
+      "requiresSpatialWiring": true
     }
   }
 }
