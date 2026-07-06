@@ -1,0 +1,82 @@
+name: Canonical Asset Version Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "image_asset_generator/canonical_version_catalog.json"
+      - "image_asset_generator/canonical_version_contract.py"
+      - "image_asset_generator/canonical_release_manifests.py"
+      - "image_asset_generator/build_version_manifests.py"
+      - "image_asset_generator/forge_versioned.py"
+      - "image_asset_generator/canonical_forge_entry.py"
+      - "image_asset_generator/forge_versioned_legacy.py"
+      - "image_asset_generator/test_canonical_version_contract.py"
+      - ".github/workflows/canonical-version-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "image_asset_generator/canonical_version_catalog.json"
+      - "image_asset_generator/canonical_version_contract.py"
+      - "image_asset_generator/canonical_release_manifests.py"
+      - "image_asset_generator/build_version_manifests.py"
+      - "image_asset_generator/forge_versioned.py"
+      - "image_asset_generator/canonical_forge_entry.py"
+      - "image_asset_generator/forge_versioned_legacy.py"
+      - "image_asset_generator/test_canonical_version_contract.py"
+      - ".github/workflows/canonical-version-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare receipt directory
+        run: mkdir -p artifacts/canonical-version-contract
+
+      - name: Run canonical contract tests
+        working-directory: image_asset_generator
+        run: |
+          set -o pipefail
+          python -m unittest -v test_canonical_version_contract.py 2>&1 | tee ../artifacts/canonical-version-contract/tests.log
+
+      - name: Write zero-call contract matrix
+        working-directory: image_asset_generator
+        run: |
+          python canonical_version_contract.py > ../artifacts/canonical-version-contract/version-contract.json
+
+      - name: Write zero-call cost exposure plans
+        working-directory: image_asset_generator
+        env:
+          ASSET_FORGE_MAX_ROUNDS: "3"
+          ASSET_FORGE_MAX_ATTEMPTS: "3"
+          ASSET_PROVIDER_UNIT_COST_USD: "0.04"
+          ASSET_FORGE_MAX_BATCH_USD: "100.00"
+        run: |
+          for version in v1 v2 v3 v4 v5; do
+            python canonical_forge_entry.py --version "$version" --dry-run-contract > "../artifacts/canonical-version-contract/${version}-cost-exposure.json"
+          done
+
+      - name: Record exact tested SHA
+        run: printf '%s\n' "$GITHUB_SHA" > artifacts/canonical-version-contract/tested-commit-sha.txt
+
+      - name: Upload canonical contract receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-asset-version-contract-${{ github.sha }}
+          path: artifacts/canonical-version-contract
+          if-no-files-found: error
+          retention-days: 90
