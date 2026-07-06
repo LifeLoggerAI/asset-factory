@@ -46,6 +46,14 @@ def expect_exception(label: str, error_type, callback) -> None:
     raise AssertionError(f"{label}: expected {error_type.__name__}")
 
 
+def is_inside_repository(target: Path) -> bool:
+    try:
+        target.resolve().relative_to(ROOT.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def main() -> int:
     common = {
         "OPENAI_API_KEY": None,
@@ -107,6 +115,23 @@ def main() -> int:
         }
     ):
         expect_exception("cost ceiling enforced", ValueError, lambda: forge.build_cost_policy(1))
+
+    with environment(
+        {
+            **common,
+            "ASSET_RENDERER_MODE": "provider",
+            "ASSET_RENDERER_PROVIDER": "custom",
+            "ASSET_FORGE_PAID_RUN_AUTHORIZED": "1",
+            "ASSET_FORGE_MAX_PROVIDER_CALLS": "1",
+            "ASSET_FORGE_MAX_UNIT_COST_USD": "0.10",
+            "ASSET_FORGE_MAX_COST_USD": "0.10",
+            "ASSET_FORGE_RUN_ID": "default-state-location-check",
+        }
+    ):
+        default_state_path = paid_request_guard._policy()["statePath"]
+        assert not is_inside_repository(default_state_path), (
+            f"default paid budget state must remain outside the repository: {default_state_path}"
+        )
 
     with tempfile.TemporaryDirectory() as directory:
         state_path = str(Path(directory) / "budget.json")
@@ -181,7 +206,10 @@ def main() -> int:
             )
             assert paid_request_guard.snapshot()["providerCallsExecuted"] == 1
 
-    print("paid forge request-boundary checks passed; providerCallsExecuted=0 during unauthorized tests")
+    print(
+        "paid forge request-boundary checks passed; "
+        "providerCallsExecuted=0 during unauthorized tests"
+    )
     return 0
 
 
