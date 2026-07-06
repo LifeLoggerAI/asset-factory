@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "ASSET-COST-GUARD-20260706-001",
+  "recordedAt": "2026-07-06T00:00:00-05:00",
+  "status": "IMPLEMENTED BUT NOT DEPLOYED",
+  "repository": "LifeLoggerAI/asset-factory",
+  "branch": "fix/canonical-version-cost-plan-20260706",
+  "baseBranch": "main",
+  "pullRequest": 141,
+  "implementationCommits": [
+    "dc9a90f9daf62298c1403d1116409ff8707a709f",
+    "92a6a673e40bedd5ba17f508b4eb0ecd63fa4a3e",
+    "12c42135256ac241736d6068092f0b37733e5c09"
+  ],
+  "changedFiles": [
+    "image_asset_generator/paid_request_guard.py",
+    "image_asset_generator/provider_renderer.py",
+    "scripts/check_paid_forge_gate.py"
+  ],
+  "requirement": "Every paid image-generation HTTP attempt must fail closed before network access unless an explicit run authorization, provider-call ceiling, declared maximum unit cost and total dollar ceiling are present.",
+  "implementationEvidence": {
+    "requestBoundary": "provider_renderer reserves budget immediately before each provider POST attempt",
+    "retryAccounting": "every retry consumes one authorized provider call",
+    "offlineFallbackBoundary": "authorization and ceiling errors are rethrown and cannot be converted into offline fallback output",
+    "stateReceipt": "paid_request_state_<run-id>.json records call count, reserved estimated exposure and request IDs without prompts or secrets",
+    "zeroNetworkRegression": "check_paid_forge_gate.py tests missing authorization and exhausted ceilings without calling a provider"
+  },
+  "paidProviderCallsExecutedByChange": 0,
+  "assetsGeneratedByChange": 0,
+  "assetsPromotedByChange": 0,
+  "deploymentTarget": null,
+  "deployedSha": null,
+  "rollbackSha": null,
+  "workflowRuns": [
+    28773229615,
+    28773229619,
+    28773229609,
+    28773229614,
+    28773229618,
+    28773229616,
+    28773229640,
+    28773229622
+  ],
+  "testCommands": [
+    "python scripts/check_paid_forge_gate.py",
+    "python scripts/check_canonical_versions.py",
+    "npm run image:check"
+  ],
+  "testResult": "PENDING_GITHUB_ACTIONS_QUEUE",
+  "buildResult": "PENDING_GITHUB_ACTIONS_QUEUE",
+  "runtimeVerification": "NOT APPLICABLE UNTIL MERGED AND A SEPARATELY AUTHORIZED CAPPED PAID RUN IS EXECUTED",
+  "remainingCaveats": [
+    "Exact-head CI has not completed.",
+    "The receipt reserves estimated maximum cost; provider invoice reconciliation remains a separate promotion receipt.",
+    "No paid forge may run until explicit authorization and sufficient provider balance exist.",
+    "Asset promotion still requires provider request receipts, checksums, provenance, optimized derivatives, runtime wiring and visual review."
+  ]
+}
