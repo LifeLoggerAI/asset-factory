@@ -40,6 +40,7 @@ def validate_paid_run() -> None:
 
 def reserve_provider_call() -> None:
     global _used_calls
+    validate_paid_run()
     max_calls = _positive_int("ASSET_FORGE_MAX_PROVIDER_CALLS")
     per_call = _positive_decimal("ASSET_RENDERER_ESTIMATED_USD_PER_CALL")
     max_total = _positive_decimal("ASSET_FORGE_MAX_ESTIMATED_USD")
