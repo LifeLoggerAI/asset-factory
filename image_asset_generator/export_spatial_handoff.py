@@ -14,6 +14,7 @@ from PIL import Image
 
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
+CATALOG_PATH = BASE_DIR / "canonical_version_catalog.json"
 HANDOFF_DIR = BASE_DIR / "spatial_handoff"
 
 CANONICAL_PATHS: Dict[str, str] = {
@@ -69,7 +70,7 @@ CANONICAL_PATHS: Dict[str, str] = {
     "orb_active": "assets/urai/ui/orb-active.webp",
     "orb_listening": "assets/urai/ui/orb-listening.webp",
     "open_graph_launch": "assets/urai/social/open-graph-launch.webp",
-    "open_graph_life_map": "assets/urai/social/open-graph-life-map.webp"
+    "open_graph_life_map": "assets/urai/social/open-graph-life-map.webp",
 }
 
 
@@ -79,6 +80,17 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def load_version_config(version: str) -> Dict[str, Any]:
+    payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    versions = payload.get("versions")
+    if not isinstance(versions, dict) or version not in versions:
+        raise ValueError(f"Unsupported canonical version: {version}")
+    config = versions[version]
+    if not isinstance(config, dict):
+        raise ValueError(f"Invalid catalog entry for {version}")
+    return config
 
 
 def source_for(entry: Dict[str, Any]) -> Optional[Tuple[int, Path]]:
@@ -126,14 +138,30 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         "bytes": destination.stat().st_size,
         "promptVersion": entry.get("prompt_version", "v1"),
         "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown",
-        "claimGate": entry.get("claim_gate")
+        "claimGate": entry.get("claim_gate"),
     }
 
 
 def main() -> None:
     entries = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("Active manifest must be a non-empty asset list")
     by_name = {entry["name"]: entry for entry in entries}
     version = os.environ.get("URAI_VERSION", "v1").strip().lower() or "v1"
+    config = load_version_config(version)
+    expected = int(config.get("expectedOutputs", 0))
+    asset_prefix = str(config.get("assetPrefix", "")).rstrip("/") + "/"
+
+    if expected < 1 or len(CANONICAL_PATHS) != expected:
+        raise ValueError(
+            f"{version}: canonical handoff map must contain exactly {expected} assets; found {len(CANONICAL_PATHS)}"
+        )
+    if len(by_name) != expected:
+        raise ValueError(f"{version}: active manifest must contain exactly {expected} unique names")
+
+    invalid_paths = [value for value in CANONICAL_PATHS.values() if not value.startswith(asset_prefix)]
+    if invalid_paths:
+        raise ValueError(f"{version}: canonical paths must stay under {asset_prefix}: {invalid_paths[:3]}")
 
     if HANDOFF_DIR.exists():
         shutil.rmtree(HANDOFF_DIR)
@@ -153,13 +181,19 @@ def main() -> None:
         "schemaVersion": "3.0.0",
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "version": version,
+        "versionLabel": config.get("label"),
+        "proofProfile": config.get("proofProfile"),
+        "expectedOutputs": expected,
+        "assetPrefix": asset_prefix,
+        "sourceManifestSha256": sha256(MANIFEST_PATH),
         "producer": "LifeLoggerAI/asset-factory",
         "consumer": "LifeLoggerAI/urai-spatial",
         "copyRoot": "urai-tier1/public",
         "providerRequired": True,
+        "activationMode": "atomic-complete-pack",
         "ready": len(ready),
         "missing": len(missing),
-        "assets": assets
+        "assets": assets,
     }
     manifest_dir = HANDOFF_DIR / "assets" / "urai" / "final" / "manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
