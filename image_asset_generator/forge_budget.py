@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from functools import lru_cache
 import os
 from decimal import Decimal, InvalidOperation
 
 _used_calls = 0
 
 
+@lru_cache(maxsize=None)
 def _positive_int(name: str) -> int:
     try:
         value = int(os.environ.get(name, ""))
@@ -16,6 +18,7 @@ def _positive_int(name: str) -> int:
     return value
 
 
+@lru_cache(maxsize=None)
 def _positive_decimal(name: str) -> Decimal:
     try:
         value = Decimal(os.environ.get(name, ""))
