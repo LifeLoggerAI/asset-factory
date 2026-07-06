@@ -3,24 +3,49 @@ name: V2 Living State Forge
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: "Type GENERATE_V2_80 to authorize the paid 80-asset provider forge"
+      mode:
+        description: Free plan, one-call provider smoke, or full missing-only V2 forge
         required: true
-        default: "NO"
-      rounds:
-        description: "Maximum provider quality rounds"
+        type: choice
+        options:
+          - dry-run
+          - provider-smoke
+          - full-forge
+        default: dry-run
+      confirm_paid:
+        description: Type AUTHORIZE_ONE_V2_PROVIDER_CALL or AUTHORIZE_V2_PAID_FORGE for paid modes
+        required: true
+        default: NO
+        type: string
+      max_provider_calls:
+        description: Exact maximum provider calls; must equal the generated plan
+        required: true
+        default: "0"
+        type: string
+      max_unit_cost_usd:
+        description: Maximum authorized USD cost per provider request
+        required: true
+        default: "0"
+        type: string
+      max_cost_usd:
+        description: Maximum authorized total USD exposure
+        required: true
+        default: "0"
+        type: string
+      max_rounds:
+        description: Maximum quality rounds; provider smoke requires one
         required: true
         type: choice
         options:
           - "1"
           - "2"
           - "3"
-        default: "3"
+        default: "1"
       promote:
-        description: "Create and push a Spatial promotion branch after certification"
+        description: Open a Spatial promotion PR only after a complete certified full forge
         required: true
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: urai-v2-living-state-forge
@@ -31,115 +56,224 @@ permissions:
   actions: read
 
 jobs:
-  forge-promote-and-open-pr:
-    if: github.event.inputs.confirm == 'GENERATE_V2_80'
+  plan:
+    name: Create zero-call V2 exposure plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact Asset Factory revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate canonical contract and paid-request guard
+        run: |
+          set -euo pipefail
+          python scripts/check_canonical_versions.py
+          python scripts/check_paid_forge_gate.py
+          python image_asset_generator/forge_versioned.py --list
+
+      - name: Create zero-provider-call plan
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          MAX_ROUNDS: ${{ inputs.max_rounds }}
+          MAX_UNIT_COST_USD: ${{ inputs.max_unit_cost_usd }}
+        run: |
+          set -euo pipefail
+          mkdir -p operations/receipts/assets/plans
+          args=(--version v2 --max-rounds "$MAX_ROUNDS" --output operations/receipts/assets/plans/v2-forge-plan.json)
+          if [ "$MODE" = "provider-smoke" ]; then
+            test "$MAX_ROUNDS" = "1" || { echo "::error::Provider smoke requires max_rounds=1"; exit 1; }
+            args+=(--limit-outputs 1)
+          fi
+          python - "$MAX_UNIT_COST_USD" <<'PY'
+          import sys
+          from decimal import Decimal, InvalidOperation
+          try:
+              value = Decimal(sys.argv[1])
+          except InvalidOperation:
+              raise SystemExit(1)
+          raise SystemExit(0 if value > 0 else 1)
+          PY
+          if [ "$?" = "0" ]; then
+            args+=(--max-unit-cost-usd "$MAX_UNIT_COST_USD")
+          fi
+          python scripts/plan_versioned_forge.py "${args[@]}"
+
+      - name: Verify free plan receipt
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path('operations/receipts/assets/plans/v2-forge-plan.json').read_text())
+          assert plan['version'] == 'v2', plan
+          assert plan['catalogExpectedOutputs'] == 80, plan
+          assert plan['manifestEntries'] == 80, plan
+          assert plan['providerCallsExecuted'] == 0, plan
+          assert plan['mode'] == 'dry-run-no-provider-calls', plan
+          print(f"V2_PLAN_MAX_PROVIDER_CALLS={plan['maxProviderCalls']}")
+          print('V2_PAID_PROVIDER_CALLED=false')
+          PY
+
+      - name: Upload V2 plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-v2-forge-plan-${{ github.run_id }}
+          path: operations/receipts/assets/plans/v2-forge-plan.json
+          if-no-files-found: error
+          retention-days: 365
+
+  paid-forge:
+    name: Execute explicitly authorized paid V2 mode
+    if: ${{ inputs.mode != 'dry-run' }}
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 240
     environment: paid-asset-generation
     env:
       ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
       ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
       ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
       ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
       ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
       URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
       URAI_VERSION: v2
-      ASSET_FORGE_MAX_ROUNDS: ${{ github.event.inputs.rounds }}
       ASSET_RENDERER_MODE: provider
-      ASSET_FORGE_REQUIRE_PROVIDER: '1'
-      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+      ASSET_FORGE_REQUIRE_PROVIDER: "1"
+      ASSET_QUALITY_REQUIRE_PROVIDER: "1"
+      ASSET_FORGE_SKIP_EXISTING_OUTPUTS: "1"
+      ASSET_RENDERER_MAX_ATTEMPTS: "1"
+      ASSET_FORGE_MAX_ROUNDS: ${{ inputs.max_rounds }}
+      ASSET_FORGE_PAID_RUN_AUTHORIZED: "1"
+      ASSET_FORGE_MAX_PROVIDER_CALLS: ${{ inputs.max_provider_calls }}
+      ASSET_FORGE_MAX_UNIT_COST_USD: ${{ inputs.max_unit_cost_usd }}
+      ASSET_FORGE_MAX_COST_USD: ${{ inputs.max_cost_usd }}
+      ASSET_FORGE_RUN_ID: ${{ github.run_id }}
+      ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/operations/receipts/assets/cost-control/v2-${{ github.run_id }}-paid-request-state.json
 
     steps:
-      - name: Record paid-action authorization
-        shell: bash
-        run: |
-          test "${{ github.event.inputs.confirm }}" = "GENERATE_V2_80"
-          echo "Authorized workflow actor: $GITHUB_ACTOR"
-          echo "Authorized exact output count: 80"
-          echo "Authorized quality rounds: ${{ github.event.inputs.rounds }}"
-          echo "Promotion requested: ${{ github.event.inputs.promote }}"
-
-      - name: Checkout Asset Factory
+      - name: Checkout exact Asset Factory revision
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download exact plan
+        uses: actions/download-artifact@v4
+        with:
+          name: urai-v2-forge-plan-${{ github.run_id }}
+          path: operations/receipts/assets/plans
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate canonical contract and exact V2 inventory
+      - name: Enforce exact authorization and exposure
         shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM_PAID: ${{ inputs.confirm_paid }}
         run: |
-          python image_asset_generator/check_canonical_version_contract.py
-          python image_asset_generator/forge_versioned.py --list
+          set -euo pipefail
+          if [ "$MODE" = "provider-smoke" ]; then
+            test "$CONFIRM_PAID" = "AUTHORIZE_ONE_V2_PROVIDER_CALL"
+            test "$ASSET_FORGE_MAX_ROUNDS" = "1"
+          elif [ "$MODE" = "full-forge" ]; then
+            test "$CONFIRM_PAID" = "AUTHORIZE_V2_PAID_FORGE"
+          else
+            echo "::error::Unsupported paid mode: $MODE"
+            exit 1
+          fi
           python - <<'PY'
           import json
+          import os
+          from decimal import Decimal
           from pathlib import Path
-          path = Path('image_asset_generator/manifests/generated/v2.manifest.json')
-          entries = json.loads(path.read_text())
-          assert len(entries) == 80, f'V2 requires exactly 80 canonical states, found {len(entries)}'
-          assert all(item['name'].startswith('v2_') for item in entries)
-          assert all(item['canonical_path'].startswith('assets/urai/v2/') for item in entries)
-          print('V2_CANONICAL_ASSET_COUNT=80')
+          plan = json.loads(Path('operations/receipts/assets/plans/v2-forge-plan.json').read_text())
+          planned_calls = int(plan['maxProviderCalls'])
+          authorized_calls = int(os.environ['ASSET_FORGE_MAX_PROVIDER_CALLS'])
+          unit_cost = Decimal(os.environ['ASSET_FORGE_MAX_UNIT_COST_USD'])
+          max_cost = Decimal(os.environ['ASSET_FORGE_MAX_COST_USD'])
+          assert planned_calls > 0, plan
+          assert authorized_calls == planned_calls, (authorized_calls, planned_calls)
+          assert unit_cost > 0, unit_cost
+          assert max_cost > 0, max_cost
+          assert unit_cost * authorized_calls <= max_cost, (unit_cost, authorized_calls, max_cost)
+          print(f'AUTHORIZED_PROVIDER_CALLS={authorized_calls}')
+          print(f'AUTHORIZED_MAX_COST_USD={max_cost}')
           PY
 
-      - name: Production provider preflight
+      - name: Provider credential preflight
         shell: bash
         run: |
-          missing=0
-          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
-            if [ -z "${!name}" ]; then
-              echo "::error::$name is not configured. V2 will not fall back to local art."
-              missing=1
-            fi
-          done
-          [ "$missing" = "0" ]
+          set -euo pipefail
+          if [ -z "${OPENAI_API_KEY:-}" ] && { [ -z "${ASSET_RENDERER_ENDPOINT:-}" ] || [ -z "${ASSET_RENDERER_API_KEY:-}" ]; }; then
+            echo "::error::No usable provider credential path is configured."
+            exit 1
+          fi
 
-      - name: Forge, score, and retry V2 living states
-        shell: bash
-        run: |
-          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then unset ASSET_RENDERER_AUTH_HEADER; fi
-          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then unset ASSET_RENDERER_AUTH_SCHEME; fi
-          python image_asset_generator/forge_versioned.py --version v2
+      - name: Run guarded one-call provider smoke
+        if: ${{ inputs.mode == 'provider-smoke' }}
+        run: python image_asset_generator/provider_smoke_guarded.py
 
-      - name: Certify V2 receipt and handoff
+      - name: Forge missing V2 outputs under atomic call and cost ceilings
+        if: ${{ inputs.mode == 'full-forge' }}
+        run: python image_asset_generator/forge_versioned.py --version v2
+
+      - name: Certify complete V2 receipt and handoff
+        if: ${{ inputs.mode == 'full-forge' }}
         shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
           root = Path('image_asset_generator')
           receipt = json.loads((root / 'forge_receipt_v2.json').read_text())
           quality = json.loads((root / 'quality_report_v2.json').read_text())
-          handoff_path = root / 'spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json'
-          handoff = json.loads(handoff_path.read_text())
+          handoff = json.loads((root / 'spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json').read_text())
+          ledger = json.loads(Path('operations/receipts/assets/cost-control').glob('v2-*-paid-request-state.json').__next__().read_text())
           assert receipt.get('version') == 'v2', receipt
           assert receipt.get('status') == 'passed', receipt
           assert receipt.get('expectedOutputs') == 80, receipt
           assert receipt.get('forgeExitCode') == 0, receipt
           assert handoff.get('missing') == 0, handoff
-          failed = [entry for entry in quality.get('assets', []) if entry.get('status') != 'passed']
           assert len(quality.get('assets', [])) == 80, quality
-          assert not failed, f'V2 quality failures: {[entry.get("name") for entry in failed]}'
+          assert not [entry for entry in quality['assets'] if entry.get('status') != 'passed'], quality
+          assert not [attempt for attempt in ledger.get('attempts', []) if attempt.get('status') == 'reserved'], ledger
+          assert ledger.get('providerCallsExecuted') <= int(receipt['costPolicy']['maxProviderCalls']), ledger
           print('V2_FORGE_STATUS=passed')
           print('V2_QUALITY_PASSED=80')
           print('V2_HANDOFF_MISSING=0')
           PY
 
-      - name: Upload complete V2 evidence
+      - name: Upload immutable paid-run evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: urai-v2-living-states-${{ github.run_id }}
-          retention-days: 30
+          name: urai-v2-paid-evidence-${{ github.run_id }}
+          retention-days: 365
           if-no-files-found: warn
           path: |
+            operations/receipts/assets/plans/v2-forge-plan.json
+            operations/receipts/assets/cost-control/v2-*-paid-request-state.json
+            image_asset_generator/provider_smoke_receipt.json
             image_asset_generator/manifests/generated/v2.manifest.json
-            image_asset_generator/manifests/generated/v2-manifest-build-summary.json
             image_asset_generator/quality_report.json
             image_asset_generator/quality_report_v2.json
             image_asset_generator/upgrade_feedback.json
@@ -152,20 +286,22 @@ jobs:
             image_asset_generator/spatial_handoff/**
 
       - name: Checkout Spatial promotion target
-        if: github.event.inputs.promote == 'true'
+        if: ${{ inputs.mode == 'full-forge' && inputs.promote }}
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
           ref: main
           token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
           path: spatial
+          persist-credentials: true
 
-      - name: Create reviewed Spatial V2 asset branch
-        if: github.event.inputs.promote == 'true'
+      - name: Create reviewed Spatial V2 promotion branch
+        if: ${{ inputs.mode == 'full-forge' && inputs.promote }}
         id: promote
         shell: bash
         working-directory: spatial
         run: |
+          set -euo pipefail
           test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
           rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
           branch="asset-factory/v2-living-states-${GITHUB_RUN_ID}"
@@ -177,18 +313,14 @@ jobs:
           git commit -m "Promote provider-scored V2 living-state asset pack"
           git push origin "$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Open Spatial V2 promotion pull request
-        if: github.event.inputs.promote == 'true'
+      - name: Open reviewed Spatial promotion pull request
+        if: ${{ inputs.mode == 'full-forge' && inputs.promote }}
         shell: bash
         env:
           BRANCH: ${{ steps.promote.outputs.branch }}
-          BODY: |
-            Promotes the provider-rendered URAI V2 living-system state pack after all 80 canonical states passed generation, validation, quality retries, and zero-missing Spatial handoff checks.
-
-            This receipt does not certify V3, V4, physical-device behavior, or any other version.
         run: |
+          set -euo pipefail
           payload=$(python - <<'PY'
           import json
           import os
@@ -196,7 +328,7 @@ jobs:
               'title': 'Promote the complete V2 living-state asset pack',
               'head': os.environ['BRANCH'],
               'base': 'main',
-              'body': os.environ['BODY'],
+              'body': 'Promotes the provider-rendered V2 pack only after all 80 canonical states passed generation, quality, zero-missing handoff, and the atomic paid-request ledger. This PR does not certify V3, V4, V5, or physical-device behavior.',
           }))
           PY
           )
