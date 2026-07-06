@@ -9,8 +9,10 @@ before a paid forge is allowed to start.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
+from contextlib import redirect_stdout
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -101,9 +103,16 @@ def _entry_path(entry: dict[str, Any]) -> str:
     return candidate
 
 
+def _build_manifest_quietly(version: str) -> Path:
+    # Older deterministic builders print their intermediate summary. Suppress that
+    # output so contract/dry-run commands always emit one machine-readable object.
+    with redirect_stdout(io.StringIO()):
+        return canonical_release_manifests.build(version).resolve()
+
+
 def build_and_validate(version: str) -> dict[str, Any]:
     config = resolve_version(version)
-    manifest_path = canonical_release_manifests.build(version).resolve()
+    manifest_path = _build_manifest_quietly(version)
     if BASE_DIR not in manifest_path.parents:
         raise ValueError(f"Manifest escaped Asset Factory root: {manifest_path}")
 
