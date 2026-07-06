@@ -11,6 +11,18 @@ on:
         description: "Workflow run containing the complete 53-asset provider checkpoint"
         required: true
         default: "28643082583"
+      max_provider_calls:
+        description: "Hard ceiling for provider attempts"
+        required: true
+        default: "2"
+      max_unit_cost_usd:
+        description: "Maximum reserved cost per provider attempt"
+        required: true
+        default: "0.20"
+      max_total_cost_usd:
+        description: "Hard total reserved-cost ceiling"
+        required: true
+        default: "0.40"
 
 concurrency:
   group: urai-final-v1-avatar-extension
@@ -36,13 +48,31 @@ jobs:
       ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
       ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
       ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
+      ASSET_RENDERER_MAX_ATTEMPTS: '1'
+      ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
+      ASSET_FORGE_MAX_PROVIDER_CALLS: ${{ github.event.inputs.max_provider_calls }}
+      ASSET_FORGE_MAX_UNIT_COST_USD: ${{ github.event.inputs.max_unit_cost_usd }}
+      ASSET_FORGE_MAX_COST_USD: ${{ github.event.inputs.max_total_cost_usd }}
+      ASSET_FORGE_RUN_ID: ${{ github.run_id }}-v1-avatars
+      ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
       URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
 
     steps:
-      - name: Record paid-action authorization
+      - name: Record paid-action authorization and validate budget
         shell: bash
         run: |
           test "${{ github.event.inputs.confirm }}" = "GENERATE_V1_AVATARS"
+          mkdir -p artifacts/budget
+          python - <<'PY'
+          from decimal import Decimal
+          calls = int('${{ github.event.inputs.max_provider_calls }}')
+          unit = Decimal('${{ github.event.inputs.max_unit_cost_usd }}')
+          total = Decimal('${{ github.event.inputs.max_total_cost_usd }}')
+          if calls < 1 or unit <= 0 or total <= 0 or unit * calls > total:
+              raise SystemExit('Invalid V1 avatar provider budget')
+          if calls > 2:
+              raise SystemExit('V1 avatar refinement may authorize at most two provider calls')
+          PY
           echo "Authorized workflow actor: $GITHUB_ACTOR"
           echo "Authorized checkpoint run: ${{ github.event.inputs.checkpoint_run_id }}"
 
@@ -97,21 +127,19 @@ jobs:
           V1_AVATAR_TARGETS: avatar_builder,avatar_relationship_liaison
         run: |
           set -o pipefail
-          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then
-            unset ASSET_RENDERER_AUTH_HEADER
-          fi
-          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then
-            unset ASSET_RENDERER_AUTH_SCHEME
-          fi
+          if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then unset ASSET_RENDERER_AUTH_HEADER; fi
+          if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then unset ASSET_RENDERER_AUTH_SCHEME; fi
           python image_asset_generator/render_final_v1_avatars.py 2>&1 | tee avatar-render.log
 
-      - name: Upload render diagnostic
+      - name: Upload render and budget diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: urai-v1-avatar-render-log-${{ github.run_id }}
-          path: avatar-render.log
-          if-no-files-found: error
+          path: |
+            avatar-render.log
+            artifacts/budget/paid-request-state.json
+          if-no-files-found: warn
 
       - name: Preserve render result
         if: steps.render.outcome == 'failure'
@@ -123,6 +151,9 @@ jobs:
           ASSET_QUALITY_REQUIRE_PROVIDER: '1'
         run: python image_asset_generator/resume_v1_checkpoint.py
 
+      - name: Certify V1 drop-in handoff
+        run: python image_asset_generator/certify_version_handoff.py --version v1
+
       - name: Upload complete forge evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -131,9 +162,13 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
           path: |
+            artifacts/budget/paid-request-state.json
             image_asset_generator/quality_report.json
+            image_asset_generator/quality_report_v1.json
             image_asset_generator/upgrade_feedback.json
             image_asset_generator/forge_receipt.json
+            image_asset_generator/forge_receipt_v1.json
+            image_asset_generator/dropin_receipt_v1.json
             image_asset_generator/manifest.json
             image_asset_generator/assets/**
             image_asset_generator/preview.html
@@ -153,8 +188,9 @@ jobs:
         shell: bash
         working-directory: spatial
         run: |
-          test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
+          test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/v1-asset-factory-spatial-handoff.json
           rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
+          if [ -f scripts/check-canonical-asset-dropin.mjs ]; then node scripts/check-canonical-asset-dropin.mjs; fi
           branch="asset-factory/final-v1-avatars-${GITHUB_RUN_ID}"
           git checkout -b "$branch"
           git config user.name "URAI Production Wheel"
