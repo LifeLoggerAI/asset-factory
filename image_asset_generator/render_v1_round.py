@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Dict
 
+import cost_guarded_renderer
 import generate_assets as base
 
 
@@ -28,14 +29,14 @@ def render_round(round_number: int) -> Dict[str, int]:
         for size, output_path in base.iter_outputs(entry):
             existed = output_path.exists()
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            result = base.render_via_adapter(
+            result = cost_guarded_renderer.render_asset(
                 entry,
                 size,
                 base.offline_render_asset,
                 feedback=feedback.get(name),
             )
             result.image.save(output_path, format="PNG", optimize=True)
-            base.write_render_metadata(output_path, entry, result)
+            cost_guarded_renderer.write_render_metadata(output_path, entry, result)
             renderers[result.renderer] = renderers.get(result.renderer, 0) + 1
             created += 0 if existed else 1
             replaced += 1 if existed else 0
