@@ -44,9 +44,20 @@ def sha256(path: Path) -> str:
 
 
 def load_catalog() -> dict[str, Any]:
-    return json.loads(
+    payload = json.loads(
         (GENERATOR / "canonical_version_catalog.json").read_text(encoding="utf-8")
     )
+    versions = payload.get("versions")
+    if not isinstance(versions, dict):
+        raise ValueError("Catalog is missing a valid 'versions' object")
+    return payload
+
+
+def required_text(mapping: dict[str, Any], key: str, context: str) -> str:
+    value = mapping.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{context}: missing required '{key}'")
+    return value
 
 
 def main() -> int:
@@ -75,19 +86,34 @@ def main() -> int:
 
     manifest_path = canonical_release_manifests.build(args.version)
     entries = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list) or not entries:
+        raise ValueError(f"Generated manifest is empty or invalid: {manifest_path}")
+
     selected_entries = entries[: args.limit_entries] if args.limit_entries else entries
 
     outputs: list[dict[str, Any]] = []
-    for entry in selected_entries:
-        for size in entry.get("sizes", []):
+    for index, raw_entry in enumerate(selected_entries):
+        if not isinstance(raw_entry, dict):
+            raise ValueError(f"Manifest entry {index} must be an object")
+        name = required_text(raw_entry, "name", f"manifest entry {index}")
+        path_template = required_text(
+            raw_entry, "path_template", f"manifest asset {name}"
+        )
+        sizes = raw_entry.get("sizes")
+        if not isinstance(sizes, list) or not sizes:
+            raise ValueError(f"manifest asset {name}: missing required sizes")
+
+        for size in sizes:
+            parsed_size = positive_int(str(size), f"size for {name}")
             outputs.append(
                 {
-                    "name": entry["name"],
-                    "size": int(size),
-                    "pathTemplate": entry["path_template"],
-                    "canonicalPath": entry.get("canonical_path"),
+                    "name": name,
+                    "size": parsed_size,
+                    "pathTemplate": path_template,
+                    "canonicalPath": raw_entry.get("canonical_path"),
                 }
             )
+
     if args.limit_outputs:
         outputs = outputs[: args.limit_outputs]
 
@@ -100,17 +126,29 @@ def main() -> int:
     exposure = Decimal(max_provider_calls) * unit_cost if unit_cost else None
 
     catalog = load_catalog()
-    config = catalog["versions"][args.version]
+    versions = catalog.get("versions")
+    if not isinstance(versions, dict):
+        raise ValueError("Catalog is missing a valid 'versions' object")
+    config = versions.get(args.version)
+    if not isinstance(config, dict):
+        raise ValueError(
+            f"Version '{args.version}' configuration not found or invalid in catalog"
+        )
+
     plan = {
         "schemaVersion": "1.0.0",
         "mode": "dry-run-no-provider-calls",
         "providerCallsExecuted": 0,
         "version": args.version,
-        "versionLabel": config["label"],
-        "proofProfile": config["proofProfile"],
+        "versionLabel": required_text(config, "label", f"{args.version} catalog"),
+        "proofProfile": required_text(
+            config, "proofProfile", f"{args.version} catalog"
+        ),
         "manifest": str(manifest_path.relative_to(GENERATOR)),
         "manifestSha256": sha256(manifest_path),
-        "catalogExpectedOutputs": int(config["expectedOutputs"]),
+        "catalogExpectedOutputs": positive_int(
+            str(config.get("expectedOutputs", "")), "catalog expected outputs"
+        ),
         "manifestEntries": len(entries),
         "selectedEntries": len(selected_entries),
         "selectedOutputs": len(outputs),
