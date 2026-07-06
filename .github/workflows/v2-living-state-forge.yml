@@ -2,23 +2,44 @@ name: V2 Living State Forge
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types:
-      - urai-v2-living-states-requested
-  push:
-    branches:
-      - forge/v2-living-states
-    paths:
-      - '.github/workflows/v2-living-state-forge.yml'
-      - 'image_asset_generator/**'
-
-concurrency:
-  group: urai-v2-living-state-forge
-  cancel-in-progress: true
+    inputs:
+      mode:
+        description: "Free dry-run, one-provider-call smoke, or full missing-only forge"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - provider-smoke
+          - full-forge
+      payment_approved:
+        description: "I explicitly approve the capped paid provider run selected above"
+        required: true
+        default: false
+        type: boolean
+      max_provider_calls:
+        description: "Hard maximum provider calls for this run; smoke must be 1"
+        required: true
+        default: "0"
+        type: string
+      estimated_usd_per_call:
+        description: "Operator-supplied current estimated USD per provider call"
+        required: true
+        default: "0"
+        type: string
+      max_estimated_usd:
+        description: "Hard maximum estimated USD exposure for this run"
+        required: true
+        default: "0"
+        type: string
 
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: urai-v2-living-state-forge
+  cancel-in-progress: false
 
 jobs:
   forge-promote-and-open-pr:
@@ -33,27 +54,36 @@ jobs:
       ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
       URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
       URAI_VERSION: v2
-      ASSET_FORGE_MAX_ROUNDS: '3'
+      ASSET_FORGE_MAX_ROUNDS: "3"
       ASSET_RENDERER_MODE: provider
-      ASSET_FORGE_REQUIRE_PROVIDER: '1'
-      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+      ASSET_FORGE_REQUIRE_PROVIDER: "1"
+      ASSET_QUALITY_REQUIRE_PROVIDER: "1"
+      ASSET_FORGE_MISSING_ONLY: "1"
+      ASSET_RENDERER_MAX_ATTEMPTS: "1"
+      ASSET_FORGE_PAYMENT_APPROVED: ${{ inputs.payment_approved && '1' || '0' }}
+      ASSET_FORGE_MAX_PROVIDER_CALLS: ${{ inputs.max_provider_calls }}
+      ASSET_RENDERER_ESTIMATED_USD_PER_CALL: ${{ inputs.estimated_usd_per_call }}
+      ASSET_FORGE_MAX_ESTIMATED_USD: ${{ inputs.max_estimated_usd }}
 
     steps:
-      - name: Checkout Asset Factory V2 lane
+      - name: Checkout exact Asset Factory revision
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate isolated V2 canon and exact inventory
+      - name: Validate canonical V1-V5 contract and exact V2 inventory
         shell: bash
         run: |
-          python image_asset_generator/build_v2_manifest.py
+          set -euo pipefail
+          python image_asset_generator/test_canonical_contract.py
           python image_asset_generator/forge_versioned.py --list
           python - <<'PY'
           import json
@@ -64,14 +94,67 @@ jobs:
           assert all(item['name'].startswith('v2_') for item in entries)
           assert all(item['canonical_path'].startswith('assets/urai/v2/') for item in entries)
           print('V2_CANONICAL_ASSET_COUNT=80')
-          print('V2_FUTURE_CATALOG_ISOLATION=passed')
+          print('V2_PAID_PROVIDER_CALLED=false')
+          PY
+
+      - name: Record free dry-run receipt
+        if: ${{ inputs.mode == 'dry-run' }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          payload = {
+              'schemaVersion': '1.0.0',
+              'generatedAt': datetime.now(timezone.utc).isoformat(),
+              'status': 'dry-run-passed',
+              'version': 'v2',
+              'expectedOutputs': 80,
+              'providerCalls': 0,
+              'paidProviderCalled': False,
+              'promotionAllowed': False,
+          }
+          Path('image_asset_generator/v2_dry_run_receipt.json').write_text(json.dumps(payload, indent=2) + '\n')
+          print(json.dumps(payload, indent=2))
+          PY
+
+      - name: Validate paid-run approval and exposure caps
+        if: ${{ inputs.mode != 'dry-run' }}
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          PAYMENT_APPROVED: ${{ inputs.payment_approved }}
+        run: |
+          set -euo pipefail
+          test "$PAYMENT_APPROVED" = "true" || { echo "::error::Paid generation was not explicitly approved."; exit 1; }
+          python - <<'PY'
+          import os
+          from decimal import Decimal
+          mode = os.environ['MODE']
+          calls = int(os.environ['ASSET_FORGE_MAX_PROVIDER_CALLS'])
+          per_call = Decimal(os.environ['ASSET_RENDERER_ESTIMATED_USD_PER_CALL'])
+          maximum = Decimal(os.environ['ASSET_FORGE_MAX_ESTIMATED_USD'])
+          assert calls > 0, 'max_provider_calls must be positive'
+          assert per_call > 0, 'estimated_usd_per_call must be positive'
+          assert maximum > 0, 'max_estimated_usd must be positive'
+          assert calls * per_call <= maximum, 'call exposure exceeds max_estimated_usd'
+          if mode == 'provider-smoke':
+              assert calls == 1, 'provider-smoke must be capped at exactly one provider call'
+          if mode == 'full-forge':
+              assert calls <= 80, 'V2 full-forge cannot authorize more than 80 first-pass provider calls'
+          print(f'PAID_RUN_MODE={mode}')
+          print(f'MAX_PROVIDER_CALLS={calls}')
+          print(f'MAX_ESTIMATED_USD={maximum}')
           PY
 
       - name: Production provider preflight
+        if: ${{ inputs.mode != 'dry-run' }}
         shell: bash
         run: |
+          set -euo pipefail
           missing=0
-          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY URAI_WHEEL_GITHUB_TOKEN; do
+          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY; do
             if [ -z "${!name}" ]; then
               echo "::error::$name is not configured. V2 will not fall back to placeholder art."
               missing=1
@@ -79,16 +162,27 @@ jobs:
           done
           [ "$missing" = "0" ]
 
-      - name: Forge, score, and retry V2 living states
+      - name: Run exactly one provider smoke call
+        if: ${{ inputs.mode == 'provider-smoke' }}
         shell: bash
         run: |
+          set -euo pipefail
+          python image_asset_generator/provider_smoke.py
+
+      - name: Forge, score, and retry missing V2 states
+        if: ${{ inputs.mode == 'full-forge' }}
+        shell: bash
+        run: |
+          set -euo pipefail
           if [ -z "${ASSET_RENDERER_AUTH_HEADER:-}" ]; then unset ASSET_RENDERER_AUTH_HEADER; fi
           if [ -z "${ASSET_RENDERER_AUTH_SCHEME:-}" ]; then unset ASSET_RENDERER_AUTH_SCHEME; fi
           python image_asset_generator/forge_versioned.py --version v2
 
-      - name: Certify V2 receipt and handoff
+      - name: Certify complete V2 receipt and handoff
+        if: ${{ inputs.mode == 'full-forge' }}
         shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
@@ -110,7 +204,7 @@ jobs:
           print('V2_HANDOFF_MISSING=0')
           PY
 
-      - name: Upload complete V2 evidence
+      - name: Upload V2 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -118,8 +212,9 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
           path: |
-            image_asset_generator/manifests/generated/v2.manifest.json
-            image_asset_generator/manifests/generated/v2-manifest-build-summary.json
+            image_asset_generator/manifests/generated/*.json
+            image_asset_generator/v2_dry_run_receipt.json
+            image_asset_generator/provider_smoke_receipt.json
             image_asset_generator/quality_report.json
             image_asset_generator/quality_report_v2.json
             image_asset_generator/upgrade_feedback.json
@@ -132,18 +227,22 @@ jobs:
             image_asset_generator/spatial_handoff/**
 
       - name: Checkout Spatial promotion target
+        if: ${{ inputs.mode == 'full-forge' }}
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
           ref: main
           token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
           path: spatial
+          persist-credentials: true
 
       - name: Create reviewed Spatial V2 asset branch
+        if: ${{ inputs.mode == 'full-forge' }}
         id: promote
         shell: bash
         working-directory: spatial
         run: |
+          set -euo pipefail
           test -f ../image_asset_generator/spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json
           rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
           branch="asset-factory/v2-living-states-${GITHUB_RUN_ID}"
@@ -158,14 +257,12 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Open Spatial V2 promotion pull request
+        if: ${{ inputs.mode == 'full-forge' }}
         shell: bash
         env:
           BRANCH: ${{ steps.promote.outputs.branch }}
-          BODY: |
-            Promotes the provider-rendered URAI V2 living-system state pack after all 80 canonical states passed generation, validation, targeted quality retries, and zero-missing Spatial handoff checks.
-
-            V2 remains the living-state layer over the locked V1 public route world. It does not claim V3 hardware or XR proof.
         run: |
+          set -euo pipefail
           payload=$(python - <<'PY'
           import json
           import os
@@ -173,7 +270,7 @@ jobs:
               'title': 'Promote the complete V2 living-state asset pack',
               'head': os.environ['BRANCH'],
               'base': 'main',
-              'body': os.environ['BODY'],
+              'body': 'Promotes the provider-rendered V2 pack only after all 80 canonical states passed provider generation, validation, quality checks, and zero-missing Spatial handoff. The run was manual, explicitly approved, missing-only, one-attempt-per-call, and capped by the recorded call and estimated-dollar limits.',
           }))
           PY
           )
