@@ -85,41 +85,25 @@ def _normalize_v1(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalized
 
 
-def merge_with_primary_precedence(
-    primary: list[dict[str, Any]],
-    fallback: list[dict[str, Any]],
-    *,
-    allowed_duplicate_names: set[str],
+def _normalize_v5_legacy_operations(
+    entries: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Merge legacy fallback entries without replacing canonical version entries."""
+    """Keep every legacy operations asset while avoiding the canonical V5 key-art name."""
 
-    merged = [dict(entry) for entry in primary]
-    seen_names = {
-        required_text(entry, "name", "primary manifest entry") for entry in merged
-    }
-    seen_paths = {
-        required_text(entry, "canonical_path", "primary manifest entry")
-        for entry in merged
-    }
-
-    for entry in fallback:
-        name = required_text(entry, "name", "fallback manifest entry")
-        canonical_path = required_text(
-            entry, "canonical_path", f"fallback asset {name}"
-        )
-        collision = name in seen_names or canonical_path in seen_paths
-        if collision:
-            if name not in allowed_duplicate_names:
-                raise ValueError(
-                    f"Unexpected fallback collision for {name}: {canonical_path}"
-                )
-            continue
-
-        merged.append(dict(entry))
-        seen_names.add(name)
-        seen_paths.add(canonical_path)
-
-    return merged
+    normalized: list[dict[str, Any]] = []
+    for source in entries:
+        entry = dict(source)
+        if entry.get("name") == "v5_launch_key_art":
+            entry["name"] = "v5_operations_launch_key_art"
+            entry["category"] = "v5_operations_social"
+            entry["path_template"] = required_text(
+                entry, "path_template", "v5 legacy operations launch key art"
+            ).replace("launch-key-art", "operations-launch-key-art")
+            entry["canonical_path"] = required_text(
+                entry, "canonical_path", "v5 legacy operations launch key art"
+            ).replace("launch-key-art", "operations-launch-key-art")
+        normalized.append(entry)
+    return normalized
 
 
 def entries_for(version: str) -> list[dict[str, Any]]:
@@ -133,17 +117,15 @@ def entries_for(version: str) -> list[dict[str, Any]]:
         return sources.v4_xr_manifest()
     if version == "v5":
         canonical_v5 = load(MANIFESTS / "v5.manifest.json")
-        legacy_operations = remap(
-            load(MANIFESTS / "v2.manifest.json"),
-            "v2",
-            "v5",
-            True,
+        legacy_operations = _normalize_v5_legacy_operations(
+            remap(
+                load(MANIFESTS / "v2.manifest.json"),
+                "v2",
+                "v5",
+                True,
+            )
         )
-        return merge_with_primary_precedence(
-            canonical_v5,
-            legacy_operations,
-            allowed_duplicate_names={"v5_launch_key_art"},
-        )
+        return canonical_v5 + legacy_operations
     raise ValueError(f"Unsupported version: {version}")
 
 
