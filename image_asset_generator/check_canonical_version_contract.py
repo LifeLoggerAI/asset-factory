@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 import canonical_release_manifests
@@ -18,6 +19,13 @@ EXPECTED = {
 
 def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def duplicates(values: list[object]) -> list[object]:
+    return sorted(
+        (value for value, count in Counter(values).items() if count > 1),
+        key=lambda value: str(value),
+    )
 
 
 def main() -> int:
@@ -46,10 +54,12 @@ def main() -> int:
 
         names = [entry.get("name") for entry in entries]
         paths = [entry.get("canonical_path") for entry in entries]
-        if len(names) != len(set(names)):
-            raise AssertionError(f"{version} duplicate names")
-        if len(paths) != len(set(paths)):
-            raise AssertionError(f"{version} duplicate paths")
+        duplicate_names = duplicates(names)
+        duplicate_paths = duplicates(paths)
+        if duplicate_names:
+            raise AssertionError(f"{version} duplicate names: {duplicate_names}")
+        if duplicate_paths:
+            raise AssertionError(f"{version} duplicate paths: {duplicate_paths}")
 
         for name, path in zip(names, paths):
             if not isinstance(name, str) or not name:
@@ -73,4 +83,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except AssertionError as error:
+        print(f"Contract violation: {error}")
+        raise SystemExit(1) from None
