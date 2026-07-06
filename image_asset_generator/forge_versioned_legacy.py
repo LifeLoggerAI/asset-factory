@@ -1,48 +1,34 @@
-"""Version-selecting entry point for the URAI V1–V5 production wheel.
+"""Compatibility entry point for the canonical URAI V1-V5 production wheel.
 
-The selected canonical manifest is generated from the release-version contract,
-staged into the proven forge core for one isolated run, and restored afterward.
-Version-specific receipts, quality reports, feedback, and handoff manifests are
-preserved so V1/V2/V3 cannot overwrite or masquerade as one another.
+Despite the historical filename, this module no longer owns release meaning. Every
+supported invocation resolves versions, manifests, paths, hashes, and provider-cost
+limits through ``canonical_version_contract``. No conflicting legacy catalog or
+builder can be selected by calling this file directly.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict
 
-import build_v2_manifest
-import build_version_manifests
+import canonical_version_contract
 
 BASE_DIR = Path(__file__).resolve().parent
-CATALOG_PATH = BASE_DIR / "version_catalog.json"
+CATALOG_PATH = canonical_version_contract.CATALOG_PATH
 ACTIVE_MANIFEST_PATH = BASE_DIR / "manifest.json"
 
 
 def load_catalog() -> Dict[str, Any]:
-    payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    versions = payload.get("versions")
-    if not isinstance(versions, dict) or not versions:
-        raise ValueError("version_catalog.json must contain a non-empty versions object")
-    return payload
+    return canonical_version_contract.load_catalog()
 
 
 def resolve_version(name: str) -> tuple[Dict[str, Any], Path]:
-    catalog = load_catalog()
-    versions = catalog["versions"]
-    if name not in versions:
-        raise ValueError(f"Unknown URAI version {name!r}; expected one of {', '.join(sorted(versions))}")
-    config = versions[name]
-    manifest_path = (BASE_DIR / config["manifest"]).resolve()
-    if BASE_DIR not in manifest_path.parents and manifest_path != BASE_DIR:
-        raise ValueError("Version manifest must stay inside image_asset_generator")
-    if not manifest_path.exists():
-        raise FileNotFoundError(f"Version manifest does not exist: {manifest_path}")
+    config = canonical_version_contract.resolve_version(name)
+    manifest_path = canonical_version_contract.build_and_validate(name)["manifestPath"]
     return config, manifest_path
 
 
@@ -54,22 +40,26 @@ def load_entries(path: Path) -> list[Dict[str, Any]]:
 
 
 def canonical_paths(version: str, entries: list[Dict[str, Any]]) -> Dict[str, str] | None:
-    if version == "v1":
+    config = canonical_version_contract.resolve_version(version)
+    prefix = str(config["assetPrefix"]).rstrip("/") + "/"
+    if prefix == "assets/urai/":
         return None
+
     result: Dict[str, str] = {}
-    expected_prefix = "assets/urai/xr/" if version == "v3" else f"assets/urai/{version}/"
     for entry in entries:
         name = entry.get("name")
         canonical = entry.get("canonical_path")
         if not isinstance(name, str) or not name:
             raise ValueError("Every versioned asset requires a non-empty name")
-        if not isinstance(canonical, str) or not canonical.startswith(expected_prefix):
-            raise ValueError(f"{name} requires canonical_path under {expected_prefix}")
+        if not isinstance(canonical, str) or not canonical.startswith(prefix):
+            raise ValueError(f"{name} requires canonical_path under {prefix}")
         result[name] = canonical
     return result
 
 
 def sha256(path: Path) -> str:
+    import hashlib
+
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -84,23 +74,32 @@ def preserve_version_outputs(version: str) -> None:
             shutil.copy2(source, BASE_DIR / target_name)
 
 
-def write_version_receipt(version: str, config: Dict[str, Any], manifest_path: Path, exit_code: int) -> None:
+def write_version_receipt(
+    version: str,
+    config: Dict[str, Any],
+    manifest_path: Path,
+    exit_code: int,
+    cost_plan: Dict[str, Any],
+) -> None:
     receipt_path = BASE_DIR / "forge_receipt.json"
     if receipt_path.exists():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     else:
         receipt = {}
-    receipt.update({
-        "version": version,
-        "versionLabel": config["label"],
-        "proofProfile": config["proofProfile"],
-        "targetRepo": config["targetRepo"],
-        "requiresSpatialWiring": bool(config.get("requiresSpatialWiring")),
-        "forgeExitCode": exit_code,
-        "manifest": str(manifest_path.relative_to(BASE_DIR)),
-        "manifestSha256": sha256(manifest_path),
-        "expectedOutputs": int(config.get("expectedOutputs", 0)),
-    })
+    receipt.update(
+        {
+            "version": version,
+            "versionLabel": config["label"],
+            "proofProfile": config["proofProfile"],
+            "targetRepo": config["targetRepo"],
+            "requiresSpatialWiring": bool(config.get("requiresSpatialWiring")),
+            "forgeExitCode": exit_code,
+            "manifest": str(manifest_path.relative_to(BASE_DIR)),
+            "manifestSha256": sha256(manifest_path),
+            "expectedOutputs": int(config.get("expectedOutputs", 0)),
+            "providerCostExposure": cost_plan,
+        }
+    )
     receipt_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     (BASE_DIR / f"forge_receipt_{version}.json").write_text(
         json.dumps(receipt, indent=2) + "\n",
@@ -109,31 +108,37 @@ def write_version_receipt(version: str, config: Dict[str, Any], manifest_path: P
 
 
 def print_catalog() -> None:
-    """List declared versions without building unrelated manifests."""
     catalog = load_catalog()
     for name, config in catalog["versions"].items():
         label = config.get("label", "Unknown")
-        status = config.get("status", "unknown")
         count = config.get("expectedOutputs", "?")
-        print(f"{name}: {label} [{status}] assets={count}")
+        print(f"{name}: {label} assets={count}")
 
 
-def build_selected_manifest(version: str) -> None:
-    """Build V2 in isolation; preserve legacy all-version behavior elsewhere."""
-    if version == "v2":
-        build_v2_manifest.build()
-        return
-    build_version_manifests.build_all()
+def build_selected_manifest(version: str) -> Path:
+    return canonical_version_contract.build_and_validate(version)["manifestPath"]
+
+
+def _provider_requested() -> bool:
+    mode = os.environ.get("ASSET_RENDERER_MODE", "").strip().lower()
+    required = os.environ.get("ASSET_FORGE_REQUIRE_PROVIDER", "1") == "1"
+    endpoint = os.environ.get("ASSET_RENDERER_ENDPOINT", "").lower()
+    return required or mode == "provider" or "api.openai.com" in endpoint
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the URAI versioned asset forge")
+    parser = argparse.ArgumentParser(description="Run the canonical URAI versioned asset forge")
     parser.add_argument(
         "--version",
         default=os.environ.get("URAI_VERSION", "v1"),
-        choices=("v1", "v2", "v3", "v4", "v5"),
+        choices=tuple(canonical_version_contract.EXPECTED_MATRIX),
     )
-    parser.add_argument("--list", action="store_true", help="Print the version catalog and exit")
+    parser.add_argument("--list", action="store_true", help="Print the canonical version catalog and exit")
+    parser.add_argument(
+        "--dry-run-contract",
+        action="store_true",
+        help="Build/validate the manifest and print zero-call cost exposure without invoking a provider",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -141,15 +146,25 @@ def main() -> int:
         return 0
 
     version = args.version
-    build_selected_manifest(version)
-    config, selected_manifest = resolve_version(version)
-    entries = load_entries(selected_manifest)
-    expected = int(config.get("expectedOutputs", 0))
-    if expected and len(entries) != expected:
-        raise ValueError(
-            f"{version} catalog expects {expected} assets but {selected_manifest.name} has {len(entries)}"
-        )
+    contract = canonical_version_contract.build_and_validate(version)
+    cost_plan = canonical_version_contract.cost_exposure(version)
 
+    if args.dry_run_contract:
+        output = {
+            key: value
+            for key, value in contract.items()
+            if key not in {"entries", "manifestPath"}
+        }
+        output["costExposure"] = cost_plan
+        print(json.dumps(output, indent=2))
+        return 0
+
+    if _provider_requested():
+        cost_plan = canonical_version_contract.assert_provider_budget(version)
+
+    config = canonical_version_contract.resolve_version(version)
+    selected_manifest = contract["manifestPath"]
+    entries = contract["entries"]
     active_before = ACTIVE_MANIFEST_PATH.read_bytes()
     selected_bytes = selected_manifest.read_bytes()
     os.environ["URAI_VERSION"] = version
@@ -161,8 +176,11 @@ def main() -> int:
     print(f"URAI_VERSION={version}")
     print(f"VERSION_LABEL={config['label']}")
     print(f"VERSION_MANIFEST={selected_manifest}")
-    print(f"VERSION_MANIFEST_SHA256={sha256(selected_manifest)}")
+    print(f"VERSION_MANIFEST_SHA256={contract['manifestSha256']}")
     print(f"VERSION_ASSET_COUNT={len(entries)}")
+    print(f"MAXIMUM_PROVIDER_CALLS={cost_plan['maximumProviderCalls']}")
+    print(f"MAXIMUM_EXPOSURE_USD={cost_plan['maximumExposureUsd']}")
+    print(f"BATCH_CEILING_USD={cost_plan['configuredBatchCeilingUsd']}")
 
     try:
         ACTIVE_MANIFEST_PATH.write_bytes(selected_bytes)
@@ -176,7 +194,7 @@ def main() -> int:
         from forge_v1_cost_aware import main as run_core_forge
 
         exit_code = int(run_core_forge())
-        write_version_receipt(version, config, selected_manifest, exit_code)
+        write_version_receipt(version, config, selected_manifest, exit_code, cost_plan)
         preserve_version_outputs(version)
         print(f"VERSION_FORGE_EXIT={exit_code}")
         return exit_code
