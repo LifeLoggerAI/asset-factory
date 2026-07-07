@@ -156,8 +156,16 @@ def build(version: str) -> Path:
     ).name
 
     if version == "v2":
-        path = build_v2_manifest.build()
-        return write(version, configured_name, load(path), expected, prefix)
+        summary = build_v2_manifest.build()
+        manifest_value = summary.get("manifest")
+        if not isinstance(manifest_value, str) or not manifest_value.strip():
+            raise ValueError("v2 manifest builder did not return a manifest path")
+        source = (BASE / manifest_value).resolve()
+        try:
+            source.relative_to(BASE.resolve())
+        except ValueError as error:
+            raise ValueError("v2 manifest builder returned a path outside image_asset_generator") from error
+        return write(version, configured_name, load(source), expected, prefix)
 
     generated = build_version_manifests.build_all()
     if version == "v1":
