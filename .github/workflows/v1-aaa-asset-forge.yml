@@ -20,6 +20,10 @@ on:
         type: string
   repository_dispatch:
     types: [urai-v1-forge-requested]
+  push:
+    branches: [main]
+    paths:
+      - ".github/asset-forge-triggers/**"
 
 concurrency:
   group: urai-v1-aaa-asset-forge
@@ -54,10 +58,14 @@ jobs:
             echo "rounds=${{ github.event.client_payload.rounds || '3' }}" >> "$GITHUB_OUTPUT"
             echo "job_id=${{ github.event.client_payload.job_id || 'dispatch' }}" >> "$GITHUB_OUTPUT"
             echo "callback_url=${{ github.event.client_payload.callback_url || '' }}" >> "$GITHUB_OUTPUT"
-          else
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "rounds=${{ inputs.rounds }}" >> "$GITHUB_OUTPUT"
             echo "job_id=${{ inputs.job_id }}" >> "$GITHUB_OUTPUT"
             echo "callback_url=${{ inputs.callback_url }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "rounds=3" >> "$GITHUB_OUTPUT"
+            echo "job_id=push-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+            echo "callback_url=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Enforce paid-generation cost controls
@@ -198,8 +206,8 @@ jobs:
     env:
       CALLBACK_SECRET: ${{ secrets.URAI_JOBS_CALLBACK_SECRET }}
       CALLBACK_ALLOWED_ORIGIN: ${{ secrets.URAI_JOBS_CALLBACK_ALLOWED_ORIGIN }}
-      MANUAL_CALLBACK: ${{ inputs.callback_url }}
-      DISPATCH_CALLBACK: ${{ github.event.client_payload.callback_url }}
+      MANUAL_CALLBACK: ${{ github.event.inputs.callback_url || '' }}
+      DISPATCH_CALLBACK: ${{ github.event.client_payload.callback_url || '' }}
     steps:
       - name: Notify URAI Jobs when requested
         shell: bash
@@ -210,7 +218,7 @@ jobs:
           [ "${{ github.event_name }}" = "repository_dispatch" ] && callback="$DISPATCH_CALLBACK"
           [ -n "$callback" ] || exit 0
           [ -n "$CALLBACK_SECRET" ] || { echo "::error::URAI_JOBS_CALLBACK_SECRET missing"; exit 1; }
-          [ -n "$CALLBACK_ALLOWED_ORIGIN" ] || { echo "::error::URAI_JOBS_CALLBACK_ALLOWED_ORIGIN missing"; exit 1; }
+          [ -n "$CALLBACK_ALLOWED_ORIGIN" ] || { echo "::error::CALLBACK_ALLOWED_ORIGIN missing"; exit 1; }
           CALLBACK="$callback" python - <<'PY'
           import os
           import sys
