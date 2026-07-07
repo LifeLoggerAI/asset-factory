@@ -1,0 +1,9 @@
+{
+  "triggeredAt": "2026-07-07T22:22:00Z",
+  "requestedBy": "URAI launch operator",
+  "operation": "asset.forge.v1",
+  "rounds": 3,
+  "target": "LifeLoggerAI/urai-spatial",
+  "handoff": "image_asset_generator/spatial_handoff",
+  "goal": "Generate the V1 spatial asset pack, upload forge evidence, copy canonical handoff into urai-spatial, and open a reviewed promotion PR."
+}
