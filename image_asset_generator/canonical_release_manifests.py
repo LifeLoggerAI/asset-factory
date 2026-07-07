@@ -49,9 +49,7 @@ def normalize_v1(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     for index, source in enumerate(entries):
         entry = dict(source)
-        template = required_text(
-            entry, "path_template", f"v1 manifest entry {index}"
-        )
+        template = required_text(entry, "path_template", f"v1 manifest entry {index}")
         entry.setdefault("canonical_path", canonical_path_from_template(template))
         normalized.append(entry)
     return normalized
@@ -118,9 +116,7 @@ def write(
     paths: list[str] = []
     for index, entry in enumerate(entries):
         name = required_text(entry, "name", f"{version} entry {index}")
-        canonical = required_text(
-            entry, "canonical_path", f"{version} asset {name}"
-        )
+        canonical = required_text(entry, "canonical_path", f"{version} asset {name}")
         names.append(name)
         paths.append(canonical)
 
@@ -142,6 +138,19 @@ def write(
     return target
 
 
+def v2_entries() -> list[dict[str, Any]]:
+    summary = build_v2_manifest.build()
+    manifest_value = summary.get("manifest")
+    if not isinstance(manifest_value, str) or not manifest_value.strip():
+        raise ValueError("v2 manifest builder did not return a manifest path")
+    source = (BASE / manifest_value).resolve()
+    try:
+        source.relative_to(BASE.resolve())
+    except ValueError as error:
+        raise ValueError("v2 manifest builder returned a path outside image_asset_generator") from error
+    return load(source)
+
+
 def build(version: str) -> Path:
     catalog = load_catalog()
     versions = catalog["versions"]
@@ -155,28 +164,11 @@ def build(version: str) -> Path:
         required_text(config, "manifest", f"{version} catalog")
     ).name
 
-    if version == "v2":
-        summary = build_v2_manifest.build()
-        manifest_value = summary.get("manifest")
-        if not isinstance(manifest_value, str) or not manifest_value.strip():
-            raise ValueError("v2 manifest builder did not return a manifest path")
-        source = (BASE / manifest_value).resolve()
-        try:
-            source.relative_to(BASE.resolve())
-        except ValueError as error:
-            raise ValueError("v2 manifest builder returned a path outside image_asset_generator") from error
-        return write(version, configured_name, load(source), expected, prefix)
-
-    generated = build_version_manifests.build_all()
     if version == "v1":
-        source = BASE / generated["v1"]["manifest"]
-        return write(
-            version,
-            configured_name,
-            normalize_v1(load(source)),
-            expected,
-            prefix,
-        )
+        entries = normalize_v1(build_version_manifests._v1_manifest())
+        return write(version, configured_name, entries, expected, prefix)
+    if version == "v2":
+        return write(version, configured_name, v2_entries(), expected, prefix)
     if version == "v3":
         return write(
             version,
@@ -186,18 +178,11 @@ def build(version: str) -> Path:
             prefix,
         )
     if version == "v4":
-        source = BASE / generated["v3"]["manifest"]
-        return write(
-            version,
-            configured_name,
-            remap(load(source), "v3", "v4", False),
-            expected,
-            prefix,
-        )
+        entries = remap(build_version_manifests._v3_manifest(), "v3", "v4", False)
+        return write(version, configured_name, entries, expected, prefix)
     if version == "v5":
-        source = BASE / generated["v4"]["manifest"]
         operations = normalize_v5_operations(
-            remap(load(source), "v4", "v5", True)
+            remap(load(MANIFESTS / "v2.manifest.json"), "v2", "v5", True)
         )
         entries = operations + load(MANIFESTS / "v5.manifest.json")
         return write(version, configured_name, entries, expected, prefix)
