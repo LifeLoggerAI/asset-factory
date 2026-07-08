@@ -1,0 +1,31 @@
+{
+  "triggeredAt": "2026-07-08T14:55:00Z",
+  "requestedBy": "URAI launch operator via ChatGPT",
+  "operation": "asset.forge.v1",
+  "rounds": 3,
+  "target": "LifeLoggerAI/urai-spatial",
+  "handoff": "image_asset_generator/spatial_handoff",
+  "goal": "Generate the V1 spatial asset pack using paid provider mode, upload forge evidence, copy canonical handoff into urai-spatial, and open a reviewed promotion PR.",
+  "safety": {
+    "maxRounds": 3,
+    "requireProvider": true,
+    "noPlaceholderFallback": true,
+    "reviewBeforeMerge": true
+  },
+  "surfaces": [
+    "home-world",
+    "life-map-galaxy",
+    "ground-world",
+    "focus-star-entry",
+    "replay-memory-film",
+    "passport-control-room",
+    "status-readiness-surface",
+    "orb-companion",
+    "portals",
+    "stars",
+    "terrain",
+    "skybox-environment",
+    "particles-light-trails",
+    "cinematic-loading-first-frame"
+  ]
+}
