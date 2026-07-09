@@ -1,0 +1,19 @@
+{
+  "requested_at": "2026-07-09T05:56:00Z",
+  "reason": "Trigger dedicated Patch and Run V1 Forge workflow for issue #155 after prior V1 AAA forge failed 39/47 quality gate.",
+  "issue": 155,
+  "workflow": "Patch and Run V1 Forge",
+  "expected_controls": {
+    "rounds": "3",
+    "max_provider_calls": "150",
+    "max_unit_cost_usd": "0.10",
+    "max_total_cost_usd": "15.00",
+    "renderer_attempts": "3"
+  },
+  "required_result": {
+    "quality_report_passed": 47,
+    "quality_report_failed": 0,
+    "spatial_handoff_required": true,
+    "spatial_promotion_pr_required": true
+  }
+}
