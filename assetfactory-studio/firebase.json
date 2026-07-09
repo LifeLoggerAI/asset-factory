@@ -10,7 +10,7 @@
   },
   "apphosting": {
     "backend": {
-      "id": "assetfactory-studio",
+      "id": "studio",
       "region": "us-central1"
     }
   }
