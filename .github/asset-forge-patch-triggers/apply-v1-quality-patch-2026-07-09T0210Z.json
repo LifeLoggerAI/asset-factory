@@ -1,0 +1,7 @@
+{
+  "triggeredAt": "2026-07-09T02:10:00Z",
+  "operation": "apply.v1.forge.quality.patch",
+  "sourceIssue": 155,
+  "target": "image_asset_generator/manifest.json",
+  "goal": "Apply targeted quality-gate fixes for the eight V1 forge rejects before rerunning the V1 AAA Asset Forge."
+}
