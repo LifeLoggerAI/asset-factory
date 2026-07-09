@@ -1,0 +1,41 @@
+name: Apply V1 Forge Quality Patch
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/asset-forge-patch-triggers/**"
+
+permissions:
+  contents: write
+
+events: {}
+
+jobs:
+  patch-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Asset Factory
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Apply quality reject patch
+        run: python scripts/patch_v1_forge_quality_rejects.py
+
+      - name: Commit manifest patch
+        shell: bash
+        run: |
+          git config user.name "URAI Production Wheel"
+          git config user.email "urai-wheel@users.noreply.github.com"
+          git add image_asset_generator/manifest.json
+          if git diff --cached --quiet; then
+            echo "Manifest already patched."
+            exit 0
+          fi
+          git commit -m "Upgrade failing V1 forge assets for quality gate pass"
+          git push
