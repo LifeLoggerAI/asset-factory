@@ -10,8 +10,6 @@ on:
 permissions:
   contents: write
 
-events: {}
-
 jobs:
   patch-manifest:
     runs-on: ubuntu-latest
