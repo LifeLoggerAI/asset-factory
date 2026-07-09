@@ -1,0 +1,20 @@
+{
+  "requested_at": "2026-07-09T05:49:00Z",
+  "reason": "Rerun V1 AAA Asset Forge after quality-gate reject manifest patch for issue #155.",
+  "issue": 155,
+  "workflow": "V1 AAA Asset Forge",
+  "expected_inputs": {
+    "rounds": "3",
+    "job_id": "push-trigger-issue-155",
+    "callback_url": "",
+    "max_provider_calls": "150",
+    "max_unit_cost_usd": "0.10",
+    "max_total_cost_usd": "15.00"
+  },
+  "closure_required": {
+    "quality_report_passed": 47,
+    "quality_report_failed": 0,
+    "spatial_handoff_required": true,
+    "spatial_promotion_pr_required": true
+  }
+}
