@@ -1,0 +1,9 @@
+{
+  "triggeredAt": "2026-07-09T03:52:00Z",
+  "operation": "patch.run.promote.v1.forge.retry",
+  "sourceIssue": 155,
+  "workflowCommit": "8f731fa727c0002465778136373bfc23b660e429",
+  "previousRun": 28990495155,
+  "reason": "Previous patched run failed on a transient provider HTTP 503 with max attempts set to 1. This retry uses provider max attempts 3.",
+  "goal": "Apply quality-gate reject fixes, run the V1 AAA forge with provider retries, and promote the spatial handoff into LifeLoggerAI/urai-spatial as a reviewed PR."
+}
