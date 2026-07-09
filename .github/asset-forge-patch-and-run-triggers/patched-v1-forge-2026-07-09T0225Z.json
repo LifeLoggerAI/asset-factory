@@ -1,0 +1,7 @@
+{
+  "triggeredAt": "2026-07-09T02:25:00Z",
+  "operation": "patch.and.run.v1.forge",
+  "sourceIssue": 155,
+  "patchWorkflow": "patch-and-run-v1-forge.yml",
+  "goal": "Apply the eight quality-gate reject fixes in the runner workspace and run the V1 AAA forge with the patched manifest."
+}
