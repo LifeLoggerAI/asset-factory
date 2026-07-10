@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { materializeAsset, recordUsage, updateJob } from '@/lib/server/assetFactoryStore';
+import { recordUsage, updateJob } from '@/lib/server/assetFactoryStore';
 import {
   claimNextAssetQueueJob,
   completeAssetQueueJob,
   failAssetQueueJob,
   heartbeatAssetQueueJob,
 } from '@/lib/server/assetQueueDispatcher';
+import {
+  classifyExecutionError,
+  generatorConfigurationSnapshot,
+  isContinuousAssetEngineEnabled,
+  isContinuousAssetEnginePaused,
+  reconcilePendingPromotions,
+  runGovernedAssetJob,
+} from '@/lib/server/assetContinuousEngine';
 
 function workerSecretConfigured() {
   return Boolean(process.env.ASSET_FACTORY_WORKER_SECRET);
@@ -42,7 +50,10 @@ export async function GET() {
     ok: true,
     service: 'asset-factory-worker-queue',
     workerSecretConfigured: workerSecretConfigured(),
-    actions: ['claim-and-run', 'heartbeat', 'complete', 'fail'],
+    continuousEngineEnabled: isContinuousAssetEngineEnabled(),
+    workersPaused: isContinuousAssetEnginePaused(),
+    generatorConfiguration: generatorConfigurationSnapshot(),
+    actions: ['claim-and-run', 'reconcile-pending', 'heartbeat', 'complete', 'fail'],
   });
 }
 
@@ -73,7 +84,7 @@ export async function POST(req: NextRequest) {
   if (action === 'fail') {
     if (!jobId || !leaseId) return NextResponse.json({ error: 'jobId and leaseId are required' }, { status: 400 });
     const reason = typeof body.reason === 'string' && body.reason.trim() ? body.reason : 'worker reported failure';
-    const retryable = body.retryable !== false;
+    const retryable = body.retryable === true;
     const item = await failAssetQueueJob(jobId, leaseId, reason, retryable);
     if (!item) return NextResponse.json({ error: 'Queue item lease not found' }, { status: 404 });
     await updateJob(jobId, { queueStatus: item.queueStatus, failureReason: reason });
@@ -81,23 +92,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, action, item });
   }
 
+  if (action === 'reconcile-pending') {
+    if (!isContinuousAssetEngineEnabled()) {
+      return NextResponse.json({ error: 'Continuous asset engine is disabled.' }, { status: 503 });
+    }
+    const limit = Number(body.limit ?? 10);
+    const reconciliation = await reconcilePendingPromotions(limit);
+    return NextResponse.json({ ok: true, action, ...reconciliation });
+  }
+
   if (action !== 'claim-and-run') {
     return NextResponse.json({ error: `Unsupported worker action: ${action}` }, { status: 400 });
+  }
+
+  if (!isContinuousAssetEngineEnabled()) {
+    return NextResponse.json({ error: 'Continuous asset engine is disabled.' }, { status: 503 });
+  }
+  if (isContinuousAssetEnginePaused()) {
+    return NextResponse.json({ error: 'Continuous asset engine workers are paused.' }, { status: 423 });
   }
 
   const claimed = await claimNextAssetQueueJob(workerId);
   if (!claimed) {
     return NextResponse.json({ ok: true, action, claimed: false, message: 'No claimable asset queue job found.' });
   }
-
-  await updateJob(claimed.jobId, {
-    status: 'rendering',
-    queueStatus: 'claimed',
-    workerId,
-    leaseId: claimed.leaseId,
-    leaseExpiresAt: claimed.leaseExpiresAt,
-    attempts: claimed.attempts,
-  });
 
   await recordUsage({
     action: 'queue.worker_claimed',
@@ -108,45 +126,56 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const asset = await materializeAsset(claimed.jobId);
+    const result = await runGovernedAssetJob(claimed, workerId);
+
+    if (result.outcome === 'retryable-failure') {
+      const reason = result.policyDecision.reasons.join('; ');
+      const failed = await failAssetQueueJob(claimed.jobId, claimed.leaseId, reason, true);
+      await updateJob(claimed.jobId, { queueStatus: failed?.queueStatus ?? 'retrying', failureReason: reason });
+      return NextResponse.json({ ok: false, action, claimed: true, result, item: failed }, { status: 503 });
+    }
+
+    if (result.outcome === 'rejected') {
+      const reason = result.policyDecision.reasons.join('; ');
+      const failed = await failAssetQueueJob(claimed.jobId, claimed.leaseId, reason, false);
+      await updateJob(claimed.jobId, { queueStatus: failed?.queueStatus ?? 'dead-lettered', failureReason: reason });
+      return NextResponse.json({ ok: false, action, claimed: true, result, item: failed }, { status: 422 });
+    }
+
     const completed = await completeAssetQueueJob(claimed.jobId, claimed.leaseId, {
-      materializedAssetFile: asset && typeof asset === 'object' ? (asset as Record<string, unknown>).fileName : undefined,
+      governedOutcome: result.outcome,
+      materializedAssetFile: result.assetFileName,
+      validationReportId: result.validation.reportId,
+      policyDisposition: result.policyDecision.disposition,
+      promotionPullRequestUrl: result.promotion?.pullRequestUrl,
     });
-
-    await updateJob(claimed.jobId, {
-      queueStatus: 'completed',
-      workerId,
-      leaseId: claimed.leaseId,
-    });
-
     await recordUsage({
       action: 'queue.worker_completed',
       jobId: claimed.jobId,
       workerId,
       leaseId: claimed.leaseId,
+      governedOutcome: result.outcome,
     });
-
-    return NextResponse.json({ ok: true, action, claimed: true, item: completed, asset });
+    return NextResponse.json({ ok: true, action, claimed: true, item: completed, result });
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'unknown worker materialization error';
-    const failed = await failAssetQueueJob(claimed.jobId, claimed.leaseId, reason, true);
-
+    const classified = classifyExecutionError(error);
+    const failed = await failAssetQueueJob(claimed.jobId, claimed.leaseId, classified.message, classified.retryable);
     await updateJob(claimed.jobId, {
-      queueStatus: failed?.queueStatus ?? 'failed',
-      failureReason: reason,
+      queueStatus: failed?.queueStatus ?? (classified.retryable ? 'retrying' : 'dead-lettered'),
+      failureReason: classified.message,
       workerId,
       leaseId: claimed.leaseId,
+      executionFailureCode: classified.code,
     });
-
     await recordUsage({
       action: 'queue.worker_failed',
       jobId: claimed.jobId,
       workerId,
       leaseId: claimed.leaseId,
-      retryable: true,
-      failureReason: reason,
+      retryable: classified.retryable,
+      failureReason: classified.message,
+      failureCode: classified.code,
     });
-
-    return NextResponse.json({ ok: false, action, claimed: true, item: failed, error: reason }, { status: 500 });
+    return NextResponse.json({ ok: false, action, claimed: true, item: failed, error: classified.message }, { status: classified.retryable ? 503 : 500 });
   }
 }
