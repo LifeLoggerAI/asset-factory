@@ -81,7 +81,7 @@ const queueModulePath = compileSource(
 
 const { decideAssetAutonomy } = await import(pathToFileURL(policyModulePath).href);
 const { validateGeneratedAsset } = await import(pathToFileURL(validationModulePath).href);
-const { selectPromotionTarget } = await import(pathToFileURL(promotionModulePath).href);
+const { selectPromotionTarget, reconcilePromotion } = await import(pathToFileURL(promotionModulePath).href);
 const { claimNextAssetQueueJob, queueBackoffSeconds } = await import(pathToFileURL(queueModulePath).href);
 
 const passingSignals = [{ code: 'ok', status: 'pass', severity: 'info' }];
@@ -207,4 +207,85 @@ const [first, second] = await Promise.all([
 assert.equal([first, second].filter(Boolean).length, 1, 'only one worker may claim the same job');
 assert.equal(globalThis.__QUEUE_TEST_DB__.store.concurrent.attempts, 1);
 
-console.log('Governed autonomy policy, validation, routing, backoff, and concurrency tests passed.');
+const originalFetch = globalThis.fetch;
+const originalPromotionToken = process.env.ASSET_FACTORY_PROMOTION_TOKEN;
+process.env.ASSET_FACTORY_PROMOTION_TOKEN = 'test-token';
+
+const failedPromotionCalls = [];
+globalThis.fetch = async (url, options = {}) => {
+  const targetUrl = String(url);
+  failedPromotionCalls.push({ url: targetUrl, method: options.method ?? 'GET' });
+  if (targetUrl.endsWith('/pulls/42') && (options.method ?? 'GET') === 'GET') {
+    return new Response(JSON.stringify({ head: { sha: 'f'.repeat(40) }, merged: false }), { status: 200 });
+  }
+  if (targetUrl.includes('/commits/') && targetUrl.includes('/check-runs')) {
+    return new Response(JSON.stringify({
+      check_runs: [{ name: 'Governed asset promotion gate', status: 'completed', conclusion: 'failure' }],
+    }), { status: 200 });
+  }
+  if (targetUrl.endsWith('/pulls/42') && options.method === 'PATCH') {
+    return new Response(JSON.stringify({ state: 'closed' }), { status: 200 });
+  }
+  if (targetUrl.includes('/git/refs/heads/asset-factory/job-valid') && options.method === 'DELETE') {
+    return new Response(null, { status: 204 });
+  }
+  throw new Error(`unexpected failed-promotion request: ${options.method ?? 'GET'} ${targetUrl}`);
+};
+
+const failedReconciliation = await reconcilePromotion({
+  promotionId: 'LifeLoggerAI/UrAi:asset-factory/job-valid',
+  jobId: 'job-valid',
+  repository: 'LifeLoggerAI/UrAi',
+  baseBranch: 'main',
+  branch: 'asset-factory/job-valid',
+  commitSha: 'e'.repeat(40),
+  pullRequestNumber: 42,
+  pullRequestUrl: 'https://github.com/LifeLoggerAI/UrAi/pull/42',
+  requiredChecks: ['Governed asset promotion gate'],
+  status: 'checks-pending',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+assert.equal(failedReconciliation.status, 'rolled-back');
+assert.deepEqual(failedReconciliation.failedChecks, ['Governed asset promotion gate']);
+assert.equal(failedPromotionCalls.some((call) => call.method === 'PATCH'), true);
+assert.equal(failedPromotionCalls.some((call) => call.method === 'DELETE'), true);
+
+const successfulPromotionCalls = [];
+globalThis.fetch = async (url, options = {}) => {
+  const targetUrl = String(url);
+  successfulPromotionCalls.push({ url: targetUrl, method: options.method ?? 'GET' });
+  if (targetUrl.endsWith('/pulls/43')) {
+    return new Response(JSON.stringify({ head: { sha: 'a'.repeat(40) }, merged: true, merged_at: '2026-07-10T00:00:00.000Z' }), { status: 200 });
+  }
+  if (targetUrl.includes('/commits/') && targetUrl.includes('/check-runs')) {
+    return new Response(JSON.stringify({
+      check_runs: [{ name: 'Governed asset promotion gate', status: 'completed', conclusion: 'success' }],
+    }), { status: 200 });
+  }
+  throw new Error(`unexpected successful-promotion request: ${options.method ?? 'GET'} ${targetUrl}`);
+};
+
+const successfulReconciliation = await reconcilePromotion({
+  promotionId: 'LifeLoggerAI/UrAi:asset-factory/job-valid-2',
+  jobId: 'job-valid-2',
+  repository: 'LifeLoggerAI/UrAi',
+  baseBranch: 'main',
+  branch: 'asset-factory/job-valid-2',
+  commitSha: 'b'.repeat(40),
+  pullRequestNumber: 43,
+  pullRequestUrl: 'https://github.com/LifeLoggerAI/UrAi/pull/43',
+  requiredChecks: ['Governed asset promotion gate'],
+  status: 'checks-pending',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+assert.equal(successfulReconciliation.status, 'merged');
+assert.deepEqual(successfulReconciliation.failedChecks, []);
+assert.equal(successfulPromotionCalls.some((call) => call.method === 'PATCH' || call.method === 'DELETE'), false);
+
+globalThis.fetch = originalFetch;
+if (originalPromotionToken === undefined) delete process.env.ASSET_FACTORY_PROMOTION_TOKEN;
+else process.env.ASSET_FACTORY_PROMOTION_TOKEN = originalPromotionToken;
+
+console.log('Governed autonomy policy, validation, routing, backoff, concurrency, promotion, and rollback tests passed.');
