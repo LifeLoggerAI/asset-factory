@@ -3,6 +3,10 @@ import { findJob, publishAsset } from '@/lib/server/assetFactoryStore';
 import { requireAssetFactoryApiKey } from '@/lib/server/apiAuth';
 import { authorizeAssetRequest } from '@/lib/server/assetAuth';
 
+function record(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
@@ -20,6 +24,21 @@ export async function POST(
   const auth = authorizeAssetRequest(req, String(job.tenantId ?? 'default'));
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  if (process.env.ASSET_FACTORY_CONTINUOUS_ENGINE_ENABLED === 'true') {
+    const promotion = record(job.promotion);
+    const validationPassed = job.validationStatus === 'passed';
+    const approved = job.approvalStatus === 'approved';
+    const promotionMerged = promotion.status === 'merged';
+    if (!validationPassed || !approved || !promotionMerged) {
+      return NextResponse.json({
+        error: 'Governed publish gate is closed.',
+        validationPassed,
+        approved,
+        promotionMerged,
+      }, { status: 409 });
+    }
   }
 
   const asset = await publishAsset(jobId);
