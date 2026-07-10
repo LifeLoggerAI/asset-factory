@@ -319,7 +319,7 @@ export async function reconcilePromotion(recordInput: PromotionRecord): Promise<
   const failedChecks = recordInput.requiredChecks.filter((name) => {
     const item = byName.get(name);
     if (!item || stringValue(item.status) !== 'completed') return false;
-    return !['success', 'neutral', 'skipped'].includes(stringValue(item.conclusion));
+    return stringValue(item.conclusion) !== 'success';
   });
 
   if (failedChecks.length > 0) {
