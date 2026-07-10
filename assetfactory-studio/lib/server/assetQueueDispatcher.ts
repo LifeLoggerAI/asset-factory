@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getAdminDb } from './firebaseAdmin';
 
 type GenericRecord = Record<string, unknown>;
@@ -19,6 +20,8 @@ export type ClaimedAssetQueueJob = GenericRecord & {
 const QUEUE_COLLECTION = 'assetFactoryQueue';
 const DEFAULT_LEASE_SECONDS = 300;
 const DEFAULT_MAX_ATTEMPTS = 3;
+const DEFAULT_BACKOFF_SECONDS = 30;
+const MAX_BACKOFF_SECONDS = 900;
 
 function nowIso() {
   return new Date().toISOString();
@@ -54,6 +57,11 @@ export function queueLeaseSeconds() {
 
 export function queueMaxAttempts() {
   return envNumber('ASSET_FACTORY_QUEUE_MAX_ATTEMPTS', DEFAULT_MAX_ATTEMPTS);
+}
+
+export function queueBackoffSeconds(attempt: number) {
+  const base = envNumber('ASSET_FACTORY_QUEUE_BACKOFF_SECONDS', DEFAULT_BACKOFF_SECONDS);
+  return Math.min(base * Math.max(1, 2 ** Math.max(0, attempt - 1)), MAX_BACKOFF_SECONDS);
 }
 
 export async function dispatchAssetJob(jobId: string, payload: GenericRecord = {}): Promise<QueueDispatchResult> {
@@ -97,6 +105,8 @@ export async function dispatchAssetJob(jobId: string, payload: GenericRecord = {
 function isClaimable(item: GenericRecord, now = nowIso()) {
   const status = String(item.status ?? item.queueStatus ?? 'queued');
   const leaseExpiresAt = typeof item.leaseExpiresAt === 'string' ? item.leaseExpiresAt : '';
+  const retryAfter = typeof item.retryAfter === 'string' ? item.retryAfter : '';
+  if (status === 'retrying' && retryAfter && retryAfter > now) return false;
   return status === 'queued' || status === 'retrying' || (status === 'claimed' && leaseExpiresAt <= now);
 }
 
@@ -120,7 +130,7 @@ export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
 
       const attempts = Number(item.attempts ?? 0) + 1;
       const maxAttempts = Number(item.maxAttempts ?? queueMaxAttempts());
-      const leaseId = `${workerId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const leaseId = `${workerId}-${randomUUID()}`;
       const leaseExpiresAt = futureIso(queueLeaseSeconds());
 
       if (attempts > maxAttempts) {
@@ -131,6 +141,10 @@ export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
           maxAttempts,
           deadLetteredAt: now,
           failureReason: item.failureReason ?? 'maximum attempts exceeded before claim',
+          leaseId: null,
+          leaseExpiresAt: null,
+          workerId: null,
+          heartbeatAt: null,
           updatedAt: now,
         }), { merge: true });
         return null;
@@ -146,6 +160,7 @@ export async function claimNextAssetQueueJob(workerId = 'asset-worker') {
         claimedAt: now,
         heartbeatAt: now,
         leaseExpiresAt,
+        retryAfter: null,
         updatedAt: now,
       });
 
@@ -192,6 +207,11 @@ export async function completeAssetQueueJob(jobId: string, leaseId: string, patc
       queueStatus: 'completed',
       completedAt: now,
       leaseCompletedAt: now,
+      leaseId: null,
+      leaseExpiresAt: null,
+      workerId: null,
+      heartbeatAt: null,
+      retryAfter: null,
       updatedAt: now,
     });
     transaction.set(ref, update, { merge: true });
@@ -220,8 +240,12 @@ export async function failAssetQueueJob(jobId: string, leaseId: string, reason: 
       failureReason: reason,
       lastFailedAt: now,
       updatedAt: now,
-      retryAfter: shouldRetry ? futureIso(Math.min(60 * attempts, 300)) : undefined,
-      deadLetteredAt: shouldRetry ? undefined : now,
+      retryAfter: shouldRetry ? futureIso(queueBackoffSeconds(attempts)) : null,
+      deadLetteredAt: shouldRetry ? null : now,
+      leaseId: null,
+      leaseExpiresAt: null,
+      workerId: null,
+      heartbeatAt: null,
     });
 
     transaction.set(ref, update, { merge: true });
@@ -237,6 +261,7 @@ export function getQueueDiagnostics() {
     firestoreQueueCollection: QUEUE_COLLECTION,
     leaseSeconds: queueLeaseSeconds(),
     maxAttempts: queueMaxAttempts(),
+    backoffSeconds: queueBackoffSeconds(1),
     durableLeasesSupported: true,
   };
 }
