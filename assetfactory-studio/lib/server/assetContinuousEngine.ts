@@ -13,7 +13,7 @@ import {
   updateJob,
 } from './assetFactoryStore';
 import type { ClaimedAssetQueueJob } from './assetQueueDispatcher';
-import { decideAssetAutonomy, loadAssetAutonomyPolicy, promptFingerprint } from './assetAutonomyPolicy';
+import { classifyAssetRequest, decideAssetAutonomy, loadAssetAutonomyPolicy, promptFingerprint } from './assetAutonomyPolicy';
 import { validateGeneratedAsset, type AssetValidationReport } from './assetOutputValidation';
 import {
   createPromotionPullRequest,
@@ -210,6 +210,69 @@ export async function runGovernedAssetJob(
   if (!job) throw new Error(`Asset Factory job ${claimed.jobId} was not found.`);
   const attemptId = await startAttempt(job, claimed, workerId);
   const policy = loadAssetAutonomyPolicy();
+  const dailyBudget = await evaluateDailyBudget(job, policy.maxDailyCostCents);
+
+  if (!dailyBudget.ok) {
+    const classification = classifyAssetRequest(job);
+    const validation: AssetValidationReport = {
+      schemaVersion: 1,
+      reportId: `${claimed.jobId}:validation:budget`,
+      jobId: claimed.jobId,
+      status: 'failed',
+      validatedAt: new Date().toISOString(),
+      policyVersion: policy.version,
+      promptHash: promptFingerprint(job.prompt),
+      artifactSha256: '',
+      classification,
+      repository: null,
+      requiredChecks: [],
+      checks: [{
+        code: 'daily-budget-limit',
+        status: 'fail',
+        severity: 'error',
+        message: `Tenant daily reserved generation cost exceeds ${policy.maxDailyCostCents} cents.`,
+        details: dailyBudget,
+      }],
+      summary: { passed: 0, warnings: 0, failed: 1, retryableFailures: 0 },
+    };
+    const policyDecision = decideAssetAutonomy({
+      job,
+      validationStatus: validation.status,
+      validationSignals: validation.checks,
+      estimatedCostCents: numberValue(job.estimatedCostCents),
+      policy,
+    });
+    const reason = policyDecision.reasons.join('; ');
+    await updateJob(claimed.jobId, {
+      status: 'rejected',
+      queueStatus: 'failed',
+      validationReport: validation,
+      validationStatus: validation.status,
+      policyDecision,
+      policyDisposition: policyDecision.disposition,
+      classification,
+      promptHash: validation.promptHash,
+      dailyBudgetSnapshot: dailyBudget,
+      failureReason: reason,
+      rejectedAt: new Date().toISOString(),
+      lastTransitionAt: new Date().toISOString(),
+    });
+    await recordUsage({
+      action: 'asset.daily_budget_rejected',
+      tenantId: job.tenantId ?? 'default',
+      jobId: claimed.jobId,
+      attemptId,
+      dailyReservedCostCents: dailyBudget.reservedCostCents,
+      dailyMaxCostCents: dailyBudget.maxDailyCostCents,
+    });
+    await finishAttempt(claimed.jobId, attemptId, {
+      status: 'rejected',
+      validationReportId: validation.reportId,
+      policyDisposition: policyDecision.disposition,
+      failureReason: reason,
+    });
+    return { jobId: claimed.jobId, outcome: 'rejected', retryable: false, validation, policyDecision };
+  }
 
   let asset = await findAsset(claimed.jobId) as GenericRecord | null;
   if (!existingAssetIsReusable(job, asset)) {
@@ -234,18 +297,6 @@ export async function runGovernedAssetJob(
   const assetFileName = stringValue(asset.fileName);
   const assetBuffer = assetFileName ? await readGeneratedAsset(assetFileName) : null;
   const validation = validateGeneratedAsset({ job, asset, assetBuffer, policy });
-  const dailyBudget = await evaluateDailyBudget(job, policy.maxDailyCostCents);
-  if (!dailyBudget.ok) {
-    validation.checks.push({
-      code: 'daily-budget-limit',
-      status: 'fail',
-      severity: 'error',
-      message: `Tenant daily reserved generation cost exceeds ${policy.maxDailyCostCents} cents.`,
-      details: dailyBudget,
-    });
-    validation.status = 'failed';
-    validation.summary.failed += 1;
-  }
   const policyDecision = decideAssetAutonomy({
     job,
     validationStatus: validation.status,
