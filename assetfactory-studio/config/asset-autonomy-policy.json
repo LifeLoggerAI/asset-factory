@@ -1,0 +1,104 @@
+{
+  "version": "2026-07-10.1",
+  "minimumClassificationConfidence": 0.9,
+  "maxAutoApproveCostCents": 10,
+  "maxPerJobCostCents": 100,
+  "maxDailyCostCents": 2500,
+  "maxAttempts": 3,
+  "autoApproveAssetClasses": [
+    "icon",
+    "background",
+    "environmental-texture",
+    "ambient-audio",
+    "content-variant",
+    "scene-asset"
+  ],
+  "manualReviewAssetClasses": [
+    "avatar",
+    "identity",
+    "autobiographical-interpretation",
+    "biometric-human",
+    "photorealistic-human",
+    "marketing-asset",
+    "public-claim"
+  ],
+  "manualReviewRiskTags": [
+    "identity-related",
+    "autobiographical",
+    "biometric-looking",
+    "photorealistic-human",
+    "sensitive-content",
+    "public-facing",
+    "marketing-claim",
+    "minor",
+    "medical",
+    "mental-health",
+    "sexual-content",
+    "self-harm",
+    "violence"
+  ],
+  "rejectRiskTags": [
+    "contains-secret",
+    "raw-personal-data",
+    "credential",
+    "malware",
+    "illegal-content",
+    "policy-blocked"
+  ],
+  "retryableValidationCodes": [
+    "provider-timeout",
+    "provider-rate-limit",
+    "provider-unavailable",
+    "artifact-fetch-failed",
+    "storage-write-failed",
+    "transient-network-error"
+  ],
+  "limits": {
+    "graphic": {
+      "allowedExtensions": ["png", "webp", "svg"],
+      "maxBytes": 20971520,
+      "maxWidth": 4096,
+      "maxHeight": 4096,
+      "maxAssetCount": 1
+    },
+    "audio": {
+      "allowedExtensions": ["wav", "mp3"],
+      "maxBytes": 52428800,
+      "maxDurationSeconds": 30,
+      "maxAssetCount": 1
+    },
+    "model3d": {
+      "allowedExtensions": ["gltf", "glb"],
+      "maxBytes": 104857600,
+      "maxAssetCount": 1
+    },
+    "bundle": {
+      "allowedExtensions": ["json"],
+      "maxBytes": 10485760,
+      "maxAssetCount": 100
+    }
+  },
+  "repositories": {
+    "LifeLoggerAI/UrAi": {
+      "assetRoot": "public/assets/generated",
+      "manifestRoot": "public/assets/generated-manifests",
+      "reportRoot": "public/assets/generated-validation",
+      "requiredChecks": ["Governed asset promotion gate"],
+      "supportedClasses": ["icon", "background", "environmental-texture", "ambient-audio", "scene-asset"]
+    },
+    "LifeLoggerAI/urai-content": {
+      "assetRoot": "content/generated",
+      "manifestRoot": "content/generated-manifests",
+      "reportRoot": "content/generated-validation",
+      "requiredChecks": ["Content governed asset promotion gate"],
+      "supportedClasses": ["content-variant"]
+    },
+    "LifeLoggerAI/urai-spatial": {
+      "assetRoot": "urai-tier1/public/assets/urai/generated",
+      "manifestRoot": "urai-tier1/public/assets/urai/generated-manifests",
+      "reportRoot": "urai-tier1/public/assets/urai/generated-validation",
+      "requiredChecks": ["Spatial governed asset promotion gate"],
+      "supportedClasses": ["scene-asset", "environmental-texture"]
+    }
+  }
+}
