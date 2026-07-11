@@ -3,11 +3,12 @@
   "version": "1.2.0",
   "description": "URAI Asset Factory orchestration and production image forge",
   "dependencies": {
-    "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.3.1",
-    "stripe": "^14.5.0"
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
+    "stripe": "^14.25.0"
   },
   "private": true,
+  "packageManager": "npm@10.9.2",
   "engines": {
     "node": ">=20.19.0",
     "npm": ">=10.8.0"
@@ -47,10 +48,10 @@
     "image:check:version-contract": "python image_asset_generator/check_canonical_version_contract.py",
     "image:check": "python image_asset_generator/run_pipeline.py",
     "image:wheel": "npm run image:manifest && npm run image:generate && npm run image:validate && npm run image:score && npm run image:preview && npm run image:seed && npm run image:export && npm run image:handoff:spatial",
-    "audit:root": "test -f package-lock.json && npm audit --audit-level=high || echo 'Skipping root audit: package-lock.json is not committed yet. Run npm install --package-lock-only to enable root audit.'",
+    "audit:root": "test -f package-lock.json && npm audit --audit-level=high",
     "audit:functions": "npm --prefix life-map-pipeline/functions audit --audit-level=high || true",
     "audit:all": "npm run audit:root && npm run audit:functions",
-    "lockfile:refresh-root": "npm install --package-lock-only && npm run audit:root",
+    "lockfile:refresh-root": "npm install --package-lock-only --ignore-scripts --registry=https://registry.npmjs.org && npm run audit:root",
     "lockfile:refresh-functions": "node scripts/refresh-functions-lockfile.mjs",
     "diagnose:custom-domain": "node scripts/diagnose-custom-domain.mjs",
     "deploy:firebase": "firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage",
