@@ -40,16 +40,16 @@ const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
 
-for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
+for (const assetType of ['graphic', 'model3d', 'audio', 'video', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
   assertIncludes(e2e, `type: '${assetType}'`, `${assetType} E2E case`);
 }
 
-for (const mode of ['svg-proof', 'spatial-renderer', 'audio-renderer', 'manifest-only']) {
+for (const mode of ['svg-proof', 'spatial-renderer', 'audio-renderer', 'video-animatic', 'manifest-only']) {
   assertIncludes(renderer, mode, `${mode} renderer branch`);
 }
 
-for (const extension of ['svg', 'gltf', 'wav', 'json']) {
+for (const extension of ['svg', 'gltf', 'wav', 'animatic', 'mp4', 'webm', 'mov', 'json']) {
   assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
 }
 
@@ -61,11 +61,15 @@ for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'E
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
 
+assertIncludes(renderer, 'urai-video-animatic-1', 'video animatic schema');
+assertIncludes(renderer, 'productionReady: false', 'video local proof fail-closed marker');
+assertIncludes(policy, 'maxDurationSeconds: 90', 'video duration guardrail');
+assertIncludes(policy, 'estimatedCostCents: seconds * 20', 'video cost estimate');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(validation, 'unsupported type', 'unsupported type validation');
 assertIncludes(policy, 'estimatedCostCents', 'policy cost estimate');
-assertIncludes(policy, 'maxDurationSeconds', 'audio duration guardrail');
+assertIncludes(policy, 'maxDurationSeconds', 'media duration guardrail');
 assertIncludes(billing, 'stripe-price-metadata', 'Stripe price metadata quota source');
 assertIncludes(billing, 'maxMonthlyCostCents', 'monthly cost quota');
 assertIncludes(storagePaths, 'tenants/${tenantId}/jobs/${jobId}/v${version}', 'canonical storage path convention');
