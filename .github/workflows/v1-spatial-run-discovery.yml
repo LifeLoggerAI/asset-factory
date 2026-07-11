@@ -136,11 +136,20 @@ jobs:
             const state = marker
               ? `${marker.run.status}${marker.run.conclusion ? `/${marker.run.conclusion}` : ''}`
               : 'not-found'
+            const pullRequestRepo = context.payload.pull_request?.head?.repo?.full_name
+            const trustedIssueWrite = context.eventName !== 'pull_request' || pullRequestRepo === `${owner}/${repo}`
 
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              title: `[${state.toUpperCase()}] V1 Spatial Pack Run Discovery Receipt`,
-              body,
-            })
+            if (trustedIssueWrite) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                title: `[${state.toUpperCase()}] V1 Spatial Pack Run Discovery Receipt`,
+                body,
+              })
+            } else {
+              await core.summary
+                .addHeading('V1 Spatial Pack Run Discovery')
+                .addRaw(body)
+                .write()
+            }
