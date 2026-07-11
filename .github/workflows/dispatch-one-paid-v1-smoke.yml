@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/dispatch-one-paid-v1-smoke.yml
+      - .github/asset-forge-paid-smoke-triggers/**
   workflow_dispatch:
 
 permissions:
@@ -14,6 +14,7 @@ permissions:
 jobs:
   dispatch-one-paid-call:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Dispatch one tightly bounded provider call
         uses: actions/github-script@v7
