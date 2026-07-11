@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "policy": {
+    "unknownRightsBlockPromotion": true,
+    "unknownConsentBlocksIdentityUse": true,
+    "privateLifeDataAllowed": false,
+    "voiceCloningAllowedWithoutConsent": false
+  },
+  "records": [
+    {"recordId":"provider-terms","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"source-attribution","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"commercial-rights","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"music-license","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"voice-consent","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"likeness-consent","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"sensitive-data","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"deletion-revocation","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"ownership-export","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null},
+    {"recordId":"retention-policy","status":"blocked","source":null,"commercialUse":null,"attribution":null,"expiresAt":null,"reviewEvidence":null}
+  ]
+}
