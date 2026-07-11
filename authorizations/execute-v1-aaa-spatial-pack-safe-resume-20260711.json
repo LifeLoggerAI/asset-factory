@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "confirm": "AUTHORIZE_URAI_V1_AAA_SPATIAL_PACK_SAFE_RESUME",
+  "expectedParentSha": "36bd6577dfb4b2af18b3c8c2f0935f619823c6ce",
+  "historicalMarkerSha": "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+  "maxNewProviderCalls": 47,
+  "maxUnitCostUsd": "1.00",
+  "maxTotalCostUsd": "47.00",
+  "canonicalOutputs": 53,
+  "reuseProvenOutputs": 1,
+  "derivedProviderOutputs": 5,
+  "promote": false,
+  "executionNonce": "URAI-V1-AAA-SPATIAL-20260711-SAFE-RESUME-ONE-TIME"
+}
