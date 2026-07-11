@@ -1,0 +1,45 @@
+{
+  "receiptId": "URAI-WSC-20260711-ASSET-CLEAN-016",
+  "recordedAt": "2026-07-11T17:28:00Z",
+  "repository": "LifeLoggerAI/asset-factory",
+  "pullRequest": 172,
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "priorHead": "ddafe4c77b077aa374fece010ba89513ca8891a1",
+  "finalHead": "See current PR metadata after this receipt commit.",
+  "supersedes": "URAI-WSC-20260711-ASSET-CLEAN-015",
+  "repairs": {
+    "studioPaidRuntime": "hard-disabled-pending-atomic-ledger",
+    "voiceConsent": "pending-exact-output-review",
+    "likenessConsent": "pending-exact-output-review",
+    "manifestScopeRequiredForPromotion": true,
+    "planOnlyNotApplicableRejected": true,
+    "scopeContradictionsReported": true,
+    "activeNoSpendUnitTest": "scripts/test-asset-factory-core-units.mjs"
+  },
+  "staleRuns": [
+    29161433626,
+    29161433665,
+    29161433662,
+    29161433664,
+    29161433681,
+    29161433714,
+    29161433668,
+    29161433671,
+    29161433631,
+    29161433629
+  ],
+  "staleRunsCountAsPass": false,
+  "providerCallsByCandidate": 0,
+  "assetsCertified": 0,
+  "assetsPromoted": 0,
+  "deploymentPerformed": false,
+  "remaining": [
+    "final exact-head workflows",
+    "verified root-lock artifact and committed contract",
+    "temporary generator removal",
+    "rights and consent clearance",
+    "exact-hash human review",
+    "promotion deployment rollback and live proof"
+  ],
+  "status": "P1 defects repaired; clean no-spend candidate remains blocked on execution evidence"
+}
