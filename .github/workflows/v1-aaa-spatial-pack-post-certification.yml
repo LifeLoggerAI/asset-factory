@@ -98,7 +98,7 @@ jobs:
           manifest_path = manifest_paths[0]
           base = manifest_path.parents[2]
           handoff_manifest_path = handoff_paths[0]
-          handoff_root = handoff_manifest_path.parents[5]
+          handoff_root = handoff_manifest_path.parents[4]
           manifest = json.loads(manifest_path.read_text())
           quality = json.loads(quality_paths[0].read_text())
           receipt = json.loads(receipt_paths[0].read_text())
