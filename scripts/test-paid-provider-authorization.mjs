@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourcePath = path.join(root, 'assetfactory-studio', 'lib', 'server', 'assetProviderAdapters.ts');
 const manifestPath = path.join(root, 'assetfactory-studio', 'app', 'api', 'system', 'manifest', 'route.ts');
 
@@ -25,8 +26,8 @@ for (const guard of [
   requireText(manifest, guard, `${guard} manifest readiness signal`);
 }
 
-requireText(source, 'const enabled = process.env.ASSET_FACTORY_ENABLE_PAID_MEDIA ===', 'explicit paid enablement');
-requireText(source, 'const approvalIdPresent = Boolean(process.env.ASSET_FACTORY_PAID_APPROVAL_ID?.trim())', 'nonempty approval ID');
+requireText(source, "const enabled = value('ASSET_FACTORY_ENABLE_PAID_MEDIA') === 'true'", 'explicit paid enablement');
+requireText(source, "const approvalIdPresent = Boolean(value('ASSET_FACTORY_PAID_APPROVAL_ID'))", 'nonempty approval ID');
 requireText(source, 'coversMaximumPolicyRequest', 'maximum-request ceiling coverage');
 requireText(source, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'all-guards authorization rule');
 requireText(source, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed local-proof fallback');
