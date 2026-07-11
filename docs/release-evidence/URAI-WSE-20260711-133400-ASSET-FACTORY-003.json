@@ -1,6 +1,6 @@
 {
   "receipt_id": "URAI-WSE-20260711-133400-ASSET-FACTORY-003",
-  "utc_timestamp": "2026-07-11T13:34:00Z",
+  "utc_timestamp": "2026-07-11T14:03:00Z",
   "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
   "repository": "LifeLoggerAI/asset-factory",
   "canonical_role": "Asset generation, certification, budget governance, and controlled promotion service.",
@@ -9,9 +9,10 @@
   "base_branch": "main",
   "base_sha": "b98e45f25780dc8bb5ec9af924e2325da2c36982",
   "branch": "ws-e/supply-chain-disable-auto-paid-smoke-20260711",
-  "resulting_sha": "18c4d3ecc50a883376c8c7278b9ed03b00b24230",
-  "pull_request": null,
-  "issue": null,
+  "control_change_commit_sha": "cae6054975a8b5353b90b2505315233445e3834f",
+  "exact_pr_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/158",
+  "issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
   "changed_files": [
     ".github/workflows/dispatch-one-paid-v1-smoke.yml",
     "docs/release-evidence/URAI-WSE-20260711-133400-ASSET-FACTORY-003.json"
@@ -20,6 +21,14 @@
   "workflow": {
     "name": "Dispatch One Paid V1 Asset Smoke Call",
     "workflow_run": null
+  },
+  "budget": {
+    "max_provider_calls": 1,
+    "max_unit_cost_usd": "1.00",
+    "max_total_cost_usd": "1.00",
+    "limit_entries": 1,
+    "limit_outputs": 1,
+    "promote": false
   },
   "permissions_before": "Workflow-wide actions: write and contents: read; automatic push trigger on workflow-file changes.",
   "permissions_after": "Workflow-wide contents: read; actions: write limited to the single manual dispatch job; no push trigger.",
@@ -31,9 +40,9 @@
   "runtime_impact": "None.",
   "license_impact": "No license or attribution content changed.",
   "sbom": null,
-  "artifact": "GitHub step summary records non-secret approval ID, exact target SHA, one-call ceiling, USD 0.10 total ceiling, and promotion disabled.",
+  "artifact": "GitHub step summary records the non-secret approval ID, exact target SHA, one-call ceiling, USD 1.00 unit and total ceilings, one-entry and one-output limits, and promotion disabled.",
   "checksum": null,
-  "release_impact": "Eliminates automatic paid-provider dispatch on push. Paid execution now requires manual workflow dispatch, exact current main SHA, a non-secret approval ID, typed confirmation, the paid-asset-generation environment, and bounded non-promotion inputs.",
+  "release_impact": "Eliminates automatic paid-provider dispatch on push. Paid execution now requires manual workflow dispatch, exact current main SHA, a non-secret approval ID, typed confirmation, the paid-asset-generation environment, and a one-call USD 1.00 non-promotion ceiling.",
   "commands": [],
   "tests": {
     "connector_static_review": "completed",
@@ -49,5 +58,5 @@
     "No provider secret, API key, billing credential, or private approval content was read or recorded."
   ],
   "status": "IMPLEMENTED — VERIFICATION INCOMPLETE",
-  "exact_next_action": "Open the focused pull request, require exact-head checks, then pin all actions in canonical-version-forge.yml on a non-colliding companion branch or active owner handoff."
+  "exact_next_action": "Run fresh exact-head checks on PR #158, verify the workflow and receipt agree on USD 1.00, then keep the PR unmerged until downstream paid-forge action pinning and environment evidence are resolved."
 }
