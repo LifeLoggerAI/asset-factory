@@ -13,29 +13,36 @@
 - Video policy: 90-second maximum, 4K maximum, estimated-unit/cost reservation, and format boundaries implemented.
 - Behavioral provider tests: implemented for valid MP4 retrieval, missing-model refusal, private URL refusal, and image-as-video refusal.
 - Local multimodal E2E: video case added to generate -> materialize -> fetch -> publish -> approve.
-- Video package/compositor and accessible export pipeline: not yet implemented.
-- Retained exact-head workflow artifact proving a completed video E2E run: not yet available.
+- Deterministic package builder: implemented for timeline, SRT, WebVTT, audio-description cues, crop plans, cutdowns, claim/evidence bindings, and immutable hashes.
+- Duplicate-safe package CLI: implemented with output confinement, atomic writes, and overwrite refusal by default.
+- Day 0 source package: implemented as a 70-second, nine-shot animatic with captions, audio description, reduced-motion requirements, and shot-level evidence classes.
+- Deterministic technical preview encoder: implemented with FFmpeg/FFprobe verification, H.264 video, AAC silence track, burned captions, output hash, and immutable technical-preview receipt.
+- Exact-head workflow upload: implemented to retain the Day 0 package, encoded MP4 preview, build logs, and receipts for 365 days.
+- Final provider-generated cinematic shots: not generated.
 - Final public films: not generated.
 
 ## Exact current branch posture
 
-The implementation remains on draft PR #184. The latest exact head must pass typecheck, unit/static tests, build, E2E, security review, and retained-artifact inspection before this status can advance beyond implementation-candidate.
+The implementation remains on draft PR #184. The latest exact head must pass typecheck, unit/static tests, build, multimodal E2E, deterministic package generation, FFmpeg encoding, FFprobe verification, security review, and retained-artifact inspection before this status can advance beyond implementation-candidate.
 
-Queued workflows count as zero passes. No provider spend, deployment, merge, secret mutation, billing action, or public-film promotion has occurred.
+The encoded MP4 is a technical compositor proof with a controlled background, burned captions, and silent audio. It proves the package/encoder/receipt boundary; it is not AAA+++ footage and must never be promoted as the public Day 0 film.
+
+Queued workflows count as zero passes. No paid provider call, provider spend, deployment, merge, secret mutation, billing action, or public-film promotion has occurred.
 
 ## Remaining engineering sequence
 
-1. Complete exact-head CI and inspect failures or retained evidence.
-2. Implement deterministic timeline/caption/audio-description/crop/cutdown package generation.
-3. Bind approved shots, audio, claims, and evidence to immutable package receipts.
-4. Implement or integrate an actual encoder/compositor without treating manifests as rendered video.
-5. Add duplicate-safe provider idempotency and independently verify cost reservation.
-6. Approve the Day 0 shot manifest and explicit spend ceiling.
-7. Execute one paid Day 0 anchor-film generation under the approved ceiling.
-8. Perform creative, continuity, rights, privacy, accessibility, device, and claim-evidence review.
-9. Retain the final master, accessible variants, provider receipts, hashes, and rejection history.
-10. Only then scale generation to the remaining anchor films and fourteen-day launch package.
+1. Complete exact-head CI and inspect every failure and retained artifact.
+2. Independently review provider URL, timeout, byte-limit, model-selection, billing, and idempotency boundaries.
+3. Add duplicate-safe provider request keys and durable cost/spend receipts around paid video jobs.
+4. Reconcile Day 0 shot-level claims with exact deployed-SHA product evidence.
+5. Lock the Day 0 visual continuity bible, characters, wardrobe, orb, environments, lens language, and negative prompts.
+6. Approve an explicit Day 0 provider/model and maximum spend ceiling.
+7. Execute bounded shot-generation jobs, preserving every provider response, rejection, retry, cost, and content hash.
+8. Assemble approved shots with real score, voice, sound design, captions, audio description, and reduced-motion variants.
+9. Perform creative, continuity, rights, privacy, accessibility, device, and claim-evidence review.
+10. Retain the final master, accessible variants, provider receipts, hashes, and rejection history.
+11. Only then scale generation to the remaining anchor films and fourteen-day launch package.
 
 ## Release rule
 
-Do not describe the system as autonomously generating final AAA+++ launch movies until the paid provider path, compositor, quality gates, evidence receipts, and one end-to-end anchor film are verified.
+Do not describe the system as autonomously generating final AAA+++ launch movies until the paid provider path, final-shot generation, compositor quality gates, evidence receipts, and one end-to-end anchor film are verified.
