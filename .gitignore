@@ -18,6 +18,9 @@ _audit/
 **/*PROOF*.json
 **/*proof*.json
 
+# Nested evidence checkout used only by reviewed-promotion workflow
+approval-control/
+
 # Firebase
 .firebase/
 serviceAccountKey.json
