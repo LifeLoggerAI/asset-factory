@@ -58,7 +58,9 @@ jobs:
             --marker-sha de27f2f36aa1ca73d504e5dffed99161078fb0c8 \
             --marker-sha 4dc05a67746e189054609e405ca3801683ab5445 \
             --output artifacts/preflight/v1-safe-resume-control-validation.json
-          test '${{ steps.inspect.outputs.safe_to_execute }}' = 'true'
+
+      - name: Confirm no-spend proof output
+        run: test '${{ steps.inspect.outputs.safe_to_execute }}' = 'true'
 
       - name: Upload no-spend validation receipt
         if: always()
