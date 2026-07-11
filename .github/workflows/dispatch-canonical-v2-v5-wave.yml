@@ -29,4 +29,27 @@ jobs:
             max_total_cost_usd: '3.90'
           - version: v5
             max_provider_calls: '27'
-            max_total_cost_us
+            max_total_cost_usd: '2.70'
+    steps:
+      - name: Dispatch canonical provider forge
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'canonical-version-forge.yml',
+              ref: 'main',
+              inputs: {
+                version: '${{ matrix.version }}',
+                confirm: 'GENERATE_CANONICAL_VERSION',
+                rounds: '1',
+                max_provider_calls: '${{ matrix.max_provider_calls }}',
+                max_unit_cost_usd: '0.10',
+                max_total_cost_usd: '${{ matrix.max_total_cost_usd }}',
+                limit_entries: '0',
+                limit_outputs: '0',
+                skip_existing: 'true',
+                promote: 'true'
+              }
+            })
