@@ -2,6 +2,8 @@ name: Asset Factory Production Checks
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'assetfactory-studio/**'
       - 'scripts/**'
@@ -23,15 +25,35 @@ on:
 permissions:
   contents: read
 
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: asset-factory-production-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   production-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: assetfactory-studio
     steps:
-      - name: Checkout
+      - name: Checkout exact reviewed head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -46,14 +68,14 @@ jobs:
           mkdir -p ../artifacts/production-checks
           npm run validate:assets 2>&1 | tee ../artifacts/production-checks/asset-validation.log
 
-      - name: Upload production validation log
+      - name: Upload exact-head production validation log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-production-validation
+          name: asset-factory-production-validation-${{ env.TARGET_SHA }}
           path: artifacts/production-checks/asset-validation.log
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 365
 
       - name: Validate runtime contract
         run: npm run validate:runtime
@@ -66,3 +88,8 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Prove checks preserved clean source
+        working-directory: .
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"
