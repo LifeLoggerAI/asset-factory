@@ -22,12 +22,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Record exact safe-resume run metadata
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const owner = context.repo.owner
             const repo = context.repo.repo
-            const markerSha = 'de27f2f36aa1ca73d504e5dffed99161078fb0c8'
+            const markerSha = '0cf837d585d3d1c1d8e171938037098c72230c22'
             const issueNumber = 179
             const markerWorkflowName = 'One-Time V1 AAA Spatial Pack Marker'
             const postWorkflowName = 'V1 AAA Spatial Pack Post-Certification'
