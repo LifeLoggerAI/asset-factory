@@ -1,0 +1,53 @@
+{
+  "receipt_id": "URAI-WSE-20260711-133400-ASSET-FACTORY-003",
+  "utc_timestamp": "2026-07-11T13:34:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "canonical_role": "Asset generation, certification, budget governance, and controlled promotion service.",
+  "visibility": "public",
+  "lifecycle_state": "ACTIVE — SERVICE",
+  "base_branch": "main",
+  "base_sha": "b98e45f25780dc8bb5ec9af924e2325da2c36982",
+  "branch": "ws-e/supply-chain-disable-auto-paid-smoke-20260711",
+  "resulting_sha": "18c4d3ecc50a883376c8c7278b9ed03b00b24230",
+  "pull_request": null,
+  "issue": null,
+  "changed_files": [
+    ".github/workflows/dispatch-one-paid-v1-smoke.yml",
+    "docs/release-evidence/URAI-WSE-20260711-133400-ASSET-FACTORY-003.json"
+  ],
+  "repository_setting_changes": [],
+  "workflow": {
+    "name": "Dispatch One Paid V1 Asset Smoke Call",
+    "workflow_run": null
+  },
+  "permissions_before": "Workflow-wide actions: write and contents: read; automatic push trigger on workflow-file changes.",
+  "permissions_after": "Workflow-wide contents: read; actions: write limited to the single manual dispatch job; no push trigger.",
+  "actions_pinned": {
+    "actions/github-script": "60a0d83039c74a4aee543508d2ffcb1c3799cdea (v7.0.1)"
+  },
+  "dependencies_affected": [],
+  "lockfile_impact": "None.",
+  "runtime_impact": "None.",
+  "license_impact": "No license or attribution content changed.",
+  "sbom": null,
+  "artifact": "GitHub step summary records non-secret approval ID, exact target SHA, one-call ceiling, USD 0.10 total ceiling, and promotion disabled.",
+  "checksum": null,
+  "release_impact": "Eliminates automatic paid-provider dispatch on push. Paid execution now requires manual workflow dispatch, exact current main SHA, a non-secret approval ID, typed confirmation, the paid-asset-generation environment, and bounded non-promotion inputs.",
+  "commands": [],
+  "tests": {
+    "connector_static_review": "completed",
+    "github_actions_exact_head": "pending"
+  },
+  "rollback": "Revert the Workstream E pull request. Do not restore the automatic push trigger or mutable action tag without a documented spending-authority decision.",
+  "limitations": [
+    "The downstream canonical-version-forge.yml still uses mutable action tags and requires a separate focused correction.",
+    "Environment reviewer and secret-scope settings are not visible through the available connector actions.",
+    "No provider call was triggered by Workstream E."
+  ],
+  "redactions": [
+    "No provider secret, API key, billing credential, or private approval content was read or recorded."
+  ],
+  "status": "IMPLEMENTED — VERIFICATION INCOMPLETE",
+  "exact_next_action": "Open the focused pull request, require exact-head checks, then pin all actions in canonical-version-forge.yml on a non-colliding companion branch or active owner handoff."
+}
