@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "URAI-WSC-20260711-ASSET-CLEAN-022",
+  "recordedAt": "2026-07-11T18:43:00Z",
+  "repository": "LifeLoggerAI/asset-factory",
+  "pullRequest": 172,
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "base": {
+    "ref": "main",
+    "sha": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "candidateHeadBeforeReceipt": "3c68b7b5d5068e040b8294c8473dacc425b92ad7",
+  "ancestryBeforeReceipt": {
+    "ahead": 61,
+    "behind": 0,
+    "mergeBase": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "reviewRemediation": [
+    {
+      "finding": "Full Multimodal Asset Audit did not execute the compiled validation dependency tests before uploading evidence",
+      "severity": "P2",
+      "thread": "PRRT_kwDORJkn1s6QIhi3",
+      "fixCommit": "3c68b7b5d5068e040b8294c8473dacc425b92ad7",
+      "controls": [
+        "pinned actions/setup-node commit",
+        "exact Node 22.16.0",
+        "exact TypeScript 5.8.3 compiler materialization",
+        "execute test-asset-factory-core-units.mjs",
+        "execute test-asset-factory-validation-import.mjs before evidence upload"
+      ],
+      "resolved": true
+    },
+    {
+      "finding": "Manifest schema rejected canonical promotion PR URL strings required by the certified-state validator",
+      "severity": "P2",
+      "thread": "PRRT_kwDORJkn1s6QIhi8",
+      "fixCommits": [
+        "df6c3fc5f26bc2fe5151267bbf801e7bc6d482cf",
+        "9eb49911b93860a5b77e92d14a4b94277f587d74"
+      ],
+      "controls": [
+        "promotionPr permits string or null",
+        "canonical LifeLoggerAI GitHub pull-request URL pattern",
+        "schema and executable validator compatibility regression",
+        "current non-certified manifest records remain null-compatible"
+      ],
+      "resolved": true
+    }
+  ],
+  "reviewState": {
+    "allKnownThreadsResolvedBeforeReceipt": true,
+    "freshExactHeadReviewRequired": true,
+    "allPreReceiptReviewsStale": true
+  },
+  "noSpendBoundary": {
+    "paidRuntimeEnabled": false,
+    "atomicOneTimeLedgerConfigured": false,
+    "dispatchAuthorized": false,
+    "maximumProviderCalls": 0,
+    "maximumApprovedExposureUsd": 0,
+    "providerCallsPerformedByThisContinuation": 0,
+    "promotionPerformed": false,
+    "deploymentPerformed": false,
+    "mergePerformed": false
+  },
+  "workflowBoundary": {
+    "receiptCommitBecomesNewExactHead": true,
+    "allRunsBeforeReceiptAreStale": true,
+    "freshExactHeadRunsRequired": true,
+    "queuedOrPendingDoesNotCountAsPass": true,
+    "generatedEvidenceMustNotBeAcceptedWithoutSuccessfulExactHeadJob": true
+  },
+  "historicalV1Boundary": {
+    "discoveryIssue": 179,
+    "markerSha": "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+    "rerunAuthorized": false,
+    "historicalGenerationRunKnown": false,
+    "successClaimAuthorized": false,
+    "failureClaimAuthorized": false
+  },
+  "mergeBoundary": {
+    "draftRequired": true,
+    "mergeAuthorized": false,
+    "requirements": [
+      "all exact-head workflows succeed on an unchanged receipt-bearing SHA",
+      "root-lock artifact and hashes are independently verified before committing generated files",
+      "temporary root-lock controls are removed and the complete resulting head passes again",
+      "historical V1 generation and post-certification evidence is found and verified",
+      "dependency, SBOM, license, rights, consent, legal and exact-hash human review gates close",
+      "immutable promotion, deployment, rollback and live deployed-SHA evidence exists"
+    ]
+  }
+}
