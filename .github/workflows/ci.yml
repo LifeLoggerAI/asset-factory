@@ -7,28 +7,62 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: asset-factory-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   launch-readiness:
     name: Launch readiness checks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 20.19.0
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
       - name: Run launch readiness static checks
         run: npm run test:launch-readiness
 
   root:
     name: Root orchestration
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 20.19.0
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
       - name: Install root dependencies
         run: npm install
       - name: Install engine dependencies
@@ -45,12 +79,24 @@ jobs:
   engine:
     name: Engine tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 20.19.0
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
       - name: Install engine dependencies
         run: npm --prefix engine install
       - name: Test engine
@@ -59,8 +105,20 @@ jobs:
   studio:
     name: Asset Factory Studio checks
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -84,8 +142,20 @@ jobs:
   studio-emulator:
     name: Asset Factory emulator smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -112,12 +182,24 @@ jobs:
   functions:
     name: Firebase functions checks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 20.19.0
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
       - name: Install functions dependencies
         run: npm --prefix functions install
       - name: Build functions
@@ -128,15 +210,92 @@ jobs:
   lifemap:
     name: LifeMap functions checks
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js 20
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 20.19.0
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.19.0'
       - name: Install LifeMap dependencies
         run: npm --prefix life-map-pipeline/functions install
       - name: Build LifeMap functions
         run: npm --prefix life-map-pipeline/functions run build
       - name: Test LifeMap functions
         run: npm --prefix life-map-pipeline/functions test
+
+  evidence:
+    name: Exact-head CI evidence receipt
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - launch-readiness
+      - root
+      - engine
+      - studio
+      - studio-emulator
+      - functions
+      - lifemap
+    env:
+      LAUNCH_READINESS_RESULT: ${{ needs.launch-readiness.result }}
+      ROOT_RESULT: ${{ needs.root.result }}
+      ENGINE_RESULT: ${{ needs.engine.result }}
+      STUDIO_RESULT: ${{ needs.studio.result }}
+      STUDIO_EMULATOR_RESULT: ${{ needs.studio-emulator.result }}
+      FUNCTIONS_RESULT: ${{ needs.functions.result }}
+      LIFEMAP_RESULT: ${{ needs.lifemap.result }}
+    steps:
+      - name: Build immutable CI roll-up receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const jobs = {
+            launchReadiness: process.env.LAUNCH_READINESS_RESULT,
+            root: process.env.ROOT_RESULT,
+            engine: process.env.ENGINE_RESULT,
+            studio: process.env.STUDIO_RESULT,
+            studioEmulator: process.env.STUDIO_EMULATOR_RESULT,
+            functions: process.env.FUNCTIONS_RESULT,
+            lifemap: process.env.LIFEMAP_RESULT,
+          };
+          const allSucceeded = Object.values(jobs).every((value) => value === 'success');
+          const body = {
+            schema: 'urai-asset-factory-ci-rollup-1',
+            repository: process.env.GITHUB_REPOSITORY,
+            workflow: process.env.GITHUB_WORKFLOW,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            exactHeadSha: process.env.TARGET_SHA,
+            eventName: process.env.GITHUB_EVENT_NAME,
+            jobs,
+            allSucceeded,
+            generatedAt: new Date().toISOString(),
+          };
+          const canonical = JSON.stringify(body);
+          body.receiptSha256 = crypto.createHash('sha256').update(canonical).digest('hex');
+          fs.writeFileSync(process.env.RUNNER_TEMP + '/asset-factory-ci-rollup.json', JSON.stringify(body, null, 2) + '\n', { flag: 'wx' });
+          if (!allSucceeded) process.exitCode = 1;
+          NODE
+
+      - name: Upload exact-head CI roll-up receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-ci-rollup-${{ env.TARGET_SHA }}
+          path: ${{ runner.temp }}/asset-factory-ci-rollup.json
+          if-no-files-found: error
+          retention-days: 365
