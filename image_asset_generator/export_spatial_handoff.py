@@ -82,6 +82,13 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def pixel_sha256(image: Image.Image) -> str:
+    digest = hashlib.sha256()
+    digest.update(f"{image.mode}:{image.width}x{image.height}\n".encode("utf-8"))
+    digest.update(image.tobytes())
+    return digest.hexdigest()
+
+
 def load_version_config(version: str) -> Dict[str, Any]:
     payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     versions = payload.get("versions")
@@ -112,34 +119,54 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
     destination = HANDOFF_DIR / canonical_path
     destination.parent.mkdir(parents=True, exist_ok=True)
 
-    image = Image.open(source_path)
-    image.load()
-    alpha = bool(entry.get("alpha"))
-    image = image.convert("RGBA" if alpha else "RGB")
-    image.save(destination, "WEBP", quality=94, method=6, lossless=alpha)
+    with Image.open(source_path) as raw_image:
+        raw_image.load()
+        alpha = bool(entry.get("alpha"))
+        image = raw_image.convert("RGBA" if alpha else "RGB")
+        source_pixel_hash = pixel_sha256(image)
+        image.save(destination, "WEBP", method=6, lossless=True)
+
+    with Image.open(destination) as handoff_image:
+        handoff_image.load()
+        decoded = handoff_image.convert("RGBA" if alpha else "RGB")
+        if decoded.size != image.size or pixel_sha256(decoded) != source_pixel_hash:
+            raise ValueError(f"{entry['name']}: lossless WebP pixel verification failed")
 
     metadata_path = source_path.with_suffix(source_path.suffix + ".render.json")
     metadata: Dict[str, Any] = {}
     if metadata_path.exists():
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    details = metadata.get("metadata") if isinstance(metadata.get("metadata"), dict) else {}
 
-    return {
+    result: Dict[str, Any] = {
         "name": entry["name"],
         "status": "ready",
         "category": entry["category"],
         "canonicalPath": canonical_path,
         "sourcePath": str(source_path.relative_to(BASE_DIR)),
         "sourceSize": size,
+        "sourceSha256": sha256(source_path),
+        "sourceMetadataSha256": sha256(metadata_path) if metadata_path.is_file() else None,
+        "sourcePixelSha256": source_pixel_hash,
         "width": image.width,
         "height": image.height,
         "aspectRatio": entry.get("aspect_ratio", "1:1"),
         "alpha": alpha,
         "sha256": sha256(destination),
         "bytes": destination.stat().st_size,
+        "handoffPixelSha256": source_pixel_hash,
+        "encoding": {"format": "WEBP", "lossless": True, "method": 6},
         "promptVersion": entry.get("prompt_version", "v1"),
         "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown",
         "claimGate": entry.get("claim_gate"),
     }
+    request_id = details.get("provider_request_id")
+    inherited = details.get("source_provider_request_ids")
+    if isinstance(request_id, str) and request_id.strip():
+        result["providerRequestId"] = request_id
+    if isinstance(inherited, list) and inherited and all(isinstance(value, str) and value.strip() for value in inherited):
+        result["sourceProviderRequestIds"] = inherited
+    return result
 
 
 def main() -> None:
@@ -191,6 +218,7 @@ def main() -> None:
         "copyRoot": "urai-tier1/public",
         "providerRequired": True,
         "activationMode": "atomic-complete-pack",
+        "sourceBinding": "lossless-webp-decoded-pixel-sha256",
         "ready": len(ready),
         "missing": len(missing),
         "assets": assets,
