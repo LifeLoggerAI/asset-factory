@@ -10,10 +10,16 @@
   "base_sha": "77c3b8a39945b095238516c1e0abf68f5f00e48a",
   "branch": "ws-e/manual-paid-smoke-current-main-20260711",
   "control_change_commit_sha": "ded8b9e4da4e8749135522d9654a4ff49603c6f5",
+  "guard_test_commit_sha": "b6a6de2312fe49e0f7c706f664740ce787ecfece",
+  "guard_workflow_commit_sha": "ea918ad0753b664aaf5dfc50f137aa7a34ae72ac",
+  "exact_pr_head": "Recorded in pull request metadata after this receipt update to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/168",
   "supersedes_pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/158",
   "related_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
   "changed_files": [
     ".github/workflows/dispatch-one-paid-v1-smoke.yml",
+    ".github/workflows/paid-smoke-guard-integrity.yml",
+    "scripts/check-paid-smoke-guard.py",
     "docs/release-evidence/URAI-WSE-20260711-153200-ASSET-FACTORY-005.json"
   ],
   "budget": {
@@ -30,10 +36,13 @@
     "Typed AUTHORIZE_ONE_PAID_V1_SMOKE confirmation and a non-secret approval identifier are required.",
     "The job uses paid-asset-generation and limits actions: write to the isolated dispatch job.",
     "actions/github-script is pinned to immutable commit 60a0d83039c74a4aee543508d2ffcb1c3799cdea.",
-    "The downstream dispatch is exactly one V1 call, one entry, one output, USD 1.00 maximum, and promotion=false."
+    "The downstream dispatch is exactly one V1 call, one entry, one output, USD 1.00 maximum, and promotion=false.",
+    "A standard-library static verifier fails if automatic triggers, broad permissions, secrets access, mutable actions, exact-main checks, budget limits, or no-promotion controls regress.",
+    "A read-only exact-candidate macOS workflow runs the verifier without provider credentials or paid environment access."
   ],
   "runner_state": {
-    "ubuntu_limited_workflows": "Known account-side Ubuntu runner assignment blocker; no pass claimed.",
+    "ubuntu_limited_workflows": "Known account-side Ubuntu runner assignment blocker; queued results are not passes.",
+    "guard_integrity_runner": "macos-latest, platform-neutral, read-only, no secrets",
     "paid_dispatch": "not run"
   },
   "runtime_impact": "None until separately authorized from merged main.",
@@ -41,16 +50,18 @@
   "license_impact": "No dependency, asset license, attribution, or lockfile content changed.",
   "tests": {
     "connector_static_review": "completed",
-    "github_actions_exact_head": "pending",
+    "paid_smoke_guard_integrity_exact_head": "pending refreshed GitHub Actions execution",
+    "ubuntu_repository_suites": "queued and not represented as passes",
     "provider_call": "not run",
     "promotion": "not run"
   },
   "limitations": [
     "Environment reviewer, deployment branch, and secret-scope settings remain externally verifiable on issue #159.",
     "The downstream paid forge hardening remains in draft PR #167 and is not yet merged to main.",
+    "Ubuntu-hosted repository suites remain blocked and must not be inferred from the macOS guard test.",
     "The helper must not be dispatched until its exact current-main dependency and protected environment are verified."
   ],
-  "status": "IMPLEMENTED ON CURRENT MAIN — VERIFICATION INCOMPLETE",
+  "status": "IMPLEMENTED ON CURRENT MAIN — EXACT-HEAD GUARD VERIFICATION PENDING; PAID EXECUTION DISABLED",
   "rollback": "Revert this focused replacement pull request. Do not restore push-triggered spending, mutable actions, automatic promotion, or broader token permissions.",
-  "exact_next_action": "Open the replacement draft PR, verify its two-file diff and exact-head checks, close stale PR #158 as superseded, and keep paid execution disabled."
+  "exact_next_action": "Require the refreshed Paid Smoke Guard Integrity workflow to pass on the unchanged final PR head. Keep PR #168 draft and paid execution disabled until PR #167, Ubuntu suites, and external environment settings evidence are complete."
 }
