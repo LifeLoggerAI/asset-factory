@@ -8,6 +8,7 @@ on:
       - 'scripts/build_contact_sheets.py'
       - 'scripts/build_accessibility_media.py'
       - 'scripts/build_xr_test_packet.py'
+      - 'scripts/validate_xr_receipts.py'
       - 'scripts/build_films.py'
       - 'runner-repair/**'
       - '.github/workflows/offline-evidence-package.yml'
@@ -24,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -35,13 +37,14 @@ jobs:
       - name: Record environment
         run: |
           mkdir -p verification receipts
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python --version | tee verification/tool-versions.txt
           ffmpeg -version | head -1 >> verification/tool-versions.txt
           ffprobe -version | head -1 >> verification/tool-versions.txt
           python -m pip freeze >> verification/tool-versions.txt
           printf '{"headSha":"%s","runId":"%s","runner":"%s"}\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$RUNNER_OS" > verification/environment.json
       - name: Static checks
-        run: python -m py_compile scripts/build_creative_review.py scripts/build_contact_sheets.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py scripts/build_films.py
+        run: python -m py_compile scripts/build_creative_review.py scripts/build_contact_sheets.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py scripts/validate_xr_receipts.py scripts/build_films.py
       - name: Build evidence packages
         run: |
           python scripts/build_creative_review.py
@@ -49,7 +52,7 @@ jobs:
           python scripts/build_accessibility_media.py
           python scripts/build_xr_test_packet.py
           python scripts/build_films.py
-      - name: Validate JSON JSONL schema and CSV
+      - name: Validate JSON, JSONL, schema, and CSV
         run: |
           find creative-review accessibility xr-test-packet runner-repair films -name '*.json' -print0 | xargs -0 -n1 python -m json.tool >/dev/null
           python - <<'PY'
@@ -68,6 +71,8 @@ jobs:
           Draft202012Validator.check_schema(json.load(open('xr-test-packet/device-receipt-schema.json')))
           print('XR_SCHEMA_VALID=1')
           PY
+      - name: Evaluate exact-build physical XR receipts
+        run: python scripts/validate_xr_receipts.py --expected-build-sha "$GITHUB_SHA"
       - name: Rebuild determinism check
         run: |
           find creative-review accessibility xr-test-packet films -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/first.sha256
@@ -93,19 +98,29 @@ jobs:
           films=load('films/verification-results.json',{})
           rights=load('multimodal/rights-ledger.json',{'records':[]})
           source=load('multimodal/source-lock.json',{})
+          xr=load('xr-test-packet/xr-verification-report.json',{})
           rights_open=[r.get('recordId') for r in rights.get('records',[]) if r.get('status') not in {'verified','not-applicable'}]
-          xr_receipts=list(Path('xr-test-packet').glob('receipts/*.json'))
           gates={
             'workflowTechnicalChecks': os.getenv('JOB_STATUS')=='success',
             'filmsTwelveVerified': films.get('status')=='verified_pass' and films.get('createdOutputs')==12,
             'rightsCleared': not rights_open,
-            'physicalXrVerified': bool(xr_receipts),
+            'physicalXrVerified': xr.get('physicalXrVerified') is True,
             'releaseReady': source.get('releaseReady') is True,
             'deployedShaPresent': bool(source.get('deployedSha')),
             'rollbackShaPresent': bool(source.get('rollbackSha')) and source.get('rollbackSha')!=source.get('deployedSha')
           }
           status='verified_pass' if all(gates.values()) else ('verified_fail' if not gates['workflowTechnicalChecks'] else 'blocked')
-          receipt={'schemaVersion':'1.1.0','repository':os.getenv('GITHUB_REPOSITORY'),'commit':os.getenv('GITHUB_SHA'),'status':status,'gates':gates,'openRightsRecords':rights_open,'packages':['creative-review','accessibility','films','xr-test-packet','runner-repair'],'attestationBoundary':'No production-complete claim is valid unless every gate is true.'}
+          receipt={
+            'schemaVersion':'1.2.0',
+            'repository':os.getenv('GITHUB_REPOSITORY'),
+            'commit':os.getenv('GITHUB_SHA'),
+            'status':status,
+            'gates':gates,
+            'openRightsRecords':rights_open,
+            'xrVerificationReport':'xr-test-packet/xr-verification-report.json',
+            'packages':['creative-review','accessibility','films','xr-test-packet','runner-repair'],
+            'attestationBoundary':'No production-complete claim is valid unless every gate is true.'
+          }
           Path('receipts/completion-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
           print(json.dumps(receipt,indent=2))
           PY
