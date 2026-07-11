@@ -4,15 +4,41 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: urai-production-verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.19.0'
+          node-version: '22'
+
       - run: corepack enable
+
       - name: Install dependencies
         run: |
           if [ -f pnpm-lock.yaml ]; then
@@ -25,5 +51,22 @@ jobs:
           else
             echo "No package.json found; skipping install."
           fi
+
+      - name: Prove install preserved clean source
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+
       - name: Verify
-        run: node scripts/urai-production-verify.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/urai-production-verify.mjs 2>&1 | tee "$RUNNER_TEMP/urai-production-verify.log"
+
+      - name: Upload exact-head verifier evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urai-production-verify-${{ env.TARGET_SHA }}
+          path: ${{ runner.temp }}/urai-production-verify.log
+          if-no-files-found: error
+          retention-days: 365
