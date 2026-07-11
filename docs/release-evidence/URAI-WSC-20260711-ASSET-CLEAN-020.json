@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "URAI-WSC-20260711-ASSET-CLEAN-020",
+  "recordedAt": "2026-07-11T18:26:14Z",
+  "repository": "LifeLoggerAI/asset-factory",
+  "pullRequest": 172,
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "base": {
+    "ref": "main",
+    "sha": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "candidateHeadBeforeReceipt": "bb584db3c91b7533c90859c52a86e61f1079155d",
+  "ancestryBeforeReceipt": {
+    "ahead": 53,
+    "behind": 0,
+    "mergeBase": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "mainPreservation": {
+    "mergeCommit": "bb584db3c91b7533c90859c52a86e61f1079155d",
+    "preservedCommit": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58",
+    "preservedChange": "read-only V1 historical run discovery observability",
+    "paidRerunIntroduced": false,
+    "providerExecutionIntroduced": false
+  },
+  "reviewRemediation": [
+    {
+      "finding": "Core validation dependency graph was not executed",
+      "severity": "P1/P2",
+      "commits": [
+        "1d016e343a7a942b49b567a6212992f643395982",
+        "daa235c82e8999826c17545135dda6dcd844b2bc"
+      ],
+      "evidence": "The active Studio test suite now compiles and imports assetFactoryValidation with its catalog and Spatial contract dependencies, then executes valid and invalid validation cases."
+    },
+    {
+      "finding": "Certification rejected rights report schema 1.2.0",
+      "severity": "P2",
+      "commits": [
+        "e7bfafeaff867bcbd8d23df43c09cab299adb3dd",
+        "2aa5a7f274d23d071978127e5a17f471ab878ae4"
+      ],
+      "evidence": "The certifier accepts supported rights report schemas 1.1.0 and 1.2.0, and the multimodal audit executes a schema compatibility regression."
+    },
+    {
+      "finding": "Root audit failed when the root lock was not yet committed",
+      "severity": "P2",
+      "commits": [
+        "b591a7fa701da0f97b02eef682bbcbe9ae870ab5",
+        "09d32c213f8df1d06d6748e38e2f9b877a27093a",
+        "8f9ea8735c61b3a5ddf5c7f65f20b9cf63d2cb45"
+      ],
+      "evidence": "A cross-platform Node guard defers root audit only while package-lock.json is absent and executes npm audit once the lock exists."
+    },
+    {
+      "finding": "Full multimodal audit path filter omitted Studio provider controls",
+      "severity": "P2",
+      "commits": [
+        "502a301f9d0da2ad6ef55494a0847c29cca944ed"
+      ],
+      "evidence": "assetfactory-studio and all relevant control-test paths now trigger the exact-head multimodal audit."
+    },
+    {
+      "finding": "Root-lock workflow path filter omitted contract inputs",
+      "severity": "P2",
+      "commits": [
+        "c432fe0f89fb15b33abff3820c5e73859ab2b802"
+      ],
+      "evidence": "README, gitignore, preparation helper, doctor, setup and launch-readiness contract files now trigger root-lock proof."
+    }
+  ],
+  "noSpendBoundary": {
+    "paidRuntimeEnabled": false,
+    "atomicOneTimeLedgerConfigured": false,
+    "dispatchAuthorized": false,
+    "maximumProviderCalls": 0,
+    "maximumApprovedExposureUsd": 0,
+    "providerCallsPerformedByThisContinuation": 0,
+    "promotionPerformed": false,
+    "deploymentPerformed": false
+  },
+  "workflowBoundary": {
+    "receiptCommitBecomesNewExactHead": true,
+    "allRunsBeforeReceiptAreStale": true,
+    "freshExactHeadRunsRequired": true,
+    "queuedOrPendingDoesNotCountAsPass": true
+  },
+  "mergeBoundary": {
+    "draftRequired": true,
+    "mergeAuthorized": false,
+    "requirements": [
+      "all exact-head workflows succeed on an unchanged receipt-bearing SHA",
+      "root-lock artifact and hashes are independently verified before committing generated files",
+      "temporary root-lock controls are removed and the complete resulting head passes again",
+      "historical V1 generation and post-certification evidence is found and verified",
+      "dependency, SBOM, license, rights, consent, legal and exact-hash human review gates close",
+      "immutable promotion, deployment, rollback and live deployed-SHA evidence exists"
+    ]
+  }
+}
