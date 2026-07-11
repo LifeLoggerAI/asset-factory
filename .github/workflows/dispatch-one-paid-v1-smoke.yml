@@ -1,0 +1,39 @@
+name: Dispatch One Paid V1 Asset Smoke Call
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/dispatch-one-paid-v1-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch-one-paid-call:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch one tightly bounded provider call
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'canonical-version-forge.yml',
+              ref: 'main',
+              inputs: {
+                version: 'v1',
+                confirm: 'GENERATE_CANONICAL_VERSION',
+                rounds: '1',
+                max_provider_calls: '1',
+                max_unit_cost_usd: '0.10',
+                max_total_cost_usd: '0.10',
+                limit_entries: '1',
+                limit_outputs: '1',
+                skip_existing: 'false',
+                promote: 'false'
+              }
+            })
