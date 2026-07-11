@@ -11,6 +11,9 @@ on:
       - 'scripts/validate_xr_receipts.py'
       - 'scripts/build_films.py'
       - 'scripts/build_supply_chain_evidence.py'
+      - 'scripts/apply_dependency_license_evidence.py'
+      - 'scripts/test_dependency_license_evidence.py'
+      - 'multimodal/dependency-license-evidence.json'
       - '**/package.json'
       - '**/package-lock.json'
       - '**/npm-shrinkwrap.json'
@@ -53,9 +56,13 @@ jobs:
           python -m pip freeze >> verification/tool-versions.txt
           printf '{"headSha":"%s","runId":"%s","runner":"%s"}\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$RUNNER_OS" > verification/environment.json
       - name: Build immutable source SBOM and license evidence
-        run: python scripts/build_supply_chain_evidence.py
+        run: |
+          python scripts/build_supply_chain_evidence.py
+          python scripts/apply_dependency_license_evidence.py
       - name: Static checks
-        run: python -m py_compile scripts/build_creative_review.py scripts/build_contact_sheets.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py scripts/validate_xr_receipts.py scripts/build_films.py scripts/build_supply_chain_evidence.py
+        run: python -m py_compile scripts/build_creative_review.py scripts/build_contact_sheets.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py scripts/validate_xr_receipts.py scripts/build_films.py scripts/build_supply_chain_evidence.py scripts/apply_dependency_license_evidence.py scripts/test_dependency_license_evidence.py
+      - name: Test exact-version dependency license evidence
+        run: python scripts/test_dependency_license_evidence.py
       - name: Build evidence packages
         run: |
           python scripts/build_creative_review.py
