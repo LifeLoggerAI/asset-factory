@@ -11,8 +11,10 @@ export type AssetProviderAdapter = {
   notes: string;
 };
 
+export const STUDIO_PAID_PROVIDER_RUNTIME_ENABLED = false as const;
+export const STUDIO_PAID_PROVIDER_BLOCKER = 'disabled-pending-atomic-one-time-ledger' as const;
+
 const paidProviders: AssetProviderName[] = ['openai', 'replicate', 'fal', 'elevenlabs', 'stability'];
-const MAXIMUM_POLICY_REQUEST_COST_CENTS = 34;
 
 const providerEnv: Record<Exclude<AssetProviderName, 'local-proof'>, string[]> = {
   openai: ['OPENAI_API_KEY'],
@@ -30,11 +32,6 @@ function missingEnv(required: string[]) {
   return required.filter((key) => !value(key));
 }
 
-function positiveInteger(name: string) {
-  const parsed = Number(value(name));
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
-}
-
 export function requestedProviderName(): AssetProviderName {
   const requested = value('ASSET_FACTORY_MEDIA_PROVIDER').toLowerCase();
   return paidProviders.includes(requested as AssetProviderName)
@@ -43,49 +40,40 @@ export function requestedProviderName(): AssetProviderName {
 }
 
 export function getPaidProviderAuthorization() {
-  const enabled = value('ASSET_FACTORY_ENABLE_PAID_MEDIA') === 'true';
-  const approvalIdPresent = Boolean(value('ASSET_FACTORY_PAID_APPROVAL_ID'));
-  const maximumCostCents = positiveInteger('ASSET_FACTORY_PAID_MAX_COST_CENTS');
-  const coversMaximumPolicyRequest = maximumCostCents >= MAXIMUM_POLICY_REQUEST_COST_CENTS;
+  const requestedProvider = requestedProviderName();
   return {
-    enabled,
-    approvalIdPresent,
-    maximumCostCents,
-    maximumPolicyRequestCostCents: MAXIMUM_POLICY_REQUEST_COST_CENTS,
-    coversMaximumPolicyRequest,
-    authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest,
+    requestedProvider,
+    enableFlagRequested: value('ASSET_FACTORY_ENABLE_PAID_MEDIA') === 'true',
+    approvalIdPresent: Boolean(value('ASSET_FACTORY_PAID_APPROVAL_ID')),
+    maximumCostCents: Number(value('ASSET_FACTORY_PAID_MAX_COST_CENTS')) || 0,
+    atomicLedgerConfigured: false,
+    runtimeExecutionEnabled: STUDIO_PAID_PROVIDER_RUNTIME_ENABLED,
+    authorized: false,
+    executionAuthorized: false,
+    blocker: STUDIO_PAID_PROVIDER_BLOCKER,
   };
 }
 
-export function assertPaidProviderRequestAuthorized(estimatedCostCents: number) {
-  const authorization = getPaidProviderAuthorization();
-  if (!authorization.authorized) {
-    throw new Error('Paid provider execution is not authorized for the maximum permitted request cost');
-  }
-  if (!Number.isInteger(estimatedCostCents) || estimatedCostCents <= 0) {
-    throw new Error('Paid provider request requires a positive integer estimated cost');
-  }
-  if (estimatedCostCents > authorization.maximumCostCents) {
-    throw new Error(`Paid provider request estimate ${estimatedCostCents} cents exceeds approved ceiling ${authorization.maximumCostCents} cents`);
-  }
-  return authorization;
+export function assertPaidProviderRequestAuthorized(_estimatedCostCents: number): never {
+  throw new Error(
+    `Studio paid provider runtime is disabled until an atomic one-time authorization and consumption ledger exists (${STUDIO_PAID_PROVIDER_BLOCKER}).`
+  );
 }
 
 export function configuredProviderName(): AssetProviderName {
-  const requested = requestedProviderName();
-  if (requested === 'local-proof') return requested;
-  return getPaidProviderAuthorization().authorized ? requested : 'local-proof';
+  // The clean control-plane candidate is intentionally no-spend. Provider adapters remain
+  // visible for diagnostics only; no environment variable can make them executable.
+  return 'local-proof';
 }
 
 export function getProviderAdapters(): AssetProviderAdapter[] {
-  const authorization = getPaidProviderAuthorization();
   const definitions: Array<[AssetProviderName, CanonicalAssetType[], string]> = [
     ['local-proof', ['graphic', 'model3d', 'audio', 'bundle'], 'Deterministic proof renderer; never a bespoke production asset.'],
-    ['openai', ['graphic', 'audio'], 'Executable HTTP runtime for image and speech generation.'],
-    ['replicate', ['graphic', 'model3d', 'audio'], 'Executable hosted prediction runtime; model version is required per asset type.'],
-    ['fal', ['graphic', 'model3d', 'audio'], 'Executable hosted model runtime; model identifier is required per asset type.'],
-    ['elevenlabs', ['audio'], 'Executable text-to-speech runtime; identifiable voice use still requires consent.'],
-    ['stability', ['graphic'], 'Executable image generation runtime.'],
+    ['openai', ['graphic', 'audio'], 'Diagnostic-only adapter. Runtime execution is disabled pending an atomic one-time ledger.'],
+    ['replicate', ['graphic', 'model3d', 'audio'], 'Diagnostic-only adapter. Runtime execution is disabled pending an atomic one-time ledger.'],
+    ['fal', ['graphic', 'model3d', 'audio'], 'Diagnostic-only adapter. Runtime execution is disabled pending an atomic one-time ledger.'],
+    ['elevenlabs', ['audio'], 'Diagnostic-only adapter. Runtime execution is disabled pending an atomic one-time ledger and consent proof.'],
+    ['stability', ['graphic'], 'Diagnostic-only adapter. Runtime execution is disabled pending an atomic one-time ledger.'],
   ];
 
   return definitions.map(([name, supportedTypes, notes]) => {
@@ -97,7 +85,7 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
       name,
       supportedTypes,
       configured: missing.length === 0,
-      executable: missing.length === 0 && authorization.authorized,
+      executable: false,
       missingEnv: missing,
       notes,
     };
@@ -105,8 +93,7 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
 }
 
 export function getConfiguredProviderAdapter() {
-  const providerName = configuredProviderName();
-  return getProviderAdapters().find((adapter) => adapter.name === providerName) ?? getProviderAdapters()[0];
+  return getProviderAdapters().find((adapter) => adapter.name === 'local-proof') ?? getProviderAdapters()[0];
 }
 
 export function getProviderDiagnostics() {
