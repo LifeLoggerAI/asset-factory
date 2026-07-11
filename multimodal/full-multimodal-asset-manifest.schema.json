@@ -1,67 +1,69 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://urai.app/schemas/full-multimodal-asset-manifest.schema.json",
+  "title": "URAI Full Multimodal Asset Manifest",
   "type": "object",
-  "additionalProperties": false,
-  "required": ["schemaVersion", "manifestId", "generatedAt", "sourceShas", "releasePolicy", "assets"],
+  "required": [
+    "schemaVersion",
+    "manifestVersion",
+    "generatedAt",
+    "sourceLocks",
+    "providerPolicy",
+    "summary",
+    "assets"
+  ],
   "properties": {
     "schemaVersion": {"const": "1.2.0"},
-    "manifestId": {"type": "string", "minLength": 1},
-    "generatedAt": {"type": "string"},
-    "sourceShas": {
+    "manifestVersion": {"const": "1.2.0"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "sourceLocks": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["assetFactoryBase", "assetFactoryHead", "spatialMain", "spatialReleaseCandidate", "spatialProtectedRelease"],
+      "required": ["assetFactoryHeadSha", "spatialMainSha", "specificationVersion"],
       "properties": {
-        "assetFactoryBase": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "assetFactoryHead": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "spatialMain": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "spatialReleaseCandidate": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "spatialProtectedRelease": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
-      }
+        "assetFactoryHeadSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "spatialMainSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "specificationVersion": {"const": "1.2.0"}
+      },
+      "additionalProperties": false
     },
-    "releasePolicy": {
+    "providerPolicy": {"type": "object"},
+    "summary": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["placeholdersAllowed", "requiresExactReleaseSha", "requiresLiveEvidence", "requiresDistinctRollbackSha", "paidGenerationRequiresApproval"],
+      "required": ["total", "complete", "missingOrBlocked", "laneCounts", "statusCounts", "costUsedUsd", "costCeilingUsd"],
       "properties": {
-        "placeholdersAllowed": {"const": false},
-        "requiresExactReleaseSha": {"const": true},
-        "requiresLiveEvidence": {"const": true},
-        "requiresDistinctRollbackSha": {"const": true},
-        "paidGenerationRequiresApproval": {"const": true}
+        "total": {"type": "integer", "minimum": 0},
+        "complete": {"type": "integer", "minimum": 0},
+        "missingOrBlocked": {"type": "integer", "minimum": 0},
+        "laneCounts": {"type": "object"},
+        "statusCounts": {"type": "object"},
+        "costUsedUsd": {"type": "number", "minimum": 0},
+        "costCeilingUsd": {"type": "number", "minimum": 0}
       }
     },
     "assets": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
-        "additionalProperties": false,
         "required": [
-          "assetId", "version", "world", "state", "experienceArea", "lane", "assetType", "routes",
-          "runtimeComponent", "creativeSpecification", "technicalBudget", "deviceVariants", "accessibilityVariants",
-          "providerOrSource", "providerModelVersion", "licensingStatus", "commercialUseStatus",
-          "consentRequirements", "likenessRequirements", "costCeilingUsd", "dependencies", "expectedOutputPath",
-          "checksum", "provenance", "validationRequirements", "currentStatus", "reviewStatus", "promotionStatus",
-          "promotionPr", "mergedCommitSha", "releaseSha", "generationRequest", "providerJobId", "generatedAt",
-          "attemptCount", "costUsedUsd", "qualityReport", "artifactId", "artifactDigest", "runtimeRoute",
-          "liveVerificationEvidence", "repository", "sourceRepository", "specificationVersion", "manifestVersion",
-          "attributionRequirements", "sensitiveDataClassification", "ownershipStatus", "licenseExpiration",
-          "retentionPolicy", "deletionPolicy", "exportabilityStatus", "revocationStatus", "replacementStatus", "rollbackSha"
+          "assetId", "lane", "category", "purpose", "audience", "format", "dimensions", "durationSeconds",
+          "accessibilityVariants", "providerOrSource", "providerModelVersion", "licensingStatus", "commercialUseStatus",
+          "consentRequirements", "likenessRequirements", "costCeilingUsd", "dependencies", "expectedOutputPath", "checksum",
+          "provenance", "validationRequirements", "currentStatus", "reviewStatus", "promotionStatus", "promotionPr",
+          "mergedCommitSha", "releaseSha", "generationRequest", "providerJobId", "generatedAt", "attemptCount",
+          "costUsedUsd", "qualityReport", "artifactId", "artifactDigest", "runtimeRoute", "liveVerificationEvidence",
+          "repository", "sourceRepository", "specificationVersion", "manifestVersion", "attributionRequirements",
+          "sensitiveDataClassification", "ownershipStatus", "deletionPolicy", "retentionPolicy", "licenseExpiration",
+          "exportabilityStatus", "revocationStatus", "rollbackSha", "releaseCertificationReceipt"
         ],
         "properties": {
           "assetId": {"type": "string", "minLength": 1},
-          "version": {"type": "string"},
-          "world": {"type": "string"},
-          "state": {"type": "string"},
-          "experienceArea": {"type": "string"},
-          "lane": {"enum": ["visual", "3d", "audio", "film", "accessibility", "runtime", "governance"]},
-          "assetType": {"type": "string"},
-          "routes": {"type": "array", "items": {"type": "string"}},
-          "runtimeComponent": {"type": "string"},
-          "creativeSpecification": {"type": "string"},
-          "technicalBudget": {"type": "object"},
-          "deviceVariants": {"type": "array", "items": {"type": "string"}},
+          "lane": {"enum": ["image", "video", "audio", "3d", "xr", "accessibility", "review", "provenance"]},
+          "category": {"type": "string", "minLength": 1},
+          "purpose": {"type": "string", "minLength": 1},
+          "audience": {"type": "array", "items": {"type": "string"}},
+          "format": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "dimensions": {"type": ["object", "null"]},
+          "durationSeconds": {"type": ["number", "null"], "minimum": 0},
           "accessibilityVariants": {"type": "array", "items": {"type": "string"}},
           "providerOrSource": {"type": "string"},
           "providerModelVersion": {"type": ["string", "null"]},
@@ -78,7 +80,10 @@
           "currentStatus": {"enum": ["required", "planned", "queued", "generating", "generated", "candidate", "blocked", "review-pending", "approved", "promoted", "certified", "removed-from-scope"]},
           "reviewStatus": {"enum": ["not-started", "pending", "approved", "rejected", "not-required"]},
           "promotionStatus": {"enum": ["not-started", "pr-open", "merged", "blocked"]},
-          "promotionPr": {"type": ["integer", "null"]},
+          "promotionPr": {
+            "type": ["string", "null"],
+            "pattern": "^https://github\\.com/LifeLoggerAI/[A-Za-z0-9_.-]+/pull/[1-9][0-9]*$"
+          },
           "mergedCommitSha": {"type": ["string", "null"]},
           "releaseSha": {"type": ["string", "null"]},
           "generationRequest": {"type": ["object", "null"]},
@@ -98,15 +103,16 @@
           "attributionRequirements": {"type": "array", "items": {"type": "string"}},
           "sensitiveDataClassification": {"enum": ["none", "public", "internal", "confidential", "restricted"]},
           "ownershipStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
-          "licenseExpiration": {"type": ["string", "null"]},
-          "retentionPolicy": {"type": "string", "minLength": 1},
           "deletionPolicy": {"type": "string", "minLength": 1},
+          "retentionPolicy": {"type": "string", "minLength": 1},
+          "licenseExpiration": {"type": ["string", "null"]},
           "exportabilityStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
           "revocationStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
-          "replacementStatus": {"enum": ["not-started", "planned", "in-progress", "complete", "not-required"]},
-          "rollbackSha": {"type": ["string", "null"]}
+          "rollbackSha": {"type": ["string", "null"]},
+          "releaseCertificationReceipt": {"type": ["object", "null"]}
         }
       }
     }
-  }
+  },
+  "additionalProperties": false
 }
