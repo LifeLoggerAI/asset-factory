@@ -37,7 +37,7 @@ env:
 
 jobs:
   authorize:
-    if: github.actor == github.repository_owner
+    if: github.actor == github.repository_owner && github.run_attempt == 1
     runs-on: macos-latest
     timeout-minutes: 10
     outputs:
@@ -59,12 +59,16 @@ jobs:
           test "$GITHUB_EVENT_NAME" = push
           test "$GITHUB_REF" = refs/heads/main
           test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           test -f "$marker"
           test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
           test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-20260711.json'
           parent="$(git rev-parse "$GITHUB_SHA^")"
+          test '${{ github.event.before }}' = "$parent"
+          test '${{ github.event.after }}' = "$GITHUB_SHA"
+          test '${{ github.event.forced }}' = 'false'
           python3 - "$marker" "$parent" <<'PY'
           import json, sys
           from pathlib import Path
@@ -89,6 +93,8 @@ jobs:
             echo '### One-time V1 AAA Spatial marker accepted'
             echo "- marker commit: $GITHUB_SHA"
             echo "- parent source: $parent"
+            echo '- run attempt: 1 only'
+            echo '- pushed range: one marker-only commit'
             echo '- canonical outputs: 53'
             echo '- maximum new provider calls: 47'
             echo '- maximum reserved exposure: USD 47.00'
@@ -115,6 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = '${{ needs.authorize.outputs.target_sha }}'
           test -z "$(git status --porcelain)"
           test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '47'
