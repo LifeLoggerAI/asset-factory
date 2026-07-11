@@ -12,6 +12,7 @@ export type AssetProviderAdapter = {
 };
 
 const paidProviders: AssetProviderName[] = ['openai', 'replicate', 'fal', 'elevenlabs', 'stability'];
+const MAXIMUM_POLICY_REQUEST_COST_CENTS = 34;
 
 const providerEnv: Record<Exclude<AssetProviderName, 'local-proof'>, string[]> = {
   openai: ['OPENAI_API_KEY'],
@@ -45,18 +46,21 @@ export function getPaidProviderAuthorization() {
   const enabled = value('ASSET_FACTORY_ENABLE_PAID_MEDIA') === 'true';
   const approvalIdPresent = Boolean(value('ASSET_FACTORY_PAID_APPROVAL_ID'));
   const maximumCostCents = positiveInteger('ASSET_FACTORY_PAID_MAX_COST_CENTS');
+  const coversMaximumPolicyRequest = maximumCostCents >= MAXIMUM_POLICY_REQUEST_COST_CENTS;
   return {
     enabled,
     approvalIdPresent,
     maximumCostCents,
-    authorized: enabled && approvalIdPresent && maximumCostCents > 0,
+    maximumPolicyRequestCostCents: MAXIMUM_POLICY_REQUEST_COST_CENTS,
+    coversMaximumPolicyRequest,
+    authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest,
   };
 }
 
 export function assertPaidProviderRequestAuthorized(estimatedCostCents: number) {
   const authorization = getPaidProviderAuthorization();
   if (!authorization.authorized) {
-    throw new Error('Paid provider execution is not authorized');
+    throw new Error('Paid provider execution is not authorized for the maximum permitted request cost');
   }
   if (!Number.isInteger(estimatedCostCents) || estimatedCostCents <= 0) {
     throw new Error('Paid provider request requires a positive integer estimated cost');
