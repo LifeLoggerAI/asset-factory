@@ -50,6 +50,7 @@ const checkoutPin = 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683';
 const pythonPin = 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065';
 const nodePin = 'actions/setup-node@1e60f620b9541d80c77f7b4a3bcd8bf5e940c37';
 const artifactPin = 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02';
+const typescriptIntegrity = 'sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==';
 
 for (const [workflow, label] of [[audit, 'audit'], [offline, 'offline evidence'], [lockfile, 'lockfile']]) {
   includes(workflow, checkoutPin, `${label} immutable checkout`);
@@ -65,6 +66,15 @@ for (const [workflow, label] of [[audit, 'audit'], [offline, 'offline evidence']
 }
 
 includes(audit, pythonPin, 'audit immutable Python setup');
+includes(audit, nodePin, 'audit immutable Node setup');
+includes(audit, "node-version: '22.16.0'", 'audit exact Node version');
+includes(audit, "TYPESCRIPT_VERSION: '5.8.3'", 'audit exact TypeScript version');
+includes(audit, `TYPESCRIPT_INTEGRITY: '${typescriptIntegrity}'`, 'audit TypeScript registry integrity pin');
+includes(audit, 'npm pack "typescript@$TYPESCRIPT_VERSION" --json --ignore-scripts', 'audit TypeScript tarball acquisition');
+includes(audit, "crypto.createHash('sha512')", 'audit local TypeScript tarball hash');
+includes(audit, 'npm install --global "./$typescript_tarball" --ignore-scripts', 'verified local TypeScript install');
+includes(audit, 'node scripts/test-asset-factory-core-units.mjs', 'compiled core unit execution');
+includes(audit, 'node scripts/test-asset-factory-validation-import.mjs', 'compiled validation graph execution');
 includes(offline, pythonPin, 'offline immutable Python setup');
 includes(audit, "plan.get('dispatchAuthorized') is not False", 'zero-spend authorization assertion');
 includes(audit, "budget.get('maxProviderCalls') != 0", 'zero provider-call assertion');
@@ -92,9 +102,9 @@ for (const status of expectedLifecycleStatuses) {
 includes(lockfile, nodePin, 'lockfile immutable Node setup');
 includes(lockfile, "node-version: '20.19.5'", 'exact Node version');
 includes(lockfile, 'EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}', 'exact root-lock head environment');
-includes(lockfile, "sourceSha: expectedHead", 'root-lock source bound to exact PR head');
-includes(lockfile, "workflowSha: process.env.GITHUB_SHA", 'separate root-lock workflow trace');
-excludes(lockfile, "sourceSha: process.env.GITHUB_SHA", 'synthetic merge SHA as source identity');
+includes(lockfile, 'sourceSha: expectedHead', 'root-lock source bound to exact PR head');
+includes(lockfile, 'workflowSha: process.env.GITHUB_SHA', 'separate root-lock workflow trace');
+excludes(lockfile, 'sourceSha: process.env.GITHUB_SHA', 'synthetic merge SHA as source identity');
 includes(lockfile, 'npm install --global npm@10.9.2', 'exact npm version');
 includes(lockfile, 'npm install --package-lock-only --ignore-scripts --fund=false --audit=false', 'lock-only install');
 includes(lockfile, "startsWith('https://registry.npmjs.org/')", 'public registry provenance');
