@@ -45,6 +45,7 @@ for (const [file, label] of [
 
 const checkoutPin = 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683';
 const pythonPin = 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065';
+const nodePin = 'actions/setup-node@1e60f620b9541d80c77f7b4a3bcd8bf5e940c37';
 const artifactPin = 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02';
 
 for (const [workflow, label] of [[audit, 'audit'], [offline, 'offline evidence'], [lockfile, 'lockfile']]) {
@@ -66,7 +67,15 @@ includes(audit, "plan.get('dispatchAuthorized') is not False", 'zero-spend autho
 includes(audit, "budget.get('maxProviderCalls') != 0", 'zero provider-call assertion');
 includes(audit, "budget.get('maxTotalExposureUsd') != 0", 'zero approved-spend assertion');
 includes(audit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source-lock identity');
-includes(lockfile, 'npm install --package-lock-only --ignore-scripts --no-audit --fund=false', 'lock-only install');
+
+includes(lockfile, nodePin, 'lockfile immutable Node setup');
+includes(lockfile, "node-version: '20.19.5'", 'exact Node version');
+includes(lockfile, 'npm install --global npm@10.9.2', 'exact npm version');
+includes(lockfile, 'npm install --package-lock-only --ignore-scripts --fund=false --audit=false', 'lock-only install');
+includes(lockfile, "startsWith('https://registry.npmjs.org/')", 'public registry provenance');
+includes(lockfile, 'if (!entry.integrity)', 'package integrity requirement');
+includes(lockfile, 'npm ci --ignore-scripts --fund=false --audit=false', 'frozen root install');
+includes(lockfile, 'npm audit --audit-level=high --omit=dev', 'high-severity audit gate');
 excludes(lockfile, 'npm publish', 'package publication');
 excludes(lockfile, 'git push', 'repository mutation');
 
