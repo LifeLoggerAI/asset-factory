@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "full-multimodal-asset-manifest.json"
 SPECS = ROOT / "media-specifications.json"
+PHASES = ("home", "ascent", "lifemap", "focus", "replay")
 
 
 def main() -> None:
@@ -18,12 +19,17 @@ def main() -> None:
         kind = asset["assetType"]
 
         if lane == "audio":
-            spec = specs["audio"].get(kind)
+            phase = next((value for value in PHASES if kind.startswith(value + "-")), None)
+            if phase is None:
+                raise SystemExit(f"audio phase missing from assetType: {kind}")
+            media_kind = kind[len(phase) + 1:]
+            spec = specs["audio"].get(media_kind)
             if not spec:
-                raise SystemExit(f"missing audio specification for {kind}")
-            phase = asset["world"]
+                raise SystemExit(f"missing audio specification for {media_kind}")
+            asset["world"] = phase
+            asset["state"] = media_kind
             asset["expectedOutputPath"] = (
-                f"multimodal/outputs/audio/{phase}/{phase}-{kind}.{spec['extension']}"
+                f"multimodal/outputs/audio/{phase}/{phase}-{media_kind}.{spec['extension']}"
             )
             asset["technicalBudget"] = {
                 key: value
