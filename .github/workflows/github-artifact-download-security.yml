@@ -38,7 +38,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     env:
-      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/urai-security-pycache
+      PYTHONPYCACHEPREFIX: /tmp/urai-security-pycache-${{ github.run_id }}
     steps:
       - name: Checkout exact reviewed head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
