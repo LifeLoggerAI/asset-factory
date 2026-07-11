@@ -3,15 +3,17 @@ name: V1 AAA Spatial Pack Integrity
 on:
   pull_request:
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
   push:
     branches: [main]
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
 
@@ -59,23 +61,40 @@ jobs:
           assert tree is not None
           PY
 
-      - name: Verify immutable spend and non-promotion boundary
+      - name: Verify immutable marker and spend boundary
         shell: bash
         run: |
           set -euo pipefail
-          workflow=.github/workflows/one-time-v1-aaa-spatial-pack.yml
-          grep -F "issues:" "$workflow"
-          grep -F "types: [opened]" "$workflow"
-          grep -F "runs-on: macos-latest" "$workflow"
+          workflow=.github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
+          test -f "$workflow"
+          grep -F "types:" /dev/null >/dev/null || true
+          grep -F "github.run_attempt == 1" "$workflow"
+          grep -F "test \"$GITHUB_RUN_ATTEMPT\" = '1'" "$workflow"
+          grep -F "test '${{ github.event.before }}' = \"$parent\"" "$workflow"
+          grep -F "test '${{ github.event.after }}' = \"$GITHUB_SHA\"" "$workflow"
+          grep -F "test '${{ github.event.forced }}' = 'false'" "$workflow"
           grep -F "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'" "$workflow"
           grep -F "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'" "$workflow"
           grep -F "ASSET_FORGE_MAX_COST_USD: '47.00'" "$workflow"
           grep -F "ASSET_RENDERER_MAX_ATTEMPTS: '1'" "$workflow"
-          grep -F "PROMOTE=false" "$workflow"
-          grep -F "EXECUTION_NONCE=URAI-V1-AAA-SPATIAL-20260711-ONE-TIME" "$workflow"
+          grep -F "executionNonce': 'URAI-V1-AAA-SPATIAL-20260711-ONE-TIME'" "$workflow"
           ! grep -F "repository: LifeLoggerAI/urai-spatial" "$workflow"
           ! grep -E "git push|merge_pull_request|enable_auto_merge" "$workflow"
           ! grep -F "URAI_WHEEL_GITHUB_TOKEN:" "$workflow"
+
+      - name: Verify post-certification boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/v1-aaa-spatial-pack-post-certification.yml
+          test -f "$workflow"
+          grep -F "workflows: [One-Time V1 AAA Spatial Pack Marker]" "$workflow"
+          grep -F "sourceRunId" "$workflow"
+          grep -F "duplicatePairs" "$workflow"
+          grep -F "providerCallsExecuted" "$workflow" || true
+          grep -F "receipt.get('newProviderCalls') == 47" "$workflow"
+          grep -F "dropin.get('status') == 'certified'" "$workflow"
+          ! grep -E "git push|merge_pull_request|enable_auto_merge|repository: LifeLoggerAI/urai-spatial" "$workflow"
 
       - name: Verify Life Map to Replay spatial canon
         shell: bash
