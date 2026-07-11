@@ -1,0 +1,77 @@
+{
+  "receipt_id": "URAI-WSE-20260711-162900-ASSET-FACTORY-008",
+  "utc_timestamp": "2026-07-11T16:29:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "authorization_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/160",
+  "governance_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
+  "workflow_run_id": 29159648826,
+  "authorized_source_sha": "8deecb97fa521b01811328acf10d02dfc596f043",
+  "authorization_job": {
+    "job_id": 86562412418,
+    "conclusion": "success"
+  },
+  "execution_job": {
+    "job_id": 86562454934,
+    "conclusion": "failure",
+    "clarification": "The provider attempt succeeded and one asset passed quality. The process exited nonzero because full-pack validation expected the other 52 V1 outputs while the authorized smoke intentionally limited generation to one entry and one output."
+  },
+  "provider_attempt": {
+    "provider_calls_executed": 1,
+    "call_number": 1,
+    "status": "succeeded",
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "provider_request_id": "req_105244180b6f4b95bec882bdfc1a695b",
+    "budget_attempt_id": "29159648826-v1-issue-160:1",
+    "requested_size": "1600x1000",
+    "reserved_unit_cost_usd": "1.00",
+    "reserved_cumulative_cost_usd": "1.00",
+    "actual_billed_cost_usd": null,
+    "actual_billed_cost_note": "The provider receipt proves one successful request and a USD 1.00 reserved ceiling; it does not expose the final settled invoice amount."
+  },
+  "generated_asset": {
+    "name": "home_threshold_main",
+    "artifact_path": "image_asset_generator/assets/urai/home/home-threshold-main_1600.png",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 2028765,
+    "sha256": "034aed4badfd0d56383721d16bb88cc5f42dbb6eb409a645dbf5f520dc5fe106",
+    "quality_status": "passed",
+    "quality_issues": [],
+    "renderer": "provider"
+  },
+  "artifact": {
+    "github_artifact_id": 8250466400,
+    "name": "urai-paid-v1-smoke-issue-160-29159648826",
+    "size_bytes": 2054615,
+    "sha256": "c375104ac4cedec213840a193d90f9398e7ccc6a0202ada7e555aa648bd41386",
+    "expires_at": "2026-08-10T16:25:34Z",
+    "drive_folder_id": "1CvodWoqQDP57BQbQRi0MjYYQ40hBgNar",
+    "drive_folder_url": "https://drive.google.com/drive/folders/1CvodWoqQDP57BQbQRi0MjYYQ40hBgNar",
+    "drive_file_id": "1R9LfNqGZ7OSi1FtvQ_Q1o_qXODuxalf8",
+    "drive_file_url": "https://drive.google.com/file/d/1R9LfNqGZ7OSi1FtvQ_Q1o_qXODuxalf8/view?usp=drivesdk"
+  },
+  "bounds": {
+    "max_provider_calls": 1,
+    "max_provider_attempts": 1,
+    "limit_entries": 1,
+    "limit_outputs": 1,
+    "max_unit_cost_usd": "1.00",
+    "max_total_cost_usd": "1.00",
+    "promote": false,
+    "deployment": false
+  },
+  "cleanup": {
+    "branch": "ws-e/cleanup-one-time-paid-v1-20260711",
+    "executor_delete_commit": "fd19c8aeb113f7d7f7e3d2279c7ff365f362d773",
+    "integrity_workflow_delete_commit": "56c63075ae4dc95cab1271380ec55cda4083eb2e",
+    "verifier_delete_commit": "9ab68a222ab44eab83828c35d0d992e1fe2c668b",
+    "exact_cleanup_pr_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential hash."
+  },
+  "retry_authorized": false,
+  "promotion_performed": false,
+  "deployment_performed": false,
+  "status": "PROVIDER SMOKE SUCCEEDED EXACTLY ONCE — GENERATED ASSET PASSED QUALITY — TEMPORARY EXECUTOR REMOVED ON CLEANUP BRANCH",
+  "exact_next_action": "Merge the cleanup pull request with exact-head protection, update the canonical ledger, and close issue #160 as completed without retrying the provider call."
+}
