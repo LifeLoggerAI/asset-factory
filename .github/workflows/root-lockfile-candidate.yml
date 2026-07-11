@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   generate:
-    runs-on: macos-latest
+    runs-on: windows-latest
     timeout-minutes: 15
     steps:
       - name: Check out exact candidate
@@ -46,7 +46,7 @@ jobs:
           npm install --package-lock-only --ignore-scripts --no-audit --fund=false
           test -s package-lock.json
           node -e "const p=require('./package-lock.json'); if(p.lockfileVersion!==3) throw new Error('expected npm lockfileVersion 3'); if(!p.packages?.['']) throw new Error('missing root package');"
-          shasum -a 256 package-lock.json | tee package-lock.sha256
+          sha256sum package-lock.json | tee package-lock.sha256
 
       - name: Upload root lock candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
