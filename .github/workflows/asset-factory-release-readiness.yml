@@ -41,14 +41,31 @@ on:
 permissions:
   contents: read
 
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: asset-factory-release-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release-readiness:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout exact source head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -68,18 +85,20 @@ jobs:
 
       - name: Validate production assets
         working-directory: assetfactory-studio
+        shell: bash
         run: |
           mkdir -p ../artifacts/release-readiness
+          set -o pipefail
           npm run validate:assets 2>&1 | tee ../artifacts/release-readiness/asset-validation.log
 
-      - name: Upload production validation log
+      - name: Upload exact-head production validation log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-release-readiness-validation
+          name: asset-factory-release-readiness-validation-${{ env.TARGET_SHA }}
           path: artifacts/release-readiness/asset-validation.log
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 365
 
       - name: Validate runtime contract
         working-directory: assetfactory-studio
@@ -115,17 +134,18 @@ jobs:
       - name: Run image asset pipeline
         run: python image_asset_generator/run_pipeline.py
 
-      - name: Upload image pipeline proof
+      - name: Upload exact-head image pipeline proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-image-pipeline-proof
+          name: asset-factory-image-pipeline-proof-${{ env.TARGET_SHA }}
           path: |
             image_asset_generator/validation_report.json
             image_asset_generator/firebase_seed.json
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
           if-no-files-found: warn
+          retention-days: 365
 
       - name: Install functions dependencies
         working-directory: life-map-pipeline/functions
@@ -134,6 +154,10 @@ jobs:
       - name: Build functions
         working-directory: life-map-pipeline/functions
         run: npm run build
+
+      - name: Prove checks preserved clean source
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Verify live deployment
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.live_url != '' }}
