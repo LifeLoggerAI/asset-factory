@@ -110,8 +110,9 @@ assertIncludes(generateRoute, 'reserveVideoProviderTransaction', 'atomic provide
 assertIncludes(materializeRoute, 'beginVideoProviderAttempt', 'single provider dispatch lease');
 assertIncludes(materializeRoute, 'markVideoProviderAttemptFailed', 'provider failure reservation hold');
 assertIncludes(materializeRoute, 'markVideoProviderArtifactReady', 'provider artifact review state');
-assertIncludes(packageCli, 'Refusing to overwrite existing encoded preview', 'package duplicate-safety wording is not reused incorrectly');
 assertIncludes(packageCli, 'Output directory is not empty', 'package overwrite refusal');
+assertIncludes(packageCli, 'Artifact escaped output directory', 'package path confinement');
+assertIncludes(previewEncoder, 'Refusing to overwrite existing encoded preview', 'preview overwrite refusal');
 assertIncludes(previewEncoder, 'urai-video-technical-preview-receipt-1', 'technical preview receipt');
 assertIncludes(previewEncoder, 'productionReady: false', 'technical preview fail-closed marker');
 assertIncludes(previewEncoder, 'providerSpend: false', 'technical preview no-spend marker');
