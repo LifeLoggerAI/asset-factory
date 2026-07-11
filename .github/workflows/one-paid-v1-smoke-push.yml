@@ -7,6 +7,10 @@ on:
         description: Exact Asset Factory commit authorized for the one-call smoke
         required: true
         type: string
+      asset_id:
+        description: Exact V1 asset name authorized for one new provider output
+        required: true
+        type: string
       confirm:
         description: Type AUTHORIZE_ONE_PAID_V1_SMOKE
         required: true
@@ -22,6 +26,7 @@ concurrency:
 
 env:
   AUTHORIZED_HEAD_SHA: ${{ inputs.expected_sha }}
+  AUTHORIZED_ASSET_ID: ${{ inputs.asset_id }}
   ASSET_RENDERER_PROVIDER: openai
   ASSET_RENDERER_MODE: provider
   ASSET_RENDERER_MODEL: gpt-image-1.5
@@ -36,7 +41,10 @@ env:
   ASSET_FORGE_MAX_COST_USD: '1.00'
   ASSET_FORGE_LIMIT_ENTRIES: '1'
   ASSET_FORGE_LIMIT_OUTPUTS: '1'
-  ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '0'
+  ASSET_FORGE_ONLY_ASSET_IDS: ${{ inputs.asset_id }}
+  ASSET_FORGE_REQUIRE_EXACT_SELECTION: '1'
+  ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '1'
+  ASSET_FORGE_ALLOW_PAID_OVERWRITE: '0'
   ASSET_FORGE_RUN_ID: ${{ github.run_id }}-v1-one-call-smoke
   ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -64,12 +72,13 @@ jobs:
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate exact one-call authorization
+      - name: Validate exact one-call authorization and output absence
         shell: bash
         run: |
           set -euo pipefail
           test '${{ inputs.confirm }}' = 'AUTHORIZE_ONE_PAID_V1_SMOKE'
           test -n "$OPENAI_API_KEY"
+          test -n "$AUTHORIZED_ASSET_ID"
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$AUTHORIZED_HEAD_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
@@ -81,9 +90,44 @@ jobs:
           test "$ASSET_FORGE_MAX_COST_USD" = '1.00'
           test "$ASSET_FORGE_LIMIT_ENTRIES" = '1'
           test "$ASSET_FORGE_LIMIT_OUTPUTS" = '1'
+          test "$ASSET_FORGE_SKIP_EXISTING_OUTPUTS" = '1'
+          test "$ASSET_FORGE_ALLOW_PAID_OVERWRITE" = '0'
           python image_asset_generator/check_canonical_version_contract.py
           mkdir -p artifacts/budget artifacts/smoke
-          echo "ASSET_FACTORY_EXACT_HEAD=$ACTUAL_SHA" >> "$GITHUB_ENV"
+          AUTHORIZED_ASSET_ID="$AUTHORIZED_ASSET_ID" python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, 'image_asset_generator')
+          import generate_assets as base
+
+          asset_id = os.environ['AUTHORIZED_ASSET_ID']
+          matches = [entry for entry in base.load_manifest() if entry.get('name') == asset_id]
+          if len(matches) != 1:
+              raise SystemExit(f'asset_id must match exactly one V1 manifest entry: {asset_id}')
+          outputs = list(base.iter_outputs(matches[0]))
+          if not outputs:
+              raise SystemExit('selected asset has no canonical outputs')
+          _, output_path = outputs[0]
+          metadata_path = output_path.with_suffix(output_path.suffix + '.render.json')
+          if output_path.exists() or metadata_path.exists():
+              raise SystemExit('selected smoke output already exists; paid overwrite is prohibited')
+          selection = {
+              'schemaVersion': '1.0.0',
+              'assetId': asset_id,
+              'outputPath': str(output_path),
+              'metadataPath': str(metadata_path),
+              'outputAbsentBeforeRun': True,
+              'metadataAbsentBeforeRun': True,
+          }
+          Path('artifacts/smoke/selection.json').write_text(json.dumps(selection, indent=2) + '\n')
+          with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as handle:
+              handle.write(f'ASSET_FACTORY_EXACT_HEAD={os.environ["AUTHORIZED_HEAD_SHA"]}\n')
+              handle.write(f'EXPECTED_OUTPUT_PATH={output_path}\n')
+              handle.write(f'EXPECTED_METADATA_PATH={metadata_path}\n')
+          PY
 
       - name: Execute exactly one provider render
         id: forge
@@ -95,9 +139,9 @@ jobs:
           forge_exit=${PIPESTATUS[0]}
           set -e
           echo "forge_exit=$forge_exit" >> "$GITHUB_OUTPUT"
-          echo "Forge exited ${forge_exit}; the receipt gate will decide whether the one-call transport smoke passed."
+          echo "Forge exited ${forge_exit}; the exact provider receipt gate decides transport-smoke success."
 
-      - name: Verify paid call receipt and provider output
+      - name: Verify exact paid attempt and exact new output
         env:
           FORGE_EXIT_CODE: ${{ steps.forge.outputs.forge_exit }}
         shell: bash
@@ -119,44 +163,63 @@ jobs:
           attempts = ledger.get('attempts', [])
           if calls != 1 or len(attempts) != 1:
               raise SystemExit(f'expected exactly one provider attempt; calls={calls} attempts={len(attempts)}')
+          attempt = attempts[0]
           if reserved > Decimal('1.00'):
               raise SystemExit(f'reserved exposure exceeded USD 1.00: {reserved}')
-          if attempts[0].get('status') != 'succeeded':
-              raise SystemExit(f'provider attempt did not succeed: {attempts[0]}')
+          if attempt.get('status') != 'succeeded':
+              raise SystemExit(f'provider attempt did not succeed: {attempt}')
+          if attempt.get('provider') != 'openai':
+              raise SystemExit('provider attempt was not OpenAI')
+          if attempt.get('asset') != os.environ['AUTHORIZED_ASSET_ID']:
+              raise SystemExit('provider attempt asset does not match the exact authorized asset')
+          request_id = attempt.get('providerRequestId')
+          if not isinstance(request_id, str) or not request_id.strip():
+              raise SystemExit('provider attempt lacks a provider request ID')
 
-          provider_metadata = []
-          for path in Path('image_asset_generator').rglob('*.json'):
-              try:
-                  payload = json.loads(path.read_text(encoding='utf-8'))
-              except Exception:
-                  continue
-              if isinstance(payload, dict) and (
-                  payload.get('provider') == 'openai'
-                  or payload.get('renderer') == 'provider'
-                  or payload.get('provider_model')
-              ):
-                  provider_metadata.append({
-                      'path': str(path),
-                      'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
-                  })
-          if not provider_metadata:
-              raise SystemExit('no provider-backed render metadata was found')
+          output_path = Path(os.environ['EXPECTED_OUTPUT_PATH'])
+          metadata_path = Path(os.environ['EXPECTED_METADATA_PATH'])
+          if not output_path.is_file() or output_path.stat().st_size < 1:
+              raise SystemExit('exact selected provider output was not created')
+          if not metadata_path.is_file():
+              raise SystemExit('exact selected render metadata was not created')
+          metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+          nested = metadata.get('metadata', {})
+          if metadata.get('name') != os.environ['AUTHORIZED_ASSET_ID']:
+              raise SystemExit('render metadata asset does not match authorization')
+          if metadata.get('renderer') != 'provider' or nested.get('provider') != 'openai':
+              raise SystemExit('render metadata is not an OpenAI provider output')
+          if nested.get('provider_request_id') != request_id:
+              raise SystemExit('render metadata request ID does not match the paid request ledger')
 
+          output_sha = hashlib.sha256(output_path.read_bytes()).hexdigest()
+          metadata_sha = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
           receipt = {
-              'schemaVersion': '1.1.0',
+              'schemaVersion': '1.2.0',
               'status': 'passed',
               'workflow': 'One Paid V1 Provider Smoke',
               'commit': os.environ['ASSET_FACTORY_EXACT_HEAD'],
               'runId': os.environ['GITHUB_RUN_ID'],
+              'assetId': os.environ['AUTHORIZED_ASSET_ID'],
               'forgeExitCode': int(os.environ.get('FORGE_EXIT_CODE', '-1')),
               'providerCallsExecuted': calls,
               'reservedEstimatedCostUsd': str(reserved),
-              'attemptStatus': attempts[0].get('status'),
-              'providerMetadata': provider_metadata,
+              'attemptId': attempt.get('attemptId'),
+              'providerRequestId': request_id,
+              'output': {
+                  'path': str(output_path),
+                  'bytes': output_path.stat().st_size,
+                  'sha256': output_sha,
+              },
+              'renderMetadata': {
+                  'path': str(metadata_path),
+                  'sha256': metadata_sha,
+              },
+              'outputAbsentBeforeRun': True,
+              'overwritePerformed': False,
               'certification': False,
               'promotion': False,
               'deployment': False,
-              'claimBoundary': 'One provider-call transport smoke only; no asset is certified or promotion eligible.',
+              'claimBoundary': 'One exact new provider output transport smoke only; no asset is certified or promotion eligible.',
           }
           output = Path('artifacts/smoke/verified-receipt.json')
           output.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
