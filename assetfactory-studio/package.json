@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint lib/server lib/assets lib/spatial app/api/generate app/api/generated-assets app/api/jobs app/api/system app/api/assets app/api/usage app/api/dashboard app/api/stripe app/api/cron app/api/presets --max-warnings=0",
-    "test": "node ../scripts/test-paid-provider-authorization.mjs && node ../scripts/test-asset-factory-core-units.mjs && node ../scripts/test-spatial-model-contract.mjs && node ../scripts/test-asset-factory-auth.mjs && node ../scripts/test-asset-factory-local.mjs && node ../scripts/test-asset-factory-multimodal.mjs",
+    "test": "node ../scripts/test-paid-provider-authorization.mjs && node ../scripts/test-asset-factory-core-units.mjs && node ../scripts/test-asset-factory-validation-import.mjs && node ../scripts/test-spatial-model-contract.mjs && node ../scripts/test-asset-factory-auth.mjs && node ../scripts/test-asset-factory-local.mjs && node ../scripts/test-asset-factory-multimodal.mjs",
     "typecheck": "tsc -p tsconfig.asset-factory.json",
     "e2e": "node ../scripts/e2e-asset-factory.mjs",
     "validate:assets": "node ../scripts/validate-asset-factory-production.mjs",
