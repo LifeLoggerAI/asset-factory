@@ -36,6 +36,12 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           test ! -e package-lock.json
 
+      - name: Prepare the committed root-lock contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-root-lock-contract.mjs
+
       - name: Set up Node 20
         uses: actions/setup-node@1e60f620b9541d80c77f7b4a3bcd8bf5e940c37
         with:
@@ -91,15 +97,32 @@ jobs:
           npm ci --ignore-scripts --fund=false --audit=false
           npm audit --audit-level=high --omit=dev
 
-      - name: Commit only the generated lock
+      - name: Commit only the lock contract migration
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed 's/^...//')
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = "package-lock.json"
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const expected = [
+            'README.md',
+            'package-lock.json',
+            'scripts/doctor.mjs',
+            'scripts/setup-local.mjs',
+            'scripts/test-launch-readiness.mjs',
+          ].sort();
+          const changed = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' })
+            .trim()
+            .split(/\n+/)
+            .filter(Boolean)
+            .map((line) => line.slice(3))
+            .sort();
+          if (JSON.stringify(changed) !== JSON.stringify(expected)) {
+            console.error(`unexpected changed files: ${JSON.stringify(changed)}`);
+            process.exit(1);
+          }
+          NODE
           git config user.name "LifeLoggerAI Release Automation"
           git config user.email "lifeloggerai@gmail.com"
-          git add package-lock.json
-          git commit -m "build(deps): commit audited root package lock"
+          git add README.md package-lock.json scripts/doctor.mjs scripts/setup-local.mjs scripts/test-launch-readiness.mjs
+          git commit -m "build(deps): commit audited root lock contract"
           git push origin HEAD:agent/full-multimodal-asset-completion
