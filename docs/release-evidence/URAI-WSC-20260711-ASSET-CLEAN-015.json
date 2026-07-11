@@ -1,0 +1,117 @@
+{
+  "receipt_id": "URAI-WSC-20260711-ASSET-CLEAN-015",
+  "utc_timestamp": "2026-07-11T17:17:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "0acb7ab7f00b8301b7efaadda8c4e5f4da5f4f06",
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "prior_candidate_head": "50e818da827cf6aba056db6427a19bb5c5a1403b",
+  "exact_final_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/172",
+  "supersedes_pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/157",
+  "review_repairs": {
+    "removed_paid_workflows_required_by_static_test": "fixed and regression guarded",
+    "weak_environment_only_paid_authorization": "removed; Studio paid runtime compile-time disabled",
+    "pull_request_receipt_merge_ref_mismatch": "fixed; receipt binds checked-out PR head and separately records workflow SHA",
+    "manifest_schema_lifecycle_drift": "fixed; schema enum matches validator lifecycle states",
+    "review_threads_resolved": 4
+  },
+  "studio_paid_provider_boundary": {
+    "runtime_enabled": false,
+    "authorization": false,
+    "execution_authorized": false,
+    "atomic_ledger_configured": false,
+    "blocker": "disabled-pending-atomic-one-time-ledger",
+    "selected_runtime_provider": "local-proof",
+    "paid_adapters_executable": false,
+    "provider_backed_rendering_claim": false,
+    "paid_environment_can_trigger_network_call": false
+  },
+  "active_test_evidence": {
+    "suite": "scripts/test-asset-factory-core-units.mjs",
+    "activated_by": "assetfactory-studio/package.json",
+    "coverage": [
+      "Stripe entitlement parsing",
+      "dead-letter queue requeue behavior",
+      "tenant mismatch rejection",
+      "non-requeueable status rejection",
+      "paid-looking environment values retain local-proof selection",
+      "paid request assertion always rejects",
+      "provider runtime performs zero network fetches"
+    ]
+  },
+  "explicit_exclusions": [
+    ".github/workflows/authorized-multimodal-execution.yml",
+    ".github/workflows/one-paid-v1-smoke-push.yml",
+    ".github/workflows/promote-reviewed-multimodal-batch.yml",
+    "docs/release-evidence/URAI-WSC-20260711-PAID-V1-SMOKE-012.json",
+    "WORK-COMPLETION-REPORT.md"
+  ],
+  "source_controls": {
+    "remote_actions": "immutable reviewed commit SHAs",
+    "workflow_permissions": "contents read only",
+    "persist_credentials": false,
+    "provider_secrets_referenced": false,
+    "promotion_secrets_referenced": false,
+    "paid_workflow_added": false,
+    "promotion_workflow_added": false,
+    "audit_dispatch_authorized": false,
+    "audit_provider_calls": 0,
+    "audit_approved_spend_usd": 0
+  },
+  "root_lock_repair": {
+    "status": "exact-head workflow pending runner assignment",
+    "node": "20.19.5",
+    "npm": "10.9.2",
+    "lockfile_version": 3,
+    "registry": "https://registry.npmjs.org",
+    "frozen_install_required": true,
+    "high_severity_audit_required": true,
+    "unexpected_changed_files_rejected": true,
+    "workflow_can_push": false,
+    "temporary_generator_removal_required_before_merge": true,
+    "temporary_migration_helper_removal_required_before_merge": true
+  },
+  "stale_exact_head_runs": {
+    "candidate": "50e818da827cf6aba056db6427a19bb5c5a1403b",
+    "runs": [
+      29161244885,
+      29161244830,
+      29161244860,
+      29161244857,
+      29161244880,
+      29161244887,
+      29161244861,
+      29161244869,
+      29161244893,
+      29161244847
+    ],
+    "state_at_receipt_commit": "queued; superseded by this receipt commit",
+    "count_as_pass": false
+  },
+  "verification": {
+    "static_collision_review": "completed",
+    "forbidden_paid_and_promotion_paths": "absent from pull request diff",
+    "codex_review_findings": "all four addressed and threads resolved",
+    "root_package_lock_committed": false,
+    "provider_call": "not run",
+    "promotion": "not run",
+    "deployment": "not run"
+  },
+  "remaining_blockers": [
+    "GitHub-hosted runner assignment for final exact-head workflows",
+    "successful Full Multimodal Asset Audit",
+    "successful Offline Evidence Package",
+    "successful audited root lock generation",
+    "verified commit of package-lock.json and four root-lock contract files",
+    "removal of temporary root-lock workflow and migration helper",
+    "successful repository CI and release suites",
+    "rights, consent and likeness clearance",
+    "exact-hash human creative review",
+    "immutable promotion, deployment, rollback and live deployed-SHA evidence"
+  ],
+  "status": "CLEAN REPLACEMENT HARDENED — CODE REVIEW FINDINGS RESOLVED — NO-SPEND BOUNDARY VERIFIED STATICALLY — EXECUTION EVIDENCE PENDING RUNNER ASSIGNMENT",
+  "rollback": "Close PR #172 unmerged. The superseded PR #157 branch and all prior hardened main receipts remain preserved.",
+  "exact_next_action": "Run the new receipt head through all workflows. Commit only a verified root-lock artifact, remove temporary generation files, rerun exact-head checks, and keep the pull request draft until all listed gates pass."
+}
