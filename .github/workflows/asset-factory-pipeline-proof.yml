@@ -127,13 +127,47 @@ jobs:
             if (!/^[a-f0-9]{64}$/.test(receipt.receiptHash)) throw new Error("receipt hash missing");
           '
 
-      - name: Upload exact-head Day 0 package proof
+      - name: Install FFmpeg preview encoder
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Encode deterministic Day 0 technical preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          preview="$RUNNER_TEMP/day-00-the-door-technical-preview.mp4"
+          rm -f "$preview" "$preview.receipt.json"
+          node scripts/render-waiting-room-preview.mjs \
+            "$RUNNER_TEMP/day-00-video-package" \
+            "$preview" \
+            | tee "$RUNNER_TEMP/day-00-video-preview-build.json"
+          test -s "$preview"
+          test -s "$preview.receipt.json"
+          node -e '
+            const fs = require("fs");
+            const receipt = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/day-00-the-door-technical-preview.mp4.receipt.json", "utf8"));
+            if (receipt.technicalPreview !== true) throw new Error("technical-preview marker missing");
+            if (receipt.productionReady !== false) throw new Error("technical preview cannot be production-ready");
+            if (receipt.finalFootage !== false) throw new Error("technical preview cannot be final footage");
+            if (receipt.providerSpend !== false) throw new Error("technical preview cannot claim provider spend");
+            if (!/^[a-f0-9]{64}$/.test(receipt.outputSha256)) throw new Error("preview output hash missing");
+          '
+
+      - name: Upload exact-head Day 0 package and MP4 proof
         uses: actions/upload-artifact@v4
         with:
-          name: waiting-room-day-00-package-${{ env.TARGET_SHA }}
+          name: waiting-room-day-00-proof-${{ env.TARGET_SHA }}
           path: |
             ${{ runner.temp }}/day-00-video-package/
             ${{ runner.temp }}/day-00-video-package-build.json
+            ${{ runner.temp }}/day-00-the-door-technical-preview.mp4
+            ${{ runner.temp }}/day-00-the-door-technical-preview.mp4.receipt.json
+            ${{ runner.temp }}/day-00-video-preview-build.json
           if-no-files-found: error
           retention-days: 365
 
