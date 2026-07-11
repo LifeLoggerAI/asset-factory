@@ -1,4 +1,5 @@
-import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog';
+import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';
+import { resolveAssetType } from './assetTypeCatalog';
 import { validateSpatialModelContract } from './assetSpatialContract';
 
 const safeIdSegment = /^[a-zA-Z0-9._-]+$/;
