@@ -30,7 +30,9 @@ jobs:
         run: python multimodal/build_full_manifest.py
       - name: Validate canonical multimodal manifest
         run: python multimodal/validate_manifest.py
-      - name: Upload immutable validation inputs and receipt
+      - name: Validate claimed outputs and media decoding
+        run: python multimodal/validate_outputs.py
+      - name: Upload immutable validation inputs and receipts
         uses: actions/upload-artifact@v4
         with:
           name: full-multimodal-manifest-validation-${{ github.sha }}
@@ -39,6 +41,7 @@ jobs:
           path: |
             multimodal/full-multimodal-asset-manifest.json
             multimodal/validation-report.json
+            multimodal/output-validation-report.json
             multimodal/source-lock.json
             multimodal/canonical-requirements.json
 
