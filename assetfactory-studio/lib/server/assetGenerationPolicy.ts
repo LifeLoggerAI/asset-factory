@@ -13,6 +13,7 @@ const limits: Record<string, PolicyLimit> = {
   graphic: { maxPromptChars: 4000, maxWidth: 4096, maxHeight: 4096, allowedFormats: ['svg', 'png', 'webp', 'json'] },
   model3d: { maxPromptChars: 4000, maxWidth: 2048, maxHeight: 2048, allowedFormats: ['gltf', 'glb', 'json'] },
   audio: { maxPromptChars: 4000, maxDurationSeconds: 30, allowedFormats: ['wav', 'mp3', 'json'] },
+  video: { maxPromptChars: 4000, maxWidth: 3840, maxHeight: 2160, maxDurationSeconds: 90, allowedFormats: ['animatic', 'mp4', 'webm', 'mov', 'json'] },
   bundle: { maxPromptChars: 4000, allowedFormats: ['json'] },
 };
 
@@ -26,7 +27,7 @@ export type PolicyDecision = {
 
 function numberFromMetadata(metadata: Record<string, unknown> | undefined, key: string, fallback: number) {
   const value = metadata?.[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision {
@@ -58,6 +59,20 @@ export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision
       return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for audio`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
     }
     return { ok: true, canonicalType, estimatedUnits: Math.ceil(durationSeconds), estimatedCostCents: Math.ceil(durationSeconds) };
+  }
+
+  if (canonicalType === 'video') {
+    const durationSeconds = numberFromMetadata(input.metadata, 'durationSeconds', definition.defaultDurationSeconds ?? 6);
+    if (limit.maxDurationSeconds && durationSeconds > limit.maxDurationSeconds) {
+      return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for video`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
+    }
+    const seconds = Math.ceil(durationSeconds);
+    return {
+      ok: true,
+      canonicalType,
+      estimatedUnits: seconds,
+      estimatedCostCents: seconds * 20,
+    };
   }
 
   if (canonicalType === 'graphic') {
