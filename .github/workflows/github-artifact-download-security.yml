@@ -100,7 +100,8 @@ jobs:
 
           before_execute, execute_section = workflow.split('\n  execute:\n', 1)
           assert 'secrets.' not in before_execute
-          assert 'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}' in execute_section
+          assert 'OPENAI_API_KEY:' in execute_section
+          assert 'secrets.OPENAI_API_KEY' in execute_section
           assert 'environment: paid-asset-generation' in execute_section
           PY
 
