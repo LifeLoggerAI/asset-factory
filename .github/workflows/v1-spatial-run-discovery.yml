@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: v1-spatial-pack-run-discovery-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   discover:
