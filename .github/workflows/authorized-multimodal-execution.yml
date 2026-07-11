@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/forge-plans artifacts/budget
+          mkdir -p artifacts/forge-plans artifacts/budget artifacts/spatial-handoff
           for version in v1 v2 v3 v4 v5; do
             python scripts/plan_versioned_forge.py \
               --version "$version" \
@@ -93,24 +93,35 @@ jobs:
             export URAI_VERSION="$version"
             python image_asset_generator/forge_versioned.py --version "$version"
             python image_asset_generator/certify_version_handoff.py --version "$version"
+            rsync -a image_asset_generator/spatial_handoff/ artifacts/spatial-handoff/
           done
 
-      - name: Verify cumulative paid ledger
+      - name: Verify cumulative paid ledger and complete visual handoff
         shell: bash
         run: |
           python - <<'PY'
           import json
           from decimal import Decimal
           from pathlib import Path
-          path = Path('artifacts/budget/paid-request-state.json')
-          data = json.loads(path.read_text())
+          budget = Path('artifacts/budget/paid-request-state.json')
+          data = json.loads(budget.read_text())
           calls = int(data['providerCallsExecuted'])
           cost = Decimal(str(data['reservedEstimatedCostUsd']))
           if calls > 650 or cost > Decimal('200.00'):
               raise SystemExit('cumulative paid ledger exceeded authorization')
           if calls != len(data.get('attempts', [])):
               raise SystemExit('cumulative paid ledger is inconsistent')
-          print(json.dumps({'providerCallsExecuted': calls, 'reservedEstimatedCostUsd': str(cost)}, indent=2))
+          root = Path('artifacts/spatial-handoff/assets/urai')
+          files = [p for p in root.rglob('*') if p.is_file() and '/final/manifests/' not in p.as_posix()]
+          paths = [p.relative_to(Path('artifacts/spatial-handoff')).as_posix() for p in files]
+          if len(paths) != 213 or len(paths) != len(set(paths)):
+              raise SystemExit(f'expected 213 unique visual handoff files, found {len(paths)}')
+          for version in ('v1','v2','v3','v4','v5'):
+              manifest = root / 'final/manifests' / f'{version}-asset-factory-spatial-handoff.json'
+              payload = json.loads(manifest.read_text())
+              if payload.get('version') != version or payload.get('missing') != 0 or payload.get('ready') != payload.get('expectedOutputs'):
+                  raise SystemExit(f'invalid accumulated handoff for {version}')
+          print(json.dumps({'providerCallsExecuted': calls, 'reservedEstimatedCostUsd': str(cost), 'visualHandoffFiles': len(paths)}, indent=2))
           PY
 
       - name: Check out Spatial promotion target
@@ -133,8 +144,8 @@ jobs:
       - name: Copy certified visual handoff into Spatial
         shell: bash
         run: |
-          test -d image_asset_generator/spatial_handoff
-          rsync -a image_asset_generator/spatial_handoff/ spatial/urai-tier1/public/
+          test -d artifacts/spatial-handoff
+          rsync -a artifacts/spatial-handoff/ spatial/urai-tier1/public/
 
       - name: Open bounded promotion PR
         working-directory: spatial
@@ -167,10 +178,10 @@ Visual V1-V5 provider outputs and deterministic Spatial assets were generated un
           path: |
             artifacts/budget/*.json
             artifacts/forge-plans/*.json
+            artifacts/spatial-handoff/**
             image_asset_generator/quality_report*.json
             image_asset_generator/forge_receipt*.json
             image_asset_generator/dropin_receipt*.json
             image_asset_generator/manifests/generated/*.json
             image_asset_generator/assets/**
-            image_asset_generator/spatial_handoff/**
             spatial/operations/assets/generated-receipts/**
