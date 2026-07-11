@@ -82,11 +82,20 @@ function assertPublicUrl(value: string) {
 }
 
 async function readJson(response: Response) {
-  const payload = await response.json().catch(async () => ({ error: await response.text() }));
+  const text = await response.text();
+  let payload: JsonRecord;
+  try {
+    const parsed = JSON.parse(text);
+    payload = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as JsonRecord
+      : { value: parsed };
+  } catch {
+    payload = { error: text || 'non-JSON provider response' };
+  }
   if (!response.ok) {
     throw new Error(`Video provider request failed ${response.status}: ${JSON.stringify(payload)}`);
   }
-  return payload as JsonRecord;
+  return payload;
 }
 
 async function postJson(url: string, headers: Record<string, string>, body: JsonRecord) {
