@@ -15,6 +15,7 @@ INITIAL_DISPATCH_STATES = {"required", "planned"}
 MAX_POLICY_EXPOSURE_CENTS = 20_000
 MAX_UNIT_COST_CENTS = 30
 RETRY_LIMIT_PER_ASSET = 3
+ATOMIC_ONE_TIME_LEDGER_CONFIGURED = False
 
 
 def valid_sha(value: object) -> bool:
@@ -117,6 +118,8 @@ def main() -> None:
     requested_scope = parse_asset_scope()
 
     blockers: list[str] = []
+    if not ATOMIC_ONE_TIME_LEDGER_CONFIGURED:
+        blockers.append("atomic one-time authorization and consumption ledger is not implemented")
     if not enabled:
         blockers.append("paid execution is not explicitly enabled")
     if not approval_id:
@@ -142,20 +145,24 @@ def main() -> None:
     scoped_assets = [eligible_by_id[asset_id] for asset_id in requested_scope if asset_id in eligible_by_id]
     maximum_calls_by_scope = len(scoped_assets) * RETRY_LIMIT_PER_ASSET
     maximum_calls_by_cost = max_cost_cents // MAX_UNIT_COST_CENTS if max_cost_cents else 0
-    planned_calls = min(maximum_calls_by_scope, maximum_calls_by_cost)
-    if requested_scope and planned_calls < len(scoped_assets):
+    bounded_calls_if_ledger_existed = min(maximum_calls_by_scope, maximum_calls_by_cost)
+    if requested_scope and bounded_calls_if_ledger_existed < len(scoped_assets):
         blockers.append("approved cost ceiling cannot fund even one bounded attempt per selected asset")
 
-    dispatch_authorized = not blockers
+    # This clean control-plane candidate intentionally cannot authorize paid dispatch.
+    # Environment strings are planning inputs only and cannot substitute for an atomic,
+    # one-time authorization/consumption record.
+    dispatch_authorized = False
     by_lane: dict[str, list[str]] = {}
     for asset in scoped_assets:
         by_lane.setdefault(asset["lane"], []).append(asset["assetId"])
 
     plan = {
-        "schemaVersion": "1.3.0",
+        "schemaVersion": "1.4.0",
         "approvalId": approval_id or None,
         "approvalSha": approval_sha or None,
         "authorizationExpiresAt": authorization_expires_at or None,
+        "atomicLedgerConfigured": ATOMIC_ONE_TIME_LEDGER_CONFIGURED,
         "dispatchAuthorized": dispatch_authorized,
         "authorizationBlockers": blockers,
         "authorizedBranchSha": head,
@@ -170,14 +177,16 @@ def main() -> None:
             "paidProviderCalls": 0,
         },
         "budget": {
-            "maxProviderCalls": planned_calls if dispatch_authorized else 0,
-            "plannedProviderCalls": planned_calls if dispatch_authorized else 0,
+            "maxProviderCalls": 0,
+            "plannedProviderCalls": 0,
+            "boundedCallsIfLedgerExisted": bounded_calls_if_ledger_existed,
             "maxCostPerAttemptUsd": MAX_UNIT_COST_CENTS / 100,
-            "maxTotalExposureUsd": max_cost_cents / 100 if dispatch_authorized else 0,
+            "maxTotalExposureUsd": 0,
             "retryLimitPerAsset": RETRY_LIMIT_PER_ASSET,
-            "singleCumulativeLedger": True,
+            "singleCumulativeLedger": False,
         },
         "stopConditions": [
+            "atomic one-time authorization and consumption ledger is unavailable",
             "aggregate exposure reaches the explicitly approved cost ceiling",
             "the exact asset scope is exhausted",
             "any asset reaches three failed quality rounds",
@@ -191,13 +200,12 @@ def main() -> None:
             "costUsedByPlannerUsd": 0,
             "generatedOrPreviouslyAttemptedAssetsExcluded": True,
             "duplicatePaidDispatchProhibited": True,
+            "environmentOnlyAuthorizationProhibited": True,
             "voiceCloningProhibited": True,
             "privateLifeDataProhibited": True,
         },
         "claimBoundary": (
-            "Exact-head, expiring, asset-scoped paid dispatch authorization is present; this planner still executes no provider calls."
-            if dispatch_authorized
-            else "Planning completed without paid authorization; provider execution remains blocked."
+            "Planning inputs were evaluated, but paid dispatch remains unauthorized until a separately reviewed atomic one-time authorization and consumption ledger exists."
         ),
     }
     OUT.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
