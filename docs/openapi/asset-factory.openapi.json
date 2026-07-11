@@ -3,7 +3,7 @@
   "info": {
     "title": "Asset Factory API",
     "version": "asset-factory-api-v1",
-    "description": "Canonical HTTP contract for Asset Factory Firebase API, Life Map ingestion, and Core integration."
+    "description": "Canonical HTTP contract for Asset Factory Firebase API, Life Map ingestion, Core integration, and operator-governed provider-video settlement."
   },
   "servers": [
     { "url": "https://urai-4dc1d.web.app", "description": "Production-smoked Firebase API slice" },
@@ -126,6 +126,50 @@
           "405": { "$ref": "#/components/responses/MethodNotAllowed" }
         }
       }
+    },
+    "/api/admin/video-transactions/reconcile": {
+      "post": {
+        "operationId": "reconcileVideoProviderTransaction",
+        "summary": "Atomically settle actual provider-video cost and release the held campaign reservation after operator review.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VideoReconciliationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Transaction and campaign budget reconciled; production approval remains separate." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/admin/video-transactions/release": {
+      "post": {
+        "operationId": "releaseUnusedVideoProviderReservation",
+        "summary": "Release an unused provider-video reservation before provider dispatch. Post-dispatch work must be reconciled instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VideoReservationReleaseRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Unused pre-dispatch reservation released." },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
     }
   },
   "components": {
@@ -162,7 +206,7 @@
       },
       "AssetType": {
         "type": "string",
-        "enum": ["graphic", "model3d", "audio", "bundle"]
+        "enum": ["graphic", "model3d", "audio", "video", "bundle"]
       },
       "HealthResponse": {
         "type": "object",
@@ -266,6 +310,29 @@
           "status": { "type": "string", "enum": ["accepted"] },
           "requestId": { "type": "string" },
           "degraded": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      },
+      "VideoReconciliationRequest": {
+        "type": "object",
+        "required": ["transactionId", "actualCostCents", "resolution"],
+        "properties": {
+          "transactionId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "actualCostCents": { "type": "integer", "minimum": 0 },
+          "resolution": {
+            "type": "string",
+            "enum": ["artifact-accepted", "artifact-rejected", "failed-cost-settled", "provider-refund"]
+          },
+          "note": { "type": "string", "maxLength": 1000 }
+        },
+        "additionalProperties": false
+      },
+      "VideoReservationReleaseRequest": {
+        "type": "object",
+        "required": ["transactionId", "reason"],
+        "properties": {
+          "transactionId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1000 }
         },
         "additionalProperties": false
       },
