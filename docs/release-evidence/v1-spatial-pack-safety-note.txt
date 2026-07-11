@@ -1,0 +1,8 @@
+Marker commit: bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5
+Authorized run attempt: 1 only
+Maximum new provider calls: 47
+Maximum reserved total: USD 47.00
+Retry or re-run: not authorized
+Promotion: disabled
+Deployment: disabled
+Post-certification: required before activation
