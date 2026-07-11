@@ -1,35 +1,51 @@
 {
-  "schemaVersion": "1.0.0",
-  "capturedAtUtc": "2026-07-11T06:40:00Z",
+  "schemaVersion": "1.1.0",
+  "capturedAtUtc": "2026-07-11T06:55:00Z",
   "status": "blocked",
+  "owner": {
+    "login": "LifeLoggerAI",
+    "type": "User",
+    "scope": "personal-account"
+  },
   "repositories": {
     "LifeLoggerAI/asset-factory": {
-      "headSha": "1974be363ee7210a06c889e611ed8d8ce4ecfc5a",
-      "queuedRuns": [29142802931,29142802938,29142802940,29142802907,29142802902,29142802905,29142802901],
-      "runnerLabelsObserved": ["ubuntu-latest"],
-      "repositoryPermission": "admin"
+      "headSha": "98ab0b28c08dc3875d36d3c64366a3eb60f764ec",
+      "admin": true,
+      "public": true,
+      "allowAutoMerge": false,
+      "sampleRunId": 29143390905,
+      "sampleJobId": 86520591401,
+      "sampleJobStatus": "queued",
+      "runnerAssigned": false,
+      "stepsAvailable": false,
+      "logsAvailable": false
     },
     "LifeLoggerAI/urai-spatial": {
       "headSha": "505754b73291e5142cdb4f181966a9414a3b5859",
-      "queuedRuns": [29142988147,29142988153,29142988159,29142988116,29142988139,29142988129,29142988134,29142988154,29142988132,29142988136,29142988158,29142988192,29142988178],
-      "runnerLabelsObserved": ["ubuntu-latest"],
-      "repositoryPermission": "admin"
+      "admin": true,
+      "public": true,
+      "allowAutoMerge": false,
+      "sampleRunId": 29142988159,
+      "sampleJobId": 86519509006,
+      "sampleJobStatus": "queued",
+      "runnerAssigned": false,
+      "stepsAvailable": false,
+      "logsAvailable": false
     }
   },
-  "repositoryLevelFindings": {
-    "actionsTriggersPresent": true,
+  "verifiedRepositoryFindings": {
+    "workflowRunsCreated": true,
     "jobsCreated": true,
-    "jobsAssignedToRunner": false,
-    "customRunnerLabelsRequired": false,
-    "concurrencyExplainsAllQueues": false,
-    "environmentProtectionCanDelayProtectedJobsOnly": true
+    "ordinaryHostedLabelUsed": true,
+    "customRunnerRequired": false,
+    "repositoryConcurrencyExplainsAllQueues": false,
+    "protectedEnvironmentExplainsAllQueues": false
   },
-  "unverifiedOrganizationHypotheses": [
-    "Actions billing or spending limit",
-    "GitHub-hosted runners disabled by organization policy",
-    "Actions usage quota exhausted",
-    "Enterprise policy or runner-group restriction",
-    "GitHub service or regional hosted-runner capacity incident"
+  "unverifiedAccountOrServiceHypotheses": [
+    "personal account billing or usage restriction",
+    "repository Actions permissions restriction",
+    "GitHub account restriction",
+    "GitHub-hosted runner service incident"
   ],
-  "attestation": "Repository evidence proves workflows and jobs were created but does not expose organization billing, policy, quota, or enterprise settings."
+  "attestation": "Repository evidence proves jobs are queued without assignment. Billing, account restrictions, and GitHub service controls are not exposed by this connector."
 }
