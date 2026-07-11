@@ -25,12 +25,6 @@ const requiredProductionEnv = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'CRON_SECRET',
-  'ASSET_FACTORY_MEDIA_PROVIDER',
-  'ASSET_FACTORY_ENABLE_PAID_MEDIA',
-  'ASSET_FACTORY_PAID_APPROVAL_ID',
-  'ASSET_FACTORY_PAID_MAX_COST_CENTS',
-  'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
-  'ASSET_FACTORY_PROVIDER_MAX_BYTES',
 ];
 
 function enabled(name: string) {
@@ -53,16 +47,19 @@ export async function GET(req: NextRequest) {
     if (authError) return authError;
   }
 
-  const paidProviderReady = providers.selected !== 'local-proof'
-    && providers.selectedConfigured
-    && providers.selectedExecutable
-    && providers.paidAuthorization.authorized;
+  const paidProviderReady = false;
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
   const hs256JwtVerifierConfigured = configured('ASSET_FACTORY_JWT_HS256_SECRET');
   const legacyHeaderAuthDisabled = !enabled('ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH');
   const productionAuthReady = authConfigured && signedJwtRequired && hs256JwtVerifierConfigured && legacyHeaderAuthDisabled;
+  const localProofSmokeReady = !diagnostics.fallbackActive
+    && diagnostics.mode === 'firestore-storage'
+    && productionAuthReady
+    && durableQueueConfigured
+    && Boolean(process.env.STRIPE_WEBHOOK_SECRET)
+    && Boolean(process.env.CRON_SECRET);
 
   const publicPayload = {
     ok: true,
@@ -84,7 +81,7 @@ export async function GET(req: NextRequest) {
       approvals: true,
       versioningWorkflow: true,
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: paidProviderReady,
+      providerBackedRendering: false,
     },
     productionReadiness: {
       localFallbackDisabled: !diagnostics.fallbackActive,
@@ -97,19 +94,13 @@ export async function GET(req: NextRequest) {
       durableQueueConfigured,
       requestedProvider: providers.requested,
       selectedProvider: providers.selected,
-      paidProviderAuthorized: providers.paidAuthorization.authorized,
+      paidProviderAuthorized: false,
       paidProviderReady,
+      paidProviderExecution: providers.paidAuthorization.blocker,
+      atomicPaidLedgerConfigured: providers.paidAuthorization.atomicLedgerConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive
-        && diagnostics.mode === 'firestore-storage'
-        && productionAuthReady
-        && durableQueueConfigured
-        && paidProviderReady
-        && process.env.STRIPE_WEBHOOK_SECRET
-        && process.env.CRON_SECRET
-        ? 'ready-for-smoke'
-        : 'not-ready-for-smoke',
+      status: localProofSmokeReady ? 'ready-for-local-proof-smoke' : 'not-ready-for-smoke',
     },
   };
 
