@@ -47,11 +47,14 @@ const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
 const paidBatchWorkflow = read('.github/workflows/authorized-multimodal-execution.yml');
+const onePaidWorkflow = read('.github/workflows/one-paid-v1-smoke-push.yml');
 const promotionWorkflow = read('.github/workflows/promote-reviewed-multimodal-batch.yml');
 const multimodalAudit = read('.github/workflows/full-multimodal-asset-audit.yml');
 const renderRound = read('image_asset_generator/render_v1_round.py');
 const certification = read('image_asset_generator/certify_dropin.py');
 const rightsValidation = read('multimodal/validate_rights.py');
+const paidPlan = read('multimodal/plan_paid_dispatch.py');
+const providerRegistry = read('multimodal/provider-registry.json');
 const sourceLock = JSON.parse(read('multimodal/source-lock.json'));
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
@@ -80,7 +83,7 @@ for (const paidGuard of ['ASSET_FACTORY_ENABLE_PAID_MEDIA', 'ASSET_FACTORY_PAID_
   assertIncludes(manifestRoute, paidGuard, `${paidGuard} production readiness declaration`);
 }
 
-assertIncludes(providers, 'authorized: enabled && approvalIdPresent && maximumCostCents > 0', 'bounded paid authorization rule');
+assertIncludes(providers, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'bounded paid authorization rule');
 assertIncludes(providers, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed provider fallback');
 assertIncludes(manifestRoute, "providers.selected !== 'local-proof'", 'local proof excluded from production readiness');
 assertIncludes(manifestRoute, 'paidProviderReady', 'paid provider readiness signal');
@@ -124,6 +127,31 @@ assertIncludes(paidBatchWorkflow, 'Promotion attempted: no', 'generation summary
 assertNotIncludes(paidBatchWorkflow, 'gh pr create', 'same-run promotion command');
 assertNotIncludes(paidBatchWorkflow, 'git push origin', 'same-run promotion push');
 
+// The planner must never self-authorize or redispatch generated/attempted assets.
+for (const exactGuard of [
+  'ASSET_FACTORY_PAID_APPROVAL_SHA',
+  'ASSET_FACTORY_PAID_AUTHORIZATION_EXPIRES_AT',
+  'ASSET_FACTORY_PAID_ASSET_IDS',
+]) {
+  assertIncludes(paidPlan, exactGuard, `${exactGuard} dispatch guard`);
+  assertIncludes(providerRegistry, exactGuard, `${exactGuard} provider policy`);
+}
+assertIncludes(paidPlan, 'has_existing_paid_progress', 'existing paid progress exclusion');
+assertIncludes(paidPlan, 'dispatch_authorized = not blockers', 'blocked-by-default authorization verdict');
+assertIncludes(paidPlan, '"maxProviderCalls": planned_calls if dispatch_authorized else 0', 'zero calls without authorization');
+assertNotIncludes(paidPlan, '"dispatchAuthorized": True', 'hardcoded paid authorization');
+assertNotIncludes(paidPlan, '"maxTotalExposureUsd": 200.00', 'hardcoded unapproved exposure');
+
+// One-call smoke must select one absent asset and bind one request to one exact output.
+assertIncludes(onePaidWorkflow, 'asset_id:', 'exact smoke asset input');
+assertIncludes(onePaidWorkflow, "ASSET_FORGE_REQUIRE_EXACT_SELECTION: '1'", 'one-asset selection gate');
+assertIncludes(onePaidWorkflow, "ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '1'", 'existing-output skip gate');
+assertIncludes(onePaidWorkflow, "ASSET_FORGE_ALLOW_PAID_OVERWRITE: '0'", 'paid overwrite prohibition');
+assertIncludes(onePaidWorkflow, 'selected smoke output already exists', 'preexisting output rejection');
+assertIncludes(onePaidWorkflow, "attempt.get('asset') != os.environ['AUTHORIZED_ASSET_ID']", 'ledger asset binding');
+assertIncludes(onePaidWorkflow, "nested.get('provider_request_id') != request_id", 'metadata request-ID binding');
+assertIncludes(onePaidWorkflow, "'overwritePerformed': False", 'no-overwrite receipt');
+
 // Reviewed promotion must bind GitHub's source-run authority, not trust artifact metadata alone.
 assertIncludes(promotionWorkflow, "run.get('path') != '.github/workflows/authorized-multimodal-execution.yml'", 'canonical paid workflow path binding');
 assertIncludes(promotionWorkflow, "run.get('head_sha') != os.environ['EXPECTED_ASSET_FACTORY_SHA']", 'promotion source-run exact-head binding');
@@ -144,9 +172,12 @@ assertIncludes(rightsValidation, 'promotionAllowed', 'rights blocking verdict');
 assertIncludes(rightsValidation, 'MUST_VERIFY', 'mandatory rights cannot be marked not applicable');
 
 // Resume logic must retry known failed assets while preserving accepted outputs.
-assertIncludes(renderRound, 'retry_failed_existing =', 'failed-existing retry control');
+assertIncludes(renderRound, 'retry_only = round_number > 1', 'retry-round control');
 assertIncludes(renderRound, 'name not in feedback', 'accepted existing output skip rule');
 assertIncludes(renderRound, 'feedback.get(name)', 'quality feedback passed to provider');
+assertIncludes(renderRound, 'ASSET_FORGE_ONLY_ASSET_IDS', 'exact asset selection');
+assertIncludes(renderRound, 'Paid execution refuses to overwrite existing output', 'paid overwrite failure');
+assertIncludes(renderRound, 'renderedAssets', 'rendered asset receipt set');
 
 // The audit workflow and checked-in source lock must agree on the exact Spatial tree.
 assertIncludes(multimodalAudit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source lock identity');
