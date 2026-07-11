@@ -1,0 +1,54 @@
+{
+  "aspectRatios": [
+    "16:9",
+    "9:16",
+    "1:1"
+  ],
+  "cutDurationsSeconds": [
+    6,
+    15,
+    30,
+    60,
+    70
+  ],
+  "claims": [
+    {
+      "claimId": "day-00-doorway-exists",
+      "text": "The doorway already exists.",
+      "evidenceClass": "VERIFIED_SYSTEM_DEMO",
+      "evidenceRefs": [
+        "PENDING: exact deployed-SHA continuous route capture"
+      ],
+      "approved": false
+    },
+    {
+      "claimId": "day-00-life-interface",
+      "text": "Your life is the interface.",
+      "evidenceClass": "VISION",
+      "evidenceRefs": [],
+      "approved": false
+    },
+    {
+      "claimId": "day-00-private-world",
+      "text": "A private world organized around the life you are living now.",
+      "evidenceClass": "PROTOTYPE",
+      "evidenceRefs": [
+        "PENDING: Ground product-behavior and privacy receipt"
+      ],
+      "approved": false
+    },
+    {
+      "claimId": "day-00-enter",
+      "text": "Do not imagine the future. Enter it.",
+      "evidenceClass": "VISION",
+      "evidenceRefs": [],
+      "approved": false
+    }
+  ],
+  "endCard": {
+    "headline": "URAI",
+    "subheadline": "Your life is the interface.",
+    "cta": "Step inside.",
+    "durationSeconds": 3
+  }
+}
