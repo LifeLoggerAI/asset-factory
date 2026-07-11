@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestId", "generatedAt", "sourceShas", "releasePolicy", "assets"],
+  "properties": {
+    "schemaVersion": {"const": "1.2.0"},
+    "manifestId": {"type": "string", "minLength": 1},
+    "generatedAt": {"type": "string"},
+    "sourceShas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetFactoryBase", "assetFactoryHead", "spatialMain", "spatialReleaseCandidate", "spatialProtectedRelease"],
+      "properties": {
+        "assetFactoryBase": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "assetFactoryHead": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "spatialMain": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "spatialReleaseCandidate": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "spatialProtectedRelease": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "releasePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placeholdersAllowed", "requiresExactReleaseSha", "requiresLiveEvidence", "requiresDistinctRollbackSha", "paidGenerationRequiresApproval"],
+      "properties": {
+        "placeholdersAllowed": {"const": false},
+        "requiresExactReleaseSha": {"const": true},
+        "requiresLiveEvidence": {"const": true},
+        "requiresDistinctRollbackSha": {"const": true},
+        "paidGenerationRequiresApproval": {"const": true}
+      }
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId", "version", "world", "state", "experienceArea", "lane", "assetType", "routes",
+          "runtimeComponent", "creativeSpecification", "technicalBudget", "deviceVariants", "accessibilityVariants",
+          "providerOrSource", "providerModelVersion", "licensingStatus", "commercialUseStatus",
+          "consentRequirements", "likenessRequirements", "costCeilingUsd", "dependencies", "expectedOutputPath",
+          "checksum", "provenance", "validationRequirements", "currentStatus", "reviewStatus", "promotionStatus",
+          "promotionPr", "mergedCommitSha", "releaseSha", "generationRequest", "providerJobId", "generatedAt",
+          "attemptCount", "costUsedUsd", "qualityReport", "artifactId", "artifactDigest", "runtimeRoute",
+          "liveVerificationEvidence", "repository", "sourceRepository", "specificationVersion", "manifestVersion",
+          "attributionRequirements", "sensitiveDataClassification", "ownershipStatus", "licenseExpiration",
+          "retentionPolicy", "deletionPolicy", "exportabilityStatus", "revocationStatus", "replacementStatus", "rollbackSha"
+        ],
+        "properties": {
+          "assetId": {"type": "string", "minLength": 1},
+          "version": {"type": "string"},
+          "world": {"type": "string"},
+          "state": {"type": "string"},
+          "experienceArea": {"type": "string"},
+          "lane": {"enum": ["visual", "3d", "audio", "film", "accessibility", "runtime", "governance"]},
+          "assetType": {"type": "string"},
+          "routes": {"type": "array", "items": {"type": "string"}},
+          "runtimeComponent": {"type": "string"},
+          "creativeSpecification": {"type": "string"},
+          "technicalBudget": {"type": "object"},
+          "deviceVariants": {"type": "array", "items": {"type": "string"}},
+          "accessibilityVariants": {"type": "array", "items": {"type": "string"}},
+          "providerOrSource": {"type": "string"},
+          "providerModelVersion": {"type": ["string", "null"]},
+          "licensingStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "commercialUseStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "consentRequirements": {"type": "array", "items": {"type": "string"}},
+          "likenessRequirements": {"type": "array", "items": {"type": "string"}},
+          "costCeilingUsd": {"type": "number", "minimum": 0},
+          "dependencies": {"type": "array", "items": {"type": "string"}},
+          "expectedOutputPath": {"type": "string", "minLength": 1},
+          "checksum": {"type": ["string", "null"]},
+          "provenance": {"type": "object"},
+          "validationRequirements": {"type": "array", "items": {"type": "string"}},
+          "currentStatus": {"enum": ["missing", "candidate", "generated", "validated", "failed", "blocked", "certified", "removed-from-scope"]},
+          "reviewStatus": {"enum": ["not-started", "pending", "approved", "rejected", "not-required"]},
+          "promotionStatus": {"enum": ["not-started", "pr-open", "merged", "blocked"]},
+          "promotionPr": {"type": ["integer", "null"]},
+          "mergedCommitSha": {"type": ["string", "null"]},
+          "releaseSha": {"type": ["string", "null"]},
+          "generationRequest": {"type": ["object", "null"]},
+          "providerJobId": {"type": ["string", "null"]},
+          "generatedAt": {"type": ["string", "null"]},
+          "attemptCount": {"type": "integer", "minimum": 0},
+          "costUsedUsd": {"type": "number", "minimum": 0},
+          "qualityReport": {"type": ["object", "string", "null"]},
+          "artifactId": {"type": ["string", "integer", "null"]},
+          "artifactDigest": {"type": ["string", "null"]},
+          "runtimeRoute": {"type": ["string", "null"]},
+          "liveVerificationEvidence": {"type": "array", "items": {"type": "string"}},
+          "repository": {"enum": ["LifeLoggerAI/asset-factory", "LifeLoggerAI/urai-spatial"]},
+          "sourceRepository": {"enum": ["LifeLoggerAI/asset-factory", "LifeLoggerAI/urai-spatial"]},
+          "specificationVersion": {"const": "1.2.0"},
+          "manifestVersion": {"const": "1.2.0"},
+          "attributionRequirements": {"type": "array", "items": {"type": "string"}},
+          "sensitiveDataClassification": {"enum": ["none", "public", "internal", "confidential", "restricted"]},
+          "ownershipStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "licenseExpiration": {"type": ["string", "null"]},
+          "retentionPolicy": {"type": "string", "minLength": 1},
+          "deletionPolicy": {"type": "string", "minLength": 1},
+          "exportabilityStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "revocationStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "replacementStatus": {"enum": ["not-started", "planned", "in-progress", "complete", "not-required"]},
+          "rollbackSha": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

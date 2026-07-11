@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0.0",
+  "policy": {
+    "unknownRightsBlockPromotion": true,
+    "unknownConsentBlocksIdentityUse": true,
+    "privateLifeDataAllowed": false,
+    "voiceCloningAllowedWithoutConsent": false
+  },
+  "records": [
+    {
+      "recordId": "provider-terms",
+      "status": "pending",
+      "source": "Official provider terms must be captured with the generated-output receipt",
+      "commercialUse": null,
+      "attribution": null,
+      "expiresAt": null,
+      "reviewEvidence": "Selected provider: OpenAI; output-specific terms review remains required"
+    },
+    {
+      "recordId": "source-attribution",
+      "status": "verified",
+      "source": "Google Drive: URAI Genesis Visual Handoff Pack, document 1ACCmJndVasvecInCBV3Dox_nPgYLL9OBsG-w4vxSjfg",
+      "commercialUse": true,
+      "attribution": "URAI Labs / Adam Clamp; provider provenance retained per output",
+      "expiresAt": null,
+      "reviewEvidence": "Owner-authorized autonomous execution on 2026-07-11"
+    },
+    {
+      "recordId": "commercial-rights",
+      "status": "pending",
+      "source": "Google Drive: URAI SDK License Agreement and Global IP Binder establish URAI ownership boundaries; provider-output rights remain receipt-bound",
+      "commercialUse": null,
+      "attribution": "URAI Labs",
+      "expiresAt": null,
+      "reviewEvidence": "Promotion remains blocked until provider receipt records commercial-use terms"
+    },
+    {
+      "recordId": "music-license",
+      "status": "not-applicable",
+      "source": "Execution plan uses deterministic original ambience and effects; no third-party music",
+      "commercialUse": true,
+      "attribution": "URAI Labs deterministic generation",
+      "expiresAt": null,
+      "reviewEvidence": "No licensed music selected"
+    },
+    {
+      "recordId": "voice-consent",
+      "status": "not-applicable",
+      "source": "Execution plan permits stock synthetic voice only and prohibits cloning or identifiable voice imitation",
+      "commercialUse": true,
+      "attribution": "Synthetic provider voice disclosed in provenance",
+      "expiresAt": null,
+      "reviewEvidence": "No natural-person voice selected"
+    },
+    {
+      "recordId": "likeness-consent",
+      "status": "not-applicable",
+      "source": "Execution plan prohibits natural-person likeness and private-life inputs",
+      "commercialUse": true,
+      "attribution": null,
+      "expiresAt": null,
+      "reviewEvidence": "No natural-person likeness selected"
+    },
+    {
+      "recordId": "sensitive-data",
+      "status": "verified",
+      "source": "Google Drive: URAI Ethics & Consent Ledger SaaS Agreement 1j7vBnjdxcEXUy-YwVPFcyKNlYMb_qiWe and Document Authority Register 1bhlOUhAzn-nmziKk6IAyuitTmpDJKxHmWWSarTcXD0U",
+      "commercialUse": true,
+      "attribution": "URAI privacy and ethics controls",
+      "expiresAt": null,
+      "reviewEvidence": "Private-life data and re-identification are prohibited"
+    },
+    {
+      "recordId": "deletion-revocation",
+      "status": "pending",
+      "source": "Google Drive: URAI System Architecture Spec v1 records consent, deletion and revocation implementation but not deployment",
+      "commercialUse": true,
+      "attribution": "URAI privacy service",
+      "expiresAt": null,
+      "reviewEvidence": "Implemented-but-not-deployed receipt remains a release blocker"
+    },
+    {
+      "recordId": "ownership-export",
+      "status": "pending",
+      "source": "Google Drive: URAI SDK License Agreement establishes ownership; export enforcement requires live deployment evidence",
+      "commercialUse": true,
+      "attribution": "URAI Labs",
+      "expiresAt": null,
+      "reviewEvidence": "Ownership documented; export runtime proof pending"
+    },
+    {
+      "recordId": "retention-policy",
+      "status": "pending",
+      "source": "Google Drive: URAI Brain Map and System Architecture Spec define retention evidence requirements",
+      "commercialUse": true,
+      "attribution": "URAI privacy governance",
+      "expiresAt": null,
+      "reviewEvidence": "Runtime retention enforcement has not been deployed or certified"
+    }
+  ]
+}

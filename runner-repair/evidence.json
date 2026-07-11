@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.1.0",
+  "capturedAtUtc": "2026-07-11T06:55:00Z",
+  "status": "blocked",
+  "owner": {
+    "login": "LifeLoggerAI",
+    "type": "User",
+    "scope": "personal-account"
+  },
+  "repositories": {
+    "LifeLoggerAI/asset-factory": {
+      "headSha": "98ab0b28c08dc3875d36d3c64366a3eb60f764ec",
+      "admin": true,
+      "public": true,
+      "allowAutoMerge": false,
+      "sampleRunId": 29143390905,
+      "sampleJobId": 86520591401,
+      "sampleJobStatus": "queued",
+      "runnerAssigned": false,
+      "stepsAvailable": false,
+      "logsAvailable": false
+    },
+    "LifeLoggerAI/urai-spatial": {
+      "headSha": "505754b73291e5142cdb4f181966a9414a3b5859",
+      "admin": true,
+      "public": true,
+      "allowAutoMerge": false,
+      "sampleRunId": 29142988159,
+      "sampleJobId": 86519509006,
+      "sampleJobStatus": "queued",
+      "runnerAssigned": false,
+      "stepsAvailable": false,
+      "logsAvailable": false
+    }
+  },
+  "verifiedRepositoryFindings": {
+    "workflowRunsCreated": true,
+    "jobsCreated": true,
+    "ordinaryHostedLabelUsed": true,
+    "customRunnerRequired": false,
+    "repositoryConcurrencyExplainsAllQueues": false,
+    "protectedEnvironmentExplainsAllQueues": false
+  },
+  "unverifiedAccountOrServiceHypotheses": [
+    "personal account billing or usage restriction",
+    "repository Actions permissions restriction",
+    "GitHub account restriction",
+    "GitHub-hosted runner service incident"
+  ],
+  "attestation": "Repository evidence proves jobs are queued without assignment. Billing, account restrictions, and GitHub service controls are not exposed by this connector."
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.1.0",
+  "verifiedAt": "2026-07-11T12:00:00Z",
+  "assetFactoryBaseSha": "db92abe76daa25a5a8f101758fcefd5729ae81e8",
+  "spatialMainSha": "caea44669e69d66e81439c8a5ca9bd4a76119094",
+  "spatialReleaseCandidatePr": 515,
+  "spatialReleaseCandidateSha": "a30606638d9dc259371916b95e2feffb65834316",
+  "spatialProtectedReleasePr": 517,
+  "spatialProtectedReleaseSha": "3af99c889250c7b3ea5c78972e30f6779727749f",
+  "deployedSha": null,
+  "rollbackSha": null,
+  "visualDispatchEvidence": null,
+  "visualCompletionReceipt": null,
+  "v1PromotionPr": null,
+  "releaseReady": false,
+  "notes": [
+    "Spatial main now includes the validator-clean promoted launch model journey through caea44669e69d66e81439c8a5ca9bd4a76119094.",
+    "The multimodal paid batch remains manual, draft-gated, and unexecuted until exact-head checks pass.",
+    "Production deployment identity, rollback identity, paid visual completion, rights evidence, and live verification remain unproven."
+  ]
+}

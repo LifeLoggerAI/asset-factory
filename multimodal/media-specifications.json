@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "audio": {
+    "ambience-master": {"extension":"wav","format":"wav","codec":"pcm_s24le","sampleRateHz":48000,"channels":2,"targetLufs":-16,"truePeakDbtp":-1,"minDurationSeconds":30,"maxDurationSeconds":600,"consentRequired":false},
+    "interface-sfx": {"extension":"wav","format":"wav","codec":"pcm_s24le","sampleRateHz":48000,"channels":2,"targetLufs":-18,"truePeakDbtp":-1,"minDurationSeconds":0.05,"maxDurationSeconds":15,"consentRequired":false},
+    "spatial-effects": {"extension":"wav","format":"wav","codec":"pcm_s24le","sampleRateHz":48000,"channels":2,"targetLufs":-18,"truePeakDbtp":-1,"minDurationSeconds":1,"maxDurationSeconds":120,"consentRequired":false},
+    "narration-master": {"extension":"wav","format":"wav","codec":"pcm_s24le","sampleRateHz":48000,"channels":1,"targetLufs":-16,"truePeakDbtp":-1,"minDurationSeconds":1,"maxDurationSeconds":900,"consentRequired":true},
+    "transcript": {"extension":"vtt","format":"webvtt","codec":null,"consentRequired":false},
+    "silent-fallback": {"extension":"json","format":"json","codec":null,"consentRequired":false}
+  },
+  "film": {
+    "replay-scene-manifest": {"extension":"json","format":"json","codec":null},
+    "replay-timeline": {"extension":"json","format":"json","codec":null},
+    "replay-transition-pack": {"extension":"json","format":"json","codec":null},
+    "replay-narration-sync": {"extension":"json","format":"json","codec":null},
+    "replay-captions": {"extension":"vtt","format":"webvtt","codec":null},
+    "replay-audio-description": {"extension":"wav","format":"wav","codec":"pcm_s24le","sampleRateHz":48000,"channels":1},
+    "replay-poster-frame": {"extension":"webp","format":"webp","codec":null,"width":1920,"height":1080},
+    "replay-thumbnail": {"extension":"webp","format":"webp","codec":null,"width":640,"height":360},
+    "replay-export-1080p-mp4": {"extension":"mp4","format":"mp4","codec":"h264+aac","width":1920,"height":1080,"frameRate":24},
+    "replay-export-1080p-webm": {"extension":"webm","format":"webm","codec":"vp9+opus","width":1920,"height":1080,"frameRate":24},
+    "replay-export-720p-mp4": {"extension":"mp4","format":"mp4","codec":"h264+aac","width":1280,"height":720,"frameRate":24},
+    "replay-low-bandwidth-preview": {"extension":"mp4","format":"mp4","codec":"h264+aac","width":854,"height":480,"frameRate":24}
+  }
+}

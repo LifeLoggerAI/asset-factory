@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "policy", "records"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "policy": {
+      "type": "object",
+      "required": ["unknownRightsBlockPromotion", "unknownConsentBlocksIdentityUse", "privateLifeDataAllowed", "voiceCloningAllowedWithoutConsent"],
+      "properties": {
+        "unknownRightsBlockPromotion": {"const": true},
+        "unknownConsentBlocksIdentityUse": {"const": true},
+        "privateLifeDataAllowed": {"const": false},
+        "voiceCloningAllowedWithoutConsent": {"const": false}
+      }
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["recordId", "status", "source", "commercialUse", "attribution", "expiresAt", "reviewEvidence"],
+        "properties": {
+          "recordId": {"type": "string"},
+          "status": {"enum": ["blocked", "pending", "verified", "not-applicable"]},
+          "source": {"type": ["string", "null"]},
+          "commercialUse": {"type": ["boolean", "null"]},
+          "attribution": {"type": ["string", "null"]},
+          "expiresAt": {"type": ["string", "null"]},
+          "reviewEvidence": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

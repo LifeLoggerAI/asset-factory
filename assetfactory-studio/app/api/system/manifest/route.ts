@@ -26,6 +26,9 @@ const requiredProductionEnv = [
   'STRIPE_WEBHOOK_SECRET',
   'CRON_SECRET',
   'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_ENABLE_PAID_MEDIA',
+  'ASSET_FACTORY_PAID_APPROVAL_ID',
+  'ASSET_FACTORY_PAID_MAX_COST_CENTS',
   'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
   'ASSET_FACTORY_PROVIDER_MAX_BYTES',
 ];
@@ -50,7 +53,10 @@ export async function GET(req: NextRequest) {
     if (authError) return authError;
   }
 
-  const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const paidProviderReady = providers.selected !== 'local-proof'
+    && providers.selectedConfigured
+    && providers.selectedExecutable
+    && providers.paidAuthorization.authorized;
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
@@ -78,15 +84,7 @@ export async function GET(req: NextRequest) {
       approvals: true,
       versioningWorkflow: true,
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providerConfigured,
-    },
-    workflows: {
-      generate: true,
-      materialize: true,
-      publish: true,
-      approve: true,
-      rollback: true,
-      createVersion: true,
+      providerBackedRendering: paidProviderReady,
     },
     productionReadiness: {
       localFallbackDisabled: !diagnostics.fallbackActive,
@@ -97,10 +95,19 @@ export async function GET(req: NextRequest) {
       legacyHeaderAuthDisabled,
       productionAuthReady,
       durableQueueConfigured,
-      providerConfigured,
+      requestedProvider: providers.requested,
+      selectedProvider: providers.selected,
+      paidProviderAuthorized: providers.paidAuthorization.authorized,
+      paidProviderReady,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
+      status: !diagnostics.fallbackActive
+        && diagnostics.mode === 'firestore-storage'
+        && productionAuthReady
+        && durableQueueConfigured
+        && paidProviderReady
+        && process.env.STRIPE_WEBHOOK_SECRET
+        && process.env.CRON_SECRET
         ? 'ready-for-smoke'
         : 'not-ready-for-smoke',
     },

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.1.0",
+  "sourceManifest": {
+    "repository": "LifeLoggerAI/urai-spatial",
+    "path": "operations/assets/launch-critical-assets.json",
+    "sha": "4457b32eb80e70e583713cb1f73e0ff628b134a3"
+  },
+  "routes": ["/", "/home", "/ground", "/life-map", "/focus", "/replay", "/mirror", "/passport", "/status", "/privacy-controls", "/demo/replay-film", "/spatial/ar-vr"],
+  "threeD": [
+    {"id":"home-entry-chamber-v1","type":"model","routes":["/","/home"],"path":"urai-tier1/public/assets/urai/generated/models/home-entry-chamber-v1.glb","maxTriangles":180000,"fallback":"procedural-home-threshold"},
+    {"id":"ground-world-terrain-v1","type":"model","routes":["/ground"],"path":"urai-tier1/public/assets/urai/generated/models/ground-world-terrain-v1.glb","maxTriangles":220000,"fallback":"procedural-ground-terrain"},
+    {"id":"life-map-memory-star-v1","type":"model","routes":["/life-map"],"path":"urai-tier1/public/assets/urai/generated/models/life-map-memory-star-v1.glb","maxTriangles":12000,"fallback":"procedural-memory-star"},
+    {"id":"focus-memory-chamber-v1","type":"model","routes":["/focus"],"path":"urai-tier1/public/assets/urai/generated/models/focus-memory-chamber-v1.glb","maxTriangles":140000,"fallback":"procedural-focus-chamber"},
+    {"id":"replay-memory-environment-v1","type":"model","routes":["/replay"],"path":"urai-tier1/public/assets/urai/generated/models/replay-memory-environment-v1.glb","maxTriangles":160000,"fallback":"procedural-replay-theater"},
+    {"id":"urai-orb-avatar-v1","type":"model","routes":["/","/home","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/models/urai-orb-avatar-v1.glb","maxTriangles":30000,"fallback":"procedural-orb"},
+    {"id":"portal-ring-master-v1","type":"model","routes":["/","/home","/ground","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/models/portal-ring-master-v1.glb","maxTriangles":24000,"fallback":"procedural-portal-ring"},
+    {"id":"life-map-galaxy-skybox-v1","type":"hdr","routes":["/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/skyboxes/life-map-galaxy-skybox-v1.hdr","maxBytes":8388608,"fallback":"procedural-deep-space-gradient"},
+    {"id":"spatial-particle-atlas-v1","type":"texture","routes":["/","/home","/ground","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/textures/spatial-particle-atlas-v1.svg","maxBytes":524288,"fallback":"shader-point-particles"},
+    {"id":"global-cinematic-material-pack-v1","type":"material-pack","routes":["/","/home","/ground","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/textures/global-cinematic-material-pack-v1.json","maxBytes":262144,"fallback":"runtime-default-materials"},
+    {"id":"urai-loading-sequence-v1","type":"loading-sequence","routes":["/","/home","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/loading/urai-loading-sequence-v1.json","maxBytes":262144,"fallback":"accessible-static-loading-state"}
+  ],
+  "spatialAudio": [
+    {"id":"urai-ambient-bed-v1","type":"ambient-bed","routes":["/home","/life-map","/focus","/replay"],"path":"urai-tier1/public/assets/urai/generated/audio/urai-ambient-bed-v1.wav","durationSeconds":8,"maxBytes":1048576,"fallback":"silent-audio-with-user-controlled-enable"}
+  ],
+  "audioPhases": ["home", "ascent", "lifemap", "focus", "replay"],
+  "audioKinds": ["ambience-master", "interface-sfx", "spatial-effects", "narration-master", "transcript", "silent-fallback"],
+  "filmAssets": ["replay-scene-manifest", "replay-timeline", "replay-transition-pack", "replay-narration-sync", "replay-captions", "replay-audio-description", "replay-poster-frame", "replay-thumbnail", "replay-export-1080p-mp4", "replay-export-1080p-webm", "replay-export-720p-mp4", "replay-low-bandwidth-preview"],
+  "accessibilityKinds": ["caption-or-transcript", "reduced-motion", "keyboard-screen-reader", "low-bandwidth-static", "silent-alternative", "error-recovery"],
+  "governanceRecords": ["provider-terms", "source-attribution", "commercial-rights", "music-license", "voice-consent", "likeness-consent", "sensitive-data", "deletion-revocation", "ownership-export", "retention-policy"],
+  "runtimeEvidence": ["production-build", "automated-tests", "route-smoke", "asset-loading", "missing-resource", "desktop-screenshots", "mobile-screenshots", "performance-budget", "accessibility-audit", "exact-release-sha", "rollback-sha", "protected-deploy", "live-domain-smoke"]
+}

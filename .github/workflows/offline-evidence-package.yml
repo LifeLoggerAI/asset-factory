@@ -1,0 +1,155 @@
+name: Offline Evidence Package
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/build_creative_review.py'
+      - 'scripts/build_contact_sheets.py'
+      - 'scripts/build_accessibility_media.py'
+      - 'scripts/build_xr_test_packet.py'
+      - 'scripts/validate_xr_receipts.py'
+      - 'scripts/build_films.py'
+      - 'scripts/build_supply_chain_evidence.py'
+      - 'scripts/apply_dependency_license_evidence.py'
+      - 'scripts/test_dependency_license_evidence.py'
+      - 'multimodal/**'
+      - 'creative-review/**'
+      - 'runner-repair/**'
+      - '.github/workflows/offline-evidence-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install deterministic media dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+          python -m pip install --disable-pip-version-check Pillow==11.3.0 jsonschema==4.25.1
+
+      - name: Verify exact source and record environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          mkdir -p verification receipts
+          python --version | tee verification/tool-versions.txt
+          node --version >> verification/tool-versions.txt
+          ffmpeg -version | head -1 >> verification/tool-versions.txt
+          ffprobe -version | head -1 >> verification/tool-versions.txt
+          printf '{"headSha":"%s","runId":"%s","runner":"%s"}\n' "$expected" "$GITHUB_RUN_ID" "$RUNNER_OS" > verification/environment.json
+
+      - name: Build supply-chain and license evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_supply_chain_evidence.py
+          python scripts/apply_dependency_license_evidence.py
+          python scripts/test_dependency_license_evidence.py
+
+      - name: Compile and build evidence packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/build_creative_review.py scripts/build_contact_sheets.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py scripts/validate_xr_receipts.py scripts/build_films.py scripts/build_supply_chain_evidence.py scripts/apply_dependency_license_evidence.py scripts/test_dependency_license_evidence.py
+          python scripts/build_creative_review.py
+          python scripts/build_contact_sheets.py
+          python scripts/build_accessibility_media.py
+          python scripts/build_xr_test_packet.py
+          python scripts/build_films.py
+
+      - name: Validate generated evidence and physical-XR boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          find creative-review accessibility xr-test-packet runner-repair films verification -name '*.json' -print0 | xargs -0 -n1 python -m json.tool >/dev/null
+          python scripts/validate_xr_receipts.py --expected-build-sha '${{ github.event.pull_request.head.sha || github.sha }}'
+          find creative-review accessibility xr-test-packet films -type f -print0 | sort -z | xargs -0 shasum -a 256 > verification/generated-checksums.sha256
+
+      - name: Write fail-closed completion receipt
+        if: always()
+        shell: bash
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          def load(path, default):
+              try: return json.loads(Path(path).read_text())
+              except Exception: return default
+          films = load('films/verification-results.json', {})
+          rights = load('multimodal/rights-ledger.json', {'records': []})
+          source = load('multimodal/source-lock.json', {})
+          xr = load('xr-test-packet/xr-verification-report.json', {})
+          supply = load('verification/supply-chain-evidence.json', {})
+          tree = load('verification/source-tree.json', {})
+          rights_open = [r.get('recordId') for r in rights.get('records', []) if r.get('status') not in {'verified','not-applicable'}]
+          gates = {
+              'workflowTechnicalChecks': os.getenv('JOB_STATUS') == 'success',
+              'sourceTreeBoundToExactHead': tree.get('headSha') == os.getenv('GITHUB_SHA') and bool(tree.get('treeSha256')),
+              'sbomComplete': supply.get('sbomComplete') is True,
+              'licenseCoverageComplete': supply.get('licenseCoverageComplete') is True,
+              'supplyChainReleaseEligible': supply.get('releaseEligible') is True,
+              'filmsTwelveVerified': films.get('status') == 'verified_pass' and films.get('createdOutputs') == 12,
+              'rightsCleared': not rights_open,
+              'physicalXrVerified': xr.get('physicalXrVerified') is True,
+              'releaseReady': source.get('releaseReady') is True,
+              'deployedShaPresent': bool(source.get('deployedSha')),
+              'rollbackShaPresent': bool(source.get('rollbackSha')) and source.get('rollbackSha') != source.get('deployedSha'),
+          }
+          status = 'verified_pass' if all(gates.values()) else ('verified_fail' if not gates['workflowTechnicalChecks'] else 'blocked')
+          receipt = {
+              'schemaVersion': '1.3.0',
+              'repository': os.getenv('GITHUB_REPOSITORY'),
+              'commit': os.getenv('GITHUB_SHA'),
+              'status': status,
+              'gates': gates,
+              'openRightsRecords': rights_open,
+              'supplyChainBlockers': supply.get('blockers', []),
+              'attestationBoundary': 'No production-complete claim is valid unless every gate is true.',
+          }
+          Path('receipts/completion-receipt.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          print(json.dumps(receipt, indent=2))
+          PY
+
+      - name: Upload immutable offline evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: offline-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          retention-days: 365
+          if-no-files-found: error
+          path: |
+            creative-review/
+            accessibility/
+            films/
+            xr-test-packet/
+            runner-repair/
+            verification/
+            receipts/

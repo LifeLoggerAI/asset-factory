@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "claimBoundary": "These records identify upstream license text for exact dependency versions. They are evidence of license identification, not legal approval or promotion clearance.",
+  "records": [
+    {
+      "ecosystem": "pypi",
+      "name": "Pillow",
+      "version": "11.3.0",
+      "declaredSpec": "Pillow==11.3.0",
+      "manifest": "image_asset_generator/requirements.txt",
+      "license": "MIT-CMU",
+      "status": "source-verified",
+      "legalApproval": false,
+      "source": {
+        "repository": "python-pillow/Pillow",
+        "tag": "11.3.0",
+        "path": "LICENSE",
+        "blobSha": "10dd42d9eda66de3b8850e988e3915e3e8a9dd2c"
+      }
+    }
+  ]
+}
