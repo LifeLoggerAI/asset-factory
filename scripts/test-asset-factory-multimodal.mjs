@@ -29,6 +29,7 @@ const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts
 const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.ts');
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
+const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -61,8 +62,14 @@ for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'E
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
 
+for (const videoProviderMarker of ['ASSET_FACTORY_VIDEO_MODEL', 'REPLICATE_API_TOKEN', 'FAL_KEY', 'assertPublicUrl', 'ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES']) {
+  assertIncludes(videoProviderRuntime, videoProviderMarker, `${videoProviderMarker} guarded video provider support`);
+}
+
+assertIncludes(renderer, 'renderVideoWithConfiguredProvider', 'dedicated video provider routing');
 assertIncludes(renderer, 'urai-video-animatic-1', 'video animatic schema');
 assertIncludes(renderer, 'productionReady: false', 'video local proof fail-closed marker');
+assertIncludes(videoProviderRuntime, 'reviewRequired: true', 'provider video human-review gate');
 assertIncludes(policy, 'maxDurationSeconds: 90', 'video duration guardrail');
 assertIncludes(policy, 'estimatedCostCents: seconds * 20', 'video cost estimate');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
