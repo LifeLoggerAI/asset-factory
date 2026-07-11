@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "authorizedAt": "2026-07-11T13:45:00Z",
+  "purpose": "One paid V1 provider smoke call after trigger and OpenAI preflight repair",
+  "version": "v1",
+  "rounds": 1,
+  "maxProviderCalls": 1,
+  "maxUnitCostUsd": "0.10",
+  "maxTotalCostUsd": "0.10",
+  "limitEntries": 1,
+  "limitOutputs": 1,
+  "skipExisting": false,
+  "promote": false
+}
