@@ -1,0 +1,74 @@
+{
+  "receiptId": "URAI-WSC-20260711-PAID-V1-SMOKE-012",
+  "generatedAt": "2026-07-11T16:32:00Z",
+  "evidenceClassification": "retrospective-immutable-artifact-verification",
+  "repository": "LifeLoggerAI/asset-factory",
+  "workflow": "One-Time Authorized V1 Provider Smoke",
+  "workflowRunId": "29159648826",
+  "workflowHeadSha": "8deecb97fa521b01811328acf10d02dfc596f043",
+  "workflowConclusion": "failure",
+  "workflowFailureClassification": "false-negative-full-catalog-validation-outside-authorized-one-output-scope",
+  "artifact": {
+    "id": "8250466400",
+    "name": "urai-paid-v1-smoke-issue-160-29159648826",
+    "digest": "sha256:c375104ac4cedec213840a193d90f9398e7ccc6a0202ada7e555aa648bd41386",
+    "expiresAt": "2026-08-10T16:25:34Z"
+  },
+  "authorization": {
+    "issue": "LifeLoggerAI/asset-factory#160",
+    "maxProviderCalls": 1,
+    "maxUnitCostUsd": "1.00",
+    "maxReservedCostUsd": "1.00",
+    "limitEntries": 1,
+    "limitOutputs": 1,
+    "promotionAuthorized": false
+  },
+  "providerEvidence": {
+    "providerCallsExecuted": 1,
+    "reservedEstimatedCostUsd": "1.00",
+    "actualBilledAmountUsd": null,
+    "actualBilledAmountStatus": "not established by the artifact",
+    "attemptId": "29159648826-v1-issue-160:1",
+    "attemptStatus": "succeeded",
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "providerRequestId": "req_105244180b6f4b95bec882bdfc1a695b"
+  },
+  "assetEvidence": {
+    "assetId": "home_threshold_main",
+    "path": "image_asset_generator/assets/urai/home/home-threshold-main_1600.png",
+    "bytes": 2028765,
+    "sha256": "034aed4badfd0d56383721d16bb88cc5f42dbb6eb409a645dbf5f520dc5fe106",
+    "width": 1600,
+    "height": 1000,
+    "renderer": "provider",
+    "qualityStatus": "passed",
+    "qualityIssues": [],
+    "renderMetadataPath": "image_asset_generator/assets/urai/home/home-threshold-main_1600.png.render.json",
+    "renderMetadataSha256": "1a7165df2e541110a3b7d9f98dd7fc344f0f097c9e478f4b0818d1c5bf57ff91",
+    "providerRequestIdMatchesLedger": true
+  },
+  "falseNegativeEvidence": {
+    "forgeExitCode": 4,
+    "qualityPassed": 1,
+    "qualityFailed": 52,
+    "outOfScopeFailures": 52,
+    "outOfScopeFailureReason": "missing output",
+    "explanation": "The one-call smoke intentionally requested one output, but the legacy full-catalog validator treated all 52 unrequested V1 outputs as missing. The selected provider output itself passed all recorded quality checks."
+  },
+  "currentBranchCorrection": {
+    "pullRequest": "LifeLoggerAI/asset-factory#157",
+    "workflowPath": ".github/workflows/one-paid-v1-smoke-push.yml",
+    "behavior": "The active candidate captures the forge exit without treating it as the smoke verdict, then independently verifies the exact authorized asset, one successful provider attempt, matching request IDs, output and metadata hashes, no overwrite, no certification, no promotion and no deployment."
+  },
+  "claimBoundary": {
+    "providerTransportSmoke": "passed",
+    "technicalQualitySmoke": "passed for the one generated output",
+    "creativeHumanReview": "pending",
+    "assetCertification": false,
+    "promotion": false,
+    "deployment": false,
+    "productionReadiness": false
+  },
+  "receiptFileSha256": "c9a6f756e5e56e025af9cf14ac3e1c8475f939f93544f9c0ca3ea9ff3d23b101"
+}
