@@ -65,6 +65,36 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Set up exact Node runtime
+        uses: actions/setup-node@1e60f620b9541d80c77f7b4a3bcd8bf5e940c37 # v4.4.0
+        with:
+          node-version: '22.16.0'
+          cache: ''
+
+      - name: Install exact TypeScript audit compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global typescript@5.8.3 --ignore-scripts --fund=false --audit=false
+          test "$(tsc --version)" = 'Version 5.8.3'
+          npm root --global > .npm-global-root.txt
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const globalRoot = fs.readFileSync('.npm-global-root.txt', 'utf8').trim();
+          const source = path.join(globalRoot, 'typescript');
+          const target = path.join('assetfactory-studio', 'node_modules', 'typescript');
+          if (!path.isAbsolute(globalRoot) || !fs.existsSync(path.join(source, 'lib', 'typescript.js'))) {
+            throw new Error(`invalid global TypeScript installation: ${source}`);
+          }
+          fs.mkdirSync(path.dirname(target), { recursive: true });
+          fs.cpSync(source, target, { recursive: true, force: true });
+          if (!fs.existsSync(path.join(target, 'lib', 'typescript.js'))) {
+            throw new Error('failed to materialize exact local TypeScript compiler');
+          }
+          NODE
+          rm .npm-global-root.txt
+
       - name: Verify locked Spatial identity
         shell: bash
         run: |
@@ -132,6 +162,8 @@ jobs:
           node scripts/test-paid-provider-authorization.mjs
           node scripts/test-release-schema-compatibility.mjs
           node scripts/test-audit-root-control.mjs
+          node scripts/test-asset-factory-core-units.mjs
+          node scripts/test-asset-factory-validation-import.mjs
 
       - name: Upload immutable validation evidence
         if: always()
