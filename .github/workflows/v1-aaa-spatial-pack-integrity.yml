@@ -3,17 +3,19 @@ name: V1 AAA Spatial Pack Integrity
 on:
   pull_request:
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
   push:
     branches: [main]
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
 
@@ -49,39 +51,44 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile image_asset_generator/forge_v1_spatial_pack_run.py
+          python3 -m py_compile image_asset_generator/export_spatial_handoff.py
           python3 - <<'PY'
           import ast, json
           from pathlib import Path
           script = Path('image_asset_generator/forge_v1_spatial_pack_run.py').read_text()
-          tree = ast.parse(script)
           assert 'TOTAL, MASTERS, NEW_CALLS = 53, 48, 47' in script
           assert 'SEED_REQUEST = "req_105244180b6f4b95bec882bdfc1a695b"' in script
           assert '"promotion": False' in script
           assert len(json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())) == 10
-          assert tree is not None
+          assert ast.parse(script)
           PY
 
-      - name: Verify immutable marker and spend boundary
+      - name: Verify immutable resume and duplicate-spend boundary
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('.github/workflows/one-time-v1-aaa-spatial-pack-marker.yml')
+          path = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml')
           text = path.read_text()
           required = [
+              'name: One-Time V1 AAA Spatial Pack Marker',
+              'group: one-time-v1-aaa-spatial-pack-marker-20260711',
+              'cancel-in-progress: false',
               'github.actor == github.repository_owner && github.run_attempt == 1',
               'GITHUB_RUN_ATTEMPT',
-              "= '1'",
-              'github.event.before',
-              'github.event.after',
-              'github.event.forced',
+              'execute-v1-aaa-spatial-pack-safe-resume-20260711.json',
+              'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
+              'Inspect every historical run attempt before spending',
+              "'safeToExecute': not reasons",
+              "safe_to_execute={'true' if result['safeToExecute'] else 'false'}",
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
               "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
-              "executionNonce': 'URAI-V1-AAA-SPATIAL-20260711-ONE-TIME'",
+              'github.run_attempt == 1',
               'environment: paid-asset-generation',
+              'Generate all 53 V1 Spatial outputs',
           ]
           for value in required:
               assert value in text, value
@@ -96,34 +103,37 @@ jobs:
               assert value not in text, value
           PY
 
-      - name: Verify post-certification boundary
+      - name: Verify lossless source-binding post-certification
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml')
-          text = path.read_text()
-          required = [
+          exporter = Path('image_asset_generator/export_spatial_handoff.py').read_text()
+          post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
+          for value in (
+              'lossless=True',
+              'sourceSha256',
+              'sourceMetadataSha256',
+              'sourcePixelSha256',
+              'handoffPixelSha256',
+              "'sourceBinding': 'lossless-webp-decoded-pixel-sha256'",
+          ):
+              assert value in exporter or value in post, value
+          required_post = [
               'workflows: [One-Time V1 AAA Spatial Pack Marker]',
-              'sourceRunId',
-              'duplicatePairs',
+              "handoff_root = handoff_manifest_path.parents[4]",
               "receipt.get('newProviderCalls') == 47",
               "receipt.get('ready') == 53",
               "dropin.get('status') == 'certified'",
-              'perceptualHash',
+              "'handoffAssetsChecked': len(handoff_records)",
+              "'directProviderAssetsChecked': len(direct_records)",
               "'status': 'failed' if duplicates else 'passed'",
           ]
-          for value in required:
-              assert value in text, value
-          forbidden = [
-              'git push',
-              'merge_pull_request',
-              'enable_auto_merge',
-              'repository: LifeLoggerAI/urai-spatial',
-          ]
-          for value in forbidden:
-              assert value not in text, value
+          for value in required_post:
+              assert value in post, value
+          for value in ('git push', 'merge_pull_request', 'enable_auto_merge', 'repository: LifeLoggerAI/urai-spatial'):
+              assert value not in post, value
           PY
 
       - name: Verify Life Map to Replay spatial canon
@@ -137,8 +147,6 @@ jobs:
           life = (prompts['life_map_galaxy_main']['prompt'] + prompts['life_map_galaxy_mobile']['prompt']).lower()
           for required in ('deep outer space', 'no ground', 'no orb', 'no avatar'):
               assert required in life, required
-          focus = prompts['focus_memory_chamber_main']['prompt'].lower()
-          replay = prompts['replay_memory_film_main']['prompt'].lower()
-          assert 'selecting and zooming' in focus
-          assert 'moving through an opened memory star' in replay
+          assert 'selecting and zooming' in prompts['focus_memory_chamber_main']['prompt'].lower()
+          assert 'moving through an opened memory star' in prompts['replay_memory_film_main']['prompt'].lower()
           PY
