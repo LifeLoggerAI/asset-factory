@@ -30,6 +30,7 @@ const planner = read('multimodal/plan_paid_dispatch.py');
 const providerRegistry = read('multimodal/provider-registry.json');
 const certification = read('image_asset_generator/certify_dropin.py');
 const rights = read('multimodal/validate_rights.py');
+const rightsLedger = JSON.parse(read('multimodal/rights-ledger.json'));
 const renderRound = read('image_asset_generator/render_v1_round.py');
 const adapters = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
@@ -120,6 +121,18 @@ includes(certification, 'approval.get("humanReview") is not True', 'human review
 includes(certification, 'approved_map != expected_map', 'exact approved hash map');
 includes(rights, '--require-promotion-ready', 'rights promotion mode');
 includes(rights, 'MUST_VERIFY', 'mandatory rights rule');
+includes(rights, 'MANIFEST = ROOT / "full-multimodal-asset-manifest.json"', 'manifest-scoped rights source');
+includes(rights, 'voiceConsentAssetIds', 'voice consent asset scope');
+includes(rights, 'likenessConsentAssetIds', 'likeness consent asset scope');
+includes(rights, 'scopeContradictions', 'plan-only not-applicable contradiction evidence');
+includes(rights, 'blocking_ids.add("manifest-scope")', 'missing manifest promotion blocker');
+
+for (const recordId of ['voice-consent', 'likeness-consent']) {
+  const record = rightsLedger.records.find((entry) => entry.recordId === recordId);
+  if (!record) throw new Error(`Missing rights record ${recordId}`);
+  if (record.status !== 'pending') throw new Error(`${recordId} must remain pending until exact outputs are reviewed`);
+  if (record.commercialUse !== null) throw new Error(`${recordId} commercial use must remain unknown before exact-output review`);
+}
 
 includes(renderRound, 'ASSET_FORGE_ONLY_ASSET_IDS', 'exact asset selection');
 includes(renderRound, 'Paid execution refuses to overwrite existing output', 'paid overwrite refusal');
