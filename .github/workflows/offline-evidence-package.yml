@@ -82,6 +82,7 @@ jobs:
         shell: bash
         env:
           JOB_STATUS: ${{ job.status }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           python - <<'PY'
           import json, os
@@ -95,10 +96,11 @@ jobs:
           xr = load('xr-test-packet/xr-verification-report.json', {})
           supply = load('verification/supply-chain-evidence.json', {})
           tree = load('verification/source-tree.json', {})
+          expected_head = os.getenv('EXPECTED_HEAD')
           rights_open = [r.get('recordId') for r in rights.get('records', []) if r.get('status') not in {'verified','not-applicable'}]
           gates = {
               'workflowTechnicalChecks': os.getenv('JOB_STATUS') == 'success',
-              'sourceTreeBoundToExactHead': tree.get('headSha') == os.getenv('GITHUB_SHA') and bool(tree.get('treeSha256')),
+              'sourceTreeBoundToExactHead': tree.get('headSha') == expected_head and bool(tree.get('treeSha256')),
               'sbomComplete': supply.get('sbomComplete') is True,
               'licenseCoverageComplete': supply.get('licenseCoverageComplete') is True,
               'supplyChainReleaseEligible': supply.get('releaseEligible') is True,
@@ -113,7 +115,8 @@ jobs:
           receipt = {
               'schemaVersion': '1.3.0',
               'repository': os.getenv('GITHUB_REPOSITORY'),
-              'commit': os.getenv('GITHUB_SHA'),
+              'commit': expected_head,
+              'workflowSha': os.getenv('GITHUB_SHA'),
               'status': status,
               'gates': gates,
               'openRightsRecords': rights_open,
