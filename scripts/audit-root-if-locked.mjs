@@ -12,12 +12,22 @@ if (!fs.existsSync(lockPath)) {
   process.exit(0);
 }
 
-const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const result = spawnSync(
-  npmExecutable,
-  ['audit', '--audit-level=high', '--omit=dev'],
-  { cwd: root, stdio: 'inherit', shell: false }
+const auditArgs = ['audit', '--audit-level=high', '--omit=dev'];
+const npmExecPath = process.env.npm_execpath;
+const hasTrustedNpmCli = Boolean(
+  npmExecPath && path.isAbsolute(npmExecPath) && fs.existsSync(npmExecPath)
 );
+const command = hasTrustedNpmCli
+  ? process.execPath
+  : process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const args = hasTrustedNpmCli
+  ? [npmExecPath, ...auditArgs]
+  : auditArgs;
+const result = spawnSync(command, args, {
+  cwd: root,
+  stdio: 'inherit',
+  shell: !hasTrustedNpmCli && process.platform === 'win32',
+});
 
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
