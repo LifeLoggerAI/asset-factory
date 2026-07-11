@@ -115,24 +115,43 @@ jobs:
             'scripts/setup-local.mjs',
             'scripts/test-launch-readiness.mjs',
           ];
-          const changed = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' })
+          const expectedTracked = files.filter((file) => file !== 'package-lock.json').sort();
+          const changedTracked = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' })
             .trim()
             .split(/\n+/)
             .filter(Boolean)
-            .map((line) => line.slice(3))
             .sort();
-          const expected = [...files].sort();
-          if (JSON.stringify(changed) !== JSON.stringify(expected)) {
-            throw new Error(`unexpected changed files: ${JSON.stringify(changed)}`);
+          if (JSON.stringify(changedTracked) !== JSON.stringify(expectedTracked)) {
+            throw new Error(`unexpected tracked changes: ${JSON.stringify(changedTracked)}`);
+          }
+          if (!fs.existsSync('package-lock.json') || fs.statSync('package-lock.json').size === 0) {
+            throw new Error('generated package-lock.json is missing or empty');
+          }
+          const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' })
+            .trim()
+            .split(/\n+/)
+            .filter(Boolean);
+          const unexpectedUntracked = untracked.filter((file) => file !== 'package-lock.json');
+          if (unexpectedUntracked.length) {
+            throw new Error(`unexpected untracked files: ${JSON.stringify(unexpectedUntracked)}`);
+          }
+          let packageLockIgnored = false;
+          try {
+            packageLockIgnored = execFileSync('git', ['check-ignore', '-q', 'package-lock.json']).length === 0;
+          } catch {
+            packageLockIgnored = false;
+          }
+          if (!packageLockIgnored && !untracked.includes('package-lock.json')) {
+            throw new Error('generated package-lock.json is neither ignored nor reported as untracked');
           }
           const expectedHead = process.env.EXPECTED_HEAD || '';
           const actualHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
           if (!/^[0-9a-f]{40}$/.test(expectedHead) || actualHead !== expectedHead) {
             throw new Error(`root-lock source identity mismatch: expected=${expectedHead} actual=${actualHead}`);
           }
-          const hashes = Object.fromEntries(files.map((path) => [
-            path,
-            crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'),
+          const hashes = Object.fromEntries(files.map((file) => [
+            file,
+            crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
           ]));
           fs.writeFileSync('root-lock-contract-manifest.json', `${JSON.stringify({
             schemaVersion: 'urai-root-lock-contract-2',
