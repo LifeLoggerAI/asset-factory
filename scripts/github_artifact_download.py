@@ -231,7 +231,8 @@ def extract_unique_member_by_basename(
         if member.flag_bits & 0x1:
             raise RuntimeError("encrypted archive members are not accepted")
         mode = (member.external_attr >> 16) & 0xFFFF
-        if mode and not stat.S_ISREG(mode):
+        file_type = stat.S_IFMT(mode)
+        if file_type and file_type != stat.S_IFREG:
             raise RuntimeError("requested archive member is not a regular file")
         if member.file_size > max_bytes:
             raise RuntimeError(
