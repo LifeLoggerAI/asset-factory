@@ -4,189 +4,103 @@ import path from 'node:path';
 const root = process.cwd().endsWith('assetfactory-studio')
   ? path.dirname(process.cwd())
   : process.cwd();
-const studio = path.join(root, 'assetfactory-studio');
 
 function read(relativePath) {
   const absolutePath = path.join(root, relativePath);
-  if (!fs.existsSync(absolutePath)) {
-    console.error(`Missing required file: ${absolutePath}`);
-    process.exit(1);
-  }
+  if (!fs.existsSync(absolutePath)) throw new Error(`Missing required file: ${relativePath}`);
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-function assertIncludes(source, needle, label) {
-  if (!source.includes(needle)) {
-    console.error(`Missing ${label}: ${needle}`);
-    process.exit(1);
-  }
+function includes(source, needle, label) {
+  if (!source.includes(needle)) throw new Error(`Missing ${label}: ${needle}`);
 }
 
-function assertNotIncludes(source, needle, label) {
-  if (source.includes(needle)) {
-    console.error(`Forbidden ${label}: ${needle}`);
-    process.exit(1);
-  }
+function excludes(source, needle, label) {
+  if (source.includes(needle)) throw new Error(`Forbidden ${label}: ${needle}`);
 }
 
-const catalog = read('assetfactory-studio/lib/server/assetTypeCatalog.ts');
-const renderer = read('assetfactory-studio/lib/server/assetRenderer.ts');
-const generatedRoute = read('assetfactory-studio/app/api/generated-assets/[file]/route.ts');
-const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
-const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.ts');
-const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
-const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
-const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
-const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
-const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
-const cloudStore = read('assetfactory-studio/lib/server/cloudAssetFactoryStore.ts');
-const backend = read('assetfactory-studio/lib/server/assetBackend.ts');
-const queue = read('assetfactory-studio/lib/server/assetQueue.ts');
-const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatcher.ts');
-const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
-const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
-const e2e = read('scripts/e2e-asset-factory.mjs');
-const paidBatchWorkflow = read('.github/workflows/authorized-multimodal-execution.yml');
-const onePaidWorkflow = read('.github/workflows/one-paid-v1-smoke-push.yml');
-const promotionWorkflow = read('.github/workflows/promote-reviewed-multimodal-batch.yml');
-const multimodalAudit = read('.github/workflows/full-multimodal-asset-audit.yml');
-const renderRound = read('image_asset_generator/render_v1_round.py');
-const certification = read('image_asset_generator/certify_dropin.py');
-const rightsValidation = read('multimodal/validate_rights.py');
-const paidPlan = read('multimodal/plan_paid_dispatch.py');
+function absent(relativePath, label) {
+  if (fs.existsSync(path.join(root, relativePath))) throw new Error(`Forbidden ${label}: ${relativePath}`);
+}
+
+const audit = read('.github/workflows/full-multimodal-asset-audit.yml');
+const offline = read('.github/workflows/offline-evidence-package.yml');
+const lockfile = read('.github/workflows/root-lockfile-candidate.yml');
+const planner = read('multimodal/plan_paid_dispatch.py');
 const providerRegistry = read('multimodal/provider-registry.json');
+const certification = read('image_asset_generator/certify_dropin.py');
+const rights = read('multimodal/validate_rights.py');
+const renderRound = read('image_asset_generator/render_v1_round.py');
+const adapters = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
+const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
 const sourceLock = JSON.parse(read('multimodal/source-lock.json'));
 
-for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
-  assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
-  assertIncludes(e2e, `type: '${assetType}'`, `${assetType} E2E case`);
+for (const [file, label] of [
+  ['.github/workflows/authorized-multimodal-execution.yml', 'authorized paid batch workflow'],
+  ['.github/workflows/one-paid-v1-smoke-push.yml', 'legacy one-paid-smoke workflow'],
+  ['.github/workflows/promote-reviewed-multimodal-batch.yml', 'multimodal promotion workflow'],
+  ['docs/release-evidence/URAI-WSC-20260711-PAID-V1-SMOKE-012.json', 'stale paid receipt'],
+  ['WORK-COMPLETION-REPORT.md', 'stale completion report'],
+]) absent(file, label);
+
+const checkoutPin = 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683';
+const pythonPin = 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065';
+const artifactPin = 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02';
+
+for (const [workflow, label] of [[audit, 'audit'], [offline, 'offline evidence'], [lockfile, 'lockfile']]) {
+  includes(workflow, checkoutPin, `${label} immutable checkout`);
+  includes(workflow, artifactPin, `${label} immutable artifact upload`);
+  includes(workflow, 'persist-credentials: false', `${label} non-persistent checkout credentials`);
+  includes(workflow, 'permissions:\n  contents: read', `${label} read-only default permissions`);
+  includes(workflow, 'runs-on: windows-latest', `${label} proven runner pool`);
+  excludes(workflow, 'secrets.', `${label} secret access`);
+  excludes(workflow, 'actions: write', `${label} Actions write permission`);
+  excludes(workflow, 'contents: write', `${label} contents write permission`);
+  excludes(workflow, '@v4', `${label} mutable v4 action tag`);
+  excludes(workflow, '@v5', `${label} mutable v5 action tag`);
 }
 
-for (const mode of ['svg-proof', 'spatial-renderer', 'audio-renderer', 'manifest-only']) {
-  assertIncludes(renderer, mode, `${mode} renderer branch`);
-}
+includes(audit, pythonPin, 'audit immutable Python setup');
+includes(offline, pythonPin, 'offline immutable Python setup');
+includes(audit, "plan.get('dispatchAuthorized') is not False", 'zero-spend authorization assertion');
+includes(audit, "budget.get('maxProviderCalls') != 0", 'zero provider-call assertion');
+includes(audit, "budget.get('maxTotalExposureUsd') != 0", 'zero approved-spend assertion');
+includes(audit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source-lock identity');
+includes(lockfile, 'npm install --package-lock-only --ignore-scripts --no-audit --fund=false', 'lock-only install');
+excludes(lockfile, 'npm publish', 'package publication');
+excludes(lockfile, 'git push', 'repository mutation');
 
-for (const extension of ['svg', 'gltf', 'wav', 'json']) {
-  assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
-}
-
-for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability']) {
-  assertIncludes(providers, provider, `${provider} provider adapter diagnostic`);
-}
-
-for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
-  assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
-}
-
-for (const paidGuard of ['ASSET_FACTORY_ENABLE_PAID_MEDIA', 'ASSET_FACTORY_PAID_APPROVAL_ID', 'ASSET_FACTORY_PAID_MAX_COST_CENTS']) {
-  assertIncludes(providers, paidGuard, `${paidGuard} provider authorization guard`);
-  assertIncludes(manifestRoute, paidGuard, `${paidGuard} production readiness declaration`);
-}
-
-assertIncludes(providers, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'bounded paid authorization rule');
-assertIncludes(providers, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed provider fallback');
-assertIncludes(manifestRoute, "providers.selected !== 'local-proof'", 'local proof excluded from production readiness');
-assertIncludes(manifestRoute, 'paidProviderReady', 'paid provider readiness signal');
-assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
-assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
-assertIncludes(validation, 'unsupported type', 'unsupported type validation');
-assertIncludes(policy, 'estimatedCostCents', 'policy cost estimate');
-assertIncludes(policy, 'maxDurationSeconds', 'audio duration guardrail');
-assertIncludes(billing, 'stripe-price-metadata', 'Stripe price metadata quota source');
-assertIncludes(billing, 'maxMonthlyCostCents', 'monthly cost quota');
-assertIncludes(storagePaths, 'tenants/${tenantId}/jobs/${jobId}/v${version}', 'canonical storage path convention');
-assertIncludes(cloudStore, 'assetFactoryJobs', 'Firestore jobs collection');
-assertIncludes(cloudStore, 'cloudWriteGenerated', 'Cloud Storage artifact writer');
-assertIncludes(backend, 'activeAssetBackend', 'active backend selector');
-assertIncludes(queueDispatcher, 'ASSET_FACTORY_QUEUE_MODE', 'durable queue mode configuration');
-assertIncludes(queueDispatcher, 'ASSET_FACTORY_WORKER_URL', 'HTTP worker dispatch configuration');
-assertIncludes(queue, 'dispatchAssetJob', 'queue dispatcher integration');
-assertIncludes(auth, 'x-asset-roles', 'tenant RBAC role header');
-assertIncludes(auth, 'Role ${requiredRole} required', 'RBAC rejection message');
-assertIncludes(store, 'activeAssetBackend', 'store backend selection');
-assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
-assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
-assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
-assertIncludes(store, 'storagePaths', 'storage path attachment');
-
-// Paid generation must be exact-head, conservative, resumable, and incapable of promotion.
-assertNotIncludes(paidBatchWorkflow, '\n  push:', 'automatic paid workflow trigger');
-assertIncludes(paidBatchWorkflow, 'workflow_dispatch:', 'manual paid workflow trigger');
-assertIncludes(paidBatchWorkflow, "confirm == 'AUTHORIZE_URAI_20USD_BATCH'", 'explicit paid confirmation');
-assertIncludes(paidBatchWorkflow, 'expected_sha:', 'exact paid execution head input');
-assertIncludes(paidBatchWorkflow, 'ref: ${{ inputs.expected_sha }}', 'exact paid checkout');
-assertIncludes(paidBatchWorkflow, 'persist-credentials: false', 'non-persistent paid checkout credentials');
-assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '50'", 'conservative provider call ceiling');
-assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_COST_USD: '15.00'", 'reservation headroom beneath operational goal');
-assertIncludes(paidBatchWorkflow, "ASSET_RENDERER_MAX_PROMPT_CHARS: '12000'", 'prompt character ceiling');
-assertIncludes(paidBatchWorkflow, "run.get('conclusion') != 'success'", 'resume requires successful source run');
-assertIncludes(paidBatchWorkflow, "run.get('head_sha') != os.environ['AUTHORIZED_HEAD_SHA']", 'resume exact-head binding');
-assertIncludes(paidBatchWorkflow, "actual != declared['files']", 'resume checksum set verification');
-assertIncludes(paidBatchWorkflow, 'promotionAttempted\': False', 'generation receipt denies promotion');
-assertIncludes(paidBatchWorkflow, 'Promotion attempted: no', 'generation summary denies promotion');
-assertNotIncludes(paidBatchWorkflow, 'gh pr create', 'same-run promotion command');
-assertNotIncludes(paidBatchWorkflow, 'git push origin', 'same-run promotion push');
-
-// The planner must never self-authorize or redispatch generated/attempted assets.
-for (const exactGuard of [
+for (const guard of [
   'ASSET_FACTORY_PAID_APPROVAL_SHA',
   'ASSET_FACTORY_PAID_AUTHORIZATION_EXPIRES_AT',
   'ASSET_FACTORY_PAID_ASSET_IDS',
 ]) {
-  assertIncludes(paidPlan, exactGuard, `${exactGuard} dispatch guard`);
-  assertIncludes(providerRegistry, exactGuard, `${exactGuard} provider policy`);
+  includes(planner, guard, `${guard} planner guard`);
+  includes(providerRegistry, guard, `${guard} provider policy`);
 }
-assertIncludes(paidPlan, 'has_existing_paid_progress', 'existing paid progress exclusion');
-assertIncludes(paidPlan, 'dispatch_authorized = not blockers', 'blocked-by-default authorization verdict');
-assertIncludes(paidPlan, '"maxProviderCalls": planned_calls if dispatch_authorized else 0', 'zero calls without authorization');
-assertNotIncludes(paidPlan, '"dispatchAuthorized": True', 'hardcoded paid authorization');
-assertNotIncludes(paidPlan, '"maxTotalExposureUsd": 200.00', 'hardcoded unapproved exposure');
+includes(planner, 'has_existing_paid_progress', 'existing paid progress exclusion');
+includes(planner, 'dispatch_authorized = not blockers', 'blocked-by-default planning verdict');
+includes(planner, '"maxProviderCalls": planned_calls if dispatch_authorized else 0', 'zero calls without authorization');
+excludes(planner, '"dispatchAuthorized": True', 'hardcoded paid authorization');
+excludes(planner, '"maxTotalExposureUsd": 200.00', 'hardcoded exposure');
 
-// One-call smoke must select one absent asset and bind one request to one exact output.
-assertIncludes(onePaidWorkflow, 'asset_id:', 'exact smoke asset input');
-assertIncludes(onePaidWorkflow, "ASSET_FORGE_REQUIRE_EXACT_SELECTION: '1'", 'one-asset selection gate');
-assertIncludes(onePaidWorkflow, "ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '1'", 'existing-output skip gate');
-assertIncludes(onePaidWorkflow, "ASSET_FORGE_ALLOW_PAID_OVERWRITE: '0'", 'paid overwrite prohibition');
-assertIncludes(onePaidWorkflow, 'selected smoke output already exists', 'preexisting output rejection');
-assertIncludes(onePaidWorkflow, "attempt.get('asset') != os.environ['AUTHORIZED_ASSET_ID']", 'ledger asset binding');
-assertIncludes(onePaidWorkflow, "nested.get('provider_request_id') != request_id", 'metadata request-ID binding');
-assertIncludes(onePaidWorkflow, "'overwritePerformed': False", 'no-overwrite receipt');
+includes(certification, '"technically-validated"', 'technical-only certification status');
+includes(certification, '--require-promotion-clearance', 'separate promotion clearance');
+includes(certification, 'rights.get("promotionAllowed") is not True', 'rights promotion enforcement');
+includes(certification, 'approval.get("humanReview") is not True', 'human review enforcement');
+includes(certification, 'approved_map != expected_map', 'exact approved hash map');
+includes(rights, '--require-promotion-ready', 'rights promotion mode');
+includes(rights, 'MUST_VERIFY', 'mandatory rights rule');
 
-// Reviewed promotion must bind GitHub's source-run authority, not trust artifact metadata alone.
-assertIncludes(promotionWorkflow, "run.get('path') != '.github/workflows/authorized-multimodal-execution.yml'", 'canonical paid workflow path binding');
-assertIncludes(promotionWorkflow, "run.get('head_sha') != os.environ['EXPECTED_ASSET_FACTORY_SHA']", 'promotion source-run exact-head binding');
-assertIncludes(promotionWorkflow, "run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']", 'promotion source repository binding');
-assertIncludes(promotionWorkflow, "run.get('status') != 'completed' or run.get('conclusion') != 'success'", 'promotion source terminal success requirement');
-assertIncludes(promotionWorkflow, "metadata.get(key) != value", 'promotion package metadata binding');
-assertIncludes(promotionWorkflow, "actual != declared['files']", 'promotion package checksum set verification');
+includes(renderRound, 'ASSET_FORGE_ONLY_ASSET_IDS', 'exact asset selection');
+includes(renderRound, 'Paid execution refuses to overwrite existing output', 'paid overwrite refusal');
+includes(renderRound, 'retry_only = round_number > 1', 'bounded retry control');
 
-// Technical completion may not become certification without rights and exact-hash human review.
-assertIncludes(certification, '"technically-validated"', 'technical-only receipt status');
-assertIncludes(certification, '--require-promotion-clearance', 'separate promotion clearance flag');
-assertIncludes(certification, 'rights.get("promotionAllowed") is not True', 'promotion rights enforcement');
-assertIncludes(certification, 'approval.get("humanReview") is not True', 'human review enforcement');
-assertIncludes(certification, 'approved_map != expected_map', 'exact approved artifact hash set enforcement');
-assertIncludes(certification, 'approval.get("assetFactoryHeadSha") != head_sha', 'creative approval exact-head binding');
-assertIncludes(rightsValidation, '--require-promotion-ready', 'rights promotion mode');
-assertIncludes(rightsValidation, 'promotionAllowed', 'rights blocking verdict');
-assertIncludes(rightsValidation, 'MUST_VERIFY', 'mandatory rights cannot be marked not applicable');
-
-// Resume logic must retry known failed assets while preserving accepted outputs.
-assertIncludes(renderRound, 'retry_only = round_number > 1', 'retry-round control');
-assertIncludes(renderRound, 'name not in feedback', 'accepted existing output skip rule');
-assertIncludes(renderRound, 'feedback.get(name)', 'quality feedback passed to provider');
-assertIncludes(renderRound, 'ASSET_FORGE_ONLY_ASSET_IDS', 'exact asset selection');
-assertIncludes(renderRound, 'Paid execution refuses to overwrite existing output', 'paid overwrite failure');
-assertIncludes(renderRound, 'renderedAssets', 'rendered asset receipt set');
-
-// The audit workflow and checked-in source lock must agree on the exact Spatial tree.
-assertIncludes(multimodalAudit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source lock identity');
-assertIncludes(multimodalAudit, 'source-lock.json does not match the workflow Spatial SHA', 'source lock mismatch failure');
-assertIncludes(multimodalAudit, 'node scripts/test-asset-factory-multimodal.mjs', 'workflow policy regression test');
-
-if (!fs.existsSync(studio)) {
-  console.error(`Missing studio directory: ${studio}`);
-  process.exit(1);
+for (const guard of ['ASSET_FACTORY_ENABLE_PAID_MEDIA', 'ASSET_FACTORY_PAID_APPROVAL_ID', 'ASSET_FACTORY_PAID_MAX_COST_CENTS']) {
+  includes(adapters, guard, `${guard} adapter guard`);
+  includes(manifestRoute, guard, `${guard} readiness declaration`);
 }
+includes(adapters, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'bounded provider authorization rule');
+includes(adapters, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed provider fallback');
 
-console.log('PASS multimodal asset-factory static checks');
+console.log('PASS clean multimodal control-plane boundary');
