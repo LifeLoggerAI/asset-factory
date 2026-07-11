@@ -1,21 +1,39 @@
-name: Authorized Multimodal Execution
+name: Authorized $20 Multimodal Batch
 
 on:
   push:
     branches: [agent/full-multimodal-asset-completion]
     paths: ['.github/workflows/authorized-multimodal-execution.yml']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Canonical version to generate in this batch'
+        required: true
+        type: choice
+        options: [v1, v2, v3, v4, v5]
+        default: v1
+      resume_run_id:
+        description: 'Optional prior batch run ID whose generated assets should be restored'
+        required: false
+        default: ''
+      promote:
+        description: 'Open a Spatial promotion PR only after complete certification'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: authorized-multimodal-execution
+  group: authorized-multimodal-batch-${{ github.event.inputs.version || 'v1' }}
   cancel-in-progress: false
 
 env:
-  APPROVAL_ID: urai-multimodal-2026-07-11
-  AUTHORIZATION_REVISION: '2'
+  APPROVAL_ID: urai-multimodal-batch-2026-07-11
+  AUTHORIZATION_REVISION: '3'
+  URAI_VERSION: ${{ github.event.inputs.version || 'v1' }}
   ASSET_RENDERER_PROVIDER: openai
   ASSET_RENDERER_MODE: provider
   ASSET_RENDERER_MODEL: gpt-image-1.5
@@ -24,11 +42,12 @@ env:
   ASSET_FORGE_REQUIRE_PROVIDER: '1'
   ASSET_QUALITY_REQUIRE_PROVIDER: '1'
   ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
-  ASSET_FORGE_MAX_ROUNDS: '3'
-  ASSET_FORGE_MAX_PROVIDER_CALLS: '650'
+  ASSET_FORGE_MAX_ROUNDS: '1'
+  ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '66'
   ASSET_FORGE_MAX_UNIT_COST_USD: '0.30'
-  ASSET_FORGE_MAX_COST_USD: '200.00'
-  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-authorized-multimodal
+  ASSET_FORGE_BATCH_MAX_COST_USD: '20.00'
+  ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '1'
+  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-${{ github.event.inputs.version || 'v1' }}-20usd
   ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
@@ -36,7 +55,7 @@ env:
 jobs:
   forge-certify-promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 720
+    timeout-minutes: 360
     environment: paid-asset-generation
     steps:
       - name: Check out exact authorized head
@@ -52,79 +71,115 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Preflight authorization, credentials and cumulative exposure
+      - name: Restore a prior partial batch
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.resume_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id='${{ github.event.inputs.resume_run_id }}'
+          case "$run_id" in
+            ''|*[!0-9]*) echo '::error::resume_run_id must be a numeric workflow run ID'; exit 1 ;;
+          esac
+          mkdir -p artifacts/resume
+          gh run download "$run_id" \
+            --repo LifeLoggerAI/asset-factory \
+            --dir artifacts/resume
+          asset_root=$(find artifacts/resume -type d -path '*/image_asset_generator/assets' -print -quit)
+          test -n "$asset_root" || { echo '::error::The prior run has no resumable image_asset_generator/assets directory'; exit 1; }
+          rsync -a "$asset_root/" image_asset_generator/assets/
+          echo "RESTORED_BATCH_RUN_ID=$run_id" >> "$GITHUB_ENV"
+
+      - name: Install visual forge dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Validate inventory and derive the hard batch ceiling
         shell: bash
         run: |
           set -euo pipefail
           test -n "$OPENAI_API_KEY"
           test -n "$URAI_WHEEL_GITHUB_TOKEN"
-          test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '650'
-          test "$ASSET_FORGE_MAX_UNIT_COST_USD" = '0.30'
-          test "$ASSET_FORGE_MAX_COST_USD" = '200.00'
-          python - <<'PY'
-          from decimal import Decimal
-          calls = 650
-          unit = Decimal('0.30')
-          total = Decimal('200.00')
-          if calls * unit > total:
-              raise SystemExit('declared exposure exceeds hard total ceiling')
-          print('APPROVAL_ID=urai-multimodal-2026-07-11')
-          print('AUTHORIZATION_REVISION=2')
-          print('MAX_EXPOSURE_USD=200.00')
-          PY
-
-      - name: Install visual forge dependencies
-        run: python -m pip install -r image_asset_generator/requirements.txt
-
-      - name: Validate exact canonical inventory
-        run: python image_asset_generator/check_canonical_version_contract.py
-
-      - name: Generate and certify V1-V5 under one cumulative ledger
-        shell: bash
-        run: |
-          set -euo pipefail
+          python image_asset_generator/check_canonical_version_contract.py
           mkdir -p artifacts/forge-plans artifacts/budget artifacts/spatial-handoff
-          for version in v1 v2 v3 v4 v5; do
-            python scripts/plan_versioned_forge.py \
-              --version "$version" \
-              --max-rounds 3 \
-              --max-unit-cost-usd 0.30 \
-              --output "artifacts/forge-plans/$version.json"
-            export URAI_VERSION="$version"
-            python image_asset_generator/forge_versioned.py --version "$version"
-            python image_asset_generator/certify_version_handoff.py --version "$version"
-            rsync -a image_asset_generator/spatial_handoff/ artifacts/spatial-handoff/
-          done
-
-      - name: Verify cumulative paid ledger and complete visual handoff
-        shell: bash
-        run: |
+          python scripts/plan_versioned_forge.py \
+            --version "$URAI_VERSION" \
+            --max-rounds 1 \
+            --max-unit-cost-usd "$ASSET_FORGE_MAX_UNIT_COST_USD" \
+            --output "artifacts/forge-plans/$URAI_VERSION.json"
           python - <<'PY'
           import json
+          import os
           from decimal import Decimal
           from pathlib import Path
-          budget = Path('artifacts/budget/paid-request-state.json')
-          data = json.loads(budget.read_text())
-          calls = int(data['providerCallsExecuted'])
-          cost = Decimal(str(data['reservedEstimatedCostUsd']))
-          if calls > 650 or cost > Decimal('200.00'):
-              raise SystemExit('cumulative paid ledger exceeded authorization')
-          if calls != len(data.get('attempts', [])):
-              raise SystemExit('cumulative paid ledger is inconsistent')
-          root = Path('artifacts/spatial-handoff/assets/urai')
-          files = [p for p in root.rglob('*') if p.is_file() and '/final/manifests/' not in p.as_posix()]
-          paths = [p.relative_to(Path('artifacts/spatial-handoff')).as_posix() for p in files]
-          if len(paths) != 213 or len(paths) != len(set(paths)):
-              raise SystemExit(f'expected 213 unique visual handoff files, found {len(paths)}')
-          for version in ('v1','v2','v3','v4','v5'):
-              manifest = root / 'final/manifests' / f'{version}-asset-factory-spatial-handoff.json'
-              payload = json.loads(manifest.read_text())
-              if payload.get('version') != version or payload.get('missing') != 0 or payload.get('ready') != payload.get('expectedOutputs'):
-                  raise SystemExit(f'invalid accumulated handoff for {version}')
-          print(json.dumps({'providerCallsExecuted': calls, 'reservedEstimatedCostUsd': str(cost), 'visualHandoffFiles': len(paths)}, indent=2))
+
+          version = os.environ['URAI_VERSION']
+          plan = json.loads(Path(f'artifacts/forge-plans/{version}.json').read_text())
+          hard_call_cap = int(os.environ['ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS'])
+          hard_cost_cap = Decimal(os.environ['ASSET_FORGE_BATCH_MAX_COST_USD'])
+          unit = Decimal(os.environ['ASSET_FORGE_MAX_UNIT_COST_USD'])
+          calls = min(hard_call_cap, int(plan['maxProviderCalls']))
+          cost = unit * calls
+          if calls < 1 or cost > hard_cost_cap:
+              raise SystemExit('derived batch exposure violates the hard 20 USD ceiling')
+          with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as handle:
+              handle.write(f'ASSET_FORGE_MAX_PROVIDER_CALLS={calls}\n')
+              handle.write(f'ASSET_FORGE_MAX_COST_USD={cost:.2f}\n')
+              handle.write(f'ASSET_FORGE_LIMIT_OUTPUTS={calls}\n')
+          print(f'APPROVAL_ID={os.environ["APPROVAL_ID"]}')
+          print(f'AUTHORIZED_VERSION={version}')
+          print(f'AUTHORIZED_MAX_CALLS={calls}')
+          print(f'AUTHORIZED_MAX_COST_USD={cost:.2f}')
           PY
 
+      - name: Generate one cost-bounded version batch
+        id: batch
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          python image_asset_generator/forge_versioned.py --version "$URAI_VERSION" 2>&1 | tee artifacts/batch-forge.log
+          forge_exit=${PIPESTATUS[0]}
+          set -e
+
+          complete=false
+          batch_status=failed
+          if [ "$forge_exit" -eq 0 ]; then
+            complete=true
+            batch_status=complete
+          elif [ -f "$ASSET_FORGE_BUDGET_STATE_PATH" ]; then
+            read -r calls cost <<EOF_LEDGER
+          $(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path(os.environ['ASSET_FORGE_BUDGET_STATE_PATH']).read_text())
+          print(data['providerCallsExecuted'], data['reservedEstimatedCostUsd'])
+          PY
+          )
+          EOF_LEDGER
+            if [ "$calls" -eq "$ASSET_FORGE_MAX_PROVIDER_CALLS" ]; then
+              batch_status=partial-budget-exhausted
+              echo "Batch stopped safely at ${calls} calls and USD ${cost}; resume from workflow run ${GITHUB_RUN_ID}."
+            else
+              echo "::error::Forge failed before reaching the authorized batch boundary."
+              exit "$forge_exit"
+            fi
+          else
+            echo "::error::Forge failed without producing a budget ledger."
+            exit "$forge_exit"
+          fi
+
+          echo "complete=$complete" >> "$GITHUB_OUTPUT"
+          echo "status=$batch_status" >> "$GITHUB_OUTPUT"
+          echo "forge_exit=$forge_exit" >> "$GITHUB_OUTPUT"
+
+      - name: Certify the complete selected version
+        if: steps.batch.outputs.complete == 'true'
+        run: python image_asset_generator/certify_version_handoff.py --version "$URAI_VERSION"
+
       - name: Check out Spatial promotion target
+        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -132,43 +187,50 @@ jobs:
           token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
           path: spatial
 
-      - name: Forge and verify deterministic Spatial assets
-        working-directory: spatial
-        run: |
-          node scripts/forge-launch-critical-assets.mjs
-          node scripts/normalize-launch-critical-assets.mjs
-          node scripts/verify-launch-critical-assets.mjs
-          node scripts/audit-launch-critical-artifact.mjs
-          node scripts/validate-radiance-hdr.mjs
-
-      - name: Copy certified visual handoff into Spatial
+      - name: Create a certified Spatial drop-in branch
+        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
+        id: promote
         shell: bash
-        run: |
-          test -d artifacts/spatial-handoff
-          rsync -a artifacts/spatial-handoff/ spatial/urai-tier1/public/
-
-      - name: Open bounded promotion PR
         working-directory: spatial
-        env:
-          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
-        shell: bash
         run: |
           set -euo pipefail
-          branch="asset-factory/full-multimodal-${GITHUB_RUN_ID}"
+          source_manifest="../image_asset_generator/spatial_handoff/assets/urai/final/manifests/${URAI_VERSION}-asset-factory-spatial-handoff.json"
+          test -f "$source_manifest"
+          rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
+          branch="asset-factory/${URAI_VERSION}-20usd-${GITHUB_RUN_ID}"
           git config user.name 'URAI Production Wheel'
           git config user.email 'urai-wheel@users.noreply.github.com'
           git checkout -b "$branch"
-          git add urai-tier1/public/assets/urai operations/assets/generated-receipts
-          git diff --cached --quiet && { echo 'No promotion changes produced'; exit 1; }
-          git commit -m 'Promote bounded certified multimodal asset set'
+          git add urai-tier1/public/assets/urai
+          git diff --cached --quiet && { echo '::error::No certified asset changes were produced'; exit 1; }
+          git commit -m "Promote certified ${URAI_VERSION} 20 USD batch"
           git push origin "$branch"
-          gh pr create --base main --head "$branch" \
-            --title 'Promote bounded certified multimodal asset set' \
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Open the narrow Spatial promotion PR
+        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
+        working-directory: spatial
+        env:
+          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          BRANCH: ${{ steps.promote.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cost=$(python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path(os.environ['ASSET_FORGE_BUDGET_STATE_PATH']).read_text())
+          print(data['reservedEstimatedCostUsd'])
+          PY
+          )
+          gh pr create --base main --head "$BRANCH" \
+            --title "Promote certified ${URAI_VERSION^^} asset batch" \
             --body "Approval: $APPROVAL_ID
 
-Visual V1-V5 provider outputs and deterministic Spatial assets were generated under one cumulative 200 USD ceiling. Merge remains gated by Spatial CI, rights receipts, and creative review."
+          This PR promotes only the completely certified ${URAI_VERSION^^} provider pack from workflow run $GITHUB_RUN_ID. The run used a hard USD 20.00 ceiling and reserved USD $cost. Merge remains gated by Spatial CI, rights receipts, and human creative review."
 
-      - name: Upload immutable execution receipts
+      - name: Upload resumable batch outputs and immutable receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -176,12 +238,35 @@ Visual V1-V5 provider outputs and deterministic Spatial assets were generated un
           retention-days: 90
           if-no-files-found: warn
           path: |
+            artifacts/batch-forge.log
             artifacts/budget/*.json
             artifacts/forge-plans/*.json
-            artifacts/spatial-handoff/**
+            image_asset_generator/manifests/generated/*.json
             image_asset_generator/quality_report*.json
+            image_asset_generator/upgrade_feedback*.json
             image_asset_generator/forge_receipt*.json
             image_asset_generator/dropin_receipt*.json
-            image_asset_generator/manifests/generated/*.json
             image_asset_generator/assets/**
-            spatial/operations/assets/generated-receipts/**
+            image_asset_generator/spatial_handoff/**
+
+      - name: Write batch summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Authorized multimodal batch"
+            echo "- Version: $URAI_VERSION"
+            echo "- Status: ${{ steps.batch.outputs.status || 'failed-before-forge' }}"
+            echo "- Hard ceiling: USD 20.00"
+            echo "- Resume source: ${RESTORED_BATCH_RUN_ID:-none}"
+            if [ -f "$ASSET_FORGE_BUDGET_STATE_PATH" ]; then
+              python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path(os.environ['ASSET_FORGE_BUDGET_STATE_PATH']).read_text())
+          print(f"- Provider calls reserved: {data['providerCallsExecuted']}")
+          print(f"- Reserved estimated cost: USD {data['reservedEstimatedCostUsd']}")
+          PY
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
