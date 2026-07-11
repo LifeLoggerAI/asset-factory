@@ -1,17 +1,65 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "policy": {
     "credentialsDoNotImplyExecutionReadiness": true,
-    "placeholderAdaptersMayNotDispatch": true,
     "paidDispatchRequiresExactApproval": true,
-    "duplicatePaidDispatchProhibited": true
+    "duplicatePaidDispatchProhibited": true,
+    "localProofIsNotProductionMedia": true,
+    "requiredAuthorizationEnv": [
+      "ASSET_FACTORY_ENABLE_PAID_MEDIA",
+      "ASSET_FACTORY_PAID_APPROVAL_ID",
+      "ASSET_FACTORY_PAID_MAX_COST_CENTS"
+    ]
   },
   "providers": [
-    {"name":"local-proof","status":"functional-proof-only","paid":false,"supportedLanes":["visual","3d","audio"]},
-    {"name":"openai","status":"placeholder","paid":true,"supportedLanes":["visual","audio"]},
-    {"name":"replicate","status":"placeholder","paid":true,"supportedLanes":["visual","3d","audio"]},
-    {"name":"fal","status":"placeholder","paid":true,"supportedLanes":["visual","3d","audio"]},
-    {"name":"elevenlabs","status":"placeholder","paid":true,"supportedLanes":["audio"]},
-    {"name":"stability","status":"placeholder","paid":true,"supportedLanes":["visual"]}
+    {
+      "name": "local-proof",
+      "runtimeStatus": "implemented",
+      "executionClass": "deterministic-proof-only",
+      "paid": false,
+      "supportedLanes": ["visual", "3d", "audio"]
+    },
+    {
+      "name": "openai",
+      "runtimeStatus": "implemented-http-runtime",
+      "executionClass": "paid-fail-closed",
+      "paid": true,
+      "requiredCredentials": ["OPENAI_API_KEY"],
+      "supportedLanes": ["visual", "audio"]
+    },
+    {
+      "name": "replicate",
+      "runtimeStatus": "implemented-http-runtime",
+      "executionClass": "paid-fail-closed",
+      "paid": true,
+      "requiredCredentials": ["REPLICATE_API_TOKEN"],
+      "requiredModelSelection": true,
+      "supportedLanes": ["visual", "3d", "audio"]
+    },
+    {
+      "name": "fal",
+      "runtimeStatus": "implemented-http-runtime",
+      "executionClass": "paid-fail-closed",
+      "paid": true,
+      "requiredCredentials": ["FAL_KEY"],
+      "requiredModelSelection": true,
+      "supportedLanes": ["visual", "3d", "audio"]
+    },
+    {
+      "name": "elevenlabs",
+      "runtimeStatus": "implemented-http-runtime",
+      "executionClass": "paid-fail-closed-consent-required",
+      "paid": true,
+      "requiredCredentials": ["ELEVENLABS_API_KEY"],
+      "supportedLanes": ["audio"]
+    },
+    {
+      "name": "stability",
+      "runtimeStatus": "implemented-http-runtime",
+      "executionClass": "paid-fail-closed",
+      "paid": true,
+      "requiredCredentials": ["STABILITY_API_KEY"],
+      "supportedLanes": ["visual"]
+    }
   ]
 }
