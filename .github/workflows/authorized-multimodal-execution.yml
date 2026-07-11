@@ -1,0 +1,157 @@
+name: Authorized Multimodal Execution
+
+on:
+  push:
+    branches: [agent/full-multimodal-asset-completion]
+    paths: ['.github/workflows/authorized-multimodal-execution.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authorized-multimodal-execution
+  cancel-in-progress: false
+
+env:
+  APPROVAL_ID: urai-multimodal-2026-07-11
+  ASSET_RENDERER_PROVIDER: openai
+  ASSET_RENDERER_MODE: provider
+  ASSET_RENDERER_MODEL: gpt-image-1.5
+  ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+  ASSET_RENDERER_MAX_ATTEMPTS: '1'
+  ASSET_FORGE_REQUIRE_PROVIDER: '1'
+  ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+  ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
+  ASSET_FORGE_MAX_ROUNDS: '3'
+  ASSET_FORGE_MAX_PROVIDER_CALLS: '650'
+  ASSET_FORGE_MAX_UNIT_COST_USD: '1.50'
+  ASSET_FORGE_MAX_COST_USD: '1200.00'
+  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-authorized-multimodal
+  ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+
+jobs:
+  forge-certify-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 720
+    steps:
+      - name: Check out exact authorized head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preflight authorization, credentials and exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          test -n "$URAI_WHEEL_GITHUB_TOKEN"
+          test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '650'
+          test "$ASSET_FORGE_MAX_COST_USD" = '1200.00'
+          python - <<'PY'
+          from decimal import Decimal
+          calls = 650
+          unit = Decimal('1.50')
+          total = Decimal('1200.00')
+          if calls * unit > total:
+              raise SystemExit('declared exposure exceeds hard total ceiling')
+          print('APPROVAL_ID=urai-multimodal-2026-07-11')
+          print('MAX_EXPOSURE_USD=1200.00')
+          PY
+
+      - name: Install visual forge dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Validate exact canonical inventory
+        run: python image_asset_generator/check_canonical_version_contract.py
+
+      - name: Generate and certify V1-V5
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/forge-plans artifacts/budget
+          for version in v1 v2 v3 v4 v5; do
+            case "$version" in
+              v1) calls=159 ;;
+              v2) calls=240 ;;
+              v3) calls=42 ;;
+              v4) calls=117 ;;
+              v5) calls=81 ;;
+            esac
+            python scripts/plan_versioned_forge.py --version "$version" --max-rounds 3 --max-unit-cost-usd 1.50 --output "artifacts/forge-plans/$version.json"
+            export URAI_VERSION="$version"
+            export ASSET_FORGE_MAX_PROVIDER_CALLS="$calls"
+            export ASSET_FORGE_MAX_COST_USD="$(python -c "print(round($calls * 1.5, 2))")"
+            python image_asset_generator/forge_versioned.py --version "$version"
+            python image_asset_generator/certify_version_handoff.py --version "$version"
+          done
+
+      - name: Check out locked Spatial promotion target
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: main
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+
+      - name: Forge and verify deterministic Spatial assets
+        working-directory: spatial
+        run: |
+          node scripts/forge-launch-critical-assets.mjs
+          node scripts/normalize-launch-critical-assets.mjs
+          node scripts/verify-launch-critical-assets.mjs
+          node scripts/audit-launch-critical-artifact.mjs
+          node scripts/validate-radiance-hdr.mjs
+
+      - name: Copy certified visual handoff into Spatial
+        shell: bash
+        run: |
+          test -d image_asset_generator/spatial_handoff
+          rsync -a image_asset_generator/spatial_handoff/ spatial/urai-tier1/public/
+
+      - name: Open bounded promotion PR
+        working-directory: spatial
+        env:
+          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="asset-factory/full-multimodal-${GITHUB_RUN_ID}"
+          git config user.name 'URAI Production Wheel'
+          git config user.email 'urai-wheel@users.noreply.github.com'
+          git checkout -b "$branch"
+          git add urai-tier1/public/assets/urai operations/assets/generated-receipts
+          git diff --cached --quiet && { echo 'No promotion changes produced'; exit 1; }
+          git commit -m 'Promote bounded certified multimodal asset set'
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title 'Promote bounded certified multimodal asset set' --body "Approval: $APPROVAL_ID
+
+Visual V1-V5 provider outputs and deterministic Spatial assets were generated under a hard 1200 USD exposure ceiling. Merge remains gated by Spatial CI, rights receipts, and human creative review."
+
+      - name: Upload immutable execution receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authorized-multimodal-execution-${{ github.sha }}-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: |
+            artifacts/budget/*.json
+            artifacts/forge-plans/*.json
+            image_asset_generator/quality_report*.json
+            image_asset_generator/forge_receipt*.json
+            image_asset_generator/dropin_receipt*.json
+            image_asset_generator/manifests/generated/*.json
+            image_asset_generator/assets/**
+            image_asset_generator/spatial_handoff/**
+            spatial/operations/assets/generated-receipts/**
