@@ -12,6 +12,7 @@ on:
       - scripts/doctor.mjs
       - scripts/setup-local.mjs
       - scripts/test-launch-readiness.mjs
+      - scripts/test-audit-root-control.mjs
       - .github/workflows/root-lockfile-candidate.yml
   workflow_dispatch:
 
@@ -84,6 +85,8 @@ jobs:
           if (!root) failures.push('missing root package entry');
           if (root?.name !== pkg.name || root?.version !== pkg.version) failures.push('root identity mismatch');
           if (JSON.stringify(root?.dependencies || {}) !== JSON.stringify(pkg.dependencies || {})) failures.push('root dependencies mismatch');
+          if (JSON.stringify(root?.devDependencies || {}) !== JSON.stringify(pkg.devDependencies || {})) failures.push('root devDependencies mismatch');
+          if (JSON.stringify(root?.optionalDependencies || {}) !== JSON.stringify(pkg.optionalDependencies || {})) failures.push('root optionalDependencies mismatch');
           if (JSON.stringify(root?.engines || {}) !== JSON.stringify(pkg.engines || {})) failures.push('root engines mismatch');
           for (const [entryPath, entry] of Object.entries(lock.packages || {})) {
             if (!entry || typeof entry !== 'object' || !entry.resolved) continue;
@@ -97,14 +100,76 @@ jobs:
           console.log(`validated ${Object.keys(lock.packages || {}).length} lock entries`);
           NODE
 
-      - name: Verify frozen install and high-severity audit gate
+      - name: Verify frozen install and write machine-readable audit evidence
         shell: bash
         env:
           NPM_CONFIG_REGISTRY: https://registry.npmjs.org
         run: |
           set -euo pipefail
           npm ci --ignore-scripts --fund=false --audit=false
-          npm audit --audit-level=high --omit=dev
+          NODE_VERSION="$(node --version)"
+          NPM_VERSION="$(npm --version)"
+          NPM_REGISTRY="$(npm config get registry)"
+          set +e
+          npm audit --json --audit-level=high --omit=dev > root-lock-audit.json
+          AUDIT_STATUS=$?
+          set -e
+          AUDIT_STATUS="$AUDIT_STATUS" NODE_VERSION="$NODE_VERSION" NPM_VERSION="$NPM_VERSION" NPM_REGISTRY="$NPM_REGISTRY" node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const failures = [];
+          const expectedHead = process.env.EXPECTED_HEAD || '';
+          const auditStatus = Number(process.env.AUDIT_STATUS);
+          const nodeVersion = process.env.NODE_VERSION || '';
+          const npmVersion = process.env.NPM_VERSION || '';
+          const registry = process.env.NPM_REGISTRY || '';
+          let report;
+          try {
+            report = JSON.parse(fs.readFileSync('root-lock-audit.json', 'utf8'));
+          } catch (error) {
+            failures.push(`root audit report is not valid JSON: ${error.message}`);
+          }
+          const vulnerabilities = report?.metadata?.vulnerabilities;
+          const expectedKeys = ['info', 'low', 'moderate', 'high', 'critical', 'total'];
+          if (!vulnerabilities || typeof vulnerabilities !== 'object') {
+            failures.push('root audit report is missing metadata.vulnerabilities');
+          } else {
+            for (const key of expectedKeys) {
+              if (!Number.isInteger(vulnerabilities[key]) || vulnerabilities[key] < 0) {
+                failures.push(`root audit vulnerability count ${key} is invalid`);
+              }
+            }
+            if (vulnerabilities.high !== 0) failures.push(`root audit found ${vulnerabilities.high} high vulnerabilities`);
+            if (vulnerabilities.critical !== 0) failures.push(`root audit found ${vulnerabilities.critical} critical vulnerabilities`);
+          }
+          if (auditStatus !== 0) failures.push(`npm audit exited ${auditStatus}`);
+          if (nodeVersion !== 'v20.19.5') failures.push(`unexpected Node runtime ${nodeVersion}`);
+          if (npmVersion !== '10.9.2') failures.push(`unexpected npm runtime ${npmVersion}`);
+          if (registry !== 'https://registry.npmjs.org/') failures.push(`unexpected npm registry ${registry}`);
+          if (!/^[0-9a-f]{40}$/.test(expectedHead)) failures.push('EXPECTED_HEAD must be a full lowercase SHA');
+          const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const receipt = {
+            schemaVersion: 'urai-root-lock-audit-1',
+            sourceSha: expectedHead,
+            nodeVersion,
+            npmVersion,
+            registry,
+            auditLevel: 'high',
+            omittedDependencies: ['dev'],
+            auditExitCode: auditStatus,
+            packageLockSha256: sha256('package-lock.json'),
+            auditReportSha256: sha256('root-lock-audit.json'),
+            vulnerabilities: vulnerabilities || null,
+            auditPassed: failures.length === 0,
+            failures,
+          };
+          fs.writeFileSync('root-lock-audit-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          if (failures.length) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          console.log(JSON.stringify(receipt, null, 2));
+          NODE
 
       - name: Validate exact artifact scope and write hashes
         shell: bash
@@ -114,30 +179,36 @@ jobs:
           const crypto = require('node:crypto');
           const fs = require('node:fs');
           const { execFileSync } = require('node:child_process');
-          const files = [
-            'README.md',
+          const generatedFiles = [
             'package-lock.json',
+            'root-lock-audit.json',
+            'root-lock-audit-receipt.json',
+          ];
+          const trackedFiles = [
+            'README.md',
             'scripts/doctor.mjs',
             'scripts/setup-local.mjs',
             'scripts/test-launch-readiness.mjs',
           ];
-          const expectedTracked = files.filter((file) => file !== 'package-lock.json').sort();
+          const files = [...trackedFiles, ...generatedFiles];
           const changedTracked = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf8' })
             .trim()
             .split(/\n+/)
             .filter(Boolean)
             .sort();
-          if (JSON.stringify(changedTracked) !== JSON.stringify(expectedTracked)) {
+          if (JSON.stringify(changedTracked) !== JSON.stringify([...trackedFiles].sort())) {
             throw new Error(`unexpected tracked changes: ${JSON.stringify(changedTracked)}`);
           }
-          if (!fs.existsSync('package-lock.json') || fs.statSync('package-lock.json').size === 0) {
-            throw new Error('generated package-lock.json is missing or empty');
+          for (const file of files) {
+            if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
+              throw new Error(`required root-lock evidence is missing or empty: ${file}`);
+            }
           }
           const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' })
             .trim()
             .split(/\n+/)
             .filter(Boolean);
-          const unexpectedUntracked = untracked.filter((file) => file !== 'package-lock.json');
+          const unexpectedUntracked = untracked.filter((file) => !generatedFiles.includes(file));
           if (unexpectedUntracked.length) {
             throw new Error(`unexpected untracked files: ${JSON.stringify(unexpectedUntracked)}`);
           }
@@ -155,12 +226,20 @@ jobs:
           if (!/^[0-9a-f]{40}$/.test(expectedHead) || actualHead !== expectedHead) {
             throw new Error(`root-lock source identity mismatch: expected=${expectedHead} actual=${actualHead}`);
           }
+          const auditReceipt = JSON.parse(fs.readFileSync('root-lock-audit-receipt.json', 'utf8'));
+          if (auditReceipt.schemaVersion !== 'urai-root-lock-audit-1') throw new Error('root audit receipt schema mismatch');
+          if (auditReceipt.sourceSha !== expectedHead) throw new Error('root audit receipt source SHA mismatch');
+          if (auditReceipt.auditPassed !== true) throw new Error('root audit receipt is not passing');
+          const packageLockSha256 = crypto.createHash('sha256').update(fs.readFileSync('package-lock.json')).digest('hex');
+          const auditReportSha256 = crypto.createHash('sha256').update(fs.readFileSync('root-lock-audit.json')).digest('hex');
+          if (auditReceipt.packageLockSha256 !== packageLockSha256) throw new Error('root audit receipt lock hash mismatch');
+          if (auditReceipt.auditReportSha256 !== auditReportSha256) throw new Error('root audit receipt report hash mismatch');
           const hashes = Object.fromEntries(files.map((file) => [
             file,
             crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
           ]));
           fs.writeFileSync('root-lock-contract-manifest.json', `${JSON.stringify({
-            schemaVersion: 'urai-root-lock-contract-2',
+            schemaVersion: 'urai-root-lock-contract-3',
             sourceSha: expectedHead,
             workflowSha: process.env.GITHUB_SHA || null,
             files: hashes,
@@ -176,6 +255,8 @@ jobs:
           path: |
             README.md
             package-lock.json
+            root-lock-audit.json
+            root-lock-audit-receipt.json
             root-lock-contract-manifest.json
             scripts/doctor.mjs
             scripts/setup-local.mjs
