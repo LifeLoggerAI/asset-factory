@@ -1,0 +1,61 @@
+name: Full Multimodal Asset Audit
+
+on:
+  pull_request:
+    paths:
+      - 'multimodal/**'
+      - '.github/workflows/full-multimodal-asset-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-multimodal-audit-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate canonical multimodal manifest
+        run: python multimodal/validate_manifest.py
+      - name: Upload validation receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-multimodal-manifest-validation-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: multimodal/validation-report.json
+
+  lane-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [visual, 3d, audio, film, accessibility, runtime, governance]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify lane exists and remains fail closed
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path('multimodal/full-multimodal-asset-manifest.json').read_text())
+          assets = [a for a in data['assets'] if a['lane'] == os.environ['LANE']]
+          if not assets:
+              raise SystemExit(f"missing lane {os.environ['LANE']}")
+          for asset in assets:
+              if asset['currentStatus'] == 'certified':
+                  if not asset['checksum'] or not asset['releaseSha']:
+                      raise SystemExit(f"false certification: {asset['assetId']}")
+          print(json.dumps({'lane': os.environ['LANE'], 'assets': len(assets)}, indent=2))
+          PY
