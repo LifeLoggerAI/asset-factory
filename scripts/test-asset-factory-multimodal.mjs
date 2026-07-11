@@ -27,12 +27,15 @@ const renderer = read('assetfactory-studio/lib/server/assetRenderer.ts');
 const generatedRoute = read('assetfactory-studio/app/api/generated-assets/[file]/route.ts');
 const generateRoute = read('assetfactory-studio/app/api/generate/route.ts');
 const materializeRoute = read('assetfactory-studio/app/api/jobs/[jobId]/materialize/route.ts');
+const reconcileRoute = read('assetfactory-studio/app/api/admin/video-transactions/reconcile/route.ts');
+const releaseRoute = read('assetfactory-studio/app/api/admin/video-transactions/release/route.ts');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
 const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.ts');
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
 const videoTransactions = read('assetfactory-studio/lib/server/assetVideoTransactions.ts');
+const videoReconciliation = read('assetfactory-studio/lib/server/assetVideoReconciliation.ts');
 const videoPackage = read('assetfactory-studio/lib/server/assetVideoPackage.ts');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
@@ -85,6 +88,20 @@ for (const transactionMarker of [
   assertIncludes(videoTransactions, transactionMarker, `${transactionMarker} paid video transaction boundary`);
 }
 
+for (const reconciliationMarker of [
+  'reconcileVideoProviderTransaction',
+  'releaseVideoProviderReservation',
+  'artifact-accepted',
+  'provider-refund',
+  'video reservation may only be released before provider dispatch',
+  'actual video cost would exceed campaign ceiling',
+  "status: 'reconciled'",
+  "status: 'released'",
+  'productionReady: false',
+]) {
+  assertIncludes(videoReconciliation, reconciliationMarker, `${reconciliationMarker} video spend reconciliation boundary`);
+}
+
 for (const packageMarker of [
   'urai-video-package-1',
   'urai-video-package-receipt-1',
@@ -110,6 +127,12 @@ assertIncludes(generateRoute, 'reserveVideoProviderTransaction', 'atomic provide
 assertIncludes(materializeRoute, 'beginVideoProviderAttempt', 'single provider dispatch lease');
 assertIncludes(materializeRoute, 'markVideoProviderAttemptFailed', 'provider failure reservation hold');
 assertIncludes(materializeRoute, 'markVideoProviderArtifactReady', 'provider artifact review state');
+assertIncludes(reconcileRoute, "authorizeAssetRequest(req, undefined, 'operator')", 'operator-only reconciliation route');
+assertIncludes(reconcileRoute, 'reconcileVideoProviderTransaction', 'reconciliation route transaction update');
+assertIncludes(reconcileRoute, 'video.transaction_reconciled', 'reconciliation usage receipt');
+assertIncludes(releaseRoute, "authorizeAssetRequest(req, undefined, 'operator')", 'operator-only reservation release route');
+assertIncludes(releaseRoute, 'releaseVideoProviderReservation', 'unused reservation release route');
+assertIncludes(releaseRoute, 'released-before-provider-dispatch', 'release route archive boundary');
 assertIncludes(packageCli, 'Output directory is not empty', 'package overwrite refusal');
 assertIncludes(packageCli, 'Artifact escaped output directory', 'package path confinement');
 assertIncludes(previewEncoder, 'Refusing to overwrite existing encoded preview', 'preview overwrite refusal');
