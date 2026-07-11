@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "verifiedAt": "2026-07-11T04:30:00Z",
+  "assetFactoryBaseSha": "db92abe76daa25a5a8f101758fcefd5729ae81e8",
+  "spatialMainSha": "4457b32eb80e70e583713cb1f73e0ff628b134a3",
+  "spatialReleaseCandidatePr": 515,
+  "spatialReleaseCandidateSha": "e8f089700142233d8954006b73a674d5d87a0228",
+  "spatialProtectedReleasePr": 517,
+  "spatialProtectedReleaseSha": "57c06be70f14c6048be6a3516eb510793bb5d5f7",
+  "deployedSha": null,
+  "rollbackSha": null,
+  "visualDispatchEvidence": null,
+  "visualCompletionReceipt": null,
+  "v1PromotionPr": null,
+  "releaseReady": false,
+  "notes": [
+    "Dispatcher workflow exists but execution and completion are unproven without a visible run or generated receipt.",
+    "The V1 promotion-named commit added promotion capability; it is not evidence that promotion ran.",
+    "Selected production GLB and HDR assets remain unverified on Spatial main.",
+    "Production deployment identity and rollback identity remain unverified."
+  ]
+}
