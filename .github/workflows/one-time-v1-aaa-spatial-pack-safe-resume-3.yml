@@ -14,28 +14,6 @@ concurrency:
   group: one-time-v1-aaa-spatial-pack-safe-resume-3-20260711
   cancel-in-progress: false
 
-env:
-  URAI_VERSION: v1
-  ASSET_RENDERER_PROVIDER: openai
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
-  ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
-  ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
-  ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
-  ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
-  ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
-  ASSET_RENDERER_MODE: provider
-  ASSET_RENDERER_MAX_ATTEMPTS: '1'
-  ASSET_FORGE_REQUIRE_PROVIDER: '1'
-  ASSET_QUALITY_REQUIRE_PROVIDER: '1'
-  ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
-  ASSET_FORGE_MAX_ROUNDS: '1'
-  ASSET_FORGE_MAX_PROVIDER_CALLS: '47'
-  ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'
-  ASSET_FORGE_MAX_COST_USD: '47.00'
-  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-v1-aaa-spatial-safe-resume-3
-  ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
-
 jobs:
   authorize:
     if: github.actor == github.repository_owner && github.run_attempt == 1
@@ -108,7 +86,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify artifact redirect credential isolation
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Verify artifact redirect and extraction isolation
         run: python3 scripts/test-github-artifact-download.py
 
       - name: Inspect historical attempts and artifact contents before spending
@@ -138,6 +121,27 @@ jobs:
     permissions:
       actions: read
       contents: read
+    env:
+      URAI_VERSION: v1
+      ASSET_RENDERER_PROVIDER: openai
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+      ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+      ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+      ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+      ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
+      ASSET_RENDERER_MODE: provider
+      ASSET_RENDERER_MAX_ATTEMPTS: '1'
+      ASSET_FORGE_REQUIRE_PROVIDER: '1'
+      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+      ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
+      ASSET_FORGE_MAX_ROUNDS: '1'
+      ASSET_FORGE_MAX_PROVIDER_CALLS: '47'
+      ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'
+      ASSET_FORGE_MAX_COST_USD: '47.00'
+      ASSET_FORGE_RUN_ID: ${{ github.run_id }}-v1-aaa-spatial-safe-resume-3
+      ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
     steps:
       - name: Checkout exact authorized source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -145,6 +149,11 @@ jobs:
           ref: ${{ needs.authorize.outputs.target_sha }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
 
       - name: Verify immutable source and hard limits
         shell: bash
@@ -162,7 +171,7 @@ jobs:
       - name: Re-run credential-isolation proof
         run: python3 scripts/test-github-artifact-download.py
 
-      - name: Download proven provider-backed Home seed without forwarding credentials
+      - name: Download and safely extract proven provider-backed Home seed
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -171,15 +180,13 @@ jobs:
           python3 scripts/github_artifact_download.py \
             --repository "$GITHUB_REPOSITORY" \
             --artifact-id 8250466400 \
-            --output "$RUNNER_TEMP/urai-v1-home-seed.zip"
-          unzip -q "$RUNNER_TEMP/urai-v1-home-seed.zip" -d "$RUNNER_TEMP/urai-v1-home-seed"
-          test "$(find "$RUNNER_TEMP/urai-v1-home-seed" -name 'home-threshold-main_1600.png' | wc -l | tr -d ' ')" = '1'
+            --output "$RUNNER_TEMP/urai-v1-home-seed.zip" \
+            --extract-basename home-threshold-main_1600.png \
+            --extract-directory "$RUNNER_TEMP/urai-v1-home-seed" \
+            --max-extracted-bytes 67108864
+          test -f "$RUNNER_TEMP/urai-v1-home-seed/home-threshold-main_1600.png"
+          rm -f "$RUNNER_TEMP/urai-v1-home-seed.zip"
           echo "ASSET_FORGE_SEED_DIR=$RUNNER_TEMP/urai-v1-home-seed" >> "$GITHUB_ENV"
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.11'
 
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
