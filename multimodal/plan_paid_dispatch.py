@@ -36,7 +36,7 @@ def main() -> None:
     if selected["visual"]["provider"] not in providers or selected["audio"]["provider"] not in providers:
         raise SystemExit("selected paid provider runtime is not implemented")
     plan = {
-        "schemaVersion": "1.1.0",
+        "schemaVersion": "1.2.0",
         "approvalId": "urai-multimodal-2026-07-11",
         "dispatchAuthorized": True,
         "authorizedBranchSha": head,
@@ -46,18 +46,17 @@ def main() -> None:
         "selectedExecution": selected,
         "budget": {
             "maxProviderCalls": 650,
-            "maxCostPerAttemptUsd": 1.50,
-            "maxTotalExposureUsd": 1200.00,
-            "contingencyUsd": 300.00,
-            "absoluteCeilingUsd": 1500.00,
+            "maxCostPerAttemptUsd": 0.30,
+            "maxTotalExposureUsd": 200.00,
             "retryLimitPerAsset": 3,
+            "singleCumulativeLedger": True,
         },
         "stopConditions": [
-            "aggregate exposure reaches 1200 USD",
-            "any asset reaches three failed attempts",
+            "aggregate exposure reaches 200 USD",
+            "any asset reaches three failed quality rounds",
             "provider terms or commercial rights become unknown",
             "identity, voice, likeness, or private-life input is detected",
-            "checksum, decode, quality, or promotion gate fails",
+            "checksum, decode, quality, certification, or promotion gate fails",
         ],
         "safety": {
             "providerCallsMadeByPlanner": 0,
