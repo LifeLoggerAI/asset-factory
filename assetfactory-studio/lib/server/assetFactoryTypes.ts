@@ -6,9 +6,10 @@ export type RendererMode =
   | 'manifest-only'
   | 'visual-renderer'
   | 'spatial-renderer'
-  | 'audio-renderer';
-export type AssetFamily = 'graphic' | 'model' | 'audio' | 'bundle';
-export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';
+  | 'audio-renderer'
+  | 'video-animatic';
+export type AssetFamily = 'graphic' | 'model' | 'audio' | 'video' | 'bundle';
+export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle';
 export type AssetFactoryJob = { jobId:string; tenantId:string; type:string; prompt:string; status:string; createdAt:string; presetId?:string; format?:string; variant?:string; targetModule?:string; assetFamily?:AssetFamily; canonicalType?:CanonicalAssetType; metadata?:Record<string,unknown>; [k:string]:unknown };
 export type AssetFactoryManifest = { jobId:string; tenantId:string; type:string; presetId?:string|null; prompt:string; rendererMode:RendererMode; generatedAt:string; formats:string[]; dimensions:{width:number;height:number}; transparentBackground:boolean; storagePaths:Record<string,string>; previewPath:string|null; metadata:Record<string,unknown> & { canonicalType?:CanonicalAssetType; assetFamily?:AssetFamily }; provenance:Record<string,unknown>; approvalStatus:string; version:number; targetModules:string[]; dependencies:string[] };
 export type AssetFactoryAsset = { jobId:string; tenantId:string; fileName:string; manifestFile:string; manifest:AssetFactoryManifest; createdAt:string; published:boolean; publishedAt?:string };
