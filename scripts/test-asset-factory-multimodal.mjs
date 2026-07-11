@@ -22,6 +22,13 @@ function assertIncludes(source, needle, label) {
   }
 }
 
+function assertNotIncludes(source, needle, label) {
+  if (source.includes(needle)) {
+    console.error(`Forbidden ${label}: ${needle}`);
+    process.exit(1);
+  }
+}
+
 const catalog = read('assetfactory-studio/lib/server/assetTypeCatalog.ts');
 const renderer = read('assetfactory-studio/lib/server/assetRenderer.ts');
 const generatedRoute = read('assetfactory-studio/app/api/generated-assets/[file]/route.ts');
@@ -39,6 +46,10 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
+const paidBatchWorkflow = read('.github/workflows/authorized-multimodal-execution.yml');
+const multimodalAudit = read('.github/workflows/full-multimodal-asset-audit.yml');
+const renderRound = read('image_asset_generator/render_v1_round.py');
+const sourceLock = JSON.parse(read('multimodal/source-lock.json'));
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -91,6 +102,29 @@ assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
 assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
 assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
+
+// Paid workflow must remain explicit, conservative, resumable, and non-promoting by default.
+assertNotIncludes(paidBatchWorkflow, '\n  push:', 'automatic paid workflow trigger');
+assertIncludes(paidBatchWorkflow, 'workflow_dispatch:', 'manual paid workflow trigger');
+assertIncludes(paidBatchWorkflow, "confirm == 'AUTHORIZE_URAI_20USD_BATCH'", 'explicit paid confirmation');
+assertIncludes(paidBatchWorkflow, "default: false", 'promotion disabled by default');
+assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '50'", 'conservative provider call ceiling');
+assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_COST_USD: '15.00'", 'reservation headroom beneath operational goal');
+assertIncludes(paidBatchWorkflow, "ASSET_RENDERER_MAX_PROMPT_CHARS: '12000'", 'prompt character ceiling');
+assertIncludes(paidBatchWorkflow, "run.get('name') != expected_workflow", 'resume workflow identity check');
+assertIncludes(paidBatchWorkflow, "metadata.get('version') != os.environ['URAI_VERSION']", 'resume version check');
+assertIncludes(paidBatchWorkflow, "name: authorized-small-batch-${{ github.run_id }}", 'deterministic resumable artifact name');
+assertIncludes(paidBatchWorkflow, "if: steps.batch.outputs.complete == 'true' && inputs.promote", 'promotion requires complete certification and explicit opt-in');
+
+// Resume logic must retry known failed assets while preserving accepted outputs.
+assertIncludes(renderRound, 'retry_failed_existing =', 'failed-existing retry control');
+assertIncludes(renderRound, 'name not in feedback', 'accepted existing output skip rule');
+assertIncludes(renderRound, 'feedback.get(name)', 'quality feedback passed to provider');
+
+// The audit workflow and checked-in source lock must agree on the exact Spatial tree.
+assertIncludes(multimodalAudit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source lock identity');
+assertIncludes(multimodalAudit, 'source-lock.json does not match the workflow Spatial SHA', 'source lock mismatch failure');
+assertIncludes(multimodalAudit, 'node scripts/test-asset-factory-multimodal.mjs', 'workflow policy regression test');
 
 if (!fs.existsSync(studio)) {
   console.error(`Missing studio directory: ${studio}`);
