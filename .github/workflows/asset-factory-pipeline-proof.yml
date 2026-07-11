@@ -5,6 +5,9 @@ on:
     paths:
       - 'assetfactory-studio/**'
       - 'image_asset_generator/**'
+      - 'launch-films/waiting-room/**'
+      - 'docs/MULTIMODAL_ASSET_WIRING.md'
+      - 'docs/WAITING_ROOM_VIDEO_FACTORY_CONTRACT.md'
       - 'scripts/**'
       - 'schemas/**'
       - 'firestore.rules'
@@ -17,6 +20,9 @@ on:
     paths:
       - 'assetfactory-studio/**'
       - 'image_asset_generator/**'
+      - 'launch-films/waiting-room/**'
+      - 'docs/MULTIMODAL_ASSET_WIRING.md'
+      - 'docs/WAITING_ROOM_VIDEO_FACTORY_CONTRACT.md'
       - 'scripts/**'
       - 'schemas/**'
       - 'firestore.rules'
@@ -30,12 +36,31 @@ on:
 permissions:
   contents: read
 
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   asset-factory-proof:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - name: Checkout
+      - name: Checkout exact reviewed head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -71,6 +96,47 @@ jobs:
         working-directory: assetfactory-studio
         run: npm test
 
+      - name: Build deterministic Day 0 video package
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="$RUNNER_TEMP/day-00-video-package"
+          rm -rf "$output_dir"
+          node scripts/build-waiting-room-video-package.mjs \
+            launch-films/waiting-room/day-00/the-door.animatic.json \
+            "$output_dir" \
+            launch-films/waiting-room/day-00/package-options.json \
+            | tee "$RUNNER_TEMP/day-00-video-package-build.json"
+          test -f "$output_dir/package.json"
+          test -f "$output_dir/receipt.json"
+          test -f "$output_dir/timeline.json"
+          test -f "$output_dir/captions.srt"
+          test -f "$output_dir/captions.vtt"
+          test -f "$output_dir/audio-description.json"
+          test -f "$output_dir/crops.json"
+          test -f "$output_dir/cuts.json"
+          test -f "$output_dir/claims.json"
+          node -e '
+            const fs = require("fs");
+            const dir = process.env.RUNNER_TEMP + "/day-00-video-package";
+            const pkg = JSON.parse(fs.readFileSync(dir + "/package.json", "utf8"));
+            const receipt = JSON.parse(fs.readFileSync(dir + "/receipt.json", "utf8"));
+            if (pkg.rendered !== false) throw new Error("package must remain unrendered");
+            if (pkg.encodedMaster !== null) throw new Error("encoded master must remain null");
+            if (receipt.providerSpend !== false) throw new Error("provider spend must remain false");
+            if (!/^[a-f0-9]{64}$/.test(receipt.receiptHash)) throw new Error("receipt hash missing");
+          '
+
+      - name: Upload exact-head Day 0 package proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: waiting-room-day-00-package-${{ env.TARGET_SHA }}
+          path: |
+            ${{ runner.temp }}/day-00-video-package/
+            ${{ runner.temp }}/day-00-video-package-build.json
+          if-no-files-found: error
+          retention-days: 365
+
       - name: Validate production assets
         working-directory: assetfactory-studio
         shell: bash
@@ -82,9 +148,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-production-validation-${{ github.run_id }}
+          name: asset-factory-production-validation-${{ env.TARGET_SHA }}
           path: asset-factory-production-validation.log
           if-no-files-found: error
+          retention-days: 365
 
       - name: Validate runtime contract
         working-directory: assetfactory-studio
@@ -115,10 +182,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-image-pipeline-proof
+          name: asset-factory-image-pipeline-proof-${{ env.TARGET_SHA }}
           path: |
             image_asset_generator/validation_report.json
             image_asset_generator/firebase_seed.json
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
           if-no-files-found: warn
+          retention-days: 365
