@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
+sys.path.insert(0, str(REPO))
 REQ = json.loads((ROOT / "canonical-requirements.json").read_text())
 LOCK = json.loads((ROOT / "source-lock.json").read_text())
 OUT = ROOT / "full-multimodal-asset-manifest.json"
