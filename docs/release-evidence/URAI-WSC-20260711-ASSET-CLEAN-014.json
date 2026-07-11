@@ -1,0 +1,82 @@
+{
+  "receipt_id": "URAI-WSC-20260711-ASSET-CLEAN-014",
+  "utc_timestamp": "2026-07-11T17:07:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "0acb7ab7f00b8301b7efaadda8c4e5f4da5f4f06",
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "prior_candidate_head": "46fee31b6bc86751a639e0e0a5d743b9afb8ecc1",
+  "exact_final_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/172",
+  "supersedes_pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/157",
+  "ported_scope": [
+    "362-record multimodal inventory and schema",
+    "source locks and repository-aware provenance",
+    "media specifications and lifecycle validation",
+    "rights, consent, likeness, output and exact-hash review gates",
+    "zero-spend dispatch planning",
+    "creative-review, accessibility, film, XR, SBOM and license evidence builders",
+    "renderer and certifier repairs",
+    "Studio manifest and provider authorization adapters",
+    "exact Pillow dependency pin"
+  ],
+  "explicit_exclusions": [
+    ".github/workflows/authorized-multimodal-execution.yml",
+    ".github/workflows/one-paid-v1-smoke-push.yml",
+    ".github/workflows/promote-reviewed-multimodal-batch.yml",
+    "docs/release-evidence/URAI-WSC-20260711-PAID-V1-SMOKE-012.json",
+    "WORK-COMPLETION-REPORT.md"
+  ],
+  "source_controls": {
+    "remote_actions": "immutable reviewed commit SHAs",
+    "workflow_permissions": "contents read only",
+    "persist_credentials": false,
+    "provider_secrets_referenced": false,
+    "promotion_secrets_referenced": false,
+    "paid_workflow_added": false,
+    "promotion_workflow_added": false,
+    "audit_dispatch_authorized": false,
+    "audit_provider_calls": 0,
+    "audit_approved_spend_usd": 0
+  },
+  "root_lock_repair": {
+    "status": "exact-head workflow pending runner assignment",
+    "node": "20.19.5",
+    "npm": "10.9.2",
+    "lockfile_version": 3,
+    "registry": "https://registry.npmjs.org",
+    "frozen_install_required": true,
+    "high_severity_audit_required": true,
+    "unexpected_changed_files_rejected": true,
+    "workflow_can_push": false,
+    "temporary_generator_removal_required_before_merge": true,
+    "temporary_migration_helper_removal_required_before_merge": true
+  },
+  "verification": {
+    "static_collision_review": "completed",
+    "forbidden_paid_and_promotion_paths": "absent from pull request diff",
+    "manifest_and_media_priority_fixes": "ported from superseded branch",
+    "exact_head_actions": "queued with no assigned runner, no steps and no logs at time of receipt",
+    "queued_results_count_as_pass": false,
+    "root_package_lock_committed": false,
+    "provider_call": "not run",
+    "promotion": "not run",
+    "deployment": "not run"
+  },
+  "remaining_blockers": [
+    "GitHub-hosted runner assignment for exact-head workflows",
+    "successful Full Multimodal Asset Audit",
+    "successful Offline Evidence Package",
+    "successful audited root lock generation",
+    "verified commit of package-lock.json and four root-lock contract files",
+    "removal of temporary root-lock workflow and migration helper",
+    "successful repository CI and release suites",
+    "rights, consent and likeness clearance",
+    "exact-hash human creative review",
+    "immutable promotion, deployment, rollback and live deployed-SHA evidence"
+  ],
+  "status": "CLEAN REPLACEMENT IMPLEMENTED — NO-SPEND BOUNDARY VERIFIED STATICALLY — EXECUTION EVIDENCE PENDING RUNNER ASSIGNMENT",
+  "rollback": "Close PR #172 unmerged. The superseded PR #157 branch and all prior hardened main receipts remain preserved.",
+  "exact_next_action": "Require the final exact-head workflows to start and finish. Commit only a verified root-lock artifact, remove temporary generation files, rerun exact-head checks, and keep the pull request draft until all listed gates pass."
+}
