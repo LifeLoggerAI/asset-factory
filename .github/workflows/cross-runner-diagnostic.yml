@@ -1,0 +1,36 @@
+name: Cross Runner Diagnostic
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  diagnose:
+    if: github.event.issue.user.login == github.repository_owner && startsWith(github.event.issue.title, 'RUNNER DIAGNOSTIC 2026-07-11')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Report runner assignment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `RUNNER_ASSIGNED os=${{ matrix.os }} run_id=${context.runId} job=${context.job}`
+            })
+      - name: Record platform
+        shell: bash
+        run: |
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
