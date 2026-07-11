@@ -58,9 +58,9 @@ jobs:
           echo "SOURCE_ARTIFACT_ID=$artifact_id" >> "$GITHUB_ENV"
 
       - name: Install verification dependency
-        run: python3 -m pip install Pillow
+        run: python3 -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Verify receipts and run perceptual duplicate gate
+      - name: Verify source-to-handoff proof and perceptual uniqueness
         shell: bash
         env:
           SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
@@ -69,21 +69,43 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import hashlib, json, math, os
+          import hashlib, json, os
           from pathlib import Path
           from PIL import Image
 
-          root = Path(os.environ['GENERATED_PACK_ROOT'])
+          def file_sha(path: Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          def pixel_sha(image: Image.Image) -> str:
+              digest = hashlib.sha256()
+              digest.update(f"{image.mode}:{image.width}x{image.height}\n".encode())
+              digest.update(image.tobytes())
+              return digest.hexdigest()
+
+          root = Path(os.environ['GENERATED_PACK_ROOT']).resolve()
+          assert root.is_dir() and not root.is_symlink()
+          for candidate in root.rglob('*'):
+              assert not candidate.is_symlink(), candidate
+
           manifest_paths = list(root.rglob('manifests/generated/v1.manifest.json'))
           quality_paths = list(root.rglob('quality_report_v1.json'))
           receipt_paths = list(root.rglob('forge_receipt_v1.json'))
           dropin_paths = list(root.rglob('dropin_receipt_v1.json'))
-          assert len(manifest_paths) == len(quality_paths) == len(receipt_paths) == len(dropin_paths) == 1
+          handoff_paths = list(root.rglob('spatial_handoff/assets/urai/final/manifests/v1-asset-factory-spatial-handoff.json'))
+          generic_paths = list(root.rglob('spatial_handoff/assets/urai/final/manifests/asset-factory-spatial-handoff.json'))
+          assert all(len(paths) == 1 for paths in (manifest_paths, quality_paths, receipt_paths, dropin_paths, handoff_paths, generic_paths))
 
-          manifest = json.loads(manifest_paths[0].read_text())
+          manifest_path = manifest_paths[0]
+          base = manifest_path.parents[2]
+          handoff_manifest_path = handoff_paths[0]
+          handoff_root = handoff_manifest_path.parents[5]
+          manifest = json.loads(manifest_path.read_text())
           quality = json.loads(quality_paths[0].read_text())
           receipt = json.loads(receipt_paths[0].read_text())
           dropin = json.loads(dropin_paths[0].read_text())
+          handoff = json.loads(handoff_manifest_path.read_text())
+          generic = json.loads(generic_paths[0].read_text())
+
           assert os.environ['SOURCE_CONCLUSION'] == 'success'
           assert len(manifest) == 53
           assert quality.get('status') == 'passed' and quality.get('failed') == 0
@@ -91,38 +113,88 @@ jobs:
           assert receipt.get('newProviderCalls') == 47
           assert receipt.get('ready') == 53 and receipt.get('missing') == 0
           assert dropin.get('status') == 'certified' and dropin.get('ready') == 53
+          assert handoff == generic
+          assert handoff.get('sourceBinding') == 'lossless-webp-decoded-pixel-sha256'
+          assert handoff.get('ready') == 53 and handoff.get('missing') == 0
+          assert len(handoff.get('assets', [])) == 53
 
-          base = manifest_paths[0].parents[2]
-          records = []
+          handoff_by_name = {asset['name']: asset for asset in handoff['assets']}
+          direct_records = []
+          handoff_records = []
           for entry in manifest:
+              name = entry['name']
               size = max(int(v) for v in entry['sizes'])
-              image_path = base / entry['path_template'].format(size=size)
-              metadata_path = image_path.with_suffix(image_path.suffix + '.render.json')
-              assert image_path.is_file(), image_path
-              assert metadata_path.is_file(), metadata_path
+              source_path = (base / entry['path_template'].format(size=size)).resolve()
+              metadata_path = source_path.with_suffix(source_path.suffix + '.render.json')
+              assert source_path.is_file() and metadata_path.is_file()
+              assert not source_path.is_symlink() and not metadata_path.is_symlink()
+              source_path.relative_to(base.resolve())
               metadata = json.loads(metadata_path.read_text())
               details = metadata.get('metadata') or {}
+
+              asset = handoff_by_name[name]
+              assert asset['status'] == 'ready' and asset['renderer'] == 'provider'
+              assert asset['sourcePath'] == str(source_path.relative_to(base))
+              assert asset['sourceSha256'] == file_sha(source_path)
+              assert asset['sourceMetadataSha256'] == file_sha(metadata_path)
+              assert asset['encoding'] == {'format': 'WEBP', 'lossless': True, 'method': 6}
+              handoff_path = (handoff_root / asset['canonicalPath']).resolve()
+              handoff_path.relative_to(handoff_root.resolve())
+              assert handoff_path.is_file() and not handoff_path.is_symlink()
+              assert asset['sha256'] == file_sha(handoff_path)
+              assert asset['bytes'] == handoff_path.stat().st_size
+
+              mode = 'RGBA' if asset['alpha'] else 'RGB'
+              with Image.open(source_path) as source_image:
+                  source_image.load()
+                  source_image = source_image.convert(mode)
+                  source_pixels = pixel_sha(source_image)
+                  source_size = source_image.size
+              with Image.open(handoff_path) as handoff_image:
+                  handoff_image.load()
+                  handoff_image = handoff_image.convert(mode)
+                  handoff_pixels = pixel_sha(handoff_image)
+                  handoff_size = handoff_image.size
+              assert source_size == handoff_size == (asset['width'], asset['height'])
+              assert source_pixels == handoff_pixels
+              assert asset['sourcePixelSha256'] == source_pixels
+              assert asset['handoffPixelSha256'] == handoff_pixels
+
+              record = {
+                  'name': name,
+                  'sourcePath': str(source_path.relative_to(root)),
+                  'sourceSha256': file_sha(source_path),
+                  'sourceMetadataSha256': file_sha(metadata_path),
+                  'sourcePixelSha256': source_pixels,
+                  'handoffPath': str(handoff_path.relative_to(root)),
+                  'handoffSha256': file_sha(handoff_path),
+                  'handoffPixelSha256': handoff_pixels,
+                  'canonicalPath': asset['canonicalPath'],
+              }
+              handoff_records.append(record)
+
               if details.get('provider') == 'derived-provider':
+                  assert asset.get('sourceProviderRequestIds') == details.get('source_provider_request_ids')
                   continue
-              assert metadata.get('renderer') == 'provider', entry['name']
+              assert metadata.get('renderer') == 'provider'
               request_id = details.get('provider_request_id')
-              assert isinstance(request_id, str) and request_id, entry['name']
-              with Image.open(image_path) as image:
-                  gray = image.convert('L').resize((16, 16), Image.Resampling.LANCZOS)
+              assert isinstance(request_id, str) and request_id
+              assert asset.get('providerRequestId') == request_id
+              with Image.open(source_path) as direct_image:
+                  gray = direct_image.convert('L').resize((16, 16), Image.Resampling.LANCZOS)
                   pixels = list(gray.getdata())
               average = sum(pixels) / len(pixels)
               bits = ''.join('1' if value >= average else '0' for value in pixels)
-              phash = f"{int(bits, 2):064x}"
-              records.append({
-                  'name': entry['name'], 'category': entry.get('category'),
-                  'path': str(image_path.relative_to(root)), 'perceptualHash': phash,
-                  'sha256': hashlib.sha256(image_path.read_bytes()).hexdigest(),
+              direct_records.append({
+                  **record,
+                  'category': entry.get('category'),
+                  'perceptualHash': f"{int(bits, 2):064x}",
                   'providerRequestId': request_id,
               })
 
           duplicates = []
-          for index, left in enumerate(records):
-              for right in records[index + 1:]:
+          for index, left in enumerate(direct_records):
+              for right in direct_records[index + 1:]:
                   distance = (int(left['perceptualHash'], 16) ^ int(right['perceptualHash'], 16)).bit_count()
                   threshold = 5 if left['category'] == right['category'] else 8
                   if distance <= threshold:
@@ -133,14 +205,17 @@ jobs:
                       })
 
           report = {
-              'schemaVersion': '1.0.0',
+              'schemaVersion': '1.1.0',
               'sourceRunId': int(os.environ['SOURCE_RUN_ID']),
               'sourceHeadSha': os.environ['SOURCE_HEAD_SHA'],
               'sourceArtifactId': int(os.environ['SOURCE_ARTIFACT_ID']),
-              'directProviderAssetsChecked': len(records),
+              'sourceBinding': 'lossless-webp-decoded-pixel-sha256',
+              'handoffAssetsChecked': len(handoff_records),
+              'directProviderAssetsChecked': len(direct_records),
               'duplicatePairs': duplicates,
               'status': 'failed' if duplicates else 'passed',
-              'assets': records,
+              'handoffAssets': handoff_records,
+              'assets': direct_records,
           }
           output = Path('post-certification') / 'v1-spatial-duplicate-report.json'
           output.parent.mkdir(parents=True, exist_ok=True)
