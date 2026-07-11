@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { GenerateRequest } from './assetFactoryValidation';
 import { resolveAssetType } from './assetTypeCatalog';
 import { renderWithConfiguredProvider } from './assetProviderRuntime';
+import { renderVideoWithConfiguredProvider } from './assetVideoProviderRuntime';
 import { normalizeSpatialModelContract } from './assetSpatialContract';
 
 type AssetSize = {
@@ -265,7 +266,9 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
   const spatialModelContract = definition.canonicalType === 'model3d'
     ? normalizeSpatialModelContract((input.metadata as Record<string, unknown> | undefined)?.spatialModelContract)
     : null;
-  const providerResult = await renderWithConfiguredProvider(input, definition);
+  const providerResult = definition.canonicalType === 'video'
+    ? await renderVideoWithConfiguredProvider(input)
+    : await renderWithConfiguredProvider(input, definition);
 
   if (providerResult) {
     const assetFileName = `${input.jobId}.${providerResult.extension}`;
