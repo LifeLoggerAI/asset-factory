@@ -1,0 +1,42 @@
+{
+  "home_sky_ascent": {
+    "prompt": "Cinematic ascent from URAI Home into a vast private memory cosmos. The transition leaves the grounded Home world behind and opens into deep outer space filled with luminous memory stars, nebula dust, and strong three-dimensional depth. No ground plane remains after ascent, no text, no dashboard, premium AAA spatial atmosphere.",
+    "prompt_version": "v5"
+  },
+  "life_map_galaxy_main": {
+    "prompt": "Canonical URAI Life Map wide state: an explorable private galaxy existing entirely in deep outer space, with dozens of luminous memory stars at varied depths, rich indigo violet blue and gold nebulae, subtle constellation paths, and unmistakable parallax. Stars remain stars in the wide view; only faint memory cores may be hinted inside select nodes. Absolutely no ground, floor, horizon, platform, architecture, portal, orb companion, avatar, or visible human figure. No text, no UI, no dashboard. Premium AAA cinematic spatial environment.",
+    "prompt_version": "v5"
+  },
+  "life_map_galaxy_mobile": {
+    "prompt": "Canonical URAI Life Map mobile wide state: portrait deep-space private memory galaxy with luminous stars at many depths, rich nebula atmosphere, central navigation space, and strong parallax. Stars remain closed stars until selected. Absolutely no ground, floor, horizon, platform, architecture, orb, avatar, or visible human figure. No text or UI. Premium AAA mobile-safe spatial composition.",
+    "prompt_version": "v5"
+  },
+  "life_map_node_threshold": {
+    "prompt": "One isolated premium threshold memory star floating in deep space on a transparent background. The star is luminous and clearly stellar, with only a tiny cinematic doorway memory core visible when viewed close. No orb, avatar, ground, architecture, label, text, card frame, or flat placeholder icon.",
+    "prompt_version": "v5"
+  },
+  "life_map_node_becoming": {
+    "prompt": "One isolated premium becoming memory star floating in deep space on a transparent background. The star is luminous and clearly stellar, with only a tiny transformation memory core visible when viewed close. No orb, avatar, ground, architecture, label, text, card frame, or flat placeholder icon.",
+    "prompt_version": "v5"
+  },
+  "life_map_node_studio": {
+    "prompt": "One isolated premium studio memory star floating in deep space on a transparent background. The star is luminous and clearly stellar, with only a tiny creative-workspace memory core visible when viewed close. No orb, avatar, ground, architecture, label, text, card frame, or flat placeholder icon.",
+    "prompt_version": "v5"
+  },
+  "focus_memory_chamber_main": {
+    "prompt": "Canonical URAI Focus state after selecting and zooming into one Life Map star. Stay entirely in outer space: one dominant opened memory star expands into a protected luminous memory sphere with the quiet sunrise scene clearly visible inside, while the surrounding galaxy falls softly into distant depth. Elegant concentric energy rings may form from starlight, but there is no room, ground, floor, platform, orb companion, avatar, dashboard, or text. This is the bridge from selected star to Replay, premium AAA cinematic spatial depth.",
+    "prompt_version": "v5"
+  },
+  "focus_memory_chamber_mobile": {
+    "prompt": "Canonical URAI Focus mobile state: portrait view fully in cosmic space, zoomed into one opened memory star containing a detailed quiet sunrise memory, with distant galaxy depth and restrained starlight rings. No ground, room, platform, orb, avatar, dashboard, or text. Clear lower safe zone for controls outside the artwork, premium AAA mobile composition.",
+    "prompt_version": "v5"
+  },
+  "replay_memory_film_main": {
+    "prompt": "Canonical URAI Replay state reached by moving through an opened memory star. The viewer is now inside a full-world living cinematic memory at sunrise rather than looking at a poster, screen, portal, or thumbnail. The memory environment fills the frame with first-person emotional presence, layered past and future moments, filmic movement, volumetric light, environmental storytelling, and only subtle residual stardust at the transition edges. No orb companion, no standing avatar, no ground platform from Life Map, no television, no dashboard, no text. Premium AAA immersive memory film.",
+    "prompt_version": "v5"
+  },
+  "replay_memory_film_mobile": {
+    "prompt": "Canonical URAI Replay mobile state after entering an opened star: portrait immersive living sunrise memory filling the world, cinematic emotional depth, motion, environmental storytelling, and subtle fading cosmic transition traces at the edges. No orb, no avatar posed on a platform, no poster, television, dashboard, or text. Mobile-safe AAA memory-film composition.",
+    "prompt_version": "v5"
+  }
+}
