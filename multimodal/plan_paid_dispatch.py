@@ -28,13 +28,16 @@ def main() -> None:
         if item.get("paid") and item.get("runtimeStatus") == "implemented-http-runtime"
     }
     selected = {
-        "visual": {"provider": "openai", "model": "gpt-image-1.5", "maxCalls": 639},
-        "audio": {"provider": "openai", "model": "gpt-4o-mini-tts", "maxCalls": 5},
+        "visual": {"provider": "openai", "model": "gpt-image-1.5", "maxCalls": len(by_lane.get("visual", [])) * 3},
+        "audio": {"provider": "openai", "model": "gpt-4o-mini-tts", "maxCalls": len(by_lane.get("audio", [])) * 3},
         "3d": {"provider": "deterministic-spatial-forge", "model": "repository-locked", "maxCalls": 0},
         "film": {"provider": "deterministic-ffmpeg", "model": "repository-locked", "maxCalls": 0},
     }
     if selected["visual"]["provider"] not in providers or selected["audio"]["provider"] not in providers:
         raise SystemExit("selected paid provider runtime is not implemented")
+    paid_call_limit = selected["visual"]["maxCalls"] + selected["audio"]["maxCalls"]
+    if paid_call_limit > 650:
+        raise SystemExit(f"planned paid calls {paid_call_limit} exceed authorization ceiling 650")
     plan = {
         "schemaVersion": "1.2.0",
         "approvalId": "urai-multimodal-2026-07-11",
@@ -46,6 +49,7 @@ def main() -> None:
         "selectedExecution": selected,
         "budget": {
             "maxProviderCalls": 650,
+            "plannedProviderCalls": paid_call_limit,
             "maxCostPerAttemptUsd": 0.30,
             "maxTotalExposureUsd": 200.00,
             "retryLimitPerAsset": 3,
