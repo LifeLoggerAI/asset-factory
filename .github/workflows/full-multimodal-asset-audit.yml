@@ -47,6 +47,8 @@ jobs:
         run: python multimodal/repair_audio_media_mapping.py
       - name: Apply repository-aware source provenance
         run: python multimodal/apply_source_provenance.py
+      - name: Apply full lifecycle contract
+        run: python multimodal/apply_lifecycle_contract.py
       - name: Validate canonical multimodal manifest
         run: python multimodal/validate_manifest.py
       - name: Validate claimed outputs across repository roots
@@ -97,6 +99,8 @@ jobs:
         run: python multimodal/repair_audio_media_mapping.py
       - name: Apply repository-aware source provenance
         run: python multimodal/apply_source_provenance.py
+      - name: Apply full lifecycle contract
+        run: python multimodal/apply_lifecycle_contract.py
       - name: Validate governance lane
         if: matrix.lane == 'governance'
         run: python multimodal/validate_rights.py
