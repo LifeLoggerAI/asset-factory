@@ -1,0 +1,139 @@
+{
+  "schema": "urai-video-animatic-1",
+  "status": "script-locked-package-candidate",
+  "productionReady": false,
+  "jobId": "day-00-the-door",
+  "tenantId": "urai-launch",
+  "title": "The Door",
+  "prompt": "An ordinary person reaches the private doorway into URAI. The film begins in a fragmented world of disconnected systems and ends at the threshold of a navigable personal world.",
+  "aspectRatio": "16:9",
+  "dimensions": {
+    "width": 1920,
+    "height": 1080
+  },
+  "durationSeconds": 70,
+  "fps": 24,
+  "totalFrames": 1680,
+  "shots": [
+    {
+      "id": "shot-01-fragments",
+      "startSeconds": 0,
+      "endSeconds": 7,
+      "durationSeconds": 7,
+      "prompt": "Close respectful fragments of an ordinary life spread across a phone: messages, calendar, photographs, notes, maps and unfinished tasks. No brand logos and no private text is readable.",
+      "camera": "slow macro drift across hands and screen reflections",
+      "caption": "Every system knew a piece of you.",
+      "audioDescription": "A person moves between disconnected messages, photographs, maps and unfinished tasks on a phone.",
+      "transition": "fade-in",
+      "evidenceClass": "VISION"
+    },
+    {
+      "id": "shot-02-life-between",
+      "startSeconds": 7,
+      "endSeconds": 14,
+      "durationSeconds": 7,
+      "prompt": "The person lowers the phone. The room becomes quiet. The disconnected reflections remain around them for one beat and then fade.",
+      "camera": "medium profile, restrained dolly backward",
+      "caption": "None of them knew the life between the pieces.",
+      "audioDescription": "The person lowers the phone as the scattered reflections around them disappear.",
+      "transition": "dissolve",
+      "evidenceClass": "VISION"
+    },
+    {
+      "id": "shot-03-orb",
+      "startSeconds": 14,
+      "endSeconds": 21,
+      "durationSeconds": 7,
+      "prompt": "A small restrained orb wakes near the floor without spectacle. Its light reveals the outline of a doorway that was not visible before.",
+      "camera": "locked observer with gentle focus pull from person to orb",
+      "caption": "What if software organized itself around your life?",
+      "audioDescription": "A quiet orb glows near the floor and reveals the outline of a doorway.",
+      "transition": "cut",
+      "evidenceClass": "VISION"
+    },
+    {
+      "id": "shot-04-approach",
+      "startSeconds": 21,
+      "endSeconds": 29,
+      "durationSeconds": 8,
+      "prompt": "The person approaches the doorway. Through it, only a warm horizon and the edge of URAI Ground are visible. The person remains visually dominant.",
+      "camera": "slow push-in behind shoulder, stable and human-scale",
+      "caption": "Not another dashboard.",
+      "audioDescription": "The person approaches the doorway. A warm private world is visible beyond it.",
+      "transition": "cut",
+      "evidenceClass": "VISION"
+    },
+    {
+      "id": "shot-05-ground",
+      "startSeconds": 29,
+      "endSeconds": 38,
+      "durationSeconds": 9,
+      "prompt": "Inside the doorway, Ground appears as a calm inhabited private world with reception, work table, sanctuary, archive and subtle private workers preparing tasks. Nothing resembles a corporate dashboard.",
+      "camera": "single continuous threshold move with wide spatial reveal",
+      "caption": "A world organized around the life you are living now.",
+      "audioDescription": "Beyond the doorway is a calm private world with a work table, sanctuary, archive and subtle helpers.",
+      "transition": "threshold match move",
+      "evidenceClass": "VERIFIED_SYSTEM_DEMO"
+    },
+    {
+      "id": "shot-06-ascent",
+      "startSeconds": 38,
+      "endSeconds": 47,
+      "durationSeconds": 9,
+      "prompt": "The camera rises from Ground into a deep private galaxy. Memory stars form at different distances with no ground or horizon. One star contains a meaningful image.",
+      "camera": "vertical ascent becoming slow orbital move",
+      "caption": "Your memories become places you can navigate.",
+      "audioDescription": "The private world opens upward into a deep galaxy of memory stars.",
+      "transition": "continuous ascent",
+      "evidenceClass": "VERIFIED_SYSTEM_DEMO"
+    },
+    {
+      "id": "shot-07-memory-door",
+      "startSeconds": 47,
+      "endSeconds": 56,
+      "durationSeconds": 9,
+      "prompt": "The selected star grows into a Focus chamber. A memory image becomes cinematic motion, then pauses at the entrance to Replay. Distinguish reconstruction from source material through subtle interface language.",
+      "camera": "star approach, controlled chamber reveal, no rapid motion",
+      "caption": "A memory becomes a film. The film becomes a doorway.",
+      "audioDescription": "A selected memory star opens into a chamber where an image begins to move like a film.",
+      "transition": "star-to-chamber morph",
+      "evidenceClass": "VERIFIED_SYSTEM_DEMO"
+    },
+    {
+      "id": "shot-08-passport",
+      "startSeconds": 56,
+      "endSeconds": 63,
+      "durationSeconds": 7,
+      "prompt": "Passport closes gently around the doorway, showing only simple permission, ownership and provenance signals. No surveillance grids or unreadable technical overlays.",
+      "camera": "frontal symmetrical composition with restrained light boundary",
+      "caption": "Your life is not an open API.",
+      "audioDescription": "A visible permission boundary closes around the doorway and memory world.",
+      "transition": "soft boundary close",
+      "evidenceClass": "PROTOTYPE"
+    },
+    {
+      "id": "shot-09-step-inside",
+      "startSeconds": 63,
+      "endSeconds": 70,
+      "durationSeconds": 7,
+      "prompt": "Return to the original threshold. The person reaches for the doorway and steps forward. Cut to black before revealing the full world. Final URAI lockup appears with one point of light.",
+      "camera": "slow forward movement ending on black",
+      "caption": "Do not imagine the future. Enter it.",
+      "audioDescription": "The person steps through the doorway. The screen becomes black and the URAI name appears.",
+      "transition": "cut to black",
+      "evidenceClass": "VISION"
+    }
+  ],
+  "audio": {
+    "voiceoverRef": "day-00-voiceover-pending",
+    "musicRef": "day-00-score-pending",
+    "mixStatus": "not-rendered"
+  },
+  "accessibility": {
+    "captionsRequired": true,
+    "audioDescriptionRequired": true,
+    "reducedMotionRequired": true
+  },
+  "provider": null,
+  "note": "Deterministic Day 0 production package source. This is not provider-rendered footage and does not certify the depicted product behavior. Shot-level evidence classes must be reconciled before publication."
+}
