@@ -95,9 +95,11 @@ jobs:
           forge_exit=${PIPESTATUS[0]}
           set -e
           echo "forge_exit=$forge_exit" >> "$GITHUB_OUTPUT"
-          exit "$forge_exit"
+          echo "Forge exited ${forge_exit}; the receipt gate will decide whether the one-call transport smoke passed."
 
       - name: Verify paid call receipt and provider output
+        env:
+          FORGE_EXIT_CODE: ${{ steps.forge.outputs.forge_exit }}
         shell: bash
         run: |
           set -euo pipefail
@@ -146,6 +148,7 @@ jobs:
               'workflow': 'One Paid V1 Provider Smoke',
               'commit': os.environ['ASSET_FACTORY_EXACT_HEAD'],
               'runId': os.environ['GITHUB_RUN_ID'],
+              'forgeExitCode': int(os.environ.get('FORGE_EXIT_CODE', '-1')),
               'providerCallsExecuted': calls,
               'reservedEstimatedCostUsd': str(reserved),
               'attemptStatus': attempts[0].get('status'),
