@@ -1,0 +1,64 @@
+{
+  "receipt_id": "URAI-WSE-20260711-162200-ASSET-FACTORY-007",
+  "utc_timestamp": "2026-07-11T16:22:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "09eeb88759e0c378df79fcad50317108c68abce7",
+  "branch": "ws-e/execute-one-paid-v1-issue-160-20260711",
+  "executor_commit_sha": "484034d9e89206c23d28f49a4cd4cd0fc77f1445",
+  "verifier_commit_sha": "2cd3ced40d5821f8fab3026081441cc8f90d7ada",
+  "integrity_workflow_commit_sha": "f28fdbb05cba2e9a72c099bcc09e267d22ad426b",
+  "exact_pr_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential hash.",
+  "authorization_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/160",
+  "governance_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
+  "changed_files": [
+    ".github/workflows/one-time-paid-v1-issue-160.yml",
+    ".github/workflows/one-time-paid-v1-integrity.yml",
+    "scripts/check-one-time-paid-v1-issue-160.py",
+    "docs/release-evidence/URAI-WSE-20260711-162200-ASSET-FACTORY-007.json"
+  ],
+  "authority": {
+    "issue_number": 160,
+    "required_title": "[EXECUTE ONE PAID V1 SMOKE] URAI-ISSUE-160",
+    "required_nonce": "URAI-ISSUE-160-ONE-TIME-V1",
+    "required_exact_main_sha": true,
+    "required_owner_created_issue": true,
+    "required_owner_edit": true
+  },
+  "budget": {
+    "max_provider_calls": 1,
+    "max_unit_cost_usd": "1.00",
+    "max_total_cost_usd": "1.00",
+    "limit_entries": 1,
+    "limit_outputs": 1,
+    "max_provider_attempts": 1,
+    "promote": false
+  },
+  "execution_controls": [
+    "The executor triggers only from an owner edit to issue #160 with an exact title and exact authorization lines.",
+    "The target SHA must equal the default-branch event SHA and the checked-out source SHA.",
+    "The authorization title is changed immediately after validation to prevent retrigger.",
+    "The provider job uses macos-latest and the protected paid-asset-generation environment.",
+    "No Spatial promotion token is exposed and no promotion step exists.",
+    "All remote actions are pinned to immutable commits.",
+    "A separate read-only exact-head workflow verifies the one-time authority contract before merge.",
+    "The workflow comments the run identifier and final execution result on issue #160."
+  ],
+  "runtime_impact": "None until the exact workflow is merged and issue #160 is edited with the resulting exact main SHA.",
+  "budget_impact": "At most one provider attempt and USD 1.00 after explicit issue-bound trigger; zero while this candidate remains unmerged.",
+  "promotion_impact": "None. Promotion is disabled and no promotion credential is available.",
+  "tests": {
+    "connector_static_review": "completed",
+    "one_time_paid_v1_integrity_exact_head": "pending",
+    "provider_call": "not run"
+  },
+  "limitations": [
+    "The connector does not expose workflow_dispatch or GitHub environment settings APIs.",
+    "The environment will fail closed if provider secrets or required approval are absent.",
+    "The one-time executor must be deleted after the run is conclusively recorded."
+  ],
+  "status": "ONE-TIME EXECUTOR IMPLEMENTED — EXACT-HEAD VERIFICATION PENDING — NO SPEND YET",
+  "rollback": "Close the pull request or revert/delete the one-time workflow before editing issue #160. After execution, remove the executor and its integrity workflow in a cleanup pull request.",
+  "exact_next_action": "Open the draft PR, require One-Time Paid V1 Integrity success on the exact head, merge under exact-head protection, record the resulting main SHA in issue #160, and perform one owner edit to trigger the bounded run."
+}

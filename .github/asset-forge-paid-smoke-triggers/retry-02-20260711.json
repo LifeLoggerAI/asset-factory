@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "authorizedAt": "2026-07-11T14:05:00Z",
+  "purpose": "Second bounded paid V1 provider smoke retry after GitHub/Gmail/Drive verification",
+  "version": "v1",
+  "rounds": 1,
+  "maxProviderCalls": 1,
+  "maxUnitCostUsd": "0.10",
+  "maxTotalCostUsd": "0.10",
+  "limitEntries": 1,
+  "limitOutputs": 1,
+  "skipExisting": false,
+  "promote": false,
+  "supportTicket": "4553961"
+}
