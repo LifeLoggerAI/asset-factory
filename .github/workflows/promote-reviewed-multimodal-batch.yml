@@ -1,0 +1,276 @@
+name: Promote Reviewed Multimodal Batch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Reviewed canonical version
+        required: true
+        type: choice
+        options: [v1, v2, v3, v4, v5]
+      source_run_id:
+        description: Successful Authorized Small Multimodal Batch run ID
+        required: true
+        type: string
+      expected_asset_factory_sha:
+        description: Exact Asset Factory head used by the paid generation run
+        required: true
+        type: string
+      approval_commit_sha:
+        description: Exact descendant Asset Factory commit containing rights and human approval evidence
+        required: true
+        type: string
+      expected_spatial_sha:
+        description: Exact urai-spatial base commit for the promotion PR
+        required: true
+        type: string
+      confirm:
+        description: Type PROMOTE_REVIEWED_URAI_ASSETS
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: reviewed-multimodal-promotion-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  URAI_VERSION: ${{ inputs.version }}
+  SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+  EXPECTED_ASSET_FACTORY_SHA: ${{ inputs.expected_asset_factory_sha }}
+  APPROVAL_COMMIT_SHA: ${{ inputs.approval_commit_sha }}
+  EXPECTED_SPATIAL_SHA: ${{ inputs.expected_spatial_sha }}
+  EXPECTED_APPROVAL_ID: urai-small-batch-2026-07-11
+  EXPECTED_AUTHORIZATION_REVISION: '5'
+
+jobs:
+  verify-and-open-pr:
+    if: inputs.confirm == 'PROMOTE_REVIEWED_URAI_ASSETS'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: asset-promotion
+
+    steps:
+      - name: Check out exact generated-source head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_asset_factory_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out exact approval-evidence commit
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/asset-factory
+          ref: ${{ inputs.approval_commit_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: approval-control
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify immutable identities and approval ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ inputs.confirm }}' = 'PROMOTE_REVIEWED_URAI_ASSETS'
+          case "$SOURCE_RUN_ID" in ''|*[!0-9]*) echo '::error::source_run_id must be numeric'; exit 1 ;; esac
+          for value in "$EXPECTED_ASSET_FACTORY_SHA" "$APPROVAL_COMMIT_SHA" "$EXPECTED_SPATIAL_SHA"; do
+            case "$value" in *[!0-9a-f]*|'') echo '::error::all commit identities must be lowercase full SHAs'; exit 1 ;; esac
+            test "${#value}" -eq 40
+          done
+          test "$(git rev-parse HEAD)" = "$EXPECTED_ASSET_FACTORY_SHA"
+          test "$(git -C approval-control rev-parse HEAD)" = "$APPROVAL_COMMIT_SHA"
+          git -C approval-control merge-base --is-ancestor "$EXPECTED_ASSET_FACTORY_SHA" "$APPROVAL_COMMIT_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Import only approved governance evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          approval="approval-control/creative-review/approvals/${URAI_VERSION}.json"
+          test -f "$approval"
+          test -f approval-control/multimodal/rights-ledger.json
+          mkdir -p creative-review/approvals
+          cp "$approval" "creative-review/approvals/${URAI_VERSION}.json"
+          cp approval-control/multimodal/rights-ledger.json multimodal/rights-ledger.json
+
+      - name: Verify source workflow and download exact package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")
+          RUN_JSON="$run_json" python - <<'PY'
+          import json
+          import os
+
+          run = json.loads(os.environ['RUN_JSON'])
+          if run.get('name') != 'Authorized Small Multimodal Batch':
+              raise SystemExit('source run is not the authorized paid generation workflow')
+          if run.get('event') != 'workflow_dispatch':
+              raise SystemExit('source run was not manually dispatched')
+          if run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']:
+              raise SystemExit('source run belongs to another repository')
+          if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+              raise SystemExit('source run must be completed successfully')
+          PY
+
+          mkdir -p artifacts/source
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "authorized-small-batch-${SOURCE_RUN_ID}" \
+            --dir artifacts/source
+
+      - name: Verify package checksums and generation authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path('artifacts/source')
+          metadata_path = root / 'batch-metadata.json'
+          checksums_path = root / 'checksums.json'
+          if not metadata_path.is_file() or not checksums_path.is_file():
+              raise SystemExit('source package is missing metadata or checksums')
+
+          metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+          expected = {
+              'schemaVersion': '1.1.0',
+              'workflow': 'Authorized Small Multimodal Batch',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'runId': int(os.environ['SOURCE_RUN_ID']),
+              'headSha': os.environ['EXPECTED_ASSET_FACTORY_SHA'],
+              'version': os.environ['URAI_VERSION'],
+              'approvalId': os.environ['EXPECTED_APPROVAL_ID'],
+              'authorizationRevision': os.environ['EXPECTED_AUTHORIZATION_REVISION'],
+              'complete': True,
+              'promotionAttempted': False,
+          }
+          for key, value in expected.items():
+              if metadata.get(key) != value:
+                  raise SystemExit(f'source package metadata mismatch for {key}')
+
+          declared = json.loads(checksums_path.read_text(encoding='utf-8'))
+          if declared.get('schemaVersion') != '1.0.0' or not isinstance(declared.get('files'), dict):
+              raise SystemExit('unsupported source checksum manifest')
+          actual = {}
+          for path in sorted(p for p in root.rglob('*') if p.is_file() and p != checksums_path):
+              actual[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != declared['files']:
+              raise SystemExit('source artifact checksum set does not match exact package contents')
+
+          source = root / 'image_asset_generator'
+          for directory in ('assets', 'manifests/generated', 'spatial_handoff'):
+              candidate = source / directory
+              if candidate.is_dir():
+                  shutil.copytree(candidate, Path('image_asset_generator') / directory, dirs_exist_ok=True)
+          for candidate in source.glob('*.json'):
+              shutil.copy2(candidate, Path('image_asset_generator') / candidate.name)
+          PY
+
+      - name: Require promotion-ready rights and human approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python multimodal/validate_rights.py --require-promotion-ready
+          python image_asset_generator/certify_version_handoff.py \
+            --version "$URAI_VERSION" \
+            --require-promotion-clearance \
+            --creative-approval "creative-review/approvals/${URAI_VERSION}.json"
+          VERSION="$URAI_VERSION" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          receipt = json.loads(Path(f"image_asset_generator/dropin_receipt_{os.environ['VERSION']}.json").read_text())
+          if receipt.get('status') != 'certified' or receipt.get('certified') is not True or receipt.get('promotionEligible') is not True:
+              raise SystemExit('promotion certificate is not fully cleared')
+          PY
+
+      - name: Check out exact Spatial promotion base
+        uses: actions/checkout@v4
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: ${{ inputs.expected_spatial_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: spatial
+
+      - name: Create and push narrow reviewed promotion branch
+        id: promote
+        working-directory: spatial
+        env:
+          URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$URAI_WHEEL_GITHUB_TOKEN"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SPATIAL_SHA"
+          source_manifest="../image_asset_generator/spatial_handoff/assets/urai/final/manifests/${URAI_VERSION}-asset-factory-spatial-handoff.json"
+          test -f "$source_manifest"
+          rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
+          branch="asset-factory/${URAI_VERSION}-reviewed-${SOURCE_RUN_ID}"
+          git config user.name 'URAI Production Wheel'
+          git config user.email 'urai-wheel@users.noreply.github.com'
+          git checkout -b "$branch"
+          git add urai-tier1/public/assets/urai
+          git diff --cached --quiet && { echo '::error::No reviewed asset changes were produced'; exit 1; }
+          git commit -m "Promote reviewed ${URAI_VERSION} asset batch"
+          git config credential.helper '!f() { echo username=x-access-token; echo password=$URAI_WHEEL_GITHUB_TOKEN; }; f'
+          git push origin "$branch"
+          git config --unset credential.helper
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "promotion_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open reviewed Spatial promotion PR
+        working-directory: spatial
+        env:
+          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          BRANCH: ${{ steps.promote.outputs.branch }}
+          PROMOTION_COMMIT: ${{ steps.promote.outputs.promotion_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr create --base main --head "$BRANCH" \
+            --title "Promote reviewed ${URAI_VERSION^^} asset batch" \
+            --body "Promotes the separately generated and human-reviewed ${URAI_VERSION^^} asset package from Asset Factory run ${SOURCE_RUN_ID}.
+
+          Evidence boundaries:
+          - Asset Factory generation SHA: ${EXPECTED_ASSET_FACTORY_SHA}
+          - Approval evidence commit: ${APPROVAL_COMMIT_SHA}
+          - Spatial reviewed base SHA: ${EXPECTED_SPATIAL_SHA}
+          - Spatial promotion commit: ${PROMOTION_COMMIT}
+          - Rights validator: promotion-ready
+          - Creative review: exact-hash human approval
+
+          This workflow opens a PR only. Merge, deployment, and live route claims remain separately gated."
+
+      - name: Upload promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-promotion-evidence-${{ inputs.version }}-${{ inputs.source_run_id }}
+          retention-days: 365
+          if-no-files-found: error
+          path: |
+            artifacts/source/batch-metadata.json
+            artifacts/source/checksums.json
+            multimodal/rights-ledger.json
+            multimodal/rights-validation-report.json
+            creative-review/approvals/${{ inputs.version }}.json
+            image_asset_generator/dropin_receipt_${{ inputs.version }}.json
