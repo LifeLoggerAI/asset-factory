@@ -1,0 +1,124 @@
+{
+  "receipt_id": "URAI-WSC-20260711-ASSET-CLEAN-019",
+  "utc_timestamp": "2026-07-11T17:45:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "3ccdb4c15526ae3d7aac70cc03661585ebfd0c12",
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "prior_candidate_head": "6c72879ede899c594635b906a3197aa41f011b85",
+  "exact_final_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/172",
+  "ancestry": {
+    "current_main_is_ancestor": true,
+    "ahead_by_before_receipt": 42,
+    "behind_by_before_receipt": 0,
+    "merge_base": "3ccdb4c15526ae3d7aac70cc03661585ebfd0c12"
+  },
+  "review_remediation": {
+    "all_review_threads_resolved": true,
+    "core_unit_import_p1": {
+      "status": "fixed",
+      "commit": "17d31e93e53aaa818c1003dfff3aaa2a47aefc01",
+      "control": "assetFactoryValidation catalog imports preserve resolveAssetType while matching the active test rewrite",
+      "tests_reached": [
+        "Stripe entitlement parsing",
+        "queue requeue behavior",
+        "paid-looking environment remains local-proof",
+        "paid provider assertion rejects",
+        "provider runtime returns null",
+        "zero network fetches"
+      ]
+    },
+    "ignored_root_lock_p1": {
+      "status": "fixed",
+      "commit": "6c72879ede899c594635b906a3197aa41f011b85",
+      "control": "tracked contract modifications are verified independently from the intentionally ignored generated package-lock.json",
+      "unexpected_tracked_changes_rejected": true,
+      "unexpected_nonignored_untracked_files_rejected": true,
+      "package_lock_must_exist_and_be_nonempty": true,
+      "artifact_scope_widened": false
+    },
+    "root_manifest_identity_p2": {
+      "status": "fixed",
+      "source_sha": "EXPECTED_HEAD",
+      "workflow_sha": "GITHUB_SHA recorded separately"
+    }
+  },
+  "current_main_preserved": {
+    "consumed_paid_marker_cleanup_merge": "2ecf092223b6773242548db0df7e86b558ded210",
+    "paid_marker_workflow_present": false,
+    "paid_authorization_marker_present": false,
+    "v1_integrity_workflow": true,
+    "v1_post_certification_workflow": true,
+    "v1_read_only_run_discovery_workflow": true,
+    "v1_bounded_forge_runner": true,
+    "v1_spatial_prompt_contract": true
+  },
+  "no_spend_authority": {
+    "studio_paid_runtime_enabled": false,
+    "studio_paid_authorized": false,
+    "studio_paid_execution_authorized": false,
+    "studio_selected_provider": "local-proof",
+    "paid_adapters_executable": false,
+    "atomic_one_time_ledger_required": true,
+    "atomic_one_time_ledger_configured": false,
+    "environment_only_authorization_prohibited": true,
+    "planner_dispatch_authorized": false,
+    "planner_max_provider_calls": 0,
+    "planner_planned_provider_calls": 0,
+    "planner_max_total_exposure_usd": 0,
+    "provider_call_by_candidate": "not run",
+    "spend_authorized_by_candidate": false
+  },
+  "root_lock_contract": {
+    "status": "new exact-head workflow required after this receipt commit",
+    "node": "20.19.5",
+    "npm": "10.9.2",
+    "registry": "https://registry.npmjs.org",
+    "lockfile_version": 3,
+    "source_identity": "EXPECTED_HEAD",
+    "manifest_schema": "urai-root-lock-contract-2",
+    "frozen_install_required": true,
+    "high_severity_audit_required": true,
+    "exact_five_file_artifact_scope": true,
+    "workflow_can_push": false,
+    "package_lock_committed": false
+  },
+  "v1_historical_run_discovery": {
+    "issue": "https://github.com/LifeLoggerAI/asset-factory/issues/179",
+    "marker_sha": "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+    "discovery_run": 29161799261,
+    "discovery_job": 86568022961,
+    "status": "queued",
+    "runner": "unassigned",
+    "historical_generation_run_id": null,
+    "v1_pack_success_claimed": false,
+    "rerun_authorized": false
+  },
+  "verification": {
+    "all_pre_receipt_runs_stale": true,
+    "new_exact_head_runs_required": true,
+    "root_package_lock_committed": false,
+    "provider_call": "not run",
+    "promotion": "not run",
+    "deployment": "not run"
+  },
+  "remaining_blockers": [
+    "GitHub-hosted runner assignment for receipt-head workflows",
+    "successful Full Multimodal Asset Audit",
+    "successful Offline Evidence Package",
+    "successful audited root lock generation and independent artifact hash verification",
+    "verified commit of package-lock.json and declared root-lock contract files",
+    "removal of temporary root-lock workflow and migration helper",
+    "successful complete final-head repository suite after cleanup",
+    "historical V1 generation and post-certification receipt discovery",
+    "dependency lock, SBOM and license closure",
+    "rights, consent, likeness and legal clearance",
+    "exact-hash human creative review",
+    "immutable promotion, deployment, rollback and live deployed-SHA evidence"
+  ],
+  "status": "CURRENT MAIN RECONCILED — ALL REVIEW THREADS RESOLVED — TWO CURRENT P1 DEFECTS REMEDIATED — NEW EXACT-HEAD EXECUTION EVIDENCE REQUIRED",
+  "rollback": "Close PR #172 unmerged. Current main, consumed-trigger cleanup, V1 controls and prior receipts remain preserved.",
+  "exact_next_action": "Require all workflows on the resulting receipt head to execute. Verify root-lock and historical V1 discovery evidence before accepting claims or committing generated files."
+}
