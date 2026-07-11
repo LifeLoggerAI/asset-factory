@@ -9,7 +9,7 @@ type AssetSize = {
   height?: number;
 };
 
-type RendererMode = 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'manifest-only';
+type RendererMode = 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'video-animatic' | 'manifest-only';
 
 function escapeSvgText(value: unknown): string {
   return String(value ?? '')
@@ -23,6 +23,12 @@ function escapeSvgText(value: unknown): string {
 function finiteDimension(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? Math.round(value)
+    : fallback;
+}
+
+function finitePositive(value: unknown, fallback: number, maximum: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(value, maximum)
     : fallback;
 }
 
@@ -172,6 +178,77 @@ function renderAudio(input: GenerateRequest & Record<string, unknown>, sampleRat
   return { buffer, frequency };
 }
 
+function renderVideoAnimatic(input: GenerateRequest & Record<string, unknown>, width: number, height: number) {
+  const metadata = (input.metadata ?? {}) as Record<string, unknown>;
+  const durationSeconds = finitePositive(metadata.durationSeconds, 6, 90);
+  const fps = Math.round(finitePositive(metadata.fps, 24, 60));
+  const sourceShots = Array.isArray(metadata.shots)
+    ? metadata.shots.filter((shot) => shot && typeof shot === 'object').slice(0, 24) as Record<string, unknown>[]
+    : [];
+  const fallbackShots: Record<string, unknown>[] = [
+    { prompt: `Opening image: ${input.prompt}`, camera: 'slow push-in', caption: '' },
+    { prompt: `Transformation and product behavior: ${input.prompt}`, camera: 'controlled reveal', caption: '' },
+    { prompt: `Resolution and final lockup: ${input.prompt}`, camera: 'settle to still frame', caption: '' },
+  ];
+  const shots = sourceShots.length ? sourceShots : fallbackShots;
+  const weights = shots.map((shot) => finitePositive(shot.durationSeconds, 1, durationSeconds));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let cursor = 0;
+  const normalizedShots = shots.map((shot, index) => {
+    const isLast = index === shots.length - 1;
+    const shotDuration = isLast
+      ? Math.max(0.001, durationSeconds - cursor)
+      : Math.max(0.001, Number(((durationSeconds * weights[index]) / totalWeight).toFixed(3)));
+    const startSeconds = Number(cursor.toFixed(3));
+    cursor += shotDuration;
+    const endSeconds = Number(Math.min(durationSeconds, cursor).toFixed(3));
+    return {
+      id: typeof shot.id === 'string' && shot.id ? shot.id : `shot-${String(index + 1).padStart(2, '0')}`,
+      startSeconds,
+      endSeconds,
+      durationSeconds: Number((endSeconds - startSeconds).toFixed(3)),
+      prompt: typeof shot.prompt === 'string' && shot.prompt ? shot.prompt : input.prompt,
+      camera: typeof shot.camera === 'string' ? shot.camera : 'locked respectful observer',
+      caption: typeof shot.caption === 'string' ? shot.caption : '',
+      transition: typeof shot.transition === 'string' ? shot.transition : index === 0 ? 'fade-in' : 'cut',
+      seed: stableHash({ jobId: input.jobId, index, shot }),
+    };
+  });
+  const payload = {
+    schema: 'urai-video-animatic-1',
+    status: 'proof-only',
+    productionReady: false,
+    jobId: input.jobId,
+    tenantId: input.tenantId ?? 'default',
+    title: typeof metadata.title === 'string' ? metadata.title : input.prompt,
+    prompt: input.prompt,
+    aspectRatio: input.aspectRatio ?? `${width}:${height}`,
+    dimensions: { width, height },
+    durationSeconds,
+    fps,
+    totalFrames: Math.round(durationSeconds * fps),
+    shots: normalizedShots,
+    audio: {
+      voiceoverRef: typeof metadata.voiceoverRef === 'string' ? metadata.voiceoverRef : null,
+      musicRef: typeof metadata.musicRef === 'string' ? metadata.musicRef : null,
+      mixStatus: 'not-rendered',
+    },
+    accessibility: {
+      captionsRequired: metadata.captionsRequired !== false,
+      audioDescriptionRequired: metadata.audioDescriptionRequired === true,
+      reducedMotionRequired: metadata.reducedMotionRequired === true,
+    },
+    provider: null,
+    note: 'Deterministic animatic contract artifact. It is not a finished video and must not be promoted as provider-rendered footage.',
+  };
+  return {
+    buffer: Buffer.from(JSON.stringify(payload, null, 2)),
+    durationSeconds,
+    fps,
+    shotCount: normalizedShots.length,
+  };
+}
+
 function renderBundle(input: GenerateRequest & Record<string, unknown>) {
   const metadata = input.metadata as Record<string, unknown> | undefined;
   const assets = Array.isArray(metadata?.assets) ? metadata.assets : [];
@@ -232,6 +309,30 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
     const durationSeconds = Number((input.metadata as Record<string, unknown> | undefined)?.durationSeconds ?? definition.defaultDurationSeconds ?? 2);
     const rendered = renderAudio(input, sampleRate, durationSeconds);
     const manifest = buildManifest(input, { rendererMode: definition.rendererMode, formats: definition.formats, width: 0, height: 0, previewPath: null, metadata: { format, audio: { sampleRate, channels: 1, durationSeconds, proofToneHz: rendered.frequency } } });
+    return { ok: true as const, assetBuffer: rendered.buffer, assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
+  }
+
+  if (definition.canonicalType === 'video') {
+    const rendered = renderVideoAnimatic(input, width, height);
+    const manifest = buildManifest(input, {
+      rendererMode: definition.rendererMode,
+      formats: definition.formats,
+      width,
+      height,
+      previewPath: null,
+      metadata: {
+        requestedFormat: format,
+        artifactFormat: 'animatic',
+        providerBacked: false,
+        video: {
+          durationSeconds: rendered.durationSeconds,
+          fps: rendered.fps,
+          shotCount: rendered.shotCount,
+          productionReady: false,
+        },
+      },
+      rendererContract: 'deterministic-video-animatic-v1',
+    });
     return { ok: true as const, assetBuffer: rendered.buffer, assetMimeType: definition.mimeType, assetFileName, manifest, mode: definition.rendererMode };
   }
 
