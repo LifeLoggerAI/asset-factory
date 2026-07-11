@@ -1,13 +1,19 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "policy": {
     "credentialsDoNotImplyExecutionReadiness": true,
     "paidDispatchRequiresExactApproval": true,
+    "paidDispatchRequiresExactHead": true,
+    "paidDispatchRequiresAssetScope": true,
+    "paidAuthorizationMustExpire": true,
     "duplicatePaidDispatchProhibited": true,
     "localProofIsNotProductionMedia": true,
     "requiredAuthorizationEnv": [
       "ASSET_FACTORY_ENABLE_PAID_MEDIA",
       "ASSET_FACTORY_PAID_APPROVAL_ID",
+      "ASSET_FACTORY_PAID_APPROVAL_SHA",
+      "ASSET_FACTORY_PAID_AUTHORIZATION_EXPIRES_AT",
+      "ASSET_FACTORY_PAID_ASSET_IDS",
       "ASSET_FACTORY_PAID_MAX_COST_CENTS"
     ]
   },
