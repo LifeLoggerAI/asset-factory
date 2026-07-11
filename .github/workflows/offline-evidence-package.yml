@@ -1,0 +1,85 @@
+name: Offline Evidence Package
+
+on:
+  push:
+    branches: [agent/full-multimodal-asset-completion]
+    paths:
+      - 'scripts/build_creative_review.py'
+      - 'scripts/build_accessibility_media.py'
+      - 'scripts/build_xr_test_packet.py'
+      - 'runner-repair/**'
+      - '.github/workflows/offline-evidence-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deterministic dependencies
+        run: python -m pip install --disable-pip-version-check Pillow==11.3.0 jsonschema==4.25.1
+      - name: Record environment
+        run: |
+          mkdir -p verification receipts
+          python --version | tee verification/tool-versions.txt
+          python -m pip freeze >> verification/tool-versions.txt
+          printf '{"headSha":"%s","runId":"%s","runner":"%s"}\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$RUNNER_OS" > verification/environment.json
+      - name: Static checks
+        run: python -m py_compile scripts/build_creative_review.py scripts/build_accessibility_media.py scripts/build_xr_test_packet.py
+      - name: Build evidence packages
+        run: |
+          python scripts/build_creative_review.py
+          python scripts/build_accessibility_media.py
+          python scripts/build_xr_test_packet.py
+      - name: Validate JSON and CSV
+        run: |
+          find creative-review accessibility xr-test-packet runner-repair -name '*.json' -print0 | xargs -0 -n1 python -m json.tool >/dev/null
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p=Path('xr-test-packet/test-cases.csv')
+          rows=list(csv.DictReader(p.open()))
+          assert rows and set(rows[0])=={'test_id','area','procedure','expected_result','status'}
+          assert all(r['status']=='ready_for_execution' for r in rows)
+          print(f'XR_ROWS={len(rows)}')
+          PY
+      - name: Rebuild determinism check
+        run: |
+          find creative-review accessibility xr-test-packet -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/first.sha256
+          python scripts/build_creative_review.py >/dev/null
+          python scripts/build_accessibility_media.py >/dev/null
+          python scripts/build_xr_test_packet.py >/dev/null
+          find creative-review accessibility xr-test-packet -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/second.sha256
+          diff -u /tmp/first.sha256 /tmp/second.sha256
+          cp /tmp/second.sha256 verification/generated-checksums.sha256
+      - name: Write verification receipt
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          receipt={'schemaVersion':'1.0.0','repository':os.getenv('GITHUB_REPOSITORY'),'commit':os.getenv('GITHUB_SHA'),'status':'verified_pass','packages':['creative-review','accessibility','xr-test-packet','runner-repair'],'attestationBoundary':'Physical XR, human creative approval, paid generation, and deployment are not performed by this workflow.'}
+          Path('receipts/completion-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-evidence-${{ github.sha }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            creative-review/
+            accessibility/
+            xr-test-packet/
+            runner-repair/
+            verification/
+            receipts/
