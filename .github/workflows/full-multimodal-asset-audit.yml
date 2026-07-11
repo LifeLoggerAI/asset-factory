@@ -118,7 +118,7 @@ jobs:
         with:
           name: full-multimodal-control-plane-${{ github.event.pull_request.head.sha || github.sha }}
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
           path: |
             multimodal/full-multimodal-asset-manifest.json
             multimodal/validation-report.json
