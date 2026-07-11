@@ -15,6 +15,7 @@ concurrency:
 
 env:
   APPROVAL_ID: urai-multimodal-2026-07-11
+  AUTHORIZATION_REVISION: '2'
   ASSET_RENDERER_PROVIDER: openai
   ASSET_RENDERER_MODE: provider
   ASSET_RENDERER_MODEL: gpt-image-1.5
@@ -68,6 +69,7 @@ jobs:
           if calls * unit > total:
               raise SystemExit('declared exposure exceeds hard total ceiling')
           print('APPROVAL_ID=urai-multimodal-2026-07-11')
+          print('AUTHORIZATION_REVISION=2')
           print('MAX_EXPOSURE_USD=200.00')
           PY
 
