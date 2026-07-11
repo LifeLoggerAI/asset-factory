@@ -1,0 +1,141 @@
+name: GitHub Artifact Credential Isolation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/github-artifact-download-security.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-safe-resume-control-validation.yml
+      - image_asset_generator/check_v1_safe_resume_history.py
+      - scripts/github_artifact_download.py
+      - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
+      - scripts/v1_safe_resume_preflight.py
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/github-artifact-download-security.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-safe-resume-control-validation.yml
+      - image_asset_generator/check_v1_safe_resume_history.py
+      - scripts/github_artifact_download.py
+      - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
+      - scripts/v1_safe_resume_preflight.py
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artifact-credential-isolation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify redirect credential isolation
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/urai-security-pycache-${{ github.run_id }}
+    steps:
+      - name: Checkout exact reviewed head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Prove exact head and clean tree
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Compile and execute security regressions
+        run: |
+          python3 -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
+            scripts/v1_safe_resume_preflight.py
+          python3 scripts/test-github-artifact-download.py
+          python3 scripts/test-v1-safe-resume-preflight.py
+
+      - name: Verify consumed and vulnerable paths are absent
+        run: |
+          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+          test ! -e image_asset_generator/check_v1_safe_resume_history.py
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
+
+      - name: Verify v3 is separately authorized and credential-isolated
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
+          required = [
+              'authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
+              'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
+              'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
+              '4dc05a67746e189054609e405ca3801683ab5445',
+              '0cf837d585d3d1c1d8e171938037098c72230c22',
+              'scripts/test-github-artifact-download.py',
+              'scripts/v1_safe_resume_preflight.py',
+              'scripts/github_artifact_download.py',
+              '--extract-basename home-threshold-main_1600.png',
+              'environment: paid-asset-generation',
+              "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
+              "ASSET_FORGE_MAX_COST_USD: '47.00'",
+          ]
+          for marker in required:
+              assert marker in workflow, marker
+          assert 'curl --fail-with-body --location' not in workflow
+          assert 'unzip -q' not in workflow
+          before_execute, execute_section = workflow.split('\n  execute:\n', 1)
+          assert 'secrets.' not in before_execute
+          assert 'OPENAI_API_KEY:' in execute_section
+          assert 'secrets.OPENAI_API_KEY' in execute_section
+          PY
+
+      - name: Verify validation uses the safe inspector and complete history
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          validation = Path('.github/workflows/v1-safe-resume-control-validation.yml').read_text()
+          assert 'python image_asset_generator/check_v1_safe_resume_history.py' not in validation
+          assert 'python3 image_asset_generator/check_v1_safe_resume_history.py' not in validation
+          assert 'scripts/v1_safe_resume_preflight.py' in validation
+          assert 'scripts/test-v1-safe-resume-preflight.py' in validation
+          assert '0cf837d585d3d1c1d8e171938037098c72230c22' in validation
+          PY
+
+      - name: Verify authenticated and storage requests are separated
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('scripts/github_artifact_download.py').read_text()
+          assert 'class NoRedirect' in source
+          assert 'storage_request = urllib.request.Request' in source
+          storage = source.split('storage_request = urllib.request.Request', 1)[1].split('with urllib.request.urlopen', 1)[0]
+          assert 'Authorization' not in storage
+          assert 'X-GitHub-Api-Version' not in storage
+          assert 'parsed.scheme != "https"' in source
+          assert 'extract_unique_member_by_basename' in source
+          assert 'file_type != stat.S_IFREG' in source
+          PY
+
+      - name: Final clean-tree proof
+        run: test -z "$(git status --porcelain)"

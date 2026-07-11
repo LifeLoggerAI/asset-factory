@@ -3,19 +3,25 @@ name: V1 Safe Resume Control Validation
 on:
   pull_request:
     paths:
-      - image_asset_generator/check_v1_safe_resume_history.py
-      - image_asset_generator/post_certify_v1_spatial_pack.py
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
-      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/check_v1_safe_resume_history.py
+      - scripts/github_artifact_download.py
+      - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
+      - scripts/v1_safe_resume_preflight.py
   push:
     branches: [main]
     paths:
-      - image_asset_generator/check_v1_safe_resume_history.py
-      - image_asset_generator/post_certify_v1_spatial_pack.py
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
-      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/check_v1_safe_resume_history.py
+      - scripts/github_artifact_download.py
+      - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
+      - scripts/v1_safe_resume_preflight.py
 
 permissions:
   actions: read
@@ -27,8 +33,10 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/urai-v1-control-pycache-${{ github.run_id }}
     steps:
       - name: Checkout exact reviewed head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -37,26 +45,43 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
       - name: Prove exact source and clean tree
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -z "$(git status --porcelain)"
+          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+          test ! -e image_asset_generator/check_v1_safe_resume_history.py
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
 
-      - name: Compile and self-test inspectors
+      - name: Compile and execute safe-control regressions
         run: |
-          python3 -m py_compile image_asset_generator/check_v1_safe_resume_history.py image_asset_generator/post_certify_v1_spatial_pack.py
-          python3 image_asset_generator/check_v1_safe_resume_history.py --self-test
+          python3 -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
+            scripts/v1_safe_resume_preflight.py
+          python3 scripts/test-github-artifact-download.py
+          python3 scripts/test-v1-safe-resume-preflight.py
 
       - name: Prove historical runs contain no generation evidence
         id: inspect
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 image_asset_generator/check_v1_safe_resume_history.py \
+          python3 scripts/v1_safe_resume_preflight.py \
+            --repository "$GITHUB_REPOSITORY" \
             --marker-sha bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5 \
             --marker-sha de27f2f36aa1ca73d504e5dffed99161078fb0c8 \
             --marker-sha 4dc05a67746e189054609e405ca3801683ab5445 \
+            --marker-sha 0cf837d585d3d1c1d8e171938037098c72230c22 \
             --output artifacts/preflight/v1-safe-resume-control-validation.json
 
       - name: Confirm no-spend proof output
@@ -67,6 +92,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: v1-safe-resume-control-${{ github.event.pull_request.head.sha || github.sha }}
-          retention-days: 30
+          retention-days: 365
           if-no-files-found: error
           path: artifacts/preflight/*.json
