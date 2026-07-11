@@ -10,7 +10,9 @@
   "base_sha": "77c3b8a39945b095238516c1e0abf68f5f00e48a",
   "branch": "ws-e/pin-paid-forge-actions-20260711",
   "control_change_commit_sha": "9d0b8208e2e64245a4f4b3e4f32b9d50e69c71bc",
-  "exact_pr_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "prior_pr_head": "246a9dac247cec57c48a24780ffe50b9d57264d6",
+  "exact_pr_head": "Recorded in pull request metadata after this receipt update to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/167",
   "related_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
   "changed_files": [
     ".github/workflows/canonical-version-forge.yml",
@@ -40,7 +42,7 @@
   "license_impact": "No dependency, asset license, attribution, or lockfile content changed.",
   "tests": {
     "connector_static_review": "completed",
-    "critical_workflow_integrity_exact_head": "pending GitHub Actions execution",
+    "critical_workflow_integrity_exact_head": "pending GitHub Actions execution; no run was attached to prior PR head or synthetic merge SHA when checked",
     "provider_call": "not run",
     "promotion": "not run"
   },
@@ -52,5 +54,5 @@
   ],
   "status": "IMPLEMENTED — EXACT-HEAD VERIFICATION PENDING",
   "rollback": "Revert only this focused pull request. Do not restore mutable action tags, automatic promotion, unverified source identity, broad secret access, or auto-merge.",
-  "exact_next_action": "Open the focused draft pull request, inspect the exact-head Critical Workflow Integrity run, and retain the external GitHub settings evidence items on issue #159 until independently verified."
+  "exact_next_action": "Inspect the refreshed exact-head Critical Workflow Integrity run if GitHub schedules it; otherwise keep PR #167 draft and retain the external GitHub settings evidence items on issue #159 until independently verified."
 }
