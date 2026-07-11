@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 LEDGER = ROOT / "rights-ledger.json"
+MANIFEST = ROOT / "full-multimodal-asset-manifest.json"
 REPORT = ROOT / "rights-validation-report.json"
 REQUIRED = {
     "provider-terms", "source-attribution", "commercial-rights", "music-license",
@@ -34,11 +35,61 @@ def parse_expiration(value: object, record_id: str) -> datetime | None:
     normalized = value.strip().replace("Z", "+00:00")
     try:
         parsed = datetime.fromisoformat(normalized)
-    except ValueError as error:
+    except ValueError:
         fail(f"{record_id}: expiresAt must be ISO-8601")
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def requirement_list(asset: dict[str, object], key: str) -> list[str]:
+    value = asset.get(key)
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
+def load_manifest_scope() -> dict[str, object]:
+    if not MANIFEST.is_file():
+        return {
+            "available": False,
+            "generalConsentAssetIds": [],
+            "voiceConsentAssetIds": [],
+            "likenessConsentAssetIds": [],
+        }
+
+    try:
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"manifest scope cannot be read: {error}")
+    assets = manifest.get("assets") if isinstance(manifest, dict) else None
+    if not isinstance(assets, list):
+        fail("manifest scope requires an assets list")
+
+    general: set[str] = set()
+    voice: set[str] = set()
+    likeness: set[str] = set()
+    for index, raw in enumerate(assets):
+        if not isinstance(raw, dict):
+            fail(f"manifest asset {index} must be an object")
+        asset_id = raw.get("assetId")
+        if not isinstance(asset_id, str) or not asset_id.strip():
+            fail(f"manifest asset {index} has no assetId")
+        consent_requirements = requirement_list(raw, "consentRequirements")
+        likeness_requirements = requirement_list(raw, "likenessRequirements")
+        if consent_requirements:
+            general.add(asset_id)
+        if any("voice" in requirement.lower() for requirement in consent_requirements + likeness_requirements):
+            voice.add(asset_id)
+        if likeness_requirements:
+            likeness.add(asset_id)
+
+    return {
+        "available": True,
+        "generalConsentAssetIds": sorted(general),
+        "voiceConsentAssetIds": sorted(voice),
+        "likenessConsentAssetIds": sorted(likeness),
+    }
 
 
 def main() -> None:
@@ -113,25 +164,56 @@ def main() -> None:
     if extra:
         fail(f"unexpected records: {extra}")
 
-    blocking_ids = sorted(
+    blocking_ids = {
         record_id
         for record_id in REQUIRED
         if by_id[record_id].get("status") not in PROMOTABLE_STATUSES or record_id in expired_ids
-    )
-    promotion_allowed = not blocking_ids
+    }
+
+    manifest_scope = load_manifest_scope()
+    scope_contradictions: list[str] = []
+    if manifest_scope["available"] is not True:
+        blocking_ids.add("manifest-scope")
+    else:
+        scoped_records = {
+            "voice-consent": manifest_scope["voiceConsentAssetIds"],
+            "likeness-consent": manifest_scope["likenessConsentAssetIds"],
+        }
+        for record_id, asset_ids in scoped_records.items():
+            if not asset_ids:
+                continue
+            status = by_id[record_id].get("status")
+            if status == "not-applicable":
+                scope_contradictions.append(record_id)
+            if status != "verified":
+                blocking_ids.add(record_id)
+
+    blocking = sorted(blocking_ids)
+    promotion_allowed = not blocking
     report = {
-        "schemaVersion": "1.1.0",
+        "schemaVersion": "1.2.0",
         "ledger": str(LEDGER.relative_to(ROOT.parent)),
         "ledgerSha256": hashlib.sha256(LEDGER.read_bytes()).hexdigest(),
+        "manifest": str(MANIFEST.relative_to(ROOT.parent)),
+        "manifestSha256": hashlib.sha256(MANIFEST.read_bytes()).hexdigest() if MANIFEST.is_file() else None,
         "records": len(records),
         "statusCounts": status_counts,
         "structurallyValid": True,
         "promotionAllowed": promotion_allowed,
         "rightsReady": promotion_allowed,
-        "blockingRecordIds": blocking_ids,
+        "blockingRecordIds": blocking,
         "expiredRecordIds": sorted(expired_ids),
+        "scopeContradictions": sorted(scope_contradictions),
+        "manifestConsentScope": {
+            "available": manifest_scope["available"],
+            "generalConsentAssetCount": len(manifest_scope["generalConsentAssetIds"]),
+            "voiceConsentAssetCount": len(manifest_scope["voiceConsentAssetIds"]),
+            "likenessConsentAssetCount": len(manifest_scope["likenessConsentAssetIds"]),
+            "voiceConsentAssetIds": manifest_scope["voiceConsentAssetIds"],
+            "likenessConsentAssetIds": manifest_scope["likenessConsentAssetIds"],
+        },
         "claimBoundary": (
-            "Rights ledger structure is valid and promotion rights are complete."
+            "Rights ledger structure and manifest consent scope are valid and promotion rights are complete."
             if promotion_allowed
             else "Rights ledger structure is valid, but promotion and certification remain blocked."
         ),
@@ -140,7 +222,7 @@ def main() -> None:
     print(json.dumps(report, indent=2))
 
     if args.require_promotion_ready and not promotion_allowed:
-        fail(f"promotion blocked by records: {blocking_ids}")
+        fail(f"promotion blocked by records: {blocking}")
 
 
 if __name__ == "__main__":
