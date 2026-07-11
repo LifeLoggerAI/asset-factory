@@ -95,10 +95,14 @@ jobs:
           import json
           from pathlib import Path
           plan = json.loads(Path('multimodal/paid-dispatch-plan.json').read_text())
+          registry = json.loads(Path('multimodal/provider-registry.json').read_text())
           if plan.get('dispatchAuthorized') is not False:
               raise SystemExit('audit must not authorize paid dispatch')
-          if not plan.get('authorizationBlockers'):
-              raise SystemExit('blocked plan must record blockers')
+          if plan.get('atomicLedgerConfigured') is not False:
+              raise SystemExit('audit must report atomic paid ledger unavailable')
+          blockers = plan.get('authorizationBlockers') or []
+          if 'atomic one-time authorization and consumption ledger is not implemented' not in blockers:
+              raise SystemExit('blocked plan must include the atomic ledger blocker')
           budget = plan.get('budget', {})
           if budget.get('maxProviderCalls') != 0 or budget.get('plannedProviderCalls') != 0:
               raise SystemExit('audit must expose zero provider calls')
@@ -107,7 +111,16 @@ jobs:
           safety = plan.get('safety', {})
           if safety.get('providerCallsMadeByPlanner') != 0 or safety.get('costUsedByPlannerUsd') != 0:
               raise SystemExit('planner executed or spent')
-          print(json.dumps({'dispatchAuthorized': False, 'providerCalls': 0, 'approvedSpendUsd': 0}, indent=2))
+          if safety.get('environmentOnlyAuthorizationProhibited') is not True:
+              raise SystemExit('environment-only authorization must be prohibited')
+          policy = registry.get('policy', {})
+          if policy.get('paidRuntimeEnabled') is not False:
+              raise SystemExit('provider registry must keep paid runtime disabled')
+          if policy.get('atomicOneTimeLedgerRequired') is not True or policy.get('atomicOneTimeLedgerConfigured') is not False:
+              raise SystemExit('provider registry atomic ledger policy is inconsistent')
+          if policy.get('planningInputsCannotAuthorizeDispatch') is not True:
+              raise SystemExit('provider registry must reject planning inputs as authorization')
+          print(json.dumps({'dispatchAuthorized': False, 'providerCalls': 0, 'approvedSpendUsd': 0, 'atomicLedgerConfigured': False}, indent=2))
           PY
           node scripts/test-asset-factory-multimodal.mjs
           node scripts/test-paid-provider-authorization.mjs
