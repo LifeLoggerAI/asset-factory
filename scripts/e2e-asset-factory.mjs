@@ -59,6 +59,20 @@ const cases = [
   { type: 'graphic', prompt: 'e2e graphic proof', expectedExtension: '.svg' },
   { type: 'model3d', prompt: 'e2e model proof', expectedExtension: '.gltf' },
   { type: 'audio', prompt: 'e2e sound proof', metadata: { durationSeconds: 1 }, expectedExtension: '.wav' },
+  {
+    type: 'video',
+    prompt: 'e2e Waiting Room video animatic proof',
+    metadata: {
+      durationSeconds: 3,
+      fps: 24,
+      shots: [
+        { prompt: 'A person reaches a doorway', camera: 'slow push-in', caption: 'The doorway exists.' },
+        { prompt: 'The doorway opens into URAI', camera: 'controlled reveal', caption: 'Step inside.' },
+      ],
+      captionsRequired: true,
+    },
+    expectedExtension: '.animatic',
+  },
   { type: 'bundle', prompt: 'e2e bundle proof', metadata: { assets: [] }, expectedExtension: '.json' },
 ];
 
@@ -93,6 +107,11 @@ async function exerciseCase(testCase) {
 
   const fetched = await request(`/api/generated-assets/${asset.fileName}`);
   if (!fetched.body) throw new Error(`${testCase.type} generated asset fetch returned empty body`);
+  if (testCase.type === 'video') {
+    if (fetched.body?.schema !== 'urai-video-animatic-1') throw new Error('video animatic schema mismatch');
+    if (fetched.body?.productionReady !== false) throw new Error('video proof must fail closed as non-production');
+    if (!Array.isArray(fetched.body?.shots) || fetched.body.shots.length !== 2) throw new Error('video animatic shots missing');
+  }
 
   const published = await requestJson(`/api/jobs/${jobId}/publish`, { method: 'POST' });
   if (!published?.asset?.published) throw new Error(`${testCase.type} publish failed`);
