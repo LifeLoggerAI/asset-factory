@@ -1,0 +1,113 @@
+{
+  "receipt_id": "URAI-WSC-20260711-ASSET-CLEAN-018",
+  "utc_timestamp": "2026-07-11T17:38:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "3ccdb4c15526ae3d7aac70cc03661585ebfd0c12",
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "prior_candidate_head": "417d741552385a7884e3fc8da124fdd6cb65653a",
+  "exact_final_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/172",
+  "ancestry": {
+    "current_main_is_ancestor": true,
+    "ahead_by_before_receipt": 39,
+    "behind_by_before_receipt": 0,
+    "merge_base": "3ccdb4c15526ae3d7aac70cc03661585ebfd0c12",
+    "main_reconciliation_commit": "417d741552385a7884e3fc8da124fdd6cb65653a"
+  },
+  "current_main_preserved": {
+    "consumed_paid_marker_cleanup_merge": "2ecf092223b6773242548db0df7e86b558ded210",
+    "v1_integrity_workflow": true,
+    "v1_post_certification_workflow": true,
+    "v1_read_only_run_discovery_workflow": true,
+    "v1_bounded_forge_runner": true,
+    "v1_spatial_prompt_contract": true,
+    "v1_control_and_no_rerun_evidence": true
+  },
+  "no_spend_authority": {
+    "studio_paid_runtime_enabled": false,
+    "studio_paid_authorized": false,
+    "studio_paid_execution_authorized": false,
+    "studio_selected_provider": "local-proof",
+    "paid_adapters_executable": false,
+    "atomic_one_time_ledger_required": true,
+    "atomic_one_time_ledger_configured": false,
+    "environment_only_authorization_prohibited": true,
+    "planner_dispatch_authorized": false,
+    "planner_max_provider_calls": 0,
+    "planner_planned_provider_calls": 0,
+    "planner_max_total_exposure_usd": 0,
+    "provider_call_by_candidate": "not run",
+    "spend_authorized_by_candidate": false
+  },
+  "root_lock_contract": {
+    "status": "workflow queued without assigned runner",
+    "source_identity": "EXPECTED_HEAD equals checked-out PR head",
+    "manifest_schema": "urai-root-lock-contract-2",
+    "manifest_source_sha": "EXPECTED_HEAD",
+    "manifest_workflow_sha": "GITHUB_SHA recorded separately",
+    "node": "20.19.5",
+    "npm": "10.9.2",
+    "registry": "https://registry.npmjs.org",
+    "lockfile_version": 3,
+    "frozen_install_required": true,
+    "high_severity_audit_required": true,
+    "exact_artifact_scope_required": true,
+    "workflow_can_push": false,
+    "package_lock_committed": false
+  },
+  "rights_boundary": {
+    "voice_consent": "pending exact-output review",
+    "likeness_consent": "pending exact-output review",
+    "plan_only_not_applicable_allowed": false,
+    "manifest_scope_required": true,
+    "promotion_allowed": false
+  },
+  "exact_head_runs_before_receipt": {
+    "candidate": "417d741552385a7884e3fc8da124fdd6cb65653a",
+    "runs": {
+      "pipeline_proof": 29161908118,
+      "offline_evidence": 29161908121,
+      "production_checks": 29161908117,
+      "production_verify": 29161908124,
+      "production_readiness": 29161908156,
+      "ci": 29161908133,
+      "root_lockfile_candidate": 29161908126,
+      "release_readiness": 29161908176,
+      "full_multimodal_audit": 29161908189,
+      "image_validation": 29161908119
+    },
+    "state": "queued",
+    "replacement_specific_jobs_have_steps": false,
+    "count_as_pass": false,
+    "stale_after_receipt_commit": true
+  },
+  "v1_historical_run_discovery": {
+    "issue": "https://github.com/LifeLoggerAI/asset-factory/issues/179",
+    "marker_sha": "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+    "discovery_workflow_head": "e017305a8a9f51c161c7ba10db6f312c6893dd25",
+    "discovery_run": 29161799261,
+    "discovery_job": 86568022961,
+    "status": "queued",
+    "runner": "unassigned",
+    "historical_generation_run_id": null,
+    "v1_pack_success_claimed": false
+  },
+  "remaining_blockers": [
+    "GitHub-hosted runner assignment for exact-head workflows",
+    "successful Full Multimodal Asset Audit",
+    "successful Offline Evidence Package",
+    "successful audited root lock generation and independent artifact hash verification",
+    "verified commit of package-lock.json and declared root-lock contract files",
+    "removal of temporary root-lock workflow and migration helper",
+    "successful complete final-head repository suite after cleanup",
+    "historical V1 generation and post-certification receipt discovery",
+    "rights, consent, likeness and legal clearance",
+    "exact-hash human creative review",
+    "immutable promotion, deployment, rollback and live deployed-SHA evidence"
+  ],
+  "status": "CURRENT MAIN RECONCILED — ATOMIC NO-SPEND BOUNDARY LOCKED — HISTORICAL V1 DISCOVERY AND EXECUTION EVIDENCE QUEUED",
+  "rollback": "Close PR #172 unmerged. Current main, consumed-trigger cleanup, V1 verification controls and all prior receipts remain preserved.",
+  "exact_next_action": "Run all workflows on the resulting receipt head. Verify any root-lock or V1 discovery artifact before accepting claims or committing generated files."
+}
