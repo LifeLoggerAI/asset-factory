@@ -3,20 +3,6 @@ name: Offline Evidence Package
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'scripts/build_creative_review.py'
-      - 'scripts/build_contact_sheets.py'
-      - 'scripts/build_accessibility_media.py'
-      - 'scripts/build_xr_test_packet.py'
-      - 'scripts/validate_xr_receipts.py'
-      - 'scripts/build_films.py'
-      - 'scripts/build_supply_chain_evidence.py'
-      - 'scripts/apply_dependency_license_evidence.py'
-      - 'scripts/test_dependency_license_evidence.py'
-      - 'multimodal/**'
-      - 'creative-review/**'
-      - 'runner-repair/**'
-      - '.github/workflows/offline-evidence-package.yml'
   workflow_dispatch:
 
 permissions:
