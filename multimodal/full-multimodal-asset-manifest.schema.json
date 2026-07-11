@@ -75,7 +75,7 @@
           "checksum": {"type": ["string", "null"]},
           "provenance": {"type": "object"},
           "validationRequirements": {"type": "array", "items": {"type": "string"}},
-          "currentStatus": {"enum": ["missing", "candidate", "generated", "validated", "failed", "blocked", "certified", "removed-from-scope"]},
+          "currentStatus": {"enum": ["required", "planned", "queued", "generating", "generated", "candidate", "blocked", "review-pending", "approved", "promoted", "certified", "removed-from-scope"]},
           "reviewStatus": {"enum": ["not-started", "pending", "approved", "rejected", "not-required"]},
           "promotionStatus": {"enum": ["not-started", "pr-open", "merged", "blocked"]},
           "promotionPr": {"type": ["integer", "null"]},
