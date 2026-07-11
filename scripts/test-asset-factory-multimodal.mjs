@@ -34,6 +34,8 @@ const renderRound = read('image_asset_generator/render_v1_round.py');
 const adapters = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
 const sourceLock = JSON.parse(read('multimodal/source-lock.json'));
+const manifestSchema = JSON.parse(read('multimodal/full-multimodal-asset-manifest.schema.json'));
+const manifestValidator = read('multimodal/validate_manifest.py');
 
 for (const [file, label] of [
   ['.github/workflows/authorized-multimodal-execution.yml', 'authorized paid batch workflow'],
@@ -67,6 +69,24 @@ includes(audit, "plan.get('dispatchAuthorized') is not False", 'zero-spend autho
 includes(audit, "budget.get('maxProviderCalls') != 0", 'zero provider-call assertion');
 includes(audit, "budget.get('maxTotalExposureUsd') != 0", 'zero approved-spend assertion');
 includes(audit, `URAI_SPATIAL_LOCKED_SHA: ${sourceLock.spatialMainSha}`, 'Spatial source-lock identity');
+
+includes(offline, 'EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}', 'PR-head receipt environment');
+includes(offline, "tree.get('headSha') == expected_head", 'source tree bound to checked-out PR head');
+includes(offline, "'commit': expected_head", 'receipt commit bound to checked-out PR head');
+includes(offline, "'workflowSha': os.getenv('GITHUB_SHA')", 'separate workflow merge-ref trace');
+excludes(offline, "tree.get('headSha') == os.getenv('GITHUB_SHA')", 'PR receipt merge-ref comparison');
+
+const expectedLifecycleStatuses = [
+  'required', 'planned', 'queued', 'generating', 'generated', 'candidate',
+  'blocked', 'review-pending', 'approved', 'promoted', 'certified', 'removed-from-scope',
+];
+const schemaLifecycleStatuses = manifestSchema?.properties?.assets?.items?.properties?.currentStatus?.enum;
+if (JSON.stringify(schemaLifecycleStatuses) !== JSON.stringify(expectedLifecycleStatuses)) {
+  throw new Error(`Manifest schema lifecycle states drifted: ${JSON.stringify(schemaLifecycleStatuses)}`);
+}
+for (const status of expectedLifecycleStatuses) {
+  includes(manifestValidator, `"${status}"`, `${status} validator lifecycle state`);
+}
 
 includes(lockfile, nodePin, 'lockfile immutable Node setup');
 includes(lockfile, "node-version: '20.19.5'", 'exact Node version');
