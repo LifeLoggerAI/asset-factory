@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "capturedAtUtc": "2026-07-11T06:40:00Z",
+  "status": "blocked",
+  "repositories": {
+    "LifeLoggerAI/asset-factory": {
+      "headSha": "1974be363ee7210a06c889e611ed8d8ce4ecfc5a",
+      "queuedRuns": [29142802931,29142802938,29142802940,29142802907,29142802902,29142802905,29142802901],
+      "runnerLabelsObserved": ["ubuntu-latest"],
+      "repositoryPermission": "admin"
+    },
+    "LifeLoggerAI/urai-spatial": {
+      "headSha": "505754b73291e5142cdb4f181966a9414a3b5859",
+      "queuedRuns": [29142988147,29142988153,29142988159,29142988116,29142988139,29142988129,29142988134,29142988154,29142988132,29142988136,29142988158,29142988192,29142988178],
+      "runnerLabelsObserved": ["ubuntu-latest"],
+      "repositoryPermission": "admin"
+    }
+  },
+  "repositoryLevelFindings": {
+    "actionsTriggersPresent": true,
+    "jobsCreated": true,
+    "jobsAssignedToRunner": false,
+    "customRunnerLabelsRequired": false,
+    "concurrencyExplainsAllQueues": false,
+    "environmentProtectionCanDelayProtectedJobsOnly": true
+  },
+  "unverifiedOrganizationHypotheses": [
+    "Actions billing or spending limit",
+    "GitHub-hosted runners disabled by organization policy",
+    "Actions usage quota exhausted",
+    "Enterprise policy or runner-group restriction",
+    "GitHub service or regional hosted-runner capacity incident"
+  ],
+  "attestation": "Repository evidence proves workflows and jobs were created but does not expose organization billing, policy, quota, or enterprise settings."
+}
