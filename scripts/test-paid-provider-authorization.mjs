@@ -17,27 +17,29 @@ function forbidText(text, fragment, label) {
   if (text.includes(fragment)) throw new Error(`Forbidden ${label}: ${fragment}`);
 }
 
-for (const guard of [
-  'ASSET_FACTORY_ENABLE_PAID_MEDIA',
-  'ASSET_FACTORY_PAID_APPROVAL_ID',
-  'ASSET_FACTORY_PAID_MAX_COST_CENTS',
-]) {
-  requireText(source, guard, `${guard} adapter guard`);
-  requireText(manifest, guard, `${guard} manifest readiness signal`);
-}
+requireText(source, 'STUDIO_PAID_PROVIDER_RUNTIME_ENABLED = false', 'compile-time paid runtime disable');
+requireText(source, "STUDIO_PAID_PROVIDER_BLOCKER = 'disabled-pending-atomic-one-time-ledger'", 'atomic-ledger blocker');
+requireText(source, 'atomicLedgerConfigured: false', 'missing atomic ledger declaration');
+requireText(source, 'runtimeExecutionEnabled: STUDIO_PAID_PROVIDER_RUNTIME_ENABLED', 'runtime execution state');
+requireText(source, 'authorized: false', 'paid authorization fail-closed state');
+requireText(source, 'executionAuthorized: false', 'paid execution fail-closed state');
+requireText(source, "return 'local-proof';", 'unconditional local-proof runtime selection');
+requireText(source, 'executable: false', 'diagnostic-only paid adapters');
+requireText(source, 'assertPaidProviderRequestAuthorized', 'paid request assertion');
+requireText(source, 'atomic one-time authorization and consumption ledger exists', 'paid request denial reason');
 
-requireText(source, "const enabled = value('ASSET_FACTORY_ENABLE_PAID_MEDIA') === 'true'", 'explicit paid enablement');
-requireText(source, "const approvalIdPresent = Boolean(value('ASSET_FACTORY_PAID_APPROVAL_ID'))", 'nonempty approval ID');
-requireText(source, 'coversMaximumPolicyRequest', 'maximum-request ceiling coverage');
-requireText(source, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'all-guards authorization rule');
-requireText(source, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed local-proof fallback');
-requireText(source, 'assertPaidProviderRequestAuthorized', 'per-request authorization assertion');
-requireText(source, 'exceeds approved ceiling', 'ceiling rejection');
-requireText(manifest, 'paidProviderReady', 'paid provider readiness declaration');
-requireText(manifest, "providers.selected !== 'local-proof'", 'local proof excluded from production readiness');
+requireText(manifest, 'const paidProviderReady = false', 'manifest paid readiness fail-closed state');
+requireText(manifest, 'providerBackedRendering: false', 'provider rendering disabled capability');
+requireText(manifest, 'paidProviderAuthorized: false', 'manifest paid authorization state');
+requireText(manifest, 'paidProviderExecution: providers.paidAuthorization.blocker', 'manifest blocker evidence');
+requireText(manifest, 'atomicPaidLedgerConfigured: providers.paidAuthorization.atomicLedgerConfigured', 'manifest atomic-ledger evidence');
+requireText(manifest, "'ready-for-local-proof-smoke'", 'local-proof-only readiness classification');
 
-forbidText(source, 'authorized: true', 'hardcoded provider authorization');
-forbidText(source, "return requested;", 'unguarded provider selection');
-forbidText(source, 'ASSET_FACTORY_ENABLE_PAID_MEDIA ?? true', 'paid mode default-on');
+forbidText(source, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'weak environment-only authorization rule');
+forbidText(source, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'environment-enabled paid provider selection');
+forbidText(manifest, "providers.selected !== 'local-proof'", 'paid provider readiness inference');
+forbidText(manifest, "'ASSET_FACTORY_ENABLE_PAID_MEDIA'", 'paid enable flag as production requirement');
+forbidText(manifest, "'ASSET_FACTORY_PAID_APPROVAL_ID'", 'approval ID as production requirement');
+forbidText(manifest, "'ASSET_FACTORY_PAID_MAX_COST_CENTS'", 'cost ceiling as production requirement');
 
-console.log('PASS dependency-free paid provider authorization guards');
+console.log('PASS Studio paid providers are diagnostic-only pending an atomic one-time ledger');
