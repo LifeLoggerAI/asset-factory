@@ -2,6 +2,8 @@ name: Asset Factory Pipeline Proof
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'assetfactory-studio/**'
       - 'image_asset_generator/**'
