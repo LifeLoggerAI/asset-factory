@@ -6,6 +6,12 @@ on:
     paths:
       - package.json
       - package-lock.json
+      - .gitignore
+      - README.md
+      - scripts/prepare-root-lock-contract.mjs
+      - scripts/doctor.mjs
+      - scripts/setup-local.mjs
+      - scripts/test-launch-readiness.mjs
       - .github/workflows/root-lockfile-candidate.yml
   workflow_dispatch:
 
