@@ -30,10 +30,14 @@ jobs:
         run: python multimodal/build_full_manifest.py
       - name: Apply exact audio and film specifications
         run: python multimodal/apply_media_specs.py
+      - name: Repair route-specific audio media mapping
+        run: python multimodal/repair_audio_media_mapping.py
       - name: Validate canonical multimodal manifest
         run: python multimodal/validate_manifest.py
       - name: Validate claimed outputs and media decoding
         run: python multimodal/validate_outputs.py
+      - name: Validate rights, licensing, and consent policy
+        run: python multimodal/validate_rights.py
       - name: Upload immutable validation inputs and receipts
         uses: actions/upload-artifact@v4
         with:
@@ -44,9 +48,12 @@ jobs:
             multimodal/full-multimodal-asset-manifest.json
             multimodal/validation-report.json
             multimodal/output-validation-report.json
+            multimodal/rights-validation-report.json
             multimodal/source-lock.json
             multimodal/canonical-requirements.json
             multimodal/media-specifications.json
+            multimodal/rights-ledger.json
+            multimodal/rights-ledger.schema.json
 
   lane-contracts:
     runs-on: ubuntu-latest
@@ -64,6 +71,11 @@ jobs:
         run: python multimodal/build_full_manifest.py
       - name: Apply exact audio and film specifications
         run: python multimodal/apply_media_specs.py
+      - name: Repair route-specific audio media mapping
+        run: python multimodal/repair_audio_media_mapping.py
+      - name: Validate governance lane
+        if: matrix.lane == 'governance'
+        run: python multimodal/validate_rights.py
       - name: Verify lane exists and remains fail closed
         env:
           LANE: ${{ matrix.lane }}
