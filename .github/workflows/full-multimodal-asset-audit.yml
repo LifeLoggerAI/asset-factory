@@ -38,6 +38,8 @@ jobs:
         run: python multimodal/validate_outputs.py
       - name: Validate rights, licensing, and consent policy
         run: python multimodal/validate_rights.py
+      - name: Plan missing-only paid dispatch without executing providers
+        run: python multimodal/plan_paid_dispatch.py
       - name: Upload immutable validation inputs and receipts
         uses: actions/upload-artifact@v4
         with:
@@ -49,9 +51,11 @@ jobs:
             multimodal/validation-report.json
             multimodal/output-validation-report.json
             multimodal/rights-validation-report.json
+            multimodal/paid-dispatch-plan.json
             multimodal/source-lock.json
             multimodal/canonical-requirements.json
             multimodal/media-specifications.json
+            multimodal/provider-registry.json
             multimodal/rights-ledger.json
             multimodal/rights-ledger.schema.json
 
