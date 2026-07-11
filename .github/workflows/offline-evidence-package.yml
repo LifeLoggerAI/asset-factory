@@ -49,7 +49,7 @@ jobs:
           python scripts/build_accessibility_media.py
           python scripts/build_xr_test_packet.py
           python scripts/build_films.py
-      - name: Validate JSON, JSONL and CSV
+      - name: Validate JSON JSONL schema and CSV
         run: |
           find creative-review accessibility xr-test-packet runner-repair films -name '*.json' -print0 | xargs -0 -n1 python -m json.tool >/dev/null
           python - <<'PY'
@@ -65,8 +65,7 @@ jobs:
           python - <<'PY'
           import json
           from jsonschema import Draft202012Validator
-          schema=json.load(open('xr-test-packet/device-receipt-schema.json'))
-          Draft202012Validator.check_schema(schema)
+          Draft202012Validator.check_schema(json.load(open('xr-test-packet/device-receipt-schema.json')))
           print('XR_SCHEMA_VALID=1')
           PY
       - name: Rebuild determinism check
@@ -80,7 +79,7 @@ jobs:
           find creative-review accessibility xr-test-packet films -type f -print0 | sort -z | xargs -0 sha256sum > /tmp/second.sha256
           diff -u /tmp/first.sha256 /tmp/second.sha256
           cp /tmp/second.sha256 verification/generated-checksums.sha256
-      - name: Write verification receipt
+      - name: Write production acceptance receipt
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
@@ -88,9 +87,27 @@ jobs:
           python - <<'PY'
           import json,os
           from pathlib import Path
-          status='verified_pass' if os.getenv('JOB_STATUS')=='success' else 'verified_fail'
-          receipt={'schemaVersion':'1.0.0','repository':os.getenv('GITHUB_REPOSITORY'),'commit':os.getenv('GITHUB_SHA'),'status':status,'packages':['creative-review','accessibility','films','xr-test-packet','runner-repair'],'attestationBoundary':'Human creative approval, paid generation, production deployment, and physical XR are not performed by this workflow.'}
+          def load(path,default):
+              try: return json.loads(Path(path).read_text())
+              except Exception: return default
+          films=load('films/verification-results.json',{})
+          rights=load('multimodal/rights-ledger.json',{'records':[]})
+          source=load('multimodal/source-lock.json',{})
+          rights_open=[r.get('recordId') for r in rights.get('records',[]) if r.get('status') not in {'verified','not-applicable'}]
+          xr_receipts=list(Path('xr-test-packet').glob('receipts/*.json'))
+          gates={
+            'workflowTechnicalChecks': os.getenv('JOB_STATUS')=='success',
+            'filmsTwelveVerified': films.get('status')=='verified_pass' and films.get('createdOutputs')==12,
+            'rightsCleared': not rights_open,
+            'physicalXrVerified': bool(xr_receipts),
+            'releaseReady': source.get('releaseReady') is True,
+            'deployedShaPresent': bool(source.get('deployedSha')),
+            'rollbackShaPresent': bool(source.get('rollbackSha')) and source.get('rollbackSha')!=source.get('deployedSha')
+          }
+          status='verified_pass' if all(gates.values()) else ('verified_fail' if not gates['workflowTechnicalChecks'] else 'blocked')
+          receipt={'schemaVersion':'1.1.0','repository':os.getenv('GITHUB_REPOSITORY'),'commit':os.getenv('GITHUB_SHA'),'status':status,'gates':gates,'openRightsRecords':rights_open,'packages':['creative-review','accessibility','films','xr-test-packet','runner-repair'],'attestationBoundary':'No production-complete claim is valid unless every gate is true.'}
           Path('receipts/completion-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,indent=2))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
