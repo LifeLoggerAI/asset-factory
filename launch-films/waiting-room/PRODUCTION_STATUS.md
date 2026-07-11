@@ -5,21 +5,36 @@
 - Launch canon: defined in URAI Marketing draft PR.
 - Anchor-film production manifest: created.
 - Video production contract: created.
-- Canonical Asset Factory video modality: not yet implemented.
-- Paid video provider adapter: not yet verified.
-- Deterministic video proof renderer: not yet implemented.
-- Video compositor and accessible export pipeline: not yet implemented.
+- Canonical Asset Factory `video` modality: implemented on draft PR #184.
+- Deterministic `.animatic` proof renderer: implemented with stable shot timelines and explicit `productionReady: false` state.
+- Video artifact serving: implemented for `.animatic`, `.mp4`, `.webm`, and `.mov`.
+- Paid video provider seam: implemented for explicitly configured Replicate or Fal models; no paid call has been executed.
+- Provider safety: HTTPS-only artifacts, private/local-host refusal, timeout and byte ceilings, supported-video validation, and mandatory human review markers implemented.
+- Video policy: 90-second maximum, 4K maximum, estimated-unit/cost reservation, and format boundaries implemented.
+- Behavioral provider tests: implemented for valid MP4 retrieval, missing-model refusal, private URL refusal, and image-as-video refusal.
+- Local multimodal E2E: video case added to generate -> materialize -> fetch -> publish -> approve.
+- Video package/compositor and accessible export pipeline: not yet implemented.
+- Retained exact-head workflow artifact proving a completed video E2E run: not yet available.
 - Final public films: not generated.
 
-## Immediate engineering sequence
+## Exact current branch posture
 
-1. Add canonical `video` asset type and aliases.
-2. Add deterministic `video-local-proof` renderer for CI.
-3. Add provider-neutral video request and receipt schema.
-4. Wire one paid provider adapter behind spend caps and duplicate-safe retries.
-5. Implement shot, film, caption, translation, and accessibility manifests.
-6. Implement deterministic compositor for approved shots, audio, captions, and end cards.
-7. Complete Day 0 end-to-end proof before scaling to all anchor films.
+The implementation remains on draft PR #184. The latest exact head must pass typecheck, unit/static tests, build, E2E, security review, and retained-artifact inspection before this status can advance beyond implementation-candidate.
+
+Queued workflows count as zero passes. No provider spend, deployment, merge, secret mutation, billing action, or public-film promotion has occurred.
+
+## Remaining engineering sequence
+
+1. Complete exact-head CI and inspect failures or retained evidence.
+2. Implement deterministic timeline/caption/audio-description/crop/cutdown package generation.
+3. Bind approved shots, audio, claims, and evidence to immutable package receipts.
+4. Implement or integrate an actual encoder/compositor without treating manifests as rendered video.
+5. Add duplicate-safe provider idempotency and independently verify cost reservation.
+6. Approve the Day 0 shot manifest and explicit spend ceiling.
+7. Execute one paid Day 0 anchor-film generation under the approved ceiling.
+8. Perform creative, continuity, rights, privacy, accessibility, device, and claim-evidence review.
+9. Retain the final master, accessible variants, provider receipts, hashes, and rejection history.
+10. Only then scale generation to the remaining anchor films and fourteen-day launch package.
 
 ## Release rule
 
