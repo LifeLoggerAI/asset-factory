@@ -9,23 +9,44 @@ on:
       - '.github/asset-forge-triggers/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Build, typecheck, and verify
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - name: Checkout
+      - name: Checkout exact reviewed head
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: |
             life-map-pipeline/functions/package-lock.json
+            assetfactory-studio/package-lock.json
 
       - name: Install root dependencies
         run: npm install
@@ -48,25 +69,56 @@ jobs:
       - name: Doctor
         env:
           ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
-        run: npm run doctor --if-present
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run doctor --if-present 2>&1 | tee "$RUNNER_TEMP/asset-factory-doctor.log"
 
       - name: Build
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/asset-factory-build.log"
 
       - name: Test
-        run: npm test --if-present
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test --if-present 2>&1 | tee "$RUNNER_TEMP/asset-factory-test.log"
 
       - name: Launch readiness
-        run: npm run test:launch-readiness --if-present
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:launch-readiness --if-present 2>&1 | tee "$RUNNER_TEMP/asset-factory-launch-readiness.log"
 
       - name: Non-blocking dependency audit
         run: npm run audit:all
 
+      - name: Prove verification preserved clean source
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Upload exact-head production-readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-production-readiness-${{ env.TARGET_SHA }}
+          path: |
+            ${{ runner.temp }}/asset-factory-doctor.log
+            ${{ runner.temp }}/asset-factory-build.log
+            ${{ runner.temp }}/asset-factory-test.log
+            ${{ runner.temp }}/asset-factory-launch-readiness.log
+          if-no-files-found: error
+          retention-days: 365
+
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: verify
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
@@ -78,15 +130,27 @@ jobs:
           echo "Add it in GitHub repo Settings -> Secrets and variables -> Actions before production deploy."
           exit 1
 
-      - name: Checkout
+      - name: Checkout exact verified main head
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact clean deploy head
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Firebase CLI
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
@@ -107,7 +171,7 @@ jobs:
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
 
-      - name: Deploy
+      - name: Deploy exact verified main
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
