@@ -71,12 +71,42 @@ jobs:
           node-version: '22.16.0'
           cache: ''
 
-      - name: Install exact TypeScript audit compiler
+      - name: Install integrity-pinned TypeScript audit compiler
         shell: bash
+        env:
+          TYPESCRIPT_VERSION: '5.8.3'
+          TYPESCRIPT_INTEGRITY: 'sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=='
         run: |
           set -euo pipefail
-          npm install --global typescript@5.8.3 --ignore-scripts --fund=false --audit=false
-          test "$(tsc --version)" = 'Version 5.8.3'
+          npm pack "typescript@$TYPESCRIPT_VERSION" --json --ignore-scripts > .typescript-pack.json
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const expectedVersion = process.env.TYPESCRIPT_VERSION;
+          const expectedIntegrity = process.env.TYPESCRIPT_INTEGRITY;
+          const records = JSON.parse(fs.readFileSync('.typescript-pack.json', 'utf8'));
+          if (!Array.isArray(records) || records.length !== 1) {
+            throw new Error(`unexpected npm pack record count: ${JSON.stringify(records)}`);
+          }
+          const record = records[0];
+          if (record.name !== 'typescript' || record.version !== expectedVersion) {
+            throw new Error(`unexpected TypeScript package identity: ${record.name}@${record.version}`);
+          }
+          if (record.integrity !== expectedIntegrity) {
+            throw new Error(`TypeScript registry integrity mismatch: ${record.integrity}`);
+          }
+          if (record.filename !== `typescript-${expectedVersion}.tgz` || !fs.existsSync(record.filename)) {
+            throw new Error(`unexpected TypeScript tarball: ${record.filename}`);
+          }
+          const actualIntegrity = `sha512-${crypto.createHash('sha512').update(fs.readFileSync(record.filename)).digest('base64')}`;
+          if (actualIntegrity !== expectedIntegrity) {
+            throw new Error(`TypeScript tarball integrity mismatch: ${actualIntegrity}`);
+          }
+          fs.writeFileSync('.typescript-tarball.txt', `${record.filename}\n`);
+          NODE
+          typescript_tarball="$(tr -d '\r\n' < .typescript-tarball.txt)"
+          npm install --global "./$typescript_tarball" --ignore-scripts --fund=false --audit=false
+          test "$(tsc --version)" = "Version $TYPESCRIPT_VERSION"
           npm root --global > .npm-global-root.txt
           node <<'NODE'
           const fs = require('node:fs');
@@ -93,7 +123,7 @@ jobs:
             throw new Error('failed to materialize exact local TypeScript compiler');
           }
           NODE
-          rm .npm-global-root.txt
+          rm .npm-global-root.txt .typescript-pack.json .typescript-tarball.txt "$typescript_tarball"
 
       - name: Verify locked Spatial identity
         shell: bash
