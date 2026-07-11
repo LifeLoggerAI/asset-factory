@@ -1,0 +1,72 @@
+{
+  "receipt_id": "URAI-WSC-20260711-ASSET-CLEAN-017",
+  "utc_timestamp": "2026-07-11T17:31:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_branch": "main",
+  "base_sha": "2ecf092223b6773242548db0df7e86b558ded210",
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "prior_candidate_head": "1bb7ce818e84fc03c997e7a4a9fa97286c09b1cf",
+  "exact_final_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential commit hash.",
+  "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/172",
+  "ancestry": {
+    "status": "ahead",
+    "ahead_by": 32,
+    "behind_by": 0,
+    "merge_base": "2ecf092223b6773242548db0df7e86b558ded210",
+    "reconciliation_commit": "1bb7ce818e84fc03c997e7a4a9fa97286c09b1cf"
+  },
+  "current_main_preserved": {
+    "v1_integrity_workflow": true,
+    "v1_post_certification_workflow": true,
+    "bounded_v1_forge_runner": true,
+    "spatial_prompt_contract": true,
+    "v1_control_and_do_not_rerun_evidence": true,
+    "consumed_marker_cleanup_receipt": "URAI-WSE-20260711-CONSUMED-V1-MARKER-CLEANUP-016"
+  },
+  "consumed_paid_trigger_state": {
+    "marker_workflow_present": false,
+    "authorization_marker_present": false,
+    "cleanup_main_merge": "2ecf092223b6773242548db0df7e86b558ded210",
+    "new_marker_trigger_possible": false,
+    "historical_run_rerun_settings_evidence": "not available through the connector",
+    "new_paid_authorization_created_by_this_candidate": false
+  },
+  "control_plane": {
+    "multimodal_records": 362,
+    "studio_paid_runtime_enabled": false,
+    "studio_paid_authorized": false,
+    "studio_paid_execution_authorized": false,
+    "studio_runtime_provider": "local-proof",
+    "voice_consent": "pending exact-output review",
+    "likeness_consent": "pending exact-output review",
+    "normal_audit_provider_calls": 0,
+    "normal_audit_approved_spend_usd": 0
+  },
+  "verification": {
+    "current_main_is_ancestor": true,
+    "forbidden_superseded_paid_paths_absent_from_pr_diff": true,
+    "root_package_lock_committed": false,
+    "v1_generation_run_id": null,
+    "v1_generation_status": "not observed through available connector run-list actions",
+    "provider_call_by_this_candidate": "not run",
+    "promotion": "not run",
+    "deployment": "not run"
+  },
+  "remaining_blockers": [
+    "GitHub-hosted runner assignment for final exact-head workflows",
+    "successful Full Multimodal Asset Audit",
+    "successful Offline Evidence Package",
+    "successful audited root lock generation",
+    "verified commit of package-lock.json and root-lock contract files",
+    "removal of temporary root-lock workflow and migration helper",
+    "successful repository CI and release suites on the resulting final head",
+    "rights, consent and likeness clearance",
+    "exact-hash human creative review",
+    "verified V1 generation and post-certification run receipts",
+    "immutable promotion, deployment, rollback and live deployed-SHA evidence"
+  ],
+  "status": "CURRENT MAIN RECONCILED — CONSUMED PAID TRIGGER ABSENT — NO-SPEND CONTROL PLANE PRESERVED — EXECUTION EVIDENCE PENDING",
+  "rollback": "Close PR #172 unmerged. Current main and all V1 safety/cleanup evidence remain preserved.",
+  "exact_next_action": "Require all workflows on the receipt head to execute. Verify the root-lock artifact before committing it, remove temporary root-lock controls, and rerun the complete final-head suite."
+}
