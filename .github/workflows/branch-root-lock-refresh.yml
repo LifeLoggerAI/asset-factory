@@ -1,5 +1,6 @@
 name: Candidate Root Lock Refresh
 
+# Re-triggered after protected-main reconciliation at 5828d0e8a4a37c46aa514391254e0469f7b5270a.
 on:
   push:
     branches:
