@@ -25,11 +25,15 @@ function assertIncludes(source, needle, label) {
 const catalog = read('assetfactory-studio/lib/server/assetTypeCatalog.ts');
 const renderer = read('assetfactory-studio/lib/server/assetRenderer.ts');
 const generatedRoute = read('assetfactory-studio/app/api/generated-assets/[file]/route.ts');
+const generateRoute = read('assetfactory-studio/app/api/generate/route.ts');
+const materializeRoute = read('assetfactory-studio/app/api/jobs/[jobId]/materialize/route.ts');
 const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts');
 const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.ts');
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
+const videoTransactions = read('assetfactory-studio/lib/server/assetVideoTransactions.ts');
+const videoPackage = read('assetfactory-studio/lib/server/assetVideoPackage.ts');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -40,6 +44,9 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
+const packageCli = read('scripts/build-waiting-room-video-package.mjs');
+const previewEncoder = read('scripts/render-waiting-room-preview.mjs');
+const dayZeroAnimatic = read('launch-films/waiting-room/day-00/the-door.animatic.json');
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'video', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -66,12 +73,50 @@ for (const videoProviderMarker of ['ASSET_FACTORY_VIDEO_MODEL', 'REPLICATE_API_T
   assertIncludes(videoProviderRuntime, videoProviderMarker, `${videoProviderMarker} guarded video provider support`);
 }
 
+for (const transactionMarker of [
+  'urai-video-provider-transaction-1',
+  'urai-video-provider-budget-1',
+  'reserveVideoProviderTransaction',
+  'beginVideoProviderAttempt',
+  'failed-reservation-held',
+  'humanReviewRequired: true',
+  'productionReady: false',
+]) {
+  assertIncludes(videoTransactions, transactionMarker, `${transactionMarker} paid video transaction boundary`);
+}
+
+for (const packageMarker of [
+  'urai-video-package-1',
+  'urai-video-package-receipt-1',
+  'captions.srt',
+  'captions.vtt',
+  'audio-description.json',
+  'rendered: false',
+  'providerSpend: false',
+]) {
+  assertIncludes(videoPackage, packageMarker, `${packageMarker} deterministic video package boundary`);
+}
+
 assertIncludes(renderer, 'renderVideoWithConfiguredProvider', 'dedicated video provider routing');
 assertIncludes(renderer, 'urai-video-animatic-1', 'video animatic schema');
 assertIncludes(renderer, 'productionReady: false', 'video local proof fail-closed marker');
 assertIncludes(videoProviderRuntime, 'reviewRequired: true', 'provider video human-review gate');
 assertIncludes(policy, 'maxDurationSeconds: 90', 'video duration guardrail');
 assertIncludes(policy, 'estimatedCostCents: seconds * 20', 'video cost estimate');
+assertIncludes(generateRoute, "req.headers.get('idempotency-key')", 'provider video idempotency header');
+assertIncludes(generateRoute, 'ASSET_FACTORY_VIDEO_MAX_JOB_COST_CENTS', 'provider video per-job ceiling');
+assertIncludes(generateRoute, 'ASSET_FACTORY_VIDEO_MAX_CAMPAIGN_COST_CENTS', 'provider video campaign ceiling');
+assertIncludes(generateRoute, 'reserveVideoProviderTransaction', 'atomic provider video reservation');
+assertIncludes(materializeRoute, 'beginVideoProviderAttempt', 'single provider dispatch lease');
+assertIncludes(materializeRoute, 'markVideoProviderAttemptFailed', 'provider failure reservation hold');
+assertIncludes(materializeRoute, 'markVideoProviderArtifactReady', 'provider artifact review state');
+assertIncludes(packageCli, 'Refusing to overwrite existing encoded preview', 'package duplicate-safety wording is not reused incorrectly');
+assertIncludes(packageCli, 'Output directory is not empty', 'package overwrite refusal');
+assertIncludes(previewEncoder, 'urai-video-technical-preview-receipt-1', 'technical preview receipt');
+assertIncludes(previewEncoder, 'productionReady: false', 'technical preview fail-closed marker');
+assertIncludes(previewEncoder, 'providerSpend: false', 'technical preview no-spend marker');
+assertIncludes(dayZeroAnimatic, 'day-00-the-door', 'Day 0 source package');
+assertIncludes(dayZeroAnimatic, 'audioDescriptionRequired', 'Day 0 audio-description requirement');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(validation, 'unsupported type', 'unsupported type validation');
