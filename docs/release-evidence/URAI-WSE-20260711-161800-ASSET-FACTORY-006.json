@@ -1,0 +1,68 @@
+{
+  "receipt_id": "URAI-WSE-20260711-161800-ASSET-FACTORY-006",
+  "utc_timestamp": "2026-07-11T16:18:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "canonical_role": "Asset generation, certification, budget governance, and controlled promotion service.",
+  "visibility": "public",
+  "lifecycle_state": "ACTIVE — SERVICE",
+  "base_branch": "main",
+  "base_sha": "c9cb1bb65d6056fa37251c7a2de23b45c3153895",
+  "branch": "ws-e/manual-paid-smoke-after-forge-20260711",
+  "control_change_commit_sha": "75a4694aa903df4ad0dfcd3c5d6f100f4a81484c",
+  "guard_test_commit_sha": "c94b9d8c669bea10dd90198d2f968e6b819965dc",
+  "guard_workflow_commit_sha": "b9786e2b3d0794d432fcf0459f24a4ecd3d08da4",
+  "exact_pr_head": "Recorded in pull request metadata after this receipt commit to avoid a self-referential hash.",
+  "supersedes_pull_requests": [
+    "https://github.com/LifeLoggerAI/asset-factory/pull/158",
+    "https://github.com/LifeLoggerAI/asset-factory/pull/168"
+  ],
+  "related_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
+  "authorization_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/160",
+  "changed_files": [
+    ".github/workflows/dispatch-one-paid-v1-smoke.yml",
+    ".github/workflows/paid-smoke-guard-integrity.yml",
+    "scripts/check-paid-smoke-guard.py",
+    "docs/release-evidence/URAI-WSE-20260711-161800-ASSET-FACTORY-006.json"
+  ],
+  "budget": {
+    "max_provider_calls": 1,
+    "max_unit_cost_usd": "1.00",
+    "max_total_cost_usd": "1.00",
+    "limit_entries": 1,
+    "limit_outputs": 1,
+    "promote": false
+  },
+  "implemented_controls": [
+    "Automatic push-triggered paid dispatch is removed.",
+    "The helper is workflow_dispatch only and validates the exact current main SHA.",
+    "Typed AUTHORIZE_ONE_PAID_V1_SMOKE confirmation and a non-secret approval identifier are required.",
+    "The helper runs on the proven available macos-latest runner and uses paid-asset-generation.",
+    "actions: write is limited to the isolated dispatch job.",
+    "actions/github-script is pinned to immutable commit 60a0d83039c74a4aee543508d2ffcb1c3799cdea.",
+    "The downstream dispatch is exactly one V1 call, one entry, one output, USD 1.00 maximum, and promotion=false.",
+    "A standard-library verifier rejects automatic triggers, broad permissions, secrets access, mutable actions, runner regression, weakened exact-main checks, higher budgets, or promotion."
+  ],
+  "runner_state": {
+    "ubuntu_limited_workflows": "Known unassigned-runner blocker; queued results are not passes.",
+    "guard_and_dispatch_runner": "macos-latest",
+    "paid_dispatch": "not run"
+  },
+  "runtime_impact": "None until separately authorized from merged main.",
+  "budget_impact": "None. No provider call or billing action occurred while preparing this candidate.",
+  "license_impact": "No dependency, asset license, attribution, or lockfile content changed.",
+  "tests": {
+    "connector_static_review": "completed",
+    "paid_smoke_guard_integrity_exact_head": "pending",
+    "provider_call": "not run",
+    "promotion": "not run"
+  },
+  "limitations": [
+    "Environment reviewer, deployment branch, and secret-scope settings are not exposed by the connector.",
+    "The protected environment will fail closed if required secrets or approvals are absent.",
+    "The one paid call remains separately bounded by issue #160 and exact merged-main identity."
+  ],
+  "status": "IMPLEMENTED ON HARDENED MAIN BASE — EXACT-HEAD VERIFICATION PENDING; PAID EXECUTION DISABLED",
+  "rollback": "Revert this focused replacement pull request. Do not restore push-triggered spending, mutable actions, automatic promotion, broader token permissions, or Ubuntu dependency while the runner is unassigned.",
+  "exact_next_action": "Open the replacement draft PR, require Paid Smoke Guard Integrity success on its exact head, then merge only after confirming it remains zero commits behind hardened main."
+}
