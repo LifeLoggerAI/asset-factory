@@ -1,0 +1,38 @@
+{
+  "receipt_id": "URAI-WSE-20260711-CONSUMED-V1-MARKER-CLEANUP-016",
+  "utc_timestamp": "2026-07-11T17:23:00Z",
+  "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
+  "repository": "LifeLoggerAI/asset-factory",
+  "base_sha": "de9f0715aec4202012ac31bfbfb1cd4be5781b2e",
+  "branch": "ws-e/disable-consumed-v1-marker-20260711",
+  "prior_authorization_commit": "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+  "authorization_nonce": "URAI-V1-AAA-SPATIAL-20260711-ONE-TIME",
+  "removed_paths": [
+    ".github/workflows/one-time-v1-aaa-spatial-pack-marker.yml",
+    "authorizations/execute-v1-aaa-spatial-pack-20260711.json"
+  ],
+  "preserved_paths": [
+    ".github/workflows/v1-aaa-spatial-pack-integrity.yml",
+    ".github/workflows/v1-aaa-spatial-pack-post-certification.yml",
+    "image_asset_generator/forge_v1_spatial_pack_run.py",
+    "image_asset_generator/spatial_prompt_overrides.json"
+  ],
+  "reason": "The merged marker workflow accepted reruns with a fresh workspace ledger and did not prove the marker commit was the only commit in the push. The one-time authorization is consumed and must not remain as an active repository trigger.",
+  "controls": {
+    "new_marker_trigger_removed": true,
+    "authorization_file_removed": true,
+    "provider_secrets_referenced_by_cleanup": false,
+    "provider_calls_made_by_cleanup": 0,
+    "spend_authorized_by_cleanup": false,
+    "promotion_or_deployment": false,
+    "post_certification_verifier_preserved": true
+  },
+  "historical_run_boundary": {
+    "historical_run_id": null,
+    "status": "not discoverable through available connector run-list actions",
+    "residual_risk": "A historical workflow rerun may use the workflow definition from its original commit. Repository deletion prevents new marker-triggered executions but does not prove the platform has disabled rerun of the historical run.",
+    "required_settings_action": "Disable the One-Time V1 AAA Spatial Pack Marker workflow or remove/rotate its paid environment provider secret at the GitHub Actions settings layer, then preserve redacted evidence."
+  },
+  "status": "REPOSITORY TRIGGER REMOVED — HISTORICAL RERUN SETTINGS EVIDENCE STILL REQUIRED",
+  "rollback": "Revert only if a new separately reviewed and explicitly authorized paid execution design provides an atomic one-time consumption ledger and blocks run attempts greater than one."
+}

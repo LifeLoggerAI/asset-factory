@@ -1,0 +1,144 @@
+name: V1 AAA Spatial Pack Integrity
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
+      - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/spatial_prompt_overrides.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
+      - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/spatial_prompt_overrides.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v1-aaa-spatial-pack-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected"
+          test -z "$(git status --porcelain)"
+
+      - name: Compile executor and parse prompt contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile image_asset_generator/forge_v1_spatial_pack_run.py
+          python3 - <<'PY'
+          import ast, json
+          from pathlib import Path
+          script = Path('image_asset_generator/forge_v1_spatial_pack_run.py').read_text()
+          tree = ast.parse(script)
+          assert 'TOTAL, MASTERS, NEW_CALLS = 53, 48, 47' in script
+          assert 'SEED_REQUEST = "req_105244180b6f4b95bec882bdfc1a695b"' in script
+          assert '"promotion": False' in script
+          assert len(json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())) == 10
+          assert tree is not None
+          PY
+
+      - name: Verify immutable marker and spend boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/one-time-v1-aaa-spatial-pack-marker.yml')
+          text = path.read_text()
+          required = [
+              'github.actor == github.repository_owner && github.run_attempt == 1',
+              'GITHUB_RUN_ATTEMPT',
+              "= '1'",
+              'github.event.before',
+              'github.event.after',
+              'github.event.forced',
+              "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
+              "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
+              "ASSET_FORGE_MAX_COST_USD: '47.00'",
+              "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
+              "executionNonce': 'URAI-V1-AAA-SPATIAL-20260711-ONE-TIME'",
+              'environment: paid-asset-generation',
+          ]
+          for value in required:
+              assert value in text, value
+          forbidden = [
+              'repository: LifeLoggerAI/urai-spatial',
+              'git push',
+              'merge_pull_request',
+              'enable_auto_merge',
+              'URAI_WHEEL_GITHUB_TOKEN:',
+          ]
+          for value in forbidden:
+              assert value not in text, value
+          PY
+
+      - name: Verify post-certification boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml')
+          text = path.read_text()
+          required = [
+              'workflows: [One-Time V1 AAA Spatial Pack Marker]',
+              'sourceRunId',
+              'duplicatePairs',
+              "receipt.get('newProviderCalls') == 47",
+              "receipt.get('ready') == 53",
+              "dropin.get('status') == 'certified'",
+              'perceptualHash',
+              "'status': 'failed' if duplicates else 'passed'",
+          ]
+          for value in required:
+              assert value in text, value
+          forbidden = [
+              'git push',
+              'merge_pull_request',
+              'enable_auto_merge',
+              'repository: LifeLoggerAI/urai-spatial',
+          ]
+          for value in forbidden:
+              assert value not in text, value
+          PY
+
+      - name: Verify Life Map to Replay spatial canon
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          prompts = json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())
+          life = (prompts['life_map_galaxy_main']['prompt'] + prompts['life_map_galaxy_mobile']['prompt']).lower()
+          for required in ('deep outer space', 'no ground', 'no orb', 'no avatar'):
+              assert required in life, required
+          focus = prompts['focus_memory_chamber_main']['prompt'].lower()
+          replay = prompts['replay_memory_film_main']['prompt'].lower()
+          assert 'selecting and zooming' in focus
+          assert 'moving through an opened memory star' in replay
+          PY

@@ -1,0 +1,1 @@
+Current state: marker committed; run id not yet observed through available connector; no rerun authorized; post-certification required; no promotion or deployment authorized.
