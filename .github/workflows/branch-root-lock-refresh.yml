@@ -1,0 +1,104 @@
+name: Candidate Root Lock Refresh
+
+on:
+  push:
+    branches:
+      - agent/full-multimodal-asset-completion
+    paths:
+      - package.json
+      - .github/workflows/branch-root-lock-refresh.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: candidate-root-lock-refresh
+  cancel-in-progress: false
+
+jobs:
+  generate-root-lock:
+    if: github.repository == 'LifeLoggerAI/asset-factory' && github.ref == 'refs/heads/agent/full-multimodal-asset-completion'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test ! -e package-lock.json
+
+      - name: Set up Node 20
+        uses: actions/setup-node@1e60f620b9541d80c77f7b4a3bcd8bf5e940c37
+        with:
+          node-version: '20.19.5'
+          registry-url: https://registry.npmjs.org
+          cache: ''
+
+      - name: Pin npm and generate lock
+        shell: bash
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+        run: |
+          set -euo pipefail
+          npm install --global npm@10.9.2
+          test "$(npm --version)" = "10.9.2"
+          npm install --package-lock-only --ignore-scripts --fund=false --audit=false
+
+      - name: Validate lock structure and registry provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const failures = [];
+          if (lock.lockfileVersion !== 3) failures.push(`lockfileVersion=${lock.lockfileVersion}`);
+          const root = lock.packages?.[''];
+          if (!root) failures.push('missing root package entry');
+          if (root?.name !== pkg.name || root?.version !== pkg.version) failures.push('root identity mismatch');
+          if (JSON.stringify(root?.dependencies || {}) !== JSON.stringify(pkg.dependencies || {})) failures.push('root dependencies mismatch');
+          if (JSON.stringify(root?.engines || {}) !== JSON.stringify(pkg.engines || {})) failures.push('root engines mismatch');
+          for (const [path, entry] of Object.entries(lock.packages || {})) {
+            if (!entry || typeof entry !== 'object' || !entry.resolved) continue;
+            if (!String(entry.resolved).startsWith('https://registry.npmjs.org/')) {
+              failures.push(`${path} uses non-public registry URL ${entry.resolved}`);
+            }
+            if (!entry.integrity) failures.push(`${path} is missing integrity`);
+          }
+          if (failures.length) {
+            console.error(failures.join('\n'));
+            process.exit(1);
+          }
+          console.log(`validated ${Object.keys(lock.packages || {}).length} lock entries`);
+          NODE
+
+      - name: Verify frozen install and high-severity audit gate
+        shell: bash
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --fund=false --audit=false
+          npm audit --audit-level=high --omit=dev
+
+      - name: Commit only the generated lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain --untracked-files=all | sed 's/^...//')
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "package-lock.json"
+          git config user.name "LifeLoggerAI Release Automation"
+          git config user.email "lifeloggerai@gmail.com"
+          git add package-lock.json
+          git commit -m "build(deps): commit audited root package lock"
+          git push origin HEAD:agent/full-multimodal-asset-completion
