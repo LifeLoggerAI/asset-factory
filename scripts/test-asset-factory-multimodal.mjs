@@ -105,11 +105,19 @@ includes(renderRound, 'ASSET_FORGE_ONLY_ASSET_IDS', 'exact asset selection');
 includes(renderRound, 'Paid execution refuses to overwrite existing output', 'paid overwrite refusal');
 includes(renderRound, 'retry_only = round_number > 1', 'bounded retry control');
 
-for (const guard of ['ASSET_FACTORY_ENABLE_PAID_MEDIA', 'ASSET_FACTORY_PAID_APPROVAL_ID', 'ASSET_FACTORY_PAID_MAX_COST_CENTS']) {
-  includes(adapters, guard, `${guard} adapter guard`);
-  includes(manifestRoute, guard, `${guard} readiness declaration`);
-}
-includes(adapters, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'bounded provider authorization rule');
-includes(adapters, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed provider fallback');
+includes(adapters, 'STUDIO_PAID_PROVIDER_RUNTIME_ENABLED = false', 'compile-time Studio paid runtime disable');
+includes(adapters, "STUDIO_PAID_PROVIDER_BLOCKER = 'disabled-pending-atomic-one-time-ledger'", 'atomic-ledger blocker');
+includes(adapters, 'atomicLedgerConfigured: false', 'missing atomic ledger declaration');
+includes(adapters, 'authorized: false', 'Studio provider authorization fail-closed state');
+includes(adapters, 'executionAuthorized: false', 'Studio provider execution fail-closed state');
+includes(adapters, "return 'local-proof';", 'unconditional local-proof runtime selection');
+includes(adapters, 'executable: false', 'diagnostic-only paid adapters');
+includes(manifestRoute, 'const paidProviderReady = false', 'paid provider readiness disabled');
+includes(manifestRoute, 'providerBackedRendering: false', 'provider rendering disabled capability');
+includes(manifestRoute, 'paidProviderAuthorized: false', 'manifest paid authorization disabled');
+includes(manifestRoute, "'ready-for-local-proof-smoke'", 'local-proof-only readiness classification');
+excludes(adapters, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'weak environment-only paid authorization');
+excludes(adapters, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'environment-enabled provider selection');
+excludes(manifestRoute, "providers.selected !== 'local-proof'", 'paid provider readiness inference');
 
 console.log('PASS clean multimodal control-plane boundary');
