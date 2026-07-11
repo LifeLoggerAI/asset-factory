@@ -17,6 +17,7 @@ CATALOG = BASE / "canonical_version_catalog.json"
 HANDOFF_ROOT = BASE / "spatial_handoff"
 RIGHTS_REPORT = ROOT / "multimodal" / "rights-validation-report.json"
 APPROVAL_ROOT = ROOT / "creative-review" / "approvals"
+SUPPORTED_RIGHTS_REPORT_SCHEMAS = {"1.1.0", "1.2.0"}
 
 
 def load_object(path: Path) -> dict[str, Any]:
@@ -90,7 +91,7 @@ def validate_promotion_clearance(
     if not RIGHTS_REPORT.is_file():
         raise ValueError("Promotion clearance requires multimodal/rights-validation-report.json")
     rights = load_object(RIGHTS_REPORT)
-    if rights.get("schemaVersion") != "1.1.0" or rights.get("structurallyValid") is not True:
+    if rights.get("schemaVersion") not in SUPPORTED_RIGHTS_REPORT_SCHEMAS or rights.get("structurallyValid") is not True:
         raise ValueError("Rights validation report is missing or unsupported")
     if rights.get("promotionAllowed") is not True or rights.get("rightsReady") is not True:
         blockers = rights.get("blockingRecordIds", [])
