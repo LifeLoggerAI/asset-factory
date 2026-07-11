@@ -12,8 +12,11 @@
 - Provider safety: HTTPS-only artifacts, private/local-host refusal, timeout and byte ceilings, supported-video validation, and mandatory human review markers implemented.
 - Video policy: 90-second maximum, 4K maximum, estimated-unit/cost reservation, and format boundaries implemented.
 - Provider transaction safety: required idempotency keys, normalized request hashes, atomic reservation, per-job/campaign ceilings, one dispatch lease, bounded attempts, and reservation-held failures implemented.
+- Operator reconciliation authority: authenticated atomic settlement for accepted, rejected, failed-cost-settled, and refunded provider work implemented with budget reserved/spent updates.
+- Unused reservation release: authenticated release is allowed only before provider dispatch; post-dispatch release is refused.
 - Behavioral provider tests: implemented for valid MP4 retrieval, missing-model refusal, private URL refusal, and image-as-video refusal.
 - Behavioral transaction tests: implemented for replay, conflict, per-job/campaign ceilings, duplicate dispatch refusal, artifact-review state, and failure reservation hold.
+- Behavioral reconciliation tests: implemented for accepted artifact settlement, zero-cost provider refund, unused reservation release, post-dispatch release refusal, and campaign-ceiling enforcement.
 - Local multimodal E2E: video case added to generate -> materialize -> fetch -> publish -> approve.
 - Deterministic package builder: implemented for timeline, SRT, WebVTT, audio-description cues, crop plans, cutdowns, claim/evidence bindings, and immutable hashes.
 - Duplicate-safe package CLI: implemented with output confinement, atomic writes, and overwrite refusal by default.
@@ -35,12 +38,12 @@ Queued workflows count as zero passes. No paid provider call, provider spend, de
 ## Remaining engineering and release sequence
 
 1. Complete exact-head CI and inspect every failure, job log, package, MP4 preview, and roll-up receipt.
-2. Independently review provider URL, timeout, byte-limit, model-selection, billing, idempotency, reservation, and dispatch boundaries.
-3. Implement and review operator reconciliation and reservation-release authority so settled, refunded, rejected, and cancelled provider work cannot leave ambiguous budget state.
-4. Reconcile Day 0 shot-level claims with exact deployed-SHA product evidence.
-5. Lock the Day 0 visual continuity bible, characters, wardrobe, orb, environments, lens language, music/voice rights, and negative prompts.
-6. Approve an explicit Day 0 provider/model and maximum spend ceiling.
-7. Execute bounded shot-generation jobs, preserving every provider response, rejection, retry, cost, and content hash.
+2. Independently review provider URL, timeout, byte-limit, model-selection, billing, idempotency, reservation, dispatch, reconciliation, and release boundaries.
+3. Reconcile Day 0 shot-level claims with exact deployed-SHA product evidence.
+4. Lock the Day 0 visual continuity bible, characters, wardrobe, orb, environments, lens language, music/voice rights, and negative prompts.
+5. Approve an explicit Day 0 provider/model and maximum spend ceiling.
+6. Execute bounded shot-generation jobs, preserving every provider response, rejection, retry, cost, and content hash.
+7. Reconcile every provider transaction against provider billing evidence before releasing campaign budget.
 8. Assemble approved shots with real score, voice, sound design, captions, audio description, and reduced-motion variants.
 9. Perform creative, continuity, rights, privacy, accessibility, device, and claim-evidence review.
 10. Retain the final master, accessible variants, provider receipts, hashes, approvals, and rejection history.
