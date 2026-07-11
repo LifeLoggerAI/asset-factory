@@ -47,6 +47,7 @@ const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
 const paidBatchWorkflow = read('.github/workflows/authorized-multimodal-execution.yml');
+const promotionWorkflow = read('.github/workflows/promote-reviewed-multimodal-batch.yml');
 const multimodalAudit = read('.github/workflows/full-multimodal-asset-audit.yml');
 const renderRound = read('image_asset_generator/render_v1_round.py');
 const certification = read('image_asset_generator/certify_dropin.py');
@@ -122,6 +123,14 @@ assertIncludes(paidBatchWorkflow, 'promotionAttempted\': False', 'generation rec
 assertIncludes(paidBatchWorkflow, 'Promotion attempted: no', 'generation summary denies promotion');
 assertNotIncludes(paidBatchWorkflow, 'gh pr create', 'same-run promotion command');
 assertNotIncludes(paidBatchWorkflow, 'git push origin', 'same-run promotion push');
+
+// Reviewed promotion must bind GitHub's source-run authority, not trust artifact metadata alone.
+assertIncludes(promotionWorkflow, "run.get('path') != '.github/workflows/authorized-multimodal-execution.yml'", 'canonical paid workflow path binding');
+assertIncludes(promotionWorkflow, "run.get('head_sha') != os.environ['EXPECTED_ASSET_FACTORY_SHA']", 'promotion source-run exact-head binding');
+assertIncludes(promotionWorkflow, "run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']", 'promotion source repository binding');
+assertIncludes(promotionWorkflow, "run.get('status') != 'completed' or run.get('conclusion') != 'success'", 'promotion source terminal success requirement');
+assertIncludes(promotionWorkflow, "metadata.get(key) != value", 'promotion package metadata binding');
+assertIncludes(promotionWorkflow, "actual != declared['files']", 'promotion package checksum set verification');
 
 // Technical completion may not become certification without rights and exact-hash human review.
 assertIncludes(certification, '"technically-validated"', 'technical-only receipt status');
