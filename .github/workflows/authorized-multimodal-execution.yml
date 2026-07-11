@@ -1,9 +1,6 @@
-name: Authorized $20 Multimodal Batch
+name: Authorized Small Multimodal Batch
 
 on:
-  push:
-    branches: [agent/full-multimodal-asset-completion]
-    paths: ['.github/workflows/authorized-multimodal-execution.yml']
   workflow_dispatch:
     inputs:
       version:
@@ -12,48 +9,54 @@ on:
         type: choice
         options: [v1, v2, v3, v4, v5]
         default: v1
+      confirm:
+        description: 'Type AUTHORIZE_URAI_20USD_BATCH to authorize this paid batch'
+        required: true
+        default: 'NO'
       resume_run_id:
-        description: 'Optional prior batch run ID whose generated assets should be restored'
+        description: 'Optional prior compatible batch run ID to resume'
         required: false
         default: ''
       promote:
         description: 'Open a Spatial promotion PR only after complete certification'
         required: true
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: authorized-multimodal-batch-${{ github.event.inputs.version || 'v1' }}
+  group: authorized-small-multimodal-batch-${{ inputs.version }}
   cancel-in-progress: false
 
 env:
-  APPROVAL_ID: urai-multimodal-batch-2026-07-11
-  AUTHORIZATION_REVISION: '3'
-  URAI_VERSION: ${{ github.event.inputs.version || 'v1' }}
+  APPROVAL_ID: urai-small-batch-2026-07-11
+  AUTHORIZATION_REVISION: '4'
+  URAI_VERSION: ${{ inputs.version }}
   ASSET_RENDERER_PROVIDER: openai
   ASSET_RENDERER_MODE: provider
   ASSET_RENDERER_MODEL: gpt-image-1.5
   ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
   ASSET_RENDERER_MAX_ATTEMPTS: '1'
+  ASSET_RENDERER_MAX_PROMPT_CHARS: '12000'
   ASSET_FORGE_REQUIRE_PROVIDER: '1'
   ASSET_QUALITY_REQUIRE_PROVIDER: '1'
   ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
   ASSET_FORGE_MAX_ROUNDS: '1'
-  ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '66'
+  ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '50'
   ASSET_FORGE_MAX_UNIT_COST_USD: '0.30'
-  ASSET_FORGE_BATCH_MAX_COST_USD: '20.00'
+  ASSET_FORGE_BATCH_MAX_COST_USD: '15.00'
   ASSET_FORGE_SKIP_EXISTING_OUTPUTS: '1'
-  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-${{ github.event.inputs.version || 'v1' }}-20usd
+  ASSET_FORGE_RUN_ID: ${{ github.run_id }}-${{ inputs.version }}-small-batch
   ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
 
 jobs:
   forge-certify-promote:
+    if: inputs.confirm == 'AUTHORIZE_URAI_20USD_BATCH'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: paid-asset-generation
@@ -71,37 +74,98 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Restore a prior partial batch
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.resume_run_id != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          run_id='${{ github.event.inputs.resume_run_id }}'
-          case "$run_id" in
-            ''|*[!0-9]*) echo '::error::resume_run_id must be a numeric workflow run ID'; exit 1 ;;
-          esac
-          mkdir -p artifacts/resume
-          gh run download "$run_id" \
-            --repo LifeLoggerAI/asset-factory \
-            --dir artifacts/resume
-          asset_root=$(find artifacts/resume -type d -path '*/image_asset_generator/assets' -print -quit)
-          test -n "$asset_root" || { echo '::error::The prior run has no resumable image_asset_generator/assets directory'; exit 1; }
-          rsync -a "$asset_root/" image_asset_generator/assets/
-          echo "RESTORED_BATCH_RUN_ID=$run_id" >> "$GITHUB_ENV"
-
       - name: Install visual forge dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Validate inventory and derive the hard batch ceiling
+      - name: Validate explicit authorization and provider configuration
         shell: bash
         run: |
           set -euo pipefail
+          test '${{ inputs.confirm }}' = 'AUTHORIZE_URAI_20USD_BATCH'
           test -n "$OPENAI_API_KEY"
-          test -n "$URAI_WHEEL_GITHUB_TOKEN"
+          if [ '${{ inputs.promote }}' = 'true' ]; then
+            test -n "$URAI_WHEEL_GITHUB_TOKEN"
+          fi
+
+      - name: Restore and verify a prior compatible batch
+        if: inputs.resume_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$RESUME_RUN_ID" in
+            ''|*[!0-9]*) echo '::error::resume_run_id must be numeric'; exit 1 ;;
+          esac
+
+          run_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RESUME_RUN_ID}")
+          RUN_JSON="$run_json" python - <<'PY'
+          import json
+          import os
+
+          run = json.loads(os.environ['RUN_JSON'])
+          expected_workflow = 'Authorized Small Multimodal Batch'
+          if run.get('name') != expected_workflow:
+              raise SystemExit(f"resume source must be {expected_workflow!r}")
+          if run.get('event') != 'workflow_dispatch':
+              raise SystemExit('resume source must be a manual workflow_dispatch run')
+          if run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']:
+              raise SystemExit('resume source belongs to another repository')
+          if run.get('status') != 'completed':
+              raise SystemExit('resume source must be completed before reuse')
+          PY
+
+          mkdir -p artifacts/resume
+          gh run download "$RESUME_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "authorized-small-batch-${RESUME_RUN_ID}" \
+            --dir artifacts/resume
+
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path('artifacts/resume')
+          metadata_path = root / 'batch-metadata.json'
+          if not metadata_path.is_file():
+              raise SystemExit('resume artifact is missing batch-metadata.json')
+          metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+          if metadata.get('schemaVersion') != '1.0.0':
+              raise SystemExit('unsupported resume metadata schema')
+          if metadata.get('repository') != os.environ['GITHUB_REPOSITORY']:
+              raise SystemExit('resume artifact repository mismatch')
+          if metadata.get('version') != os.environ['URAI_VERSION']:
+              raise SystemExit('resume artifact version mismatch')
+          if metadata.get('workflow') != 'Authorized Small Multimodal Batch':
+              raise SystemExit('resume artifact workflow mismatch')
+
+          source = root / 'image_asset_generator'
+          required = [source / 'assets', source / 'manifest.json']
+          if not all(path.exists() for path in required):
+              raise SystemExit('resume artifact is incomplete')
+
+          shutil.copytree(source / 'assets', Path('image_asset_generator/assets'), dirs_exist_ok=True)
+          for name in (
+              'manifest.json',
+              'upgrade_feedback.json',
+              f"quality_report_{os.environ['URAI_VERSION']}.json",
+              f"forge_receipt_{os.environ['URAI_VERSION']}.json",
+          ):
+              candidate = source / name
+              if candidate.is_file():
+                  shutil.copy2(candidate, Path('image_asset_generator') / name)
+          PY
+          echo "RESTORED_BATCH_RUN_ID=$RESUME_RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Validate inventory and derive conservative batch limits
+        shell: bash
+        run: |
+          set -euo pipefail
           python image_asset_generator/check_canonical_version_contract.py
-          mkdir -p artifacts/forge-plans artifacts/budget artifacts/spatial-handoff
+          mkdir -p artifacts/forge-plans artifacts/budget
           python scripts/plan_versioned_forge.py \
             --version "$URAI_VERSION" \
             --max-rounds 1 \
@@ -119,20 +183,39 @@ jobs:
           hard_cost_cap = Decimal(os.environ['ASSET_FORGE_BATCH_MAX_COST_USD'])
           unit = Decimal(os.environ['ASSET_FORGE_MAX_UNIT_COST_USD'])
           calls = min(hard_call_cap, int(plan['maxProviderCalls']))
-          cost = unit * calls
-          if calls < 1 or cost > hard_cost_cap:
-              raise SystemExit('derived batch exposure violates the hard 20 USD ceiling')
+          reserved = unit * calls
+          if calls < 1 or reserved > hard_cost_cap:
+              raise SystemExit('derived exposure violates the conservative batch ceiling')
           with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as handle:
               handle.write(f'ASSET_FORGE_MAX_PROVIDER_CALLS={calls}\n')
-              handle.write(f'ASSET_FORGE_MAX_COST_USD={cost:.2f}\n')
+              handle.write(f'ASSET_FORGE_MAX_COST_USD={reserved:.2f}\n')
               handle.write(f'ASSET_FORGE_LIMIT_OUTPUTS={calls}\n')
-          print(f'APPROVAL_ID={os.environ["APPROVAL_ID"]}')
           print(f'AUTHORIZED_VERSION={version}')
           print(f'AUTHORIZED_MAX_CALLS={calls}')
-          print(f'AUTHORIZED_MAX_COST_USD={cost:.2f}')
+          print(f'RESERVED_EXPOSURE_USD={reserved:.2f}')
+          print('OPERATIONAL_SPEND_GOAL_USD=20.00')
           PY
 
-      - name: Generate one cost-bounded version batch
+      - name: Enforce bounded prompt size
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          max_chars = int(os.environ['ASSET_RENDERER_MAX_PROMPT_CHARS'])
+          version = os.environ['URAI_VERSION']
+          catalog = json.loads(Path('image_asset_generator/canonical_version_catalog.json').read_text())
+          manifest = Path('image_asset_generator') / catalog['versions'][version]['manifest']
+          entries = json.loads(manifest.read_text())
+          oversized = [(item.get('name'), len(str(item.get('prompt', '')))) for item in entries if len(str(item.get('prompt', ''))) > max_chars]
+          if oversized:
+              raise SystemExit(f'prompt character ceiling exceeded: {oversized[:5]}')
+          print(f'PROMPT_CHARACTER_CEILING={max_chars}')
+          PY
+
+      - name: Generate one bounded version batch
         id: batch
         shell: bash
         run: |
@@ -148,7 +231,7 @@ jobs:
             complete=true
             batch_status=complete
           elif [ -f "$ASSET_FORGE_BUDGET_STATE_PATH" ]; then
-            read -r calls cost <<EOF_LEDGER
+            read -r calls reserved <<EOF_LEDGER
           $(python - <<'PY'
           import json
           import os
@@ -160,13 +243,13 @@ jobs:
           EOF_LEDGER
             if [ "$calls" -eq "$ASSET_FORGE_MAX_PROVIDER_CALLS" ]; then
               batch_status=partial-budget-exhausted
-              echo "Batch stopped safely at ${calls} calls and USD ${cost}; resume from workflow run ${GITHUB_RUN_ID}."
+              echo "Batch stopped at ${calls} reserved calls and USD ${reserved}; resume from run ${GITHUB_RUN_ID}."
             else
-              echo "::error::Forge failed before reaching the authorized batch boundary."
+              echo '::error::Forge failed before reaching the configured batch boundary.'
               exit "$forge_exit"
             fi
           else
-            echo "::error::Forge failed without producing a budget ledger."
+            echo '::error::Forge failed without a budget ledger.'
             exit "$forge_exit"
           fi
 
@@ -178,8 +261,8 @@ jobs:
         if: steps.batch.outputs.complete == 'true'
         run: python image_asset_generator/certify_version_handoff.py --version "$URAI_VERSION"
 
-      - name: Check out Spatial promotion target
-        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
+      - name: Check out current Spatial promotion target
+        if: steps.batch.outputs.complete == 'true' && inputs.promote
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -187,8 +270,8 @@ jobs:
           token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
           path: spatial
 
-      - name: Create a certified Spatial drop-in branch
-        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
+      - name: Create certified Spatial drop-in branch
+        if: steps.batch.outputs.complete == 'true' && inputs.promote
         id: promote
         shell: bash
         working-directory: spatial
@@ -197,18 +280,18 @@ jobs:
           source_manifest="../image_asset_generator/spatial_handoff/assets/urai/final/manifests/${URAI_VERSION}-asset-factory-spatial-handoff.json"
           test -f "$source_manifest"
           rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
-          branch="asset-factory/${URAI_VERSION}-20usd-${GITHUB_RUN_ID}"
+          branch="asset-factory/${URAI_VERSION}-small-batch-${GITHUB_RUN_ID}"
           git config user.name 'URAI Production Wheel'
           git config user.email 'urai-wheel@users.noreply.github.com'
           git checkout -b "$branch"
           git add urai-tier1/public/assets/urai
           git diff --cached --quiet && { echo '::error::No certified asset changes were produced'; exit 1; }
-          git commit -m "Promote certified ${URAI_VERSION} 20 USD batch"
+          git commit -m "Promote certified ${URAI_VERSION} small batch"
           git push origin "$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
-      - name: Open the narrow Spatial promotion PR
-        if: steps.batch.outputs.complete == 'true' && (github.event_name == 'push' || inputs.promote)
+      - name: Open narrow Spatial promotion PR
+        if: steps.batch.outputs.complete == 'true' && inputs.promote
         working-directory: spatial
         env:
           GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
@@ -216,7 +299,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cost=$(python - <<'PY'
+          reserved=$(python - <<'PY'
           import json
           import os
           from pathlib import Path
@@ -228,16 +311,51 @@ jobs:
             --title "Promote certified ${URAI_VERSION^^} asset batch" \
             --body "Approval: $APPROVAL_ID
 
-          This PR promotes only the completely certified ${URAI_VERSION^^} provider pack from workflow run $GITHUB_RUN_ID. The run used a hard USD 20.00 ceiling and reserved USD $cost. Merge remains gated by Spatial CI, rights receipts, and human creative review."
+          Promotes only the completely certified ${URAI_VERSION^^} provider pack from workflow run $GITHUB_RUN_ID. The run used a conservative USD 15.00 reservation ceiling beneath the USD 20.00 operational goal and reserved USD $reserved. Merge remains gated by Spatial CI, rights evidence, and human creative review."
 
-      - name: Upload resumable batch outputs and immutable receipts
+      - name: Write immutable batch metadata
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/batch-package/image_asset_generator
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = {
+              'schemaVersion': '1.0.0',
+              'workflow': 'Authorized Small Multimodal Batch',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'runId': int(os.environ['GITHUB_RUN_ID']),
+              'headSha': os.environ['GITHUB_SHA'],
+              'version': os.environ['URAI_VERSION'],
+              'approvalId': os.environ['APPROVAL_ID'],
+              'authorizationRevision': os.environ['AUTHORIZATION_REVISION'],
+              'operationalSpendGoalUsd': '20.00',
+              'reservationCeilingUsd': os.environ['ASSET_FORGE_BATCH_MAX_COST_USD'],
+              'resumeSourceRunId': os.environ.get('RESTORED_BATCH_RUN_ID'),
+          }
+          Path('artifacts/batch-package/batch-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
+          rsync -a image_asset_generator/assets artifacts/batch-package/image_asset_generator/ 2>/dev/null || true
+          for file in \
+            image_asset_generator/manifest.json \
+            image_asset_generator/upgrade_feedback.json \
+            "image_asset_generator/quality_report_${URAI_VERSION}.json" \
+            "image_asset_generator/forge_receipt_${URAI_VERSION}.json"; do
+            [ -f "$file" ] && cp "$file" artifacts/batch-package/image_asset_generator/
+          done
+
+      - name: Upload resumable outputs and immutable receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: authorized-multimodal-execution-${{ github.sha }}-${{ github.run_id }}
+          name: authorized-small-batch-${{ github.run_id }}
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: error
           path: |
+            artifacts/batch-package/**
             artifacts/batch-forge.log
             artifacts/budget/*.json
             artifacts/forge-plans/*.json
@@ -246,7 +364,6 @@ jobs:
             image_asset_generator/upgrade_feedback*.json
             image_asset_generator/forge_receipt*.json
             image_asset_generator/dropin_receipt*.json
-            image_asset_generator/assets/**
             image_asset_generator/spatial_handoff/**
 
       - name: Write batch summary
@@ -254,11 +371,13 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Authorized multimodal batch"
+            echo '## Authorized small multimodal batch'
             echo "- Version: $URAI_VERSION"
             echo "- Status: ${{ steps.batch.outputs.status || 'failed-before-forge' }}"
-            echo "- Hard ceiling: USD 20.00"
+            echo '- Operational spend goal: USD 20.00'
+            echo '- Conservative reservation ceiling: USD 15.00'
             echo "- Resume source: ${RESTORED_BATCH_RUN_ID:-none}"
+            echo "- Promotion requested: ${{ inputs.promote }}"
             if [ -f "$ASSET_FORGE_BUDGET_STATE_PATH" ]; then
               python - <<'PY'
           import json
