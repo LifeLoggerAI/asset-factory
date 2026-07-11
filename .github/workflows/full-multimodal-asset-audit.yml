@@ -7,6 +7,8 @@ on:
       - 'image_asset_generator/**'
       - '.github/workflows/full-multimodal-asset-audit.yml'
       - '.github/workflows/authorized-multimodal-execution.yml'
+      - '.github/workflows/one-paid-v1-smoke-push.yml'
+      - '.github/workflows/promote-reviewed-multimodal-batch.yml'
       - 'scripts/test-asset-factory-multimodal.mjs'
   workflow_dispatch:
 
@@ -31,22 +33,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Check out locked Spatial source
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
           ref: ${{ env.URAI_SPATIAL_LOCKED_SHA }}
           path: urai-spatial
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify checked-out Spatial identity matches source lock
+      - name: Verify checked-out identities match source locks
         shell: bash
         run: |
           set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_HEAD_SHA"
           test "$(git -C urai-spatial rev-parse HEAD)" = "$URAI_SPATIAL_LOCKED_SHA"
           python - <<'PY'
           import json
@@ -74,8 +79,28 @@ jobs:
         run: python multimodal/validate_outputs.py
       - name: Validate rights, licensing, and consent policy
         run: python multimodal/validate_rights.py
-      - name: Plan missing-only paid dispatch without executing providers
+      - name: Plan paid dispatch without executing providers
         run: python multimodal/plan_paid_dispatch.py
+      - name: Prove pull-request planning is blocked and zero-spend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan=json.loads(Path('multimodal/paid-dispatch-plan.json').read_text())
+          if plan.get('dispatchAuthorized') is not False:
+              raise SystemExit('normal PR audit must never authorize paid dispatch')
+          if not plan.get('authorizationBlockers'):
+              raise SystemExit('blocked dispatch plan must record explicit blockers')
+          budget=plan.get('budget',{})
+          if budget.get('maxProviderCalls') != 0 or budget.get('plannedProviderCalls') != 0:
+              raise SystemExit('unauthorized plan must expose zero provider calls')
+          if budget.get('maxTotalExposureUsd') != 0:
+              raise SystemExit('unauthorized plan must expose zero approved spend')
+          safety=plan.get('safety',{})
+          if safety.get('providerCallsMadeByPlanner') != 0 or safety.get('costUsedByPlannerUsd') != 0:
+              raise SystemExit('planner must never execute or spend')
+          print(json.dumps({'dispatchAuthorized':False,'providerCalls':0,'approvedSpendUsd':0,'blockers':plan['authorizationBlockers']},indent=2))
+          PY
       - name: Enforce paid-batch workflow safety contract
         run: node scripts/test-asset-factory-multimodal.mjs
       - name: Upload immutable validation inputs and receipts
@@ -83,7 +108,7 @@ jobs:
         with:
           name: full-multimodal-manifest-validation-${{ github.event.pull_request.head.sha || github.sha }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 365
           path: |
             multimodal/full-multimodal-asset-manifest.json
             multimodal/validation-report.json
@@ -109,6 +134,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
