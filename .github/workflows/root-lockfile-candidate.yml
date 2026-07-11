@@ -45,6 +45,12 @@ jobs:
           test ! -e package-lock.json
           test "$(node --version)" = 'v20.19.5'
 
+      - name: Prepare committed root-lock contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/prepare-root-lock-contract.mjs
+
       - name: Pin npm and generate lock candidate
         shell: bash
         env:
@@ -82,7 +88,6 @@ jobs:
           }
           console.log(`validated ${Object.keys(lock.packages || {}).length} lock entries`);
           NODE
-          sha256sum package-lock.json | tee package-lock.sha256
 
       - name: Verify frozen install and high-severity audit gate
         shell: bash
@@ -93,13 +98,52 @@ jobs:
           npm ci --ignore-scripts --fund=false --audit=false
           npm audit --audit-level=high --omit=dev
 
+      - name: Validate exact artifact scope and write hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const files = [
+            'README.md',
+            'package-lock.json',
+            'scripts/doctor.mjs',
+            'scripts/setup-local.mjs',
+            'scripts/test-launch-readiness.mjs',
+          ];
+          const changed = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' })
+            .trim()
+            .split(/\n+/)
+            .filter(Boolean)
+            .map((line) => line.slice(3))
+            .sort();
+          const expected = [...files].sort();
+          if (JSON.stringify(changed) !== JSON.stringify(expected)) {
+            throw new Error(`unexpected changed files: ${JSON.stringify(changed)}`);
+          }
+          const hashes = Object.fromEntries(files.map((path) => [
+            path,
+            crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'),
+          ]));
+          fs.writeFileSync('root-lock-contract-manifest.json', `${JSON.stringify({
+            schemaVersion: 'urai-root-lock-contract-1',
+            sourceSha: process.env.GITHUB_SHA,
+            files: hashes,
+          }, null, 2)}\n`);
+          NODE
+
       - name: Upload root lock evidence
-        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: root-package-lock-${{ github.event.pull_request.head.sha || github.sha }}
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
           path: |
+            README.md
             package-lock.json
-            package-lock.sha256
+            root-lock-contract-manifest.json
+            scripts/doctor.mjs
+            scripts/setup-local.mjs
+            scripts/test-launch-readiness.mjs
