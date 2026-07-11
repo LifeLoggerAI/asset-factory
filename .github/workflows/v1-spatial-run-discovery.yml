@@ -1,6 +1,9 @@
 name: V1 Spatial Pack Run Discovery
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/v1-spatial-run-discovery.yml
   push:
     branches: [main]
     paths:
@@ -109,10 +112,16 @@ jobs:
 
             const marker = records.find(record => record.run.name === markerWorkflowName)
             const state = marker ? `${marker.run.status}${marker.run.conclusion ? `/${marker.run.conclusion}` : ''}` : 'not-found'
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              title: `[${state.toUpperCase()}] V1 Spatial Pack Receipt`,
-              body: lines.join('\n').slice(0, 65000),
-            })
+            const pullRequestRepo = context.payload.pull_request?.head?.repo?.full_name
+            const trustedIssueWrite = context.eventName !== 'pull_request' || pullRequestRepo === `${owner}/${repo}`
+            if (trustedIssueWrite) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                title: `[${state.toUpperCase()}] V1 Spatial Pack Receipt`,
+                body: lines.join('\n').slice(0, 65000),
+              })
+            } else {
+              await core.summary.addRaw(lines.join('\n')).write()
+            }
