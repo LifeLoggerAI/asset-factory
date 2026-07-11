@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { getAdminDb } from './firebaseAdmin';
 import type { VideoBudgetRecord, VideoTransactionRecord } from './assetVideoTransactions';
 
@@ -61,9 +61,9 @@ function safeCost(value: unknown, label: string) {
 }
 
 function budgetIdFor(transaction: VideoTransactionRecord) {
-  return transaction.campaignId
-    ? require('node:crypto').createHash('sha256').update(`video-budget\u0000${transaction.tenantId}\u0000${transaction.campaignId}`).digest('hex')
-    : '';
+  return createHash('sha256')
+    .update(`video-budget\u0000${transaction.tenantId}\u0000${transaction.campaignId}`)
+    .digest('hex');
 }
 
 function normalizeState(value: Partial<LocalState> | null | undefined): LocalState {
