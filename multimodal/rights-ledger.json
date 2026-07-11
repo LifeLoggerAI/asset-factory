@@ -45,21 +45,21 @@
     },
     {
       "recordId": "voice-consent",
-      "status": "not-applicable",
-      "source": "Execution plan permits stock synthetic voice only and prohibits cloning or identifiable voice imitation",
-      "commercialUse": true,
-      "attribution": "Synthetic provider voice disclosed in provenance",
+      "status": "pending",
+      "source": "Narration assets require exact-output evidence proving a disclosed stock synthetic voice with no cloning or identifiable imitation",
+      "commercialUse": null,
+      "attribution": "Pending exact provider voice and output provenance",
       "expiresAt": null,
-      "reviewEvidence": "No natural-person voice selected"
+      "reviewEvidence": "Plan-level synthetic-voice intent is not sufficient; exact rendered outputs and non-imitation review are required"
     },
     {
       "recordId": "likeness-consent",
-      "status": "not-applicable",
-      "source": "Execution plan prohibits natural-person likeness and private-life inputs",
-      "commercialUse": true,
+      "status": "pending",
+      "source": "Film and narration outputs require exact-output review proving no natural-person likeness or identifiable voice imitation",
+      "commercialUse": null,
       "attribution": null,
       "expiresAt": null,
-      "reviewEvidence": "No natural-person likeness selected"
+      "reviewEvidence": "Plan-level prohibition is not evidence about generated outputs; exact-hash human review remains required"
     },
     {
       "recordId": "sensitive-data",
