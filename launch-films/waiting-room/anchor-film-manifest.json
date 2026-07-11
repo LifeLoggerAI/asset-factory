@@ -1,0 +1,132 @@
+{
+  "campaignId": "urai-waiting-room-14-day",
+  "canonVersion": "2026-07-11.v1",
+  "status": "planning",
+  "evidencePolicy": {
+    "allowed": [
+      "LIVE_VERIFIED",
+      "VERIFIED_SYSTEM_DEMO",
+      "CERTIFIED_DEVICE_INTEGRATION",
+      "PROTOTYPE",
+      "VISION"
+    ],
+    "shotLevelMappingRequired": true
+  },
+  "globalDeliverables": {
+    "aspectRatios": ["16:9", "9:16", "1:1"],
+    "captionFormats": ["vtt", "srt"],
+    "accessibleVariants": ["silent-caption", "audio-described", "reduced-motion"],
+    "socialCutsSeconds": [6, 15, 30, 60]
+  },
+  "anchorFilms": [
+    {
+      "day": 0,
+      "filmId": "day-00-the-doorway-exists",
+      "title": "The Door",
+      "heroDurationSeconds": 70,
+      "proofDurationSeconds": 55,
+      "centralLine": "Do not imagine the future. Enter it.",
+      "requiredProof": [
+        "Home to Ground route capture",
+        "Ground to Life Map route capture",
+        "Life Map to Focus to Replay capture",
+        "Mirror and Passport capture",
+        "deployed version and evidence receipt"
+      ],
+      "state": "script-lock-required"
+    },
+    {
+      "day": 1,
+      "filmId": "day-01-movies-of-life",
+      "title": "The Memory Became a Movie",
+      "heroDurationSeconds": 85,
+      "proofDurationSeconds": 60,
+      "centralLine": "Your memories were never meant to remain inside folders.",
+      "requiredProof": [
+        "Life Map memory selection",
+        "Focus chamber",
+        "Replay playback",
+        "source-versus-reconstruction disclosure",
+        "captioned and audio-described exports"
+      ],
+      "state": "script-lock-required"
+    },
+    {
+      "day": 2,
+      "filmId": "day-02-this-is-real",
+      "title": "The Reality Breach",
+      "heroDurationSeconds": 55,
+      "proofDurationSeconds": 70,
+      "centralLine": "The future you were watching already exists.",
+      "requiredProof": [
+        "live URL capture",
+        "real route navigation",
+        "responsive mobile and desktop capture",
+        "capability evidence labels",
+        "deployment and rollback receipts"
+      ],
+      "state": "script-lock-required"
+    },
+    {
+      "day": 7,
+      "filmId": "day-07-ask-me-first",
+      "title": "Ask Me First",
+      "heroDurationSeconds": 80,
+      "proofDurationSeconds": 60,
+      "centralLine": "Your signals. Your rules. Your next step.",
+      "requiredProof": [
+        "consent configuration",
+        "local event processing",
+        "accessible check-in",
+        "minimum-information notification",
+        "response cancellation",
+        "privacy receipt and deletion evidence"
+      ],
+      "state": "script-lock-required"
+    },
+    {
+      "day": 8,
+      "filmId": "day-08-life-becomes-a-place",
+      "title": "Step Inside",
+      "heroDurationSeconds": 90,
+      "proofDurationSeconds": 90,
+      "centralLine": "Watch it. Enter it. Bring it into the world around you.",
+      "requiredProof": [
+        "VR capture",
+        "AR anchor capture",
+        "XR transition capture",
+        "accessibility controls",
+        "recording and room-mapping permission receipt",
+        "physical-device certification evidence"
+      ],
+      "state": "script-lock-required"
+    },
+    {
+      "day": 14,
+      "filmId": "day-14-the-world-opens",
+      "title": "The World Opens",
+      "heroDurationSeconds": 150,
+      "proofDurationSeconds": 90,
+      "centralLine": "This was never only a trailer. This is URAI.",
+      "requiredProof": [
+        "live public entry flow",
+        "language selection",
+        "accessibility setup",
+        "onboarding pathways",
+        "capacity and monitoring evidence",
+        "release SHA and rollback receipt"
+      ],
+      "state": "script-lock-required"
+    }
+  ],
+  "approvalGates": [
+    "creative",
+    "product-truth",
+    "privacy",
+    "claims",
+    "accessibility",
+    "rights",
+    "spend",
+    "final-publish"
+  ]
+}
