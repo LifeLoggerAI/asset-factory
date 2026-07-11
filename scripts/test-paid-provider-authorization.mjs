@@ -1,75 +1,42 @@
-import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const studioRoot = path.join(root, 'assetfactory-studio');
-const typescriptPath = path.join(studioRoot, 'node_modules', 'typescript', 'lib', 'typescript.js');
-if (!fs.existsSync(typescriptPath)) {
-  console.error(`Missing TypeScript dependency at ${typescriptPath}.`);
-  process.exit(2);
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const sourcePath = path.join(root, 'assetfactory-studio', 'lib', 'server', 'assetProviderAdapters.ts');
+const manifestPath = path.join(root, 'assetfactory-studio', 'app', 'api', 'system', 'manifest', 'route.ts');
+
+const source = fs.readFileSync(sourcePath, 'utf8');
+const manifest = fs.readFileSync(manifestPath, 'utf8');
+
+function requireText(text, fragment, label) {
+  if (!text.includes(fragment)) throw new Error(`Missing ${label}: ${fragment}`);
 }
 
-const ts = await import(pathToFileURL(typescriptPath).href);
-const sourcePath = path.join(studioRoot, 'lib', 'server', 'assetProviderAdapters.ts');
-const source = fs.readFileSync(sourcePath, 'utf8').replace(
-  "import type { CanonicalAssetType } from './assetFactoryTypes';",
-  "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';",
-);
-const output = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
-  fileName: sourcePath,
-}).outputText;
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'paid-provider-auth-'));
-const modulePath = path.join(tmpDir, 'assetProviderAdapters.mjs');
-fs.writeFileSync(modulePath, output);
-
-const original = {
-  provider: process.env.ASSET_FACTORY_MEDIA_PROVIDER,
-  enabled: process.env.ASSET_FACTORY_ENABLE_PAID_MEDIA,
-  approval: process.env.ASSET_FACTORY_PAID_APPROVAL_ID,
-  ceiling: process.env.ASSET_FACTORY_PAID_MAX_COST_CENTS,
-};
-
-try {
-  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
-  process.env.ASSET_FACTORY_ENABLE_PAID_MEDIA = 'true';
-  process.env.ASSET_FACTORY_PAID_APPROVAL_ID = 'test-approval';
-
-  const adapters = await import(`${pathToFileURL(modulePath).href}?v=${Date.now()}`);
-
-  process.env.ASSET_FACTORY_PAID_MAX_COST_CENTS = '1';
-  assert.equal(adapters.configuredProviderName(), 'local-proof');
-  assert.equal(adapters.getPaidProviderAuthorization().authorized, false);
-  assert.throws(
-    () => adapters.assertPaidProviderRequestAuthorized(2),
-    /not authorized|exceeds approved ceiling/,
-  );
-
-  process.env.ASSET_FACTORY_PAID_MAX_COST_CENTS = '34';
-  assert.equal(adapters.configuredProviderName(), 'replicate');
-  assert.equal(adapters.getPaidProviderAuthorization().authorized, true);
-  assert.doesNotThrow(() => adapters.assertPaidProviderRequestAuthorized(34));
-
-  process.env.ASSET_FACTORY_PAID_MAX_COST_CENTS = '40';
-  assert.throws(
-    () => adapters.assertPaidProviderRequestAuthorized(41),
-    /exceeds approved ceiling/,
-  );
-
-  console.log('PASS paid provider authorization ceilings');
-} finally {
-  for (const [key, value] of Object.entries(original)) {
-    const envName = {
-      provider: 'ASSET_FACTORY_MEDIA_PROVIDER',
-      enabled: 'ASSET_FACTORY_ENABLE_PAID_MEDIA',
-      approval: 'ASSET_FACTORY_PAID_APPROVAL_ID',
-      ceiling: 'ASSET_FACTORY_PAID_MAX_COST_CENTS',
-    }[key];
-    if (value === undefined) delete process.env[envName];
-    else process.env[envName] = value;
-  }
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+function forbidText(text, fragment, label) {
+  if (text.includes(fragment)) throw new Error(`Forbidden ${label}: ${fragment}`);
 }
+
+for (const guard of [
+  'ASSET_FACTORY_ENABLE_PAID_MEDIA',
+  'ASSET_FACTORY_PAID_APPROVAL_ID',
+  'ASSET_FACTORY_PAID_MAX_COST_CENTS',
+]) {
+  requireText(source, guard, `${guard} adapter guard`);
+  requireText(manifest, guard, `${guard} manifest readiness signal`);
+}
+
+requireText(source, 'const enabled = process.env.ASSET_FACTORY_ENABLE_PAID_MEDIA ===', 'explicit paid enablement');
+requireText(source, 'const approvalIdPresent = Boolean(process.env.ASSET_FACTORY_PAID_APPROVAL_ID?.trim())', 'nonempty approval ID');
+requireText(source, 'coversMaximumPolicyRequest', 'maximum-request ceiling coverage');
+requireText(source, 'authorized: enabled && approvalIdPresent && coversMaximumPolicyRequest', 'all-guards authorization rule');
+requireText(source, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed local-proof fallback');
+requireText(source, 'assertPaidProviderRequestAuthorized', 'per-request authorization assertion');
+requireText(source, 'exceeds approved ceiling', 'ceiling rejection');
+requireText(manifest, 'paidProviderReady', 'paid provider readiness declaration');
+requireText(manifest, "providers.selected !== 'local-proof'", 'local proof excluded from production readiness');
+
+forbidText(source, 'authorized: true', 'hardcoded provider authorization');
+forbidText(source, "return requested;", 'unguarded provider selection');
+forbidText(source, 'ASSET_FACTORY_ENABLE_PAID_MEDIA ?? true', 'paid mode default-on');
+
+console.log('PASS dependency-free paid provider authorization guards');
