@@ -61,6 +61,15 @@ for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'E
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
 
+for (const paidGuard of ['ASSET_FACTORY_ENABLE_PAID_MEDIA', 'ASSET_FACTORY_PAID_APPROVAL_ID', 'ASSET_FACTORY_PAID_MAX_COST_CENTS']) {
+  assertIncludes(providers, paidGuard, `${paidGuard} provider authorization guard`);
+  assertIncludes(manifestRoute, paidGuard, `${paidGuard} production readiness declaration`);
+}
+
+assertIncludes(providers, 'authorized: enabled && approvalIdPresent && maximumCostCents > 0', 'bounded paid authorization rule');
+assertIncludes(providers, "return getPaidProviderAuthorization().authorized ? requested : 'local-proof'", 'fail-closed provider fallback');
+assertIncludes(manifestRoute, "providers.selected !== 'local-proof'", 'local proof excluded from production readiness');
+assertIncludes(manifestRoute, 'paidProviderReady', 'paid provider readiness signal');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(validation, 'unsupported type', 'unsupported type validation');
@@ -79,8 +88,8 @@ assertIncludes(auth, 'x-asset-roles', 'tenant RBAC role header');
 assertIncludes(auth, 'Role ${requiredRole} required', 'RBAC rejection message');
 assertIncludes(store, 'activeAssetBackend', 'store backend selection');
 assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
-assertIncludes(store, 'status: \'rendering\'', 'rendering lifecycle status');
-assertIncludes(store, 'status: \'failed\'', 'failed lifecycle status');
+assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
+assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
 
 if (!fs.existsSync(studio)) {
