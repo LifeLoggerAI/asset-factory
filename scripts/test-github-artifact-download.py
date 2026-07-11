@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import importlib.util
+import stat
 import tempfile
 import urllib.error
+import zipfile
 from email.message import Message
 from pathlib import Path
 from unittest import mock
@@ -66,7 +68,9 @@ def test_redirect_strips_credentials() -> None:
 
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "artifact.zip"
-        with mock.patch.object(module.urllib.request, "build_opener", return_value=opener), mock.patch.object(
+        with mock.patch.object(
+            module.urllib.request, "build_opener", return_value=opener
+        ), mock.patch.object(
             module.urllib.request, "urlopen", side_effect=fake_urlopen
         ):
             module.download_artifact(
@@ -78,6 +82,7 @@ def test_redirect_strips_credentials() -> None:
             )
 
         assert output.read_bytes() == b"ZIP-BYTES"
+        assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
     assert len(opener.requests) == 1
     api_headers = header_map(opener.requests[0])
@@ -145,12 +150,87 @@ def test_json_api_rejects_redirects() -> None:
             raise AssertionError("JSON API redirect was accepted")
 
 
+def test_unique_member_extraction_ignores_archive_path() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "seed"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../../nested/home-threshold-main_1600.png", b"PNG-DATA")
+
+        extracted = module.extract_unique_member_by_basename(
+            archive,
+            "home-threshold-main_1600.png",
+            output,
+            max_bytes=100,
+        )
+        assert extracted == output / "home-threshold-main_1600.png"
+        assert extracted.read_bytes() == b"PNG-DATA"
+        assert stat.S_IMODE(extracted.stat().st_mode) == 0o600
+        assert not (root.parent / "home-threshold-main_1600.png").exists()
+
+
+def test_duplicate_member_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a/seed.png", b"A")
+            bundle.writestr("b/seed.png", b"B")
+        try:
+            module.extract_unique_member_by_basename(archive, "seed.png", root / "out")
+        except RuntimeError as exc:
+            assert "exactly one" in str(exc)
+        else:
+            raise AssertionError("duplicate archive basename was accepted")
+
+
+def test_symlink_member_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        member = zipfile.ZipInfo("seed.png")
+        member.create_system = 3
+        member.external_attr = (stat.S_IFLNK | 0o777) << 16
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(member, "../../outside")
+        try:
+            module.extract_unique_member_by_basename(archive, "seed.png", root / "out")
+        except RuntimeError as exc:
+            assert "regular file" in str(exc)
+        else:
+            raise AssertionError("symlink archive member was accepted")
+
+
+def test_extracted_byte_ceiling_is_enforced() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("seed.png", b"0123456789")
+        try:
+            module.extract_unique_member_by_basename(
+                archive,
+                "seed.png",
+                root / "out",
+                max_bytes=5,
+            )
+        except RuntimeError as exc:
+            assert "byte ceiling" in str(exc)
+        else:
+            raise AssertionError("oversized extracted member was accepted")
+
+
 def main() -> int:
     test_redirect_strips_credentials()
     test_non_https_redirect_is_rejected()
     test_byte_ceiling_is_enforced()
     test_json_api_rejects_redirects()
-    print("PASS GitHub artifact redirect credential isolation")
+    test_unique_member_extraction_ignores_archive_path()
+    test_duplicate_member_is_rejected()
+    test_symlink_member_is_rejected()
+    test_extracted_byte_ceiling_is_enforced()
+    print("PASS GitHub artifact redirect and extraction isolation")
     return 0
 
 
