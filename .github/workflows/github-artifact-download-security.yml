@@ -9,6 +9,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
@@ -19,6 +20,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
+      - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   workflow_dispatch:
@@ -61,10 +63,14 @@ jobs:
           python3 -m py_compile \
             scripts/github_artifact_download.py \
             scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
             scripts/v1_safe_resume_preflight.py
 
-      - name: Execute credential-isolation regressions
+      - name: Execute artifact credential and extraction regressions
         run: python3 scripts/test-github-artifact-download.py
+
+      - name: Execute historical preflight regressions
+        run: python3 scripts/test-v1-safe-resume-preflight.py
 
       - name: Verify consumed v2 path is absent
         run: test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
@@ -80,6 +86,7 @@ jobs:
               'scripts/test-github-artifact-download.py',
               'scripts/v1_safe_resume_preflight.py',
               'scripts/github_artifact_download.py',
+              '--extract-basename home-threshold-main_1600.png',
               'environment: paid-asset-generation',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
@@ -87,8 +94,14 @@ jobs:
           for marker in required:
               assert marker in workflow, marker
           assert 'curl --fail-with-body --location' not in workflow
+          assert 'unzip -q' not in workflow
           assert 'safe-resume-2-20260711.json' not in workflow
           assert not Path('authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json').exists()
+
+          before_execute, execute_section = workflow.split('\n  execute:\n', 1)
+          assert 'secrets.' not in before_execute
+          assert 'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}' in execute_section
+          assert 'environment: paid-asset-generation' in execute_section
           PY
 
       - name: Verify authenticated and storage requests are separated
@@ -105,6 +118,19 @@ jobs:
           assert 'Authorization' not in storage_section
           assert 'X-GitHub-Api-Version' not in storage_section
           assert 'parsed.scheme != "https"' in source
+          assert 'extract_unique_member_by_basename' in source
+          assert 'file_type != stat.S_IFREG' in source
+          PY
+
+      - name: Verify expired pack evidence fails closed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('scripts/v1_safe_resume_preflight.py').read_text()
+          assert 'is expired and' in source
+          assert 'cannot be inspected for spend or generated outputs' in source
+          assert 'safeToExecute": not reasons' in source
           PY
 
       - name: Final clean-tree proof
