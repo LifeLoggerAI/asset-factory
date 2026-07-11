@@ -49,6 +49,8 @@ const e2e = read('scripts/e2e-asset-factory.mjs');
 const paidBatchWorkflow = read('.github/workflows/authorized-multimodal-execution.yml');
 const multimodalAudit = read('.github/workflows/full-multimodal-asset-audit.yml');
 const renderRound = read('image_asset_generator/render_v1_round.py');
+const certification = read('image_asset_generator/certify_dropin.py');
+const rightsValidation = read('multimodal/validate_rights.py');
 const sourceLock = JSON.parse(read('multimodal/source-lock.json'));
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
@@ -103,18 +105,34 @@ assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
 assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
 
-// Paid workflow must remain explicit, conservative, resumable, and non-promoting by default.
+// Paid generation must be exact-head, conservative, resumable, and incapable of promotion.
 assertNotIncludes(paidBatchWorkflow, '\n  push:', 'automatic paid workflow trigger');
 assertIncludes(paidBatchWorkflow, 'workflow_dispatch:', 'manual paid workflow trigger');
 assertIncludes(paidBatchWorkflow, "confirm == 'AUTHORIZE_URAI_20USD_BATCH'", 'explicit paid confirmation');
-assertIncludes(paidBatchWorkflow, "default: false", 'promotion disabled by default');
+assertIncludes(paidBatchWorkflow, 'expected_sha:', 'exact paid execution head input');
+assertIncludes(paidBatchWorkflow, 'ref: ${{ inputs.expected_sha }}', 'exact paid checkout');
+assertIncludes(paidBatchWorkflow, 'persist-credentials: false', 'non-persistent paid checkout credentials');
 assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_PROVIDER_CALLS: '50'", 'conservative provider call ceiling');
 assertIncludes(paidBatchWorkflow, "ASSET_FORGE_BATCH_MAX_COST_USD: '15.00'", 'reservation headroom beneath operational goal');
 assertIncludes(paidBatchWorkflow, "ASSET_RENDERER_MAX_PROMPT_CHARS: '12000'", 'prompt character ceiling');
-assertIncludes(paidBatchWorkflow, "run.get('name') != expected_workflow", 'resume workflow identity check');
-assertIncludes(paidBatchWorkflow, "metadata.get('version') != os.environ['URAI_VERSION']", 'resume version check');
-assertIncludes(paidBatchWorkflow, "name: authorized-small-batch-${{ github.run_id }}", 'deterministic resumable artifact name');
-assertIncludes(paidBatchWorkflow, "if: steps.batch.outputs.complete == 'true' && inputs.promote", 'promotion requires complete certification and explicit opt-in');
+assertIncludes(paidBatchWorkflow, "run.get('conclusion') != 'success'", 'resume requires successful source run');
+assertIncludes(paidBatchWorkflow, "run.get('head_sha') != os.environ['AUTHORIZED_HEAD_SHA']", 'resume exact-head binding');
+assertIncludes(paidBatchWorkflow, "actual != declared['files']", 'resume checksum set verification');
+assertIncludes(paidBatchWorkflow, 'promotionAttempted\': False', 'generation receipt denies promotion');
+assertIncludes(paidBatchWorkflow, 'Promotion attempted: no', 'generation summary denies promotion');
+assertNotIncludes(paidBatchWorkflow, 'gh pr create', 'same-run promotion command');
+assertNotIncludes(paidBatchWorkflow, 'git push origin', 'same-run promotion push');
+
+// Technical completion may not become certification without rights and exact-hash human review.
+assertIncludes(certification, '"technically-validated"', 'technical-only receipt status');
+assertIncludes(certification, '--require-promotion-clearance', 'separate promotion clearance flag');
+assertIncludes(certification, 'rights.get("promotionAllowed") is not True', 'promotion rights enforcement');
+assertIncludes(certification, 'approval.get("humanReview") is not True', 'human review enforcement');
+assertIncludes(certification, 'approved_map != expected_map', 'exact approved artifact hash set enforcement');
+assertIncludes(certification, 'approval.get("assetFactoryHeadSha") != head_sha', 'creative approval exact-head binding');
+assertIncludes(rightsValidation, '--require-promotion-ready', 'rights promotion mode');
+assertIncludes(rightsValidation, 'promotionAllowed', 'rights blocking verdict');
+assertIncludes(rightsValidation, 'MUST_VERIFY', 'mandatory rights cannot be marked not applicable');
 
 // Resume logic must retry known failed assets while preserving accepted outputs.
 assertIncludes(renderRound, 'retry_failed_existing =', 'failed-existing retry control');
