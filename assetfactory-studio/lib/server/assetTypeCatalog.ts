@@ -1,11 +1,11 @@
-export type AssetFamily = 'graphic' | 'model' | 'audio' | 'bundle';
-export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';
+export type AssetFamily = 'graphic' | 'model' | 'audio' | 'video' | 'bundle';
+export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle';
 
 export type AssetTypeDefinition = {
   canonicalType: CanonicalAssetType;
   family: AssetFamily;
   aliases: string[];
-  rendererMode: 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'manifest-only';
+  rendererMode: 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'video-animatic' | 'manifest-only';
   defaultFormat: string;
   formats: string[];
   mimeType: string;
@@ -56,6 +56,20 @@ const definitions: AssetTypeDefinition[] = [
     defaultDurationSeconds: 2,
     defaultSampleRate: 22050,
     targetModules: ['studio-preview', 'audio-player', 'sound-export'],
+  },
+  {
+    canonicalType: 'video',
+    family: 'video',
+    aliases: ['video', 'film', 'movie', 'clip', 'short', 'reel', 'animatic', 'mp4', 'webm', 'mov'],
+    rendererMode: 'video-animatic',
+    defaultFormat: 'animatic',
+    formats: ['animatic', 'mp4', 'webm', 'mov', 'json'],
+    mimeType: 'application/vnd.urai.animatic+json',
+    extension: 'animatic',
+    previewExtension: 'svg',
+    defaultSize: { width: 1920, height: 1080 },
+    defaultDurationSeconds: 6,
+    targetModules: ['studio-preview', 'video-player', 'timeline-editor', 'video-export'],
   },
   {
     canonicalType: 'bundle',
