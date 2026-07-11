@@ -1,6 +1,6 @@
 {
   "receipt_id": "URAI-WSE-20260711-143800-ASSET-FACTORY-004",
-  "utc_timestamp": "2026-07-11T14:38:00Z",
+  "utc_timestamp": "2026-07-11T15:28:00Z",
   "workstream": "WORKSTREAM-E-SUPPLY-CHAIN-GOVERNANCE",
   "repository": "LifeLoggerAI/asset-factory",
   "canonical_role": "Asset generation, certification, budget governance, and controlled Spatial promotion service.",
@@ -10,10 +10,12 @@
   "base_sha": "77c3b8a39945b095238516c1e0abf68f5f00e48a",
   "branch": "ws-e/pin-paid-forge-actions-20260711",
   "control_change_commit_sha": "9d0b8208e2e64245a4f4b3e4f32b9d50e69c71bc",
-  "prior_pr_head": "246a9dac247cec57c48a24780ffe50b9d57264d6",
+  "runner_workaround_commit_sha": "38a244164283156429120ad71e98184da7285224",
+  "prior_pr_head": "1d4958df31e1df5999e8c205106bac2f7e4a7bbe",
   "exact_pr_head": "Recorded in pull request metadata after this receipt update to avoid a self-referential commit hash.",
   "pull_request": "https://github.com/LifeLoggerAI/asset-factory/pull/167",
   "related_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/159",
+  "runner_diagnostic_issue": "https://github.com/LifeLoggerAI/asset-factory/issues/161",
   "changed_files": [
     ".github/workflows/canonical-version-forge.yml",
     ".github/workflows/critical-workflow-integrity.yml",
@@ -32,6 +34,13 @@
     "Spatial promotion records the exact main SHA, rechecks the remote main SHA before creating the branch, verifies the promotion commit parent, records the base SHA in the PR body, and never auto-merges.",
     "A no-secret exact-candidate workflow rejects mutable action references or removal of critical paid-forge controls."
   ],
+  "runner_evidence": {
+    "diagnostic_run_id": 29155961477,
+    "macos_job": "completed-success",
+    "windows_job": "completed-success",
+    "ubuntu_job": "queued-unassigned-no-steps",
+    "workaround": "The platform-neutral, no-secret integrity gate uses macos-latest until ubuntu-latest assignment recovers. Linux build and test gates remain unchanged and blocked."
+  },
   "permissions": {
     "workflow_default": "contents: read; actions: read",
     "integrity_workflow": "contents: read",
@@ -42,17 +51,20 @@
   "license_impact": "No dependency, asset license, attribution, or lockfile content changed.",
   "tests": {
     "connector_static_review": "completed",
-    "critical_workflow_integrity_exact_head": "pending GitHub Actions execution; no run was attached to prior PR head or synthetic merge SHA when checked",
+    "cross_runner_diagnostic": "macOS and Windows completed successfully; Ubuntu remained queued without steps",
+    "critical_workflow_integrity_exact_head": "pending refreshed macOS GitHub Actions execution",
+    "linux_repository_suites": "queued and not represented as passes",
     "provider_call": "not run",
     "promotion": "not run"
   },
   "limitations": [
     "The connector cannot prove paid-asset-generation reviewer requirements, deployment-branch restrictions, or environment-scoped secret settings.",
     "The connector cannot prove the least-privilege scope, owner, or rotation policy of URAI_WHEEL_GITHUB_TOKEN.",
+    "Ubuntu GitHub-hosted runner assignment remains blocked and therefore Linux-specific repository suites remain incomplete.",
     "PR #158 remains a separate draft change for the manual one-call USD 1.00 dispatch helper.",
     "No provider secret, API key, billing credential, or private approval content was read or recorded."
   ],
-  "status": "IMPLEMENTED — EXACT-HEAD VERIFICATION PENDING",
+  "status": "IMPLEMENTED — MACOS INTEGRITY VERIFICATION PENDING; LINUX SUITES BLOCKED",
   "rollback": "Revert only this focused pull request. Do not restore mutable action tags, automatic promotion, unverified source identity, broad secret access, or auto-merge.",
-  "exact_next_action": "Inspect the refreshed exact-head Critical Workflow Integrity run if GitHub schedules it; otherwise keep PR #167 draft and retain the external GitHub settings evidence items on issue #159 until independently verified."
+  "exact_next_action": "Inspect the refreshed macOS Critical Workflow Integrity run. Keep PR #167 draft regardless until Linux suites and external GitHub settings evidence are complete."
 }
