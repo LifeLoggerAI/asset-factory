@@ -3,15 +3,17 @@ name: V1 AAA Spatial Pack Integrity
 on:
   pull_request:
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
   push:
     branches: [main]
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-marker.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/spatial_prompt_overrides.json
 
@@ -59,23 +61,70 @@ jobs:
           assert tree is not None
           PY
 
-      - name: Verify immutable spend and non-promotion boundary
+      - name: Verify immutable marker and spend boundary
         shell: bash
         run: |
           set -euo pipefail
-          workflow=.github/workflows/one-time-v1-aaa-spatial-pack.yml
-          grep -F "issues:" "$workflow"
-          grep -F "types: [opened]" "$workflow"
-          grep -F "runs-on: macos-latest" "$workflow"
-          grep -F "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'" "$workflow"
-          grep -F "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'" "$workflow"
-          grep -F "ASSET_FORGE_MAX_COST_USD: '47.00'" "$workflow"
-          grep -F "ASSET_RENDERER_MAX_ATTEMPTS: '1'" "$workflow"
-          grep -F "PROMOTE=false" "$workflow"
-          grep -F "EXECUTION_NONCE=URAI-V1-AAA-SPATIAL-20260711-ONE-TIME" "$workflow"
-          ! grep -F "repository: LifeLoggerAI/urai-spatial" "$workflow"
-          ! grep -E "git push|merge_pull_request|enable_auto_merge" "$workflow"
-          ! grep -F "URAI_WHEEL_GITHUB_TOKEN:" "$workflow"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/one-time-v1-aaa-spatial-pack-marker.yml')
+          text = path.read_text()
+          required = [
+              'github.actor == github.repository_owner && github.run_attempt == 1',
+              'GITHUB_RUN_ATTEMPT',
+              "= '1'",
+              'github.event.before',
+              'github.event.after',
+              'github.event.forced',
+              "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
+              "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
+              "ASSET_FORGE_MAX_COST_USD: '47.00'",
+              "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
+              "executionNonce': 'URAI-V1-AAA-SPATIAL-20260711-ONE-TIME'",
+              'environment: paid-asset-generation',
+          ]
+          for value in required:
+              assert value in text, value
+          forbidden = [
+              'repository: LifeLoggerAI/urai-spatial',
+              'git push',
+              'merge_pull_request',
+              'enable_auto_merge',
+              'URAI_WHEEL_GITHUB_TOKEN:',
+          ]
+          for value in forbidden:
+              assert value not in text, value
+          PY
+
+      - name: Verify post-certification boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml')
+          text = path.read_text()
+          required = [
+              'workflows: [One-Time V1 AAA Spatial Pack Marker]',
+              'sourceRunId',
+              'duplicatePairs',
+              "receipt.get('newProviderCalls') == 47",
+              "receipt.get('ready') == 53",
+              "dropin.get('status') == 'certified'",
+              'perceptualHash',
+              "'status': 'failed' if duplicates else 'passed'",
+          ]
+          for value in required:
+              assert value in text, value
+          forbidden = [
+              'git push',
+              'merge_pull_request',
+              'enable_auto_merge',
+              'repository: LifeLoggerAI/urai-spatial',
+          ]
+          for value in forbidden:
+              assert value not in text, value
+          PY
 
       - name: Verify Life Map to Replay spatial canon
         shell: bash
