@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "URAI-WSC-20260711-ASSET-CLEAN-021",
+  "recordedAt": "2026-07-11T18:36:00Z",
+  "repository": "LifeLoggerAI/asset-factory",
+  "pullRequest": 172,
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "base": {
+    "ref": "main",
+    "sha": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "candidateHeadBeforeReceipt": "c2bc03dfe33457b16f5deb11ac475cefb9e0080a",
+  "ancestryBeforeReceipt": {
+    "ahead": 57,
+    "behind": 0,
+    "mergeBase": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "continuationFix": {
+    "finding": "Direct npm.cmd spawn with shell false is not a reliable Windows execution path after root lock materialization",
+    "severity": "P1 portability",
+    "commits": [
+      "91c0fe09264ff2d6b4b179f207c48c6f9ac96252",
+      "7031edbc5ee949cd431b127d72dc62771f89825a",
+      "c2bc03dfe33457b16f5deb11ac475cefb9e0080a"
+    ],
+    "remediation": [
+      "use the absolute npm CLI path supplied by npm run and execute it through process.execPath when available",
+      "validate that npm_execpath is absolute and exists before using it",
+      "retain an explicit Windows command-shell fallback only when a trusted npm CLI path is unavailable",
+      "preserve exact npm audit arguments: audit --audit-level=high --omit=dev",
+      "execute a static cross-platform invocation regression in Full Multimodal Asset Audit"
+    ]
+  },
+  "supplementalIndependentChecks": {
+    "authority": "supplemental only; not a substitute for exact-head GitHub Actions",
+    "networkCheckoutAvailable": false,
+    "reconstructedCriticalFiles": true,
+    "results": [
+      "compiled Asset Factory validation dependency graph imported and all three behavior assertions passed",
+      "root audit deferred with exit zero when no lock existed",
+      "root audit invoked exactly audit --audit-level=high --omit=dev when a lock existed",
+      "rights report and certification schema compatibility regression passed",
+      "critical Python schema files compiled"
+    ]
+  },
+  "reviewState": {
+    "allKnownThreadsResolvedBeforeReceipt": true,
+    "freshExactHeadReviewRequired": true
+  },
+  "noSpendBoundary": {
+    "paidRuntimeEnabled": false,
+    "atomicOneTimeLedgerConfigured": false,
+    "dispatchAuthorized": false,
+    "maximumProviderCalls": 0,
+    "maximumApprovedExposureUsd": 0,
+    "providerCallsPerformedByThisContinuation": 0,
+    "promotionPerformed": false,
+    "deploymentPerformed": false,
+    "mergePerformed": false
+  },
+  "workflowBoundary": {
+    "receiptCommitBecomesNewExactHead": true,
+    "allRunsBeforeReceiptAreStale": true,
+    "freshExactHeadRunsRequired": true,
+    "queuedOrPendingDoesNotCountAsPass": true
+  },
+  "mergeBoundary": {
+    "draftRequired": true,
+    "mergeAuthorized": false,
+    "requirements": [
+      "all exact-head workflows succeed on an unchanged receipt-bearing SHA",
+      "root-lock artifact and hashes are independently verified before committing generated files",
+      "temporary root-lock controls are removed and the complete resulting head passes again",
+      "historical V1 generation and post-certification evidence is found and verified",
+      "dependency, SBOM, license, rights, consent, legal and exact-hash human review gates close",
+      "immutable promotion, deployment, rollback and live deployed-SHA evidence exists"
+    ]
+  }
+}
