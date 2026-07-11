@@ -4,24 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Canonical version to generate in this batch'
+        description: Canonical version to generate in this batch
         required: true
         type: choice
         options: [v1, v2, v3, v4, v5]
         default: v1
-      confirm:
-        description: 'Type AUTHORIZE_URAI_20USD_BATCH to authorize this paid batch'
+      expected_sha:
+        description: Exact Asset Factory commit authorized for paid execution
         required: true
-        default: 'NO'
+        type: string
+      confirm:
+        description: Type AUTHORIZE_URAI_20USD_BATCH to authorize this paid batch
+        required: true
+        default: NO
+        type: string
       resume_run_id:
-        description: 'Optional prior compatible batch run ID to resume'
+        description: Optional successful compatible batch run ID to resume
         required: false
         default: ''
-      promote:
-        description: 'Open a Spatial promotion PR only after complete certification'
-        required: true
-        type: boolean
-        default: false
+        type: string
 
 permissions:
   contents: read
@@ -33,8 +34,9 @@ concurrency:
 
 env:
   APPROVAL_ID: urai-small-batch-2026-07-11
-  AUTHORIZATION_REVISION: '4'
+  AUTHORIZATION_REVISION: '5'
   URAI_VERSION: ${{ inputs.version }}
+  AUTHORIZED_HEAD_SHA: ${{ inputs.expected_sha }}
   ASSET_RENDERER_PROVIDER: openai
   ASSET_RENDERER_MODE: provider
   ASSET_RENDERER_MODEL: gpt-image-1.5
@@ -52,19 +54,21 @@ env:
   ASSET_FORGE_RUN_ID: ${{ github.run_id }}-${{ inputs.version }}-small-batch
   ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
 
 jobs:
-  forge-certify-promote:
+  forge-and-package:
     if: inputs.confirm == 'AUTHORIZE_URAI_20USD_BATCH'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     environment: paid-asset-generation
+
     steps:
       - name: Check out exact authorized head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -74,18 +78,23 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install visual forge dependencies
-        run: python -m pip install -r image_asset_generator/requirements.txt
-
-      - name: Validate explicit authorization and provider configuration
+      - name: Validate exact paid-execution authority
         shell: bash
         run: |
           set -euo pipefail
           test '${{ inputs.confirm }}' = 'AUTHORIZE_URAI_20USD_BATCH'
           test -n "$OPENAI_API_KEY"
-          if [ '${{ inputs.promote }}' = 'true' ]; then
-            test -n "$URAI_WHEEL_GITHUB_TOKEN"
-          fi
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$AUTHORIZED_HEAD_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          case "$AUTHORIZED_HEAD_SHA" in
+            *[!0-9a-f]*|'') echo '::error::expected_sha must be a lowercase full commit SHA'; exit 1 ;;
+          esac
+          test "${#AUTHORIZED_HEAD_SHA}" -eq 40
+          echo "ASSET_FACTORY_EXACT_HEAD=$ACTUAL_SHA" >> "$GITHUB_ENV"
+
+      - name: Install visual forge dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
 
       - name: Restore and verify a prior compatible batch
         if: inputs.resume_run_id != ''
@@ -105,15 +114,16 @@ jobs:
           import os
 
           run = json.loads(os.environ['RUN_JSON'])
-          expected_workflow = 'Authorized Small Multimodal Batch'
-          if run.get('name') != expected_workflow:
-              raise SystemExit(f"resume source must be {expected_workflow!r}")
+          if run.get('name') != 'Authorized Small Multimodal Batch':
+              raise SystemExit('resume source must be the authorized batch workflow')
           if run.get('event') != 'workflow_dispatch':
               raise SystemExit('resume source must be a manual workflow_dispatch run')
           if run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']:
               raise SystemExit('resume source belongs to another repository')
-          if run.get('status') != 'completed':
-              raise SystemExit('resume source must be completed before reuse')
+          if run.get('status') != 'completed' or run.get('conclusion') != 'success':
+              raise SystemExit('resume source must be a completed successful run')
+          if run.get('head_sha') != os.environ['AUTHORIZED_HEAD_SHA']:
+              raise SystemExit('resume source head does not match the exact authorized head')
           PY
 
           mkdir -p artifacts/resume
@@ -123,6 +133,7 @@ jobs:
             --dir artifacts/resume
 
           python - <<'PY'
+          import hashlib
           import json
           import os
           import shutil
@@ -130,33 +141,41 @@ jobs:
 
           root = Path('artifacts/resume')
           metadata_path = root / 'batch-metadata.json'
-          if not metadata_path.is_file():
-              raise SystemExit('resume artifact is missing batch-metadata.json')
+          checksums_path = root / 'checksums.json'
+          if not metadata_path.is_file() or not checksums_path.is_file():
+              raise SystemExit('resume artifact is missing metadata or checksums')
+
           metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
-          if metadata.get('schemaVersion') != '1.0.0':
-              raise SystemExit('unsupported resume metadata schema')
-          if metadata.get('repository') != os.environ['GITHUB_REPOSITORY']:
-              raise SystemExit('resume artifact repository mismatch')
-          if metadata.get('version') != os.environ['URAI_VERSION']:
-              raise SystemExit('resume artifact version mismatch')
-          if metadata.get('workflow') != 'Authorized Small Multimodal Batch':
-              raise SystemExit('resume artifact workflow mismatch')
+          expected = {
+              'schemaVersion': '1.1.0',
+              'workflow': 'Authorized Small Multimodal Batch',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'headSha': os.environ['AUTHORIZED_HEAD_SHA'],
+              'version': os.environ['URAI_VERSION'],
+              'approvalId': os.environ['APPROVAL_ID'],
+              'authorizationRevision': os.environ['AUTHORIZATION_REVISION'],
+          }
+          for key, value in expected.items():
+              if metadata.get(key) != value:
+                  raise SystemExit(f'resume metadata mismatch for {key}')
+
+          declared = json.loads(checksums_path.read_text(encoding='utf-8'))
+          if declared.get('schemaVersion') != '1.0.0' or not isinstance(declared.get('files'), dict):
+              raise SystemExit('unsupported resume checksum manifest')
+          actual = {}
+          for path in sorted(p for p in root.rglob('*') if p.is_file() and p != checksums_path):
+              actual[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+          if actual != declared['files']:
+              raise SystemExit('resume artifact checksum set does not match exact package contents')
 
           source = root / 'image_asset_generator'
-          required = [source / 'assets', source / 'manifest.json']
-          if not all(path.exists() for path in required):
-              raise SystemExit('resume artifact is incomplete')
-
-          shutil.copytree(source / 'assets', Path('image_asset_generator/assets'), dirs_exist_ok=True)
-          for name in (
-              'manifest.json',
-              'upgrade_feedback.json',
-              f"quality_report_{os.environ['URAI_VERSION']}.json",
-              f"forge_receipt_{os.environ['URAI_VERSION']}.json",
-          ):
-              candidate = source / name
-              if candidate.is_file():
-                  shutil.copy2(candidate, Path('image_asset_generator') / name)
+          for directory in ('assets', 'manifests/generated', 'spatial_handoff'):
+              candidate = source / directory
+              if candidate.is_dir():
+                  shutil.copytree(candidate, Path('image_asset_generator') / directory, dirs_exist_ok=True)
+          for candidate in source.glob('*.json'):
+              shutil.copy2(candidate, Path('image_asset_generator') / candidate.name)
+          print('resume package verified and restored')
           PY
           echo "RESTORED_BATCH_RUN_ID=$RESUME_RUN_ID" >> "$GITHUB_ENV"
 
@@ -193,7 +212,6 @@ jobs:
           print(f'AUTHORIZED_VERSION={version}')
           print(f'AUTHORIZED_MAX_CALLS={calls}')
           print(f'RESERVED_EXPOSURE_USD={reserved:.2f}')
-          print('OPERATIONAL_SPEND_GOAL_USD=20.00')
           PY
 
       - name: Enforce bounded prompt size
@@ -209,10 +227,13 @@ jobs:
           catalog = json.loads(Path('image_asset_generator/canonical_version_catalog.json').read_text())
           manifest = Path('image_asset_generator') / catalog['versions'][version]['manifest']
           entries = json.loads(manifest.read_text())
-          oversized = [(item.get('name'), len(str(item.get('prompt', '')))) for item in entries if len(str(item.get('prompt', ''))) > max_chars]
+          oversized = [
+              (item.get('name'), len(str(item.get('prompt', ''))))
+              for item in entries
+              if len(str(item.get('prompt', ''))) > max_chars
+          ]
           if oversized:
               raise SystemExit(f'prompt character ceiling exceeded: {oversized[:5]}')
-          print(f'PROMPT_CHARACTER_CEILING={max_chars}')
           PY
 
       - name: Generate one bounded version batch
@@ -257,95 +278,82 @@ jobs:
           echo "status=$batch_status" >> "$GITHUB_OUTPUT"
           echo "forge_exit=$forge_exit" >> "$GITHUB_OUTPUT"
 
-      - name: Certify the complete selected version
+      - name: Technically validate the complete selected version
         if: steps.batch.outputs.complete == 'true'
         run: python image_asset_generator/certify_version_handoff.py --version "$URAI_VERSION"
 
-      - name: Check out current Spatial promotion target
-        if: steps.batch.outputs.complete == 'true' && inputs.promote
-        uses: actions/checkout@v4
-        with:
-          repository: LifeLoggerAI/urai-spatial
-          ref: main
-          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
-          path: spatial
+      - name: Emit rights blocking verdict
+        if: steps.batch.outputs.complete == 'true'
+        run: python multimodal/validate_rights.py
 
-      - name: Create certified Spatial drop-in branch
-        if: steps.batch.outputs.complete == 'true' && inputs.promote
-        id: promote
-        shell: bash
-        working-directory: spatial
+      - name: Build non-approving creative review package
+        if: steps.batch.outputs.complete == 'true'
         run: |
-          set -euo pipefail
-          source_manifest="../image_asset_generator/spatial_handoff/assets/urai/final/manifests/${URAI_VERSION}-asset-factory-spatial-handoff.json"
-          test -f "$source_manifest"
-          rsync -a ../image_asset_generator/spatial_handoff/ urai-tier1/public/
-          branch="asset-factory/${URAI_VERSION}-small-batch-${GITHUB_RUN_ID}"
-          git config user.name 'URAI Production Wheel'
-          git config user.email 'urai-wheel@users.noreply.github.com'
-          git checkout -b "$branch"
-          git add urai-tier1/public/assets/urai
-          git diff --cached --quiet && { echo '::error::No certified asset changes were produced'; exit 1; }
-          git commit -m "Promote certified ${URAI_VERSION} small batch"
-          git push origin "$branch"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          python scripts/build_creative_review.py
+          python scripts/build_contact_sheets.py
 
-      - name: Open narrow Spatial promotion PR
-        if: steps.batch.outputs.complete == 'true' && inputs.promote
-        working-directory: spatial
-        env:
-          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
-          BRANCH: ${{ steps.promote.outputs.branch }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          reserved=$(python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          data = json.loads(Path(os.environ['ASSET_FORGE_BUDGET_STATE_PATH']).read_text())
-          print(data['reservedEstimatedCostUsd'])
-          PY
-          )
-          gh pr create --base main --head "$BRANCH" \
-            --title "Promote certified ${URAI_VERSION^^} asset batch" \
-            --body "Approval: $APPROVAL_ID
-
-          Promotes only the completely certified ${URAI_VERSION^^} provider pack from workflow run $GITHUB_RUN_ID. The run used a conservative USD 15.00 reservation ceiling beneath the USD 20.00 operational goal and reserved USD $reserved. Merge remains gated by Spatial CI, rights evidence, and human creative review."
-
-      - name: Write immutable batch metadata
+      - name: Build immutable resumable package
         if: always()
         shell: bash
         run: |
-          mkdir -p artifacts/batch-package/image_asset_generator
-          python - <<'PY'
+          set -euo pipefail
+          package=artifacts/batch-package
+          rm -rf "$package"
+          mkdir -p "$package/image_asset_generator" "$package/artifacts"
+
+          for directory in assets manifests/generated spatial_handoff; do
+            if [ -d "image_asset_generator/$directory" ]; then
+              mkdir -p "$package/image_asset_generator/$(dirname "$directory")"
+              rsync -a "image_asset_generator/$directory" "$package/image_asset_generator/$(dirname "$directory")/"
+            fi
+          done
+          for file in \
+            image_asset_generator/manifest.json \
+            image_asset_generator/upgrade_feedback.json \
+            "image_asset_generator/quality_report_${URAI_VERSION}.json" \
+            "image_asset_generator/forge_receipt_${URAI_VERSION}.json" \
+            "image_asset_generator/dropin_receipt_${URAI_VERSION}.json"; do
+            [ -f "$file" ] && cp "$file" "$package/image_asset_generator/"
+          done
+          [ -d creative-review ] && rsync -a creative-review "$package/"
+          [ -d artifacts/budget ] && rsync -a artifacts/budget "$package/artifacts/"
+          [ -d artifacts/forge-plans ] && rsync -a artifacts/forge-plans "$package/artifacts/"
+          [ -f artifacts/batch-forge.log ] && cp artifacts/batch-forge.log "$package/artifacts/"
+          [ -f multimodal/rights-validation-report.json ] && cp multimodal/rights-validation-report.json "$package/"
+          cp multimodal/rights-ledger.json "$package/"
+
+          BATCH_STATUS='${{ steps.batch.outputs.status || 'failed-before-forge' }}' \
+          BATCH_COMPLETE='${{ steps.batch.outputs.complete || 'false' }}' \
+          PACKAGE="$package" python - <<'PY'
+          import hashlib
           import json
           import os
           from pathlib import Path
 
+          root = Path(os.environ['PACKAGE'])
           metadata = {
-              'schemaVersion': '1.0.0',
+              'schemaVersion': '1.1.0',
               'workflow': 'Authorized Small Multimodal Batch',
               'repository': os.environ['GITHUB_REPOSITORY'],
               'runId': int(os.environ['GITHUB_RUN_ID']),
-              'headSha': os.environ['GITHUB_SHA'],
+              'headSha': os.environ['ASSET_FACTORY_EXACT_HEAD'],
               'version': os.environ['URAI_VERSION'],
               'approvalId': os.environ['APPROVAL_ID'],
               'authorizationRevision': os.environ['AUTHORIZATION_REVISION'],
               'operationalSpendGoalUsd': '20.00',
               'reservationCeilingUsd': os.environ['ASSET_FORGE_BATCH_MAX_COST_USD'],
               'resumeSourceRunId': os.environ.get('RESTORED_BATCH_RUN_ID'),
+              'batchStatus': os.environ['BATCH_STATUS'],
+              'complete': os.environ['BATCH_COMPLETE'] == 'true',
+              'promotionAttempted': False,
+              'claimBoundary': 'Generated outputs are not certified or promotion-eligible without separate rights and exact-hash human review clearance.',
           }
-          Path('artifacts/batch-package/batch-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          (root / 'batch-metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          files = {}
+          for path in sorted(p for p in root.rglob('*') if p.is_file() and p.name != 'checksums.json'):
+              files[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+          (root / 'checksums.json').write_text(json.dumps({'schemaVersion': '1.0.0', 'files': files}, indent=2) + '\n')
           PY
-          rsync -a image_asset_generator/assets artifacts/batch-package/image_asset_generator/ 2>/dev/null || true
-          for file in \
-            image_asset_generator/manifest.json \
-            image_asset_generator/upgrade_feedback.json \
-            "image_asset_generator/quality_report_${URAI_VERSION}.json" \
-            "image_asset_generator/forge_receipt_${URAI_VERSION}.json"; do
-            [ -f "$file" ] && cp "$file" artifacts/batch-package/image_asset_generator/
-          done
 
       - name: Upload resumable outputs and immutable receipts
         if: always()
@@ -354,17 +362,7 @@ jobs:
           name: authorized-small-batch-${{ github.run_id }}
           retention-days: 90
           if-no-files-found: error
-          path: |
-            artifacts/batch-package/**
-            artifacts/batch-forge.log
-            artifacts/budget/*.json
-            artifacts/forge-plans/*.json
-            image_asset_generator/manifests/generated/*.json
-            image_asset_generator/quality_report*.json
-            image_asset_generator/upgrade_feedback*.json
-            image_asset_generator/forge_receipt*.json
-            image_asset_generator/dropin_receipt*.json
-            image_asset_generator/spatial_handoff/**
+          path: artifacts/batch-package/**
 
       - name: Write batch summary
         if: always()
@@ -372,12 +370,13 @@ jobs:
         run: |
           {
             echo '## Authorized small multimodal batch'
+            echo "- Exact head: $ASSET_FACTORY_EXACT_HEAD"
             echo "- Version: $URAI_VERSION"
             echo "- Status: ${{ steps.batch.outputs.status || 'failed-before-forge' }}"
-            echo '- Operational spend goal: USD 20.00'
-            echo '- Conservative reservation ceiling: USD 15.00'
+            echo '- Reservation ceiling: USD 15.00'
             echo "- Resume source: ${RESTORED_BATCH_RUN_ID:-none}"
-            echo "- Promotion requested: ${{ inputs.promote }}"
+            echo '- Promotion attempted: no'
+            echo '- Claim boundary: technical output only; separate rights and human review clearance is mandatory.'
             if [ -f "$ASSET_FORGE_BUDGET_STATE_PATH" ]; then
               python - <<'PY'
           import json
