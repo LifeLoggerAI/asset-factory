@@ -1,11 +1,13 @@
 # URAI Full Multimodal Asset Completion Program
 
-This directory is the fail-closed control plane for visual, 3D, audio, film, accessibility, runtime, and governance completion.
+This directory defines the fail-closed control plane for URAI's multimodal asset inventory, provenance, lifecycle, rights, validation, review, promotion, deployment, rollback, and live-verification evidence.
 
-The canonical asset-level manifest is generated during the audit from locked source contracts. The audit applies media specifications, route mapping, repository provenance, and lifecycle contract v1.2 before validation. The resulting `full-multimodal-asset-manifest.json` is uploaded as an exact-head artifact; the obsolete coarse checked-in snapshot was removed.
+## Current boundary
 
-Current generated inventory: 362 required records across seven lanes. Certified records: 0.
+- The control plane describes and validates required assets; it does not certify missing outputs.
+- Normal pull-request audits must authorize zero provider calls and zero spend.
+- Paid generation requires a separate exact-main authorization and is not granted by these files.
+- Rights, consent, likeness, exact-hash human review, promotion, deployment, rollback, and live verification remain independent gates.
+- One prior bounded provider smoke generated `home_threshold_main`; that receipt does not certify the remaining inventory.
 
-A file's presence is not certification. Certification requires technical validation, checksum, provenance, rights, ownership, retention/deletion/export/revocation controls, approved review, merged promotion, exact release SHA, distinct rollback SHA, and live evidence.
-
-Release remains blocked.
+No document in this directory is itself a production-complete claim.
