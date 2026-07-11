@@ -118,10 +118,14 @@ jobs:
           run = json.loads(os.environ['RUN_JSON'])
           if run.get('name') != 'Authorized Small Multimodal Batch':
               raise SystemExit('source run is not the authorized paid generation workflow')
+          if run.get('path') != '.github/workflows/authorized-multimodal-execution.yml':
+              raise SystemExit('source run does not belong to the canonical paid generation workflow file')
           if run.get('event') != 'workflow_dispatch':
               raise SystemExit('source run was not manually dispatched')
           if run.get('repository', {}).get('full_name') != os.environ['GITHUB_REPOSITORY']:
               raise SystemExit('source run belongs to another repository')
+          if run.get('head_sha') != os.environ['EXPECTED_ASSET_FACTORY_SHA']:
+              raise SystemExit('source run head SHA does not match the approved Asset Factory generation SHA')
           if run.get('status') != 'completed' or run.get('conclusion') != 'success':
               raise SystemExit('source run must be completed successfully')
           PY
