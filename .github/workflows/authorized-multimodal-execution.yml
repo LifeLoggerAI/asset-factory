@@ -25,8 +25,8 @@ env:
   ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
   ASSET_FORGE_MAX_ROUNDS: '3'
   ASSET_FORGE_MAX_PROVIDER_CALLS: '650'
-  ASSET_FORGE_MAX_UNIT_COST_USD: '1.50'
-  ASSET_FORGE_MAX_COST_USD: '1200.00'
+  ASSET_FORGE_MAX_UNIT_COST_USD: '0.30'
+  ASSET_FORGE_MAX_COST_USD: '200.00'
   ASSET_FORGE_RUN_ID: ${{ github.run_id }}-authorized-multimodal
   ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -36,6 +36,7 @@ jobs:
   forge-certify-promote:
     runs-on: ubuntu-latest
     timeout-minutes: 720
+    environment: paid-asset-generation
     steps:
       - name: Check out exact authorized head
         uses: actions/checkout@v4
@@ -50,23 +51,24 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Preflight authorization, credentials and exposure
+      - name: Preflight authorization, credentials and cumulative exposure
         shell: bash
         run: |
           set -euo pipefail
           test -n "$OPENAI_API_KEY"
           test -n "$URAI_WHEEL_GITHUB_TOKEN"
           test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '650'
-          test "$ASSET_FORGE_MAX_COST_USD" = '1200.00'
+          test "$ASSET_FORGE_MAX_UNIT_COST_USD" = '0.30'
+          test "$ASSET_FORGE_MAX_COST_USD" = '200.00'
           python - <<'PY'
           from decimal import Decimal
           calls = 650
-          unit = Decimal('1.50')
-          total = Decimal('1200.00')
+          unit = Decimal('0.30')
+          total = Decimal('200.00')
           if calls * unit > total:
               raise SystemExit('declared exposure exceeds hard total ceiling')
           print('APPROVAL_ID=urai-multimodal-2026-07-11')
-          print('MAX_EXPOSURE_USD=1200.00')
+          print('MAX_EXPOSURE_USD=200.00')
           PY
 
       - name: Install visual forge dependencies
@@ -75,28 +77,41 @@ jobs:
       - name: Validate exact canonical inventory
         run: python image_asset_generator/check_canonical_version_contract.py
 
-      - name: Generate and certify V1-V5
+      - name: Generate and certify V1-V5 under one cumulative ledger
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/forge-plans artifacts/budget
           for version in v1 v2 v3 v4 v5; do
-            case "$version" in
-              v1) calls=159 ;;
-              v2) calls=240 ;;
-              v3) calls=42 ;;
-              v4) calls=117 ;;
-              v5) calls=81 ;;
-            esac
-            python scripts/plan_versioned_forge.py --version "$version" --max-rounds 3 --max-unit-cost-usd 1.50 --output "artifacts/forge-plans/$version.json"
+            python scripts/plan_versioned_forge.py \
+              --version "$version" \
+              --max-rounds 3 \
+              --max-unit-cost-usd 0.30 \
+              --output "artifacts/forge-plans/$version.json"
             export URAI_VERSION="$version"
-            export ASSET_FORGE_MAX_PROVIDER_CALLS="$calls"
-            export ASSET_FORGE_MAX_COST_USD="$(python -c "print(round($calls * 1.5, 2))")"
             python image_asset_generator/forge_versioned.py --version "$version"
             python image_asset_generator/certify_version_handoff.py --version "$version"
           done
 
-      - name: Check out locked Spatial promotion target
+      - name: Verify cumulative paid ledger
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+          path = Path('artifacts/budget/paid-request-state.json')
+          data = json.loads(path.read_text())
+          calls = int(data['providerCallsExecuted'])
+          cost = Decimal(str(data['reservedEstimatedCostUsd']))
+          if calls > 650 or cost > Decimal('200.00'):
+              raise SystemExit('cumulative paid ledger exceeded authorization')
+          if calls != len(data.get('attempts', [])):
+              raise SystemExit('cumulative paid ledger is inconsistent')
+          print(json.dumps({'providerCallsExecuted': calls, 'reservedEstimatedCostUsd': str(cost)}, indent=2))
+          PY
+
+      - name: Check out Spatial promotion target
         uses: actions/checkout@v4
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -134,9 +149,11 @@ jobs:
           git diff --cached --quiet && { echo 'No promotion changes produced'; exit 1; }
           git commit -m 'Promote bounded certified multimodal asset set'
           git push origin "$branch"
-          gh pr create --base main --head "$branch" --title 'Promote bounded certified multimodal asset set' --body "Approval: $APPROVAL_ID
+          gh pr create --base main --head "$branch" \
+            --title 'Promote bounded certified multimodal asset set' \
+            --body "Approval: $APPROVAL_ID
 
-Visual V1-V5 provider outputs and deterministic Spatial assets were generated under a hard 1200 USD exposure ceiling. Merge remains gated by Spatial CI, rights receipts, and human creative review."
+Visual V1-V5 provider outputs and deterministic Spatial assets were generated under one cumulative 200 USD ceiling. Merge remains gated by Spatial CI, rights receipts, and creative review."
 
       - name: Upload immutable execution receipts
         if: always()
