@@ -5,9 +5,8 @@
 **Pull request:** `#184`  
 **Branch:** `feature/waiting-room-video-factory`  
 **Base:** `main@de27f2f36aa1ca73d504e5dffed99161078fb0c8`  
-**Implementation head before this receipt-only commit:** `1e13b43e4f634ec733d90acbd2861e4308db986f`  
 **Control state:** Draft, mergeable, unmerged  
-**Release verdict:** **HOLD — exact-head workflows and retained-artifact review required**
+**Release verdict:** **HOLD — exact-head workflows, independent review, and retained-artifact inspection required**
 
 ## Implemented boundary
 
@@ -21,6 +20,10 @@ This candidate implements the first executable, spend-bounded Waiting Room video
 - atomic provider-cost reservation with per-job and per-campaign ceilings;
 - one provider dispatch lease and bounded attempts;
 - reservation-held failure behavior requiring operator reconciliation;
+- authenticated atomic settlement for accepted, rejected, failed-cost-settled, and refunded work;
+- authenticated unused-reservation release allowed only before provider dispatch;
+- budget reserved/spent updates in the same Firestore transaction or local locked atomic state write as transaction settlement;
+- behavioral refusal to release a reservation after a provider attempt has begun;
 - deterministic timeline, captions, audio-description cues, crop plans, cutdowns, claim bindings, and immutable hashes;
 - FFmpeg H.264/AAC technical-preview encoding with FFprobe verification and receipt hashes;
 - a 70-second, nine-shot Day 0 `The Door` source package;
@@ -48,6 +51,24 @@ Hardened workflow files:
 - `.github/workflows/urai-production-verify.yml`
 - `.github/workflows/ci.yml`
 
+## Reconciliation authority
+
+Operator-only routes now expose the bounded settlement operations:
+
+- `POST /api/admin/video-transactions/reconcile`
+- `POST /api/admin/video-transactions/release`
+
+The reconcile route accepts an actual provider cost and one explicit resolution:
+
+- `artifact-accepted`
+- `artifact-rejected`
+- `failed-cost-settled`
+- `provider-refund`
+
+It does not mark footage production-ready. It settles the reservation, updates campaign reserved/spent amounts atomically, writes job state, and records a usage event.
+
+The release route is narrower: it may release an unused reservation only while the transaction is still `reserved` and `attemptCount` is zero. Once dispatch begins, cost state must be reconciled against provider evidence rather than released as though no provider interaction occurred.
+
 ## Evidence classification
 
 The following are implemented source capabilities, not production certification:
@@ -55,17 +76,16 @@ The following are implemented source capabilities, not production certification:
 - local animatic generation;
 - technical-preview MP4 encoding;
 - provider transport adapters;
-- transaction reservation and dispatch controls;
+- transaction reservation, dispatch, reconciliation, and pre-dispatch release controls;
 - package and receipt construction;
 - workflow definitions.
 
 The following remain unproven until current exact-head workflows complete and artifacts are independently inspected:
 
-- typecheck, unit/static test, build, emulator, and E2E success on one unchanged head;
+- typecheck, lint, unit/static test, build, emulator, and E2E success on one unchanged head;
 - successful Day 0 package and MP4 workflow artifacts;
 - CI roll-up receipt with all jobs successful;
-- provider security/release review;
-- operator reconciliation and reservation-release authority;
+- provider transport and financial-control security/release review;
 - deployed-SHA claim bindings;
 - final visual continuity, rights, score, voice, and accessibility approval;
 - paid provider output;
@@ -82,8 +102,8 @@ Keep PR #184 draft. Do not merge, deploy, configure paid-provider secrets, or ex
 
 1. Every required workflow is terminal and successful.
 2. Exact-head package, preview, validation, and CI roll-up artifacts are downloaded and independently inspected.
-3. Provider transport, transaction, reservation, and dispatch controls receive independent security/release review.
-4. Operator reconciliation and reservation-release authority is implemented and tested.
+3. Provider transport, transaction, reservation, dispatch, reconciliation, and release controls receive independent security/release review.
+4. Behavioral tests and emulator evidence prove atomic budget and transaction updates under concurrency and failure.
 5. Day 0 present-tense claims are bound to exact deployed-SHA product evidence.
 6. Visual continuity, characters, wardrobe, orb, environment, rights, music, voice, privacy, accessibility, and negative-prompt controls are approved.
 7. A provider/model and absolute maximum spend ceiling are explicitly authorized.
