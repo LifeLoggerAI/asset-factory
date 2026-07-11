@@ -70,5 +70,9 @@
     "deployment": false,
     "productionReadiness": false
   },
-  "receiptFileSha256": "c9a6f756e5e56e025af9cf14ac3e1c8475f939f93544f9c0ca3ea9ff3d23b101"
+  "independentVerifier": {
+    "method": "artifact ledger, render metadata, quality report and content hash cross-check",
+    "localReceiptSha256": "c9a6f756e5e56e025af9cf14ac3e1c8475f939f93544f9c0ca3ea9ff3d23b101",
+    "note": "This hash identifies the separate local verification output, not this committed GitHub file."
+  }
 }
