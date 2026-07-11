@@ -1,0 +1,32 @@
+name: Dispatch Canonical V2-V5 Wave
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/dispatch-canonical-v2-v5-wave.yml
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: v2
+            max_provider_calls: '80'
+            max_total_cost_usd: '8.00'
+          - version: v3
+            max_provider_calls: '14'
+            max_total_cost_usd: '1.40'
+          - version: v4
+            max_provider_calls: '39'
+            max_total_cost_usd: '3.90'
+          - version: v5
+            max_provider_calls: '27'
+            max_total_cost_us
