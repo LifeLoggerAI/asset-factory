@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "policy": {
+    "credentialsDoNotImplyExecutionReadiness": true,
+    "placeholderAdaptersMayNotDispatch": true,
+    "paidDispatchRequiresExactApproval": true,
+    "duplicatePaidDispatchProhibited": true
+  },
+  "providers": [
+    {"name":"local-proof","status":"functional-proof-only","paid":false,"supportedLanes":["visual","3d","audio"]},
+    {"name":"openai","status":"placeholder","paid":true,"supportedLanes":["visual","audio"]},
+    {"name":"replicate","status":"placeholder","paid":true,"supportedLanes":["visual","3d","audio"]},
+    {"name":"fal","status":"placeholder","paid":true,"supportedLanes":["visual","3d","audio"]},
+    {"name":"elevenlabs","status":"placeholder","paid":true,"supportedLanes":["audio"]},
+    {"name":"stability","status":"placeholder","paid":true,"supportedLanes":["visual"]}
+  ]
+}
