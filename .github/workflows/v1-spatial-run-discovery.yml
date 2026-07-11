@@ -1,6 +1,9 @@
 name: V1 Spatial Pack Run Discovery
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/v1-spatial-run-discovery.yml
   push:
     branches: [main]
     paths:
@@ -13,8 +16,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: v1-spatial-pack-run-discovery
-  cancel-in-progress: true
+  group: v1-spatial-pack-run-discovery-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   discover:
@@ -59,6 +62,8 @@ jobs:
               '',
               `- Marker commit: \`${markerSha}\``,
               `- Discovery recorded: \`${new Date().toISOString()}\``,
+              `- Discovery workflow run: \`${context.runId}\``,
+              `- Discovery event: \`${context.eventName}\``,
               `- Matching historical runs: **${runRecords.length}**`,
               '- Operation: read-only Actions metadata discovery',
               '- Re-run requested: **no**',
