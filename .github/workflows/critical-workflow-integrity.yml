@@ -23,7 +23,10 @@ concurrency:
 
 jobs:
   verify-critical-workflows:
-    runs-on: ubuntu-latest
+    # Cross-runner diagnostic 29155961477 proved macOS/Windows assignment while
+    # the equivalent ubuntu-latest job remained unassigned. This no-secret,
+    # platform-neutral static gate uses macOS until Ubuntu runner service recovers.
+    runs-on: macos-latest
     timeout-minutes: 5
     steps:
       - name: Checkout exact candidate
@@ -41,6 +44,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$expected"
           test -z "$(git status --porcelain)"
           echo "- verified candidate SHA: $expected" >> "$GITHUB_STEP_SUMMARY"
+          echo '- runner workaround: macos-latest; ubuntu-latest remains independently blocked' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Reject mutable critical action references
-        run: python scripts/check-critical-workflow-pins.py
+        run: python3 scripts/check-critical-workflow-pins.py
