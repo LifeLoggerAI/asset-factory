@@ -2,8 +2,8 @@
 """Build honest source-tree, dependency, lockfile, and license evidence.
 
 This intentionally distinguishes direct source-manifest inventory from a complete
-resolved SBOM. Missing locks, unpinned Python requirements, and unknown licenses
-remain release blockers instead of being silently treated as successful evidence.
+resolved SBOM. Missing locks, unpinned Python requirements, unknown licenses, and
+the absence of a resolved transitive dependency graph remain release blockers.
 """
 
 from __future__ import annotations
@@ -20,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "verification"
 LOCK_NAMES = ("package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock")
 IGNORED_PARTS = {"_audit", "node_modules", ".next", "dist", "build", "out", "coverage"}
+RESOLVED_TRANSITIVE_SBOM_COMPLETE = False
+TRANSITIVE_SBOM_BLOCKER = "resolved transitive SBOM has not been generated or verified"
 
 
 def sha256(path: Path) -> str:
@@ -242,8 +244,9 @@ def main() -> int:
             },
             "properties": [
                 {"name": "urai:sourceTreeSha256", "value": source["treeSha256"]},
-                {"name": "urai:completeness", "value": "direct-source-manifests-and-available-npm-lock-metadata"},
-                {"name": "urai:releaseClaim", "value": "not a complete resolved SBOM while blockers remain"},
+                {"name": "urai:inventoryClass", "value": "direct-source-manifest-inventory"},
+                {"name": "urai:resolvedTransitiveGraph", "value": "false"},
+                {"name": "urai:releaseClaim", "value": "not a complete resolved SBOM"},
             ],
         },
         "components": sorted(components, key=lambda item: (item["purl"], item["version"])),
@@ -256,29 +259,32 @@ def main() -> int:
         "components": licenses,
         "unknownRequiredLicenses": unknown_required_licenses,
         "coverageComplete": not unknown_required_licenses,
-        "claimBoundary": "License inventory is complete only when every non-development dependency has a resolved license.",
+        "claimBoundary": "License inventory is complete only when every non-development dependency has a resolved license. License identification does not make the direct-only SBOM release-complete.",
     }
     (OUT / "license-inventory.json").write_text(json.dumps(license_inventory, indent=2) + "\n", encoding="utf-8")
 
-    blockers = []
+    blockers = [TRANSITIVE_SBOM_BLOCKER]
     blockers.extend(f"missing lockfile: {path}" for path in missing_locks)
     blockers.extend(f"unpinned Python requirement: {item}" for item in unpinned_python)
     blockers.extend(f"unknown required license: {item}" for item in unknown_required_licenses)
+    blockers = sorted(set(blockers))
     evidence = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "1.1.0",
         "repository": "LifeLoggerAI/asset-factory",
         "headSha": head_sha,
         "sourceTreeSha256": source["treeSha256"],
         "trackedFileCount": source["trackedFileCount"],
         "directComponentCount": len(components),
+        "inventoryClass": "direct-source-manifest-inventory",
+        "resolvedTransitiveSbomComplete": RESOLVED_TRANSITIVE_SBOM_COMPLETE,
         "missingLockfiles": missing_locks,
         "unpinnedPythonRequirements": unpinned_python,
         "unknownRequiredLicenses": unknown_required_licenses,
-        "sbomComplete": not missing_locks and not unpinned_python,
+        "sbomComplete": False,
         "licenseCoverageComplete": not unknown_required_licenses,
-        "releaseEligible": not blockers,
+        "releaseEligible": False,
         "blockers": blockers,
-        "claimBoundary": "Source and direct dependency evidence generated; release remains blocked until lock and license coverage is complete.",
+        "claimBoundary": "Source and direct dependency evidence generated. Release remains blocked until a separately generated and verified resolved transitive SBOM, lock coverage, and license coverage are complete.",
     }
     (OUT / "supply-chain-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(evidence, indent=2))
