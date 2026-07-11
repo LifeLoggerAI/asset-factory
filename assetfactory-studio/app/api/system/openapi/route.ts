@@ -51,7 +51,10 @@ export async function GET() {
       },
       '/api/generate': {
         get: { summary: 'List jobs visible to the current tenant.' },
-        post: { summary: 'Create a validated generation job.', security: bearerSecurity },
+        post: {
+          summary: 'Create a validated generation job. Provider-backed video requires Idempotency-Key and a reserved spend ceiling.',
+          security: bearerSecurity,
+        },
       },
       '/api/jobs': {
         get: { summary: 'List jobs visible to the current tenant.' },
@@ -65,7 +68,10 @@ export async function GET() {
         post: { summary: 'Queue or run materialization for a tenant-authorized job.', security: bearerSecurity },
       },
       '/api/jobs/{jobId}/materialize': {
-        post: { summary: 'Materialize a tenant-authorized job into a generated asset.', security: bearerSecurity },
+        post: {
+          summary: 'Materialize a tenant-authorized job. Provider-backed video leases at most one bounded provider attempt.',
+          security: bearerSecurity,
+        },
       },
       '/api/jobs/{jobId}/publish': {
         post: { summary: 'Publish a tenant-authorized materialized asset.', security: bearerSecurity },
@@ -131,6 +137,53 @@ export async function GET() {
                     reason: { type: 'string' },
                     resetAttempts: { type: 'boolean' },
                     allTenants: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/admin/video-transactions/reconcile': {
+        post: {
+          summary: 'Atomically settle a review-complete or failed provider-video transaction against its reserved campaign budget.',
+          security: adminSecurity,
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['transactionId', 'actualCostCents', 'resolution'],
+                  properties: {
+                    transactionId: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+                    actualCostCents: { type: 'integer', minimum: 0 },
+                    resolution: {
+                      type: 'string',
+                      enum: ['artifact-accepted', 'artifact-rejected', 'failed-cost-settled', 'provider-refund'],
+                    },
+                    note: { type: 'string', maxLength: 1000 },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      '/api/admin/video-transactions/release': {
+        post: {
+          summary: 'Release an unused provider-video reservation only before any provider attempt starts.',
+          security: adminSecurity,
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['transactionId', 'reason'],
+                  properties: {
+                    transactionId: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+                    reason: { type: 'string', minLength: 1, maxLength: 1000 },
                   },
                 },
               },
