@@ -4,16 +4,18 @@ on:
   pull_request:
     paths:
       - image_asset_generator/check_v1_safe_resume_history.py
+      - image_asset_generator/check_v1_safe_resume_history_v4.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-4.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
   push:
     branches: [main]
     paths:
       - image_asset_generator/check_v1_safe_resume_history.py
+      - image_asset_generator/check_v1_safe_resume_history_v4.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-4.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
 
@@ -45,18 +47,19 @@ jobs:
 
       - name: Compile and self-test inspectors
         run: |
-          python3 -m py_compile image_asset_generator/check_v1_safe_resume_history.py image_asset_generator/post_certify_v1_spatial_pack.py
-          python3 image_asset_generator/check_v1_safe_resume_history.py --self-test
+          python3 -m py_compile image_asset_generator/check_v1_safe_resume_history.py image_asset_generator/check_v1_safe_resume_history_v4.py image_asset_generator/post_certify_v1_spatial_pack.py
+          python3 image_asset_generator/check_v1_safe_resume_history_v4.py --self-test
 
       - name: Prove historical runs contain no generation evidence
         id: inspect
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 image_asset_generator/check_v1_safe_resume_history.py \
+          python3 image_asset_generator/check_v1_safe_resume_history_v4.py \
             --marker-sha bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5 \
             --marker-sha de27f2f36aa1ca73d504e5dffed99161078fb0c8 \
             --marker-sha 4dc05a67746e189054609e405ca3801683ab5445 \
+            --marker-sha 0cf837d585d3d1c1d8e171938037098c72230c22 \
             --output artifacts/preflight/v1-safe-resume-control-validation.json
 
       - name: Confirm no-spend proof output
