@@ -91,6 +91,10 @@ for (const status of expectedLifecycleStatuses) {
 
 includes(lockfile, nodePin, 'lockfile immutable Node setup');
 includes(lockfile, "node-version: '20.19.5'", 'exact Node version');
+includes(lockfile, 'EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}', 'exact root-lock head environment');
+includes(lockfile, "sourceSha: expectedHead", 'root-lock source bound to exact PR head');
+includes(lockfile, "workflowSha: process.env.GITHUB_SHA", 'separate root-lock workflow trace');
+excludes(lockfile, "sourceSha: process.env.GITHUB_SHA", 'synthetic merge SHA as source identity');
 includes(lockfile, 'npm install --global npm@10.9.2', 'exact npm version');
 includes(lockfile, 'npm install --package-lock-only --ignore-scripts --fund=false --audit=false', 'lock-only install');
 includes(lockfile, "startsWith('https://registry.npmjs.org/')", 'public registry provenance');
@@ -109,8 +113,13 @@ for (const guard of [
   includes(providerRegistry, guard, `${guard} provider policy`);
 }
 includes(planner, 'has_existing_paid_progress', 'existing paid progress exclusion');
-includes(planner, 'dispatch_authorized = not blockers', 'blocked-by-default planning verdict');
-includes(planner, '"maxProviderCalls": planned_calls if dispatch_authorized else 0', 'zero calls without authorization');
+includes(planner, 'ATOMIC_ONE_TIME_LEDGER_CONFIGURED = False', 'missing atomic ledger fail-closed state');
+includes(planner, 'atomic one-time authorization and consumption ledger is not implemented', 'atomic ledger blocker');
+includes(planner, 'dispatch_authorized = False', 'unconditional no-spend planning verdict');
+includes(planner, '"maxProviderCalls": 0', 'zero paid calls');
+includes(planner, '"maxTotalExposureUsd": 0', 'zero paid exposure');
+includes(planner, '"environmentOnlyAuthorizationProhibited": True', 'environment-only authorization prohibition');
+excludes(planner, 'dispatch_authorized = not blockers', 'environment-only dynamic authorization');
 excludes(planner, '"dispatchAuthorized": True', 'hardcoded paid authorization');
 excludes(planner, '"maxTotalExposureUsd": 200.00', 'hardcoded exposure');
 
