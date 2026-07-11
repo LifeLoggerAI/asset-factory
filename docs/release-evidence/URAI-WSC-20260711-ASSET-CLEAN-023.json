@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "receiptId": "URAI-WSC-20260711-ASSET-CLEAN-023",
+  "recordedAt": "2026-07-11T18:49:00Z",
+  "repository": "LifeLoggerAI/asset-factory",
+  "pullRequest": 172,
+  "branch": "ws-e/multimodal-control-plane-clean-20260711",
+  "base": {
+    "ref": "main",
+    "sha": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "candidateHeadBeforeReceipt": "70252bd4daf0d0ebfe38ed4ab969835e2bcf3c50",
+  "ancestryBeforeReceipt": {
+    "ahead": 64,
+    "behind": 0,
+    "mergeBase": "d79d99bddcb7e55ca6cd3cc0ab1daa570c373d58"
+  },
+  "auditToolchain": {
+    "nodeVersion": "22.16.0",
+    "typescriptVersion": "5.8.3",
+    "typescriptRegistryIntegrity": "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==",
+    "source": "official npm registry package metadata",
+    "acquisition": "npm pack exact version with scripts disabled",
+    "verification": [
+      "verify package name and exact version",
+      "verify registry-reported integrity equals pinned value",
+      "recompute SHA-512 over downloaded tarball and compare to pinned value",
+      "install only the verified local tarball with scripts disabled",
+      "verify tsc reports the exact version",
+      "materialize the verified compiler for executable validation tests"
+    ],
+    "regressionCommit": "70252bd4daf0d0ebfe38ed4ab969835e2bcf3c50",
+    "workflowCommit": "7c3c27257f2e20f94449e5262eff38b4c58d77b6"
+  },
+  "reviewState": {
+    "allKnownThreadsResolvedBeforeReceipt": true,
+    "freshExactHeadReviewRequired": true,
+    "allPreReceiptReviewsStale": true
+  },
+  "noSpendBoundary": {
+    "paidRuntimeEnabled": false,
+    "atomicOneTimeLedgerConfigured": false,
+    "dispatchAuthorized": false,
+    "maximumProviderCalls": 0,
+    "maximumApprovedExposureUsd": 0,
+    "providerCallsPerformedByThisContinuation": 0,
+    "promotionPerformed": false,
+    "deploymentPerformed": false,
+    "mergePerformed": false
+  },
+  "workflowBoundary": {
+    "receiptCommitBecomesNewExactHead": true,
+    "allRunsBeforeReceiptAreStale": true,
+    "freshExactHeadRunsRequired": true,
+    "queuedOrPendingDoesNotCountAsPass": true,
+    "generatedEvidenceMustNotBeAcceptedWithoutSuccessfulExactHeadJob": true
+  },
+  "historicalV1Boundary": {
+    "discoveryIssue": 179,
+    "rerunAuthorized": false,
+    "historicalGenerationRunKnown": false,
+    "completionClaimAuthorized": false
+  },
+  "mergeBoundary": {
+    "draftRequired": true,
+    "mergeAuthorized": false,
+    "requirements": [
+      "all exact-head workflows succeed on an unchanged receipt-bearing SHA",
+      "root-lock artifact and hashes are independently verified before committing generated files",
+      "temporary root-lock controls are removed and the complete resulting head passes again",
+      "historical V1 generation and post-certification evidence is found and verified",
+      "dependency, SBOM, license, rights, consent, legal and exact-hash human review gates close",
+      "immutable promotion, deployment, rollback and live deployed-SHA evidence exists"
+    ]
+  }
+}
