@@ -10,6 +10,8 @@ on:
       - 'assetfactory-studio/**'
       - 'scripts/build_*.py'
       - 'scripts/validate_xr_receipts.py'
+      - 'scripts/audit-root-if-locked.mjs'
+      - 'scripts/test-audit-root-control.mjs'
       - 'scripts/test-asset-factory-multimodal.mjs'
       - 'scripts/test-paid-provider-authorization.mjs'
       - 'scripts/test-asset-factory-core-units.mjs'
@@ -129,6 +131,7 @@ jobs:
           node scripts/test-asset-factory-multimodal.mjs
           node scripts/test-paid-provider-authorization.mjs
           node scripts/test-release-schema-compatibility.mjs
+          node scripts/test-audit-root-control.mjs
 
       - name: Upload immutable validation evidence
         if: always()
