@@ -60,6 +60,7 @@ permissions:
 env:
   URAI_VERSION: ${{ inputs.version }}
   ASSET_RENDERER_PROVIDER: openai
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
   ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
   ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
@@ -138,9 +139,25 @@ jobs:
         shell: bash
         run: |
           missing=0
-          for name in ASSET_RENDERER_ENDPOINT ASSET_RENDERER_API_KEY; do
-            if [ -z "${!name}" ]; then echo "::error::$name is not configured"; missing=1; fi
-          done
+          provider="${ASSET_RENDERER_PROVIDER:-openai}"
+          if [ "$provider" = 'openai' ]; then
+            if [ -z "$OPENAI_API_KEY" ] && [ -z "$ASSET_RENDERER_API_KEY" ]; then
+              echo '::error::OPENAI_API_KEY or ASSET_RENDERER_API_KEY is required for OpenAI provider rendering.'
+              missing=1
+            fi
+          elif [ "$provider" = 'custom' ]; then
+            if [ -z "$ASSET_RENDERER_ENDPOINT" ]; then
+              echo '::error::ASSET_RENDERER_ENDPOINT is required for custom provider rendering.'
+              missing=1
+            fi
+            if [ -z "$ASSET_RENDERER_API_KEY" ]; then
+              echo '::error::ASSET_RENDERER_API_KEY is required for custom provider rendering.'
+              missing=1
+            fi
+          else
+            echo "::error::Unsupported ASSET_RENDERER_PROVIDER '$provider'."
+            missing=1
+          fi
           if [ '${{ inputs.promote }}' = 'true' ] && [ -z "$URAI_WHEEL_GITHUB_TOKEN" ]; then
             echo '::error::URAI_WHEEL_GITHUB_TOKEN is required for promotion'
             missing=1
