@@ -21,7 +21,8 @@ concurrency:
 
 jobs:
   discover:
-    runs-on: ubuntu-latest
+    # Read-only metadata lookup moved off the currently unassigned Ubuntu pool.
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Record exact safe-resume run metadata
