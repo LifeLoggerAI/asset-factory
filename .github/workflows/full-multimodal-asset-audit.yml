@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'multimodal/**'
+      - 'image_asset_generator/**'
       - '.github/workflows/full-multimodal-asset-audit.yml'
   workflow_dispatch:
 
@@ -17,31 +18,44 @@ concurrency:
 jobs:
   validate-manifest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Build canonical V1-V5 source manifests
+        run: python image_asset_generator/check_canonical_version_contract.py
+      - name: Expand full asset-level multimodal manifest
+        run: python multimodal/build_full_manifest.py
       - name: Validate canonical multimodal manifest
         run: python multimodal/validate_manifest.py
-      - name: Upload validation receipt
+      - name: Upload immutable validation inputs and receipt
         uses: actions/upload-artifact@v4
         with:
           name: full-multimodal-manifest-validation-${{ github.sha }}
           if-no-files-found: error
           retention-days: 30
-          path: multimodal/validation-report.json
+          path: |
+            multimodal/full-multimodal-asset-manifest.json
+            multimodal/validation-report.json
+            multimodal/source-lock.json
+            multimodal/canonical-requirements.json
 
   lane-contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         lane: [visual, 3d, audio, film, accessibility, runtime, governance]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Expand exact lane inventory
+        run: python multimodal/build_full_manifest.py
       - name: Verify lane exists and remains fail closed
         env:
           LANE: ${{ matrix.lane }}
@@ -55,7 +69,8 @@ jobs:
               raise SystemExit(f"missing lane {os.environ['LANE']}")
           for asset in assets:
               if asset['currentStatus'] == 'certified':
-                  if not asset['checksum'] or not asset['releaseSha']:
+                  required = [asset['checksum'], asset['qualityReport'], asset['artifactDigest'], asset['promotionPr'], asset['mergedCommitSha'], asset['releaseSha'], asset['liveVerificationEvidence']]
+                  if not all(required):
                       raise SystemExit(f"false certification: {asset['assetId']}")
-          print(json.dumps({'lane': os.environ['LANE'], 'assets': len(assets)}, indent=2))
+          print(json.dumps({'lane': os.environ['LANE'], 'assets': len(assets), 'certified': sum(a['currentStatus'] == 'certified' for a in assets)}, indent=2))
           PY
