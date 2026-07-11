@@ -11,6 +11,10 @@ const contentTypes: Record<string, string> = {
   glb: 'model/gltf-binary',
   wav: 'audio/wav',
   mp3: 'audio/mpeg',
+  animatic: 'application/vnd.urai.animatic+json; charset=utf-8',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
   png: 'image/png',
   webp: 'image/webp',
 };
