@@ -53,7 +53,10 @@ jobs:
             echo "- target SHA: $TARGET_SHA"
             echo "- approval ID: $APPROVAL_ID"
             echo '- maximum provider calls: 1'
-            echo '- maximum total cost: USD 0.10'
+            echo '- maximum unit cost: USD 1.00'
+            echo '- maximum total cost: USD 1.00'
+            echo '- maximum entries: 1'
+            echo '- maximum outputs: 1'
             echo '- promotion: disabled'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -71,8 +74,8 @@ jobs:
                 confirm: 'GENERATE_CANONICAL_VERSION',
                 rounds: '1',
                 max_provider_calls: '1',
-                max_unit_cost_usd: '0.10',
-                max_total_cost_usd: '0.10',
+                max_unit_cost_usd: '1.00',
+                max_total_cost_usd: '1.00',
                 limit_entries: '1',
                 limit_outputs: '1',
                 skip_existing: 'false',
