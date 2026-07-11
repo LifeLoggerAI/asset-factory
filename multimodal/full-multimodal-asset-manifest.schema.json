@@ -1,12 +1,15 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
+  "additionalProperties": false,
   "required": ["schemaVersion", "manifestId", "generatedAt", "sourceShas", "releasePolicy", "assets"],
   "properties": {
-    "schemaVersion": {"const": "1.0.0"},
+    "schemaVersion": {"const": "1.1.0"},
     "manifestId": {"type": "string", "minLength": 1},
     "generatedAt": {"type": "string"},
     "sourceShas": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["assetFactory", "spatial"],
       "properties": {
         "assetFactory": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
@@ -15,21 +18,37 @@
     },
     "releasePolicy": {
       "type": "object",
-      "required": ["placeholdersAllowed", "requiresExactReleaseSha", "requiresLiveEvidence"],
+      "additionalProperties": false,
+      "required": ["placeholdersAllowed", "requiresExactReleaseSha", "requiresLiveEvidence", "requiresDistinctRollbackSha", "paidGenerationRequiresApproval"],
       "properties": {
         "placeholdersAllowed": {"const": false},
         "requiresExactReleaseSha": {"const": true},
-        "requiresLiveEvidence": {"const": true}
+        "requiresLiveEvidence": {"const": true},
+        "requiresDistinctRollbackSha": {"const": true},
+        "paidGenerationRequiresApproval": {"const": true}
       }
     },
     "assets": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["assetId", "version", "experienceArea", "lane", "assetType", "routes", "runtimeComponent", "creativeSpecification", "technicalBudget", "providerOrSource", "licensingStatus", "consentRequirements", "costCeilingUsd", "dependencies", "expectedOutputPath", "checksum", "provenance", "validationRequirements", "currentStatus", "reviewStatus", "promotionStatus", "releaseSha"],
+        "additionalProperties": false,
+        "required": [
+          "assetId", "version", "world", "state", "experienceArea", "lane", "assetType", "routes",
+          "runtimeComponent", "creativeSpecification", "technicalBudget", "deviceVariants", "accessibilityVariants",
+          "providerOrSource", "providerModelVersion", "licensingStatus", "commercialUseStatus",
+          "consentRequirements", "likenessRequirements", "costCeilingUsd", "dependencies", "expectedOutputPath",
+          "checksum", "provenance", "validationRequirements", "currentStatus", "reviewStatus", "promotionStatus",
+          "promotionPr", "mergedCommitSha", "releaseSha", "generationRequest", "providerJobId", "generatedAt",
+          "attemptCount", "costUsedUsd", "qualityReport", "artifactId", "artifactDigest", "runtimeRoute",
+          "liveVerificationEvidence"
+        ],
         "properties": {
           "assetId": {"type": "string", "minLength": 1},
           "version": {"type": "string"},
+          "world": {"type": "string"},
+          "state": {"type": "string"},
           "experienceArea": {"type": "string"},
           "lane": {"enum": ["visual", "3d", "audio", "film", "accessibility", "runtime", "governance"]},
           "assetType": {"type": "string"},
@@ -37,19 +56,36 @@
           "runtimeComponent": {"type": "string"},
           "creativeSpecification": {"type": "string"},
           "technicalBudget": {"type": "object"},
+          "deviceVariants": {"type": "array", "items": {"type": "string"}},
+          "accessibilityVariants": {"type": "array", "items": {"type": "string"}},
           "providerOrSource": {"type": "string"},
+          "providerModelVersion": {"type": ["string", "null"]},
           "licensingStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
+          "commercialUseStatus": {"enum": ["verified", "pending", "blocked", "not-applicable"]},
           "consentRequirements": {"type": "array", "items": {"type": "string"}},
+          "likenessRequirements": {"type": "array", "items": {"type": "string"}},
           "costCeilingUsd": {"type": "number", "minimum": 0},
           "dependencies": {"type": "array", "items": {"type": "string"}},
-          "expectedOutputPath": {"type": "string"},
+          "expectedOutputPath": {"type": "string", "minLength": 1},
           "checksum": {"type": ["string", "null"]},
           "provenance": {"type": "object"},
           "validationRequirements": {"type": "array", "items": {"type": "string"}},
           "currentStatus": {"enum": ["missing", "candidate", "generated", "validated", "failed", "blocked", "certified", "removed-from-scope"]},
           "reviewStatus": {"enum": ["not-started", "pending", "approved", "rejected", "not-required"]},
           "promotionStatus": {"enum": ["not-started", "pr-open", "merged", "blocked"]},
-          "releaseSha": {"type": ["string", "null"]}
+          "promotionPr": {"type": ["integer", "null"]},
+          "mergedCommitSha": {"type": ["string", "null"]},
+          "releaseSha": {"type": ["string", "null"]},
+          "generationRequest": {"type": ["object", "null"]},
+          "providerJobId": {"type": ["string", "null"]},
+          "generatedAt": {"type": ["string", "null"]},
+          "attemptCount": {"type": "integer", "minimum": 0},
+          "costUsedUsd": {"type": "number", "minimum": 0},
+          "qualityReport": {"type": ["object", "string", "null"]},
+          "artifactId": {"type": ["string", "integer", "null"]},
+          "artifactDigest": {"type": ["string", "null"]},
+          "runtimeRoute": {"type": ["string", "null"]},
+          "liveVerificationEvidence": {"type": "array", "items": {"type": "string"}}
         }
       }
     }
