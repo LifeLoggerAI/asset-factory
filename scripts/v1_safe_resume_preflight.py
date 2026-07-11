@@ -84,17 +84,22 @@ def inspect_history(
                 artifact_records: list[dict[str, Any]] = []
                 for artifact in artifacts:
                     artifact_id = int(artifact["id"])
+                    artifact_name = str(artifact.get("name", ""))
+                    is_pack_artifact = artifact_name.startswith(ARTIFACT_PREFIX)
+                    expired = bool(artifact.get("expired"))
                     item: dict[str, Any] = {
                         "id": artifact_id,
-                        "name": artifact.get("name"),
-                        "expired": artifact.get("expired"),
+                        "name": artifact_name,
+                        "expired": expired,
                         "sizeInBytes": artifact.get("size_in_bytes"),
                         "evidenceFiles": [],
                     }
-                    if (
-                        str(artifact.get("name", "")).startswith(ARTIFACT_PREFIX)
-                        and not artifact.get("expired")
-                    ):
+                    if is_pack_artifact and expired:
+                        reasons.append(
+                            f"historical pack artifact {artifact_id} is expired and "
+                            "cannot be inspected for spend or generated outputs"
+                        )
+                    elif is_pack_artifact:
                         archive_path = temporary_root / f"artifact-{artifact_id}.zip"
                         download_artifact(
                             repository,
