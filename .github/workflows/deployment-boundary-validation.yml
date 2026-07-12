@@ -58,11 +58,16 @@ jobs:
       - name: Validate canonical production and smoke-only boundaries
         run: node scripts/check-deploy-workflow.mjs
 
-      - name: Verify smoke workflow contains no mutation capability
+      - name: Verify smoke workflow is read-only and contains no mutation capability
         shell: bash
         run: |
           set -euo pipefail
           workflow=.github/workflows/deploy-asset-factory.yml
+          grep -q "ASSET_FACTORY_SMOKE_READONLY: 'true'" "$workflow"
+          grep -q 'Authenticated read-only smoke' "$workflow"
+          test "$(grep -F -c 'test "$ASSET_FACTORY_SMOKE_READONLY" = true' "$workflow")" -ge 2
+          grep -q 'Read-only smoke enforced globally: true' "$workflow"
+          grep -q 'Firebase mutation allowed: false' "$workflow"
           ! grep -Eq '(^|[[:space:]])deploy:' "$workflow"
           ! grep -q 'FIREBASE_TOKEN' "$workflow"
           ! grep -q 'FIREBASE_SERVICE_ACCOUNT' "$workflow"
