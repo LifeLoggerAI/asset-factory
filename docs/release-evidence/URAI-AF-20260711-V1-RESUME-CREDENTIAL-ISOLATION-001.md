@@ -49,7 +49,8 @@ The replacement removes or corrects:
 21. a second `Deploy Asset Factory` workflow that could mutate Firebase outside the canonical production confirmation, environment, and service-account boundary;
 22. a staging-labeled path that still called the production project deployment script;
 23. authenticated smoke verification that could call mutation-capable endpoints while claiming Firebase mutation was disabled;
-24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records.
+24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records;
+25. missing executable regression locks for multi-page history collection, page-cap failure, and authenticated read-only smoke enforcement.
 
 ## Current security and execution boundary
 
@@ -87,7 +88,8 @@ The current branch:
 - globally forces `ASSET_FACTORY_SMOKE_READONLY=true` for both unauthenticated and authenticated smoke modes and asserts that boundary before authenticated checks;
 - removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
 - allows that alternate workflow to run read-only or authenticated read-only smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
-- statically rejects any reintroduction of deploy capability in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`.
+- statically rejects any reintroduction of deploy capability or removal of authenticated read-only enforcement in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`;
+- runs a dedicated exact-head deployment-boundary workflow on every relevant workflow, checker, package-script, or receipt change, with direct no-mutation and read-only assertions.
 
 ## Artifact-class boundary
 
@@ -106,7 +108,8 @@ The branch contains executable proof for:
 
 - credential-isolated artifact retrieval and redirect rejection;
 - bounded safe extraction and portable-path collision rejection;
-- exact ordered four-marker history with complete API pagination;
+- exact ordered four-marker history;
+- collection across multiple API pages and fail-closed page-cap exhaustion;
 - all known historical paid workflow names and both legacy/current generation-step names;
 - absence of retired workflows, markers, and checkers;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
