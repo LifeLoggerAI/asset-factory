@@ -130,5 +130,17 @@ if (!productionDeploySection.includes("inputs.confirm == 'DEPLOY_ASSET_FACTORY'"
 if (!productionDeploySection.includes('environment: asset-factory-production')) {
   fail('canonical production deploy lacks protected environment');
 }
+if (!productionDeploySection.includes("ASSET_FACTORY_SMOKE_READONLY: 'true'")) {
+  fail('canonical production deploy must force read-only post-deploy smoke');
+}
+if (!productionDeploySection.includes('Read-only smoke production finalization endpoints')) {
+  fail('canonical production deploy lacks an explicitly read-only smoke step');
+}
+if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = true')) {
+  fail('canonical production deploy does not assert read-only mode before smoke');
+}
+if (productionDeploySection.includes('Smoke production finalization endpoints')) {
+  fail('canonical production deploy retains the mutation-capable smoke step name');
+}
 
 console.log('PASS deploy workflow static checks');
