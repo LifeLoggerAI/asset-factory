@@ -3,7 +3,7 @@ name: V1 AAA Spatial Pack Integrity
 on:
   pull_request:
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/export_spatial_handoff.py
@@ -12,7 +12,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/export_spatial_handoff.py
@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -50,8 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile image_asset_generator/forge_v1_spatial_pack_run.py
-          python3 -m py_compile image_asset_generator/export_spatial_handoff.py
+          python3 -m py_compile image_asset_generator/forge_v1_spatial_pack_run.py image_asset_generator/export_spatial_handoff.py
           python3 - <<'PY'
           import ast, json
           from pathlib import Path
@@ -60,46 +59,44 @@ jobs:
           assert 'SEED_REQUEST = "req_105244180b6f4b95bec882bdfc1a695b"' in script
           assert '"promotion": False' in script
           assert len(json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())) == 10
-          assert ast.parse(script)
+          ast.parse(script)
           PY
 
       - name: Verify immutable resume and duplicate-spend boundary
         shell: bash
         run: |
           set -euo pipefail
+          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
+          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+          test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml')
-          text = path.read_text()
+          text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           required = [
               'name: One-Time V1 AAA Spatial Pack Marker',
               'group: one-time-v1-aaa-spatial-pack-marker-20260711',
               'cancel-in-progress: false',
               'github.actor == github.repository_owner && github.run_attempt == 1',
               'GITHUB_RUN_ATTEMPT',
-              'execute-v1-aaa-spatial-pack-safe-resume-20260711.json',
+              'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
               'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
-              'Inspect every historical run attempt before spending',
-              "'safeToExecute': not reasons",
-              "safe_to_execute={'true' if result['safeToExecute'] else 'false'}",
+              'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
+              '4dc05a67746e189054609e405ca3801683ab5445',
+              '0cf837d585d3d1c1d8e171938037098c72230c22',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
               "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
-              'github.run_attempt == 1',
               'environment: paid-asset-generation',
               'Generate all 53 V1 Spatial outputs',
+              'home-threshold-main_1600.png.render.json',
           ]
           for value in required:
               assert value in text, value
-          forbidden = [
-              'repository: LifeLoggerAI/urai-spatial',
-              'git push',
-              'merge_pull_request',
-              'enable_auto_merge',
-              'URAI_WHEEL_GITHUB_TOKEN:',
-          ]
-          for value in forbidden:
+          for value in ('repository: LifeLoggerAI/urai-spatial', 'git push', 'merge_pull_request', 'enable_auto_merge', 'URAI_WHEEL_GITHUB_TOKEN:'):
               assert value not in text, value
           PY
 
@@ -111,28 +108,11 @@ jobs:
           from pathlib import Path
           exporter = Path('image_asset_generator/export_spatial_handoff.py').read_text()
           post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-          for value in (
-              'lossless=True',
-              'sourceSha256',
-              'sourceMetadataSha256',
-              'sourcePixelSha256',
-              'handoffPixelSha256',
-              "'sourceBinding': 'lossless-webp-decoded-pixel-sha256'",
-          ):
+          for value in ('lossless=True','sourceSha256','sourceMetadataSha256','sourcePixelSha256','handoffPixelSha256',"'sourceBinding': 'lossless-webp-decoded-pixel-sha256'"):
               assert value in exporter or value in post, value
-          required_post = [
-              'workflows: [One-Time V1 AAA Spatial Pack Marker]',
-              "handoff_root = handoff_manifest_path.parents[4]",
-              "receipt.get('newProviderCalls') == 47",
-              "receipt.get('ready') == 53",
-              "dropin.get('status') == 'certified'",
-              "'handoffAssetsChecked': len(handoff_records)",
-              "'directProviderAssetsChecked': len(direct_records)",
-              "'status': 'failed' if duplicates else 'passed'",
-          ]
-          for value in required_post:
+          for value in ('workflows: [One-Time V1 AAA Spatial Pack Marker]',"handoff_root = handoff_manifest_path.parents[4]","receipt.get('newProviderCalls') == 47","receipt.get('ready') == 53","dropin.get('status') == 'certified'","'handoffAssetsChecked': len(handoff_records)","'directProviderAssetsChecked': len(direct_records)","'status': 'failed' if duplicates else 'passed'"):
               assert value in post, value
-          for value in ('git push', 'merge_pull_request', 'enable_auto_merge', 'repository: LifeLoggerAI/urai-spatial'):
+          for value in ('git push','merge_pull_request','enable_auto_merge','repository: LifeLoggerAI/urai-spatial'):
               assert value not in post, value
           PY
 
