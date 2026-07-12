@@ -61,7 +61,9 @@ It is source/manifest evidence, not provider-generation evidence.
 13. stale integrity validation against the deleted legacy workflow;
 14. static assertions that were altered by GitHub expression expansion;
 15. a forbidden-token substring check that falsely rejected the safe `${URAI_WHEEL_GITHUB_TOKEN:-}` emptiness guard;
-16. a retired-checker filename assertion that conflicted with intentional trigger-path coverage.
+16. a retired-checker filename assertion that conflicted with intentional trigger-path coverage;
+17. integrity checks that could accept producer fields merely because the certifier mentioned the same field names;
+18. integrity checks that did not prove the post-certification workflow actually invoked the certifier with the exact source and output arguments.
 
 ## Replacement security boundary
 
@@ -84,7 +86,9 @@ The replacement:
 - keeps checkout, history inspection, tests, artifact download, and dependency installation free of provider credentials;
 - enforces one attempt, 47 provider calls, USD 1 per unit, and USD 47 total ceilings;
 - retains evidence for 365 days;
-- prevents direct Spatial pushes, PR merges, auto-merge, promotion, or deployment from the paid workflow.
+- prevents direct Spatial pushes, PR merges, auto-merge, promotion, or deployment from the paid workflow;
+- verifies the handoff exporter itself emits every file, metadata, decoded-pixel, and source-binding field before paid execution;
+- verifies the post-certification workflow invokes the exact certifier with generated-pack root, workflow conclusion, run ID, source head, artifact ID, and canonical report output.
 
 ## Executable regression coverage
 
@@ -102,7 +106,9 @@ The branch includes executable tests for:
 - absence of retired workflows, markers, and checkers;
 - provider-secret confinement to exactly two provider-only steps;
 - safe post-certification artifact handling;
-- V1 integrity against the v3 control rather than the retired legacy workflow.
+- V1 integrity against the v3 control rather than the retired legacy workflow;
+- separate producer-field, certifier-behavior, and post-workflow invocation binding;
+- explicit Life Map `no ground`, `no orb`, and `no avatar` prompt contract for desktop and mobile.
 
 Local executable regressions previously returned:
 
@@ -111,16 +117,20 @@ Local executable regressions previously returned:
 
 Local results validate the test implementation but do not substitute for unchanged exact-head GitHub evidence.
 
-## Workflow-regression repair record
+## Workflow-regression and independent-review repair record
 
-The first corrected candidate exposed additional control-test defects rather than provider/runtime defects:
+The corrected candidate exposed additional control-test defects rather than provider/runtime defects:
 
 - Artifact Credential Isolation and Safe Resume Validation embedded literal secret expressions inside their own `run:` scripts, allowing GitHub expression expansion to alter the text under inspection. The assertions now construct those markers at Python runtime without embedding a literal expression token in the workflow command.
 - V1 AAA Spatial Pack Integrity initially inspected the deleted legacy workflow. It now inspects v3 and asserts all retired controls remain absent.
 - Integrity then falsely matched the safe shell emptiness guard as a YAML secret assignment. It now uses a line-anchored YAML-key check.
 - Artifact Credential Isolation then rejected the retired checker filename even though that filename is intentionally retained in trigger coverage. It now rejects executable invocations only.
+- Integrity was updated to inspect the executable post-certifier after post-certification logic moved out of YAML.
+- Both Life Map prompts now state the required exclusions literally so paid preflight cannot diverge from product canon.
+- Independent review identified that exporter fields must be verified in the exporter itself rather than through a combined source string; the producer assertions are now separate.
+- Independent review identified that the post workflow must be proven to invoke the certifier; the exact command and all source/output arguments are now asserted.
 
-Every repair changes the candidate SHA. Earlier workflow conclusions are stale and cannot authorize merge.
+Every repair changes the candidate SHA. Earlier workflow conclusions and review requests are stale and cannot authorize merge.
 
 ## Separate authorization rule
 
