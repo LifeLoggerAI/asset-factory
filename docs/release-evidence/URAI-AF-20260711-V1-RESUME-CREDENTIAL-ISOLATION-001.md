@@ -51,9 +51,10 @@ It is source/manifest evidence, not provider-generation evidence.
 12. cleanup without mandatory same-PR linkage or live-head race protection;
 13. credential-free object storage allowed to follow an unvalidated secondary redirect;
 14. cleanup's Actions-write GitHub API calls used default redirect-following;
-15. PR-level concurrency groups allowed an older queued workflow to enter later and cancel newer-head evidence before jobs began.
+15. PR-level concurrency groups allowed an older queued workflow to enter later and cancel newer-head evidence before jobs began;
+16. Ubuntu pull-request jobs remained unassigned while the equivalent macOS hosted verification lanes executed normally.
 
-## Replacement security boundary
+## Replacement security and execution boundary
 
 The replacement:
 
@@ -78,7 +79,9 @@ The replacement:
 - uses explicit cleanup for older heads instead of cross-SHA concurrency cancellation;
 - limits cleanup to same-repository, explicitly same-PR, older-created, older-SHA, nonterminal pull-request runs;
 - validates live repository, branch, event/run/live SHA agreement, rechecks live head before every cancel, and aborts on any head change;
-- excludes current-head/current-run, completed, push, fork, other-branch, other-PR, newer-created, and unlinked runs.
+- excludes current-head/current-run, completed, push, fork, other-branch, other-PR, newer-created, and unlinked runs;
+- runs pull-request-only verification jobs on `macos-latest` where Ubuntu assignment remained blocked, without changing the commands, security assertions, or artifact requirements;
+- preserves `ubuntu-latest` for push, `main`, workflow-dispatch production behavior, and the Firebase deploy job.
 
 ## Executable regression coverage
 
@@ -94,7 +97,8 @@ The branch proves:
 - post-certification handling and exporter/certifier/invocation binding;
 - Life Map, Focus, and Replay spatial prompt contracts;
 - marker-only v3 guard coverage;
-- exact-SHA workflow isolation and race-safe same-PR cleanup.
+- exact-SHA workflow isolation and race-safe same-PR cleanup;
+- equivalent pull-request verification on an available GitHub-hosted macOS runner while production remains on Ubuntu.
 
 Previously executed source regressions returned:
 
@@ -111,7 +115,8 @@ Independent review and exact-head execution identified and corrected all defects
 - the regression suite attempts a storage-to-storage redirect and requires failure without creating an output file;
 - the static gate requires `opener.open(storage_request)`, requires the explicit storage-redirect error, and forbids default `urlopen` for storage;
 - cleanup requires explicit PR linkage, live-head agreement, creation ordering, and no-redirect GitHub API calls;
-- every workflow group includes the exact head SHA, so out-of-order runner assignment cannot cancel current evidence.
+- every workflow group includes the exact head SHA, so out-of-order runner assignment cannot cancel current evidence;
+- the broad pull-request suite keeps the same commands but selects `macos-latest` only for the pull-request event because those runners are available; push/main and deployment execution remain Ubuntu.
 
 Every source repair changes the candidate SHA. Earlier workflow conclusions, artifacts, and reviews are stale and cannot authorize merge.
 
