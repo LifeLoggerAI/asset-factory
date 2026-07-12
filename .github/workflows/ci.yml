@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: asset-factory-ci-${{ github.event.pull_request.number || github.ref }}
+  group: asset-factory-ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
