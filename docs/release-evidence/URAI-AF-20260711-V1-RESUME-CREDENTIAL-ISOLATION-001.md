@@ -42,7 +42,8 @@ The replacement removes or corrects:
 15. generic Release Readiness artifact names without independent clean-head attestation;
 16. security checks that used the pull-request fallback runner for protected-main pushes;
 17. paid endpoint and model values supplied by mutable secrets rather than the authorization marker;
-18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch.
+18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch;
+19. automatic Firebase deployment on every verified `main` push when the service-account secret existed.
 
 ## Current security and execution boundary
 
@@ -69,7 +70,10 @@ The current branch:
 - limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
 - runs pull-request verification on macOS, cleanup on Windows, and protected-main/security/deployment verification on Ubuntu;
 - explicitly checks out the reviewed branch head, proves exact identity and a clean tree, and scopes retained broad-workflow artifacts to that head;
-- establishes `origin/main` before dependency installation and uses a step-scoped read token only if the full checkout did not create the ref, without persisting credentials in git config.
+- establishes `origin/main` before dependency installation and uses a step-scoped read token only if needed, without persisting credentials in git config;
+- makes ordinary pull-request and `main` push execution verification-only;
+- permits Firebase deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
+- writes the service account under restrictive permissions and removes the file after deployment.
 
 ## Artifact-class boundary
 
@@ -96,7 +100,7 @@ The branch contains executable proof for:
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, and non-persistent authenticated base-ref setup.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, and explicit deployment authorization.
 
 Previously executed regressions returned:
 
@@ -107,7 +111,7 @@ The expanded history and canonical-marker regressions must pass on the final unc
 
 ## Separate authorization rule
 
-The future v3 marker remains absent. Merging this repair cannot itself trigger provider generation.
+The future v3 marker remains absent. Merging this repair cannot itself trigger provider generation or Firebase deployment.
 
 A later one-file protected-main marker requires:
 
@@ -117,6 +121,8 @@ A later one-file protected-main marker requires:
 4. merge and merged-main four-marker preflight success;
 5. explicit billing and protected-environment approval under the marker-pinned provider/model contract and USD 47 ceiling;
 6. continued absence of duplicate-generation or prior-spend evidence.
+
+A later Firebase production deployment is a separate operation and requires the explicit confirmed dispatch and production environment described above.
 
 ## Still unproven
 
