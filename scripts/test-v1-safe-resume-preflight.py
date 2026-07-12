@@ -33,6 +33,10 @@ EXPECTED_WORKFLOW_NAMES = {
     "One-Time V1 AAA Spatial Pack Safe Resume 2",
     "One-Time V1 AAA Spatial Pack Safe Resume 3",
 }
+EXPECTED_GENERATION_STEP_NAMES = {
+    "Generate and certify all 53 V1 Spatial outputs",
+    "Generate all 53 V1 Spatial outputs",
+}
 
 
 def run_record(marker: str, run_id: int, *, name: str = "One-Time V1 AAA Spatial Pack Marker") -> dict:
@@ -116,6 +120,7 @@ def test_default_marker_history_is_complete_and_ordered() -> None:
     assert len(module.DEFAULT_MARKER_SHAS) == 4
     assert len(set(module.DEFAULT_MARKER_SHAS)) == 4
     assert module.WORKFLOW_NAMES == EXPECTED_WORKFLOW_NAMES
+    assert module.GENERATION_STEP_NAMES == EXPECTED_GENERATION_STEP_NAMES
 
 
 def test_skipped_execution_without_artifacts_is_safe() -> None:
@@ -128,6 +133,7 @@ def test_skipped_execution_without_artifacts_is_safe() -> None:
     assert result["blockingReasons"] == []
     assert result["matchingRuns"] == 4
     assert set(result["inspectedWorkflowNames"]) == EXPECTED_WORKFLOW_NAMES
+    assert set(result["generationStepNames"]) == EXPECTED_GENERATION_STEP_NAMES
     download.assert_not_called()
 
 
@@ -142,6 +148,23 @@ def test_original_paid_workflow_success_blocks_execution() -> None:
     assert result["matchingRuns"] == 4
     assert result["runs"][0]["workflowName"] == "One-Time V1 AAA Spatial Pack"
     assert any("may have generated outputs" in reason for reason in result["blockingReasons"])
+
+
+def test_legacy_generation_step_blocks_failed_execute_job() -> None:
+    legacy_step = {
+        "number": 9,
+        "name": "Generate and certify all 53 V1 Spatial outputs",
+        "status": "completed",
+        "conclusion": "success",
+    }
+    fake_json, _ = api_fixture(
+        workflow_names_by_marker={MARKERS[0]: "One-Time V1 AAA Spatial Pack"},
+        jobs_by_run={100: [execute_job(1100, conclusion="failure", steps=[legacy_step])]},
+    )
+    with mock.patch.object(module, "github_api_json", side_effect=fake_json):
+        result = module.inspect_history(REPOSITORY, TOKEN, API_ROOT, MARKERS)
+    assert result["safeToExecute"] is False
+    assert any("generation step was not skipped" in reason for reason in result["blockingReasons"])
 
 
 def test_expired_pack_artifact_blocks_execution() -> None:
@@ -226,6 +249,7 @@ def main() -> int:
     test_default_marker_history_is_complete_and_ordered()
     test_skipped_execution_without_artifacts_is_safe()
     test_original_paid_workflow_success_blocks_execution()
+    test_legacy_generation_step_blocks_failed_execute_job()
     test_expired_pack_artifact_blocks_execution()
     test_non_skipped_generation_step_blocks_execution()
     test_missing_marker_coverage_blocks_execution()
