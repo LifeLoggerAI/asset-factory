@@ -3,10 +3,14 @@ name: V1 Safe Resume Control Validation
 on:
   pull_request:
     paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - image_asset_generator/check_v1_safe_resume_history.py
+      - image_asset_generator/check_v1_safe_resume_history_core.py
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
@@ -14,10 +18,14 @@ on:
   push:
     branches: [main]
     paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - image_asset_generator/check_v1_safe_resume_history.py
+      - image_asset_generator/check_v1_safe_resume_history_core.py
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
@@ -57,9 +65,13 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -z "$(git status --porcelain)"
+          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
-          test ! -e image_asset_generator/check_v1_safe_resume_history.py
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
+          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
+          test ! -e image_asset_generator/check_v1_safe_resume_history.py
+          test ! -e image_asset_generator/check_v1_safe_resume_history_core.py
 
       - name: Compile and execute safe-control regressions
         run: |
