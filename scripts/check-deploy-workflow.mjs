@@ -29,6 +29,7 @@ const smokeRequired = [
   'ref: ${{ github.sha }}',
   'persist-credentials: false',
   'Verify exact clean dispatch identity and smoke-only boundary',
+  "ASSET_FACTORY_SMOKE_READONLY: 'true'",
   'Deploy workflow boundary gate',
   'https://staging.uraiassetfactory.com',
   'https://urai-4dc1d.web.app',
@@ -37,11 +38,15 @@ const smokeRequired = [
   'smoke-tenant-a',
   'smoke-tenant-b',
   'npm run smoke:website',
+  'Authenticated read-only smoke',
   'npm run smoke:staging',
   'npm run smoke:prod',
+  'test "$ASSET_FACTORY_SMOKE_READONLY" = true',
   'Deployment performed: false',
   'Production deploy workflow: Asset Factory Production Readiness',
   'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
+  'Read-only smoke enforced globally: true',
+  'Authenticated read-only smoke requested:',
   'Firebase mutation allowed: false',
   'Upload smoke evidence',
   'actions/upload-artifact@v4',
@@ -55,6 +60,13 @@ for (const phrase of smokeRequired) {
   if (!smokeWorkflow.includes(phrase)) {
     fail(`smoke-only workflow missing ${JSON.stringify(phrase)}`);
   }
+}
+
+const readonlyAssertions = smokeWorkflow.match(
+  /test "\$ASSET_FACTORY_SMOKE_READONLY" = true/g,
+) ?? [];
+if (readonlyAssertions.length < 2) {
+  fail('smoke-only workflow must assert read-only mode before dispatch validation and authenticated smoke');
 }
 
 const smokeForbidden = [
