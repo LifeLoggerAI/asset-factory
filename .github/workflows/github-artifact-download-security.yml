@@ -12,6 +12,7 @@ on:
       - .github/workflows/v1-safe-resume-control-validation.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
       - image_asset_generator/check_v1_safe_resume_history.py
       - image_asset_generator/check_v1_safe_resume_history_core.py
       - scripts/github_artifact_download.py
@@ -26,6 +27,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
