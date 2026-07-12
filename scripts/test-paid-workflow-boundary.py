@@ -37,6 +37,12 @@ def make_root() -> Path:
     return root
 
 
+def write_workflow(root: Path, name: str, text: str) -> Path:
+    path = root / ".github/workflows" / name
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
 def test_clean_marker_only_repository_passes() -> None:
     root = make_root()
     assert module.inspect(root) == []
@@ -50,30 +56,89 @@ def test_known_legacy_workflow_is_rejected() -> None:
     assert any("legacy paid workflow remains active" in error for error in errors)
 
 
-def test_differently_named_paid_workflow_is_rejected() -> None:
+def test_multiline_environment_and_quoted_secret_key_are_rejected() -> None:
     root = make_root()
-    candidate = root / ".github/workflows/new-paid-path.yml"
-    candidate.write_text(
-        """name: New paid path
+    write_workflow(
+        root,
+        "multiline-paid-path.yml",
+        """name: Multiline paid path
 on: workflow_dispatch
 jobs:
   paid:
-    environment: paid-asset-generation
+    environment:
+      name: paid-asset-generation
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ASSET_RENDERER_MODE: provider
+      "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}"
+    steps:
+      - run: echo should-not-run
 """,
-        encoding="utf-8",
     )
     errors = module.inspect(root)
-    assert any("new-paid-path.yml" in error for error in errors)
-    assert any("paid execution or dispatch configuration outside marker workflow" in error for error in errors)
+    assert any("mapped paid environment" in error for error in errors)
+    assert any("provider secret key OPENAI_API_KEY" in error for error in errors)
+
+
+def test_inline_environment_map_is_rejected() -> None:
+    root = make_root()
+    write_workflow(
+        root,
+        "inline-environment.yml",
+        """name: Inline paid environment
+on: workflow_dispatch
+jobs:
+  paid:
+    environment: { name: paid-asset-generation }
+    steps:
+      - run: echo should-not-run
+""",
+    )
+    errors = module.inspect(root)
+    assert any("inline paid environment" in error or "paid environment" in error for error in errors)
+
+
+def test_inline_shell_assignments_are_rejected() -> None:
+    root = make_root()
+    write_workflow(
+        root,
+        "inline-shell-paid-path.yml",
+        """name: Inline shell paid path
+on: workflow_dispatch
+jobs:
+  paid:
+    steps:
+      - run: |
+          ASSET_FORGE_PAID_RUN_AUTHORIZED=1 ASSET_RENDERER_MODE=provider python3 forge.py
+""",
+    )
+    errors = module.inspect(root)
+    assert any("shell enables paid/provider authorization" in error for error in errors)
+    assert any("shell enables provider mode" in error for error in errors)
+
+
+def test_exported_provider_secret_is_rejected() -> None:
+    root = make_root()
+    write_workflow(
+        root,
+        "exported-secret.yml",
+        """name: Exported provider secret
+on: workflow_dispatch
+jobs:
+  paid:
+    steps:
+      - run: |
+          export ASSET_RENDERER_API_KEY=placeholder
+          python3 forge.py
+""",
+    )
+    errors = module.inspect(root)
+    assert any("shell assigns provider secret ASSET_RENDERER_API_KEY" in error for error in errors)
 
 
 def test_differently_named_paid_dispatcher_is_rejected() -> None:
     root = make_root()
-    candidate = root / ".github/workflows/new-paid-dispatcher.yml"
-    candidate.write_text(
+    write_workflow(
+        root,
+        "new-paid-dispatcher.yml",
         """name: New paid dispatcher
 on: workflow_dispatch
 jobs:
@@ -82,15 +147,17 @@ jobs:
       - uses: actions/github-script@v7
         with:
           script: |
-            event_type: 'urai-version-forge-requested'
-            workflow_id: 'canonical-version-forge.yml'
+            await github.rest.repos.createDispatchEvent({
+              event_type: 'urai-version-forge-requested'
+            });
+            await github.rest.actions.createWorkflowDispatch({
+              workflow_id: 'canonical-version-forge.yml'
+            });
 """,
-        encoding="utf-8",
     )
     errors = module.inspect(root)
-    assert any("new-paid-dispatcher.yml" in error for error in errors)
-    assert any("urai-version-forge-requested" in error for error in errors)
-    assert any("canonical-version-forge.yml" in error for error in errors)
+    assert any("legacy paid event" in error for error in errors)
+    assert any("legacy paid workflow" in error for error in errors)
 
 
 def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
@@ -101,12 +168,27 @@ def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
     assert any("forbidden alternate trigger workflow_dispatch" in error for error in errors)
 
 
+def test_ambiguous_leading_tabs_fail_closed() -> None:
+    root = make_root()
+    write_workflow(
+        root,
+        "tabbed.yml",
+        "name: Tabbed\njobs:\n\tpaid:\n    environment: paid-asset-generation\n",
+    )
+    errors = module.inspect(root)
+    assert any("cannot be parsed safely" in error for error in errors)
+
+
 def main() -> int:
     test_clean_marker_only_repository_passes()
     test_known_legacy_workflow_is_rejected()
-    test_differently_named_paid_workflow_is_rejected()
+    test_multiline_environment_and_quoted_secret_key_are_rejected()
+    test_inline_environment_map_is_rejected()
+    test_inline_shell_assignments_are_rejected()
+    test_exported_provider_secret_is_rejected()
     test_differently_named_paid_dispatcher_is_rejected()
     test_marker_workflow_rejects_manual_or_repository_dispatch()
+    test_ambiguous_leading_tabs_fail_closed()
     print("PASS paid workflow boundary regressions")
     return 0
 
