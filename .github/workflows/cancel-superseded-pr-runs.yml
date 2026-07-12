@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cancel-superseded-pr-runs-${{ github.event.pull_request.number }}
+  group: cancel-superseded-pr-runs-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 jobs:
