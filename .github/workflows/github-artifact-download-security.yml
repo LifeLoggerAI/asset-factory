@@ -44,7 +44,7 @@ concurrency:
 jobs:
   verify:
     name: Verify redirect credential isolation
-    runs-on: macos-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 15
     env:
       PYTHONPYCACHEPREFIX: /tmp/urai-security-pycache-${{ github.run_id }}
