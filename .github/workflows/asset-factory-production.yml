@@ -10,6 +10,7 @@ on:
       - 'storage.rules'
       - 'firebase.json'
       - '.github/workflows/asset-factory-production.yml'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   pull_request:
     paths:
       - 'assetfactory-studio/**'
@@ -19,9 +20,14 @@ on:
       - 'storage.rules'
       - 'firebase.json'
       - '.github/workflows/asset-factory-production.yml'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
 
 permissions:
   contents: read
+
+concurrency:
+  group: asset-factory-production-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   production-checks:
