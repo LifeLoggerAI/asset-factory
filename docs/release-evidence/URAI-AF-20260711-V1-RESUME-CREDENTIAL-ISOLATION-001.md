@@ -46,116 +46,105 @@ It is source/manifest evidence, not provider-generation evidence.
 
 ## Security and release-control defects removed
 
-1. authenticated cross-origin `curl --location` artifact retrieval in historical preflight;
-2. authenticated cross-origin `curl --location` artifact retrieval in post-certification;
+1. authenticated cross-origin `curl --location` retrieval in historical preflight;
+2. authenticated cross-origin `curl --location` retrieval in post-certification;
 3. provider secrets declared outside provider-only steps;
-4. generic `unzip` of the trusted Home seed;
-5. generic `unzip` of the complete generated pack;
-6. the original unsafe paid-resume workflow;
-7. the consumed v2 paid-resume workflow;
-8. both consumed authorization markers;
-9. the curl-based checker wrapper and core;
-10. incomplete three-marker default history;
-11. archive traversal, type, duplicate, Unicode/case-fold collision, size, and member-count gaps;
-12. extraction of the Home PNG without its required provider metadata sidecar;
-13. stale integrity validation against the deleted legacy workflow;
-14. static assertions that were altered by GitHub expression expansion;
-15. a forbidden-token substring check that falsely rejected the safe `${URAI_WHEEL_GITHUB_TOKEN:-}` emptiness guard;
-16. a retired-checker filename assertion that conflicted with intentional trigger-path coverage;
-17. integrity checks that could accept producer fields merely because the certifier mentioned the same field names;
-18. integrity checks that did not prove the post-certification workflow actually invoked the certifier with the exact source and output arguments;
-19. broad PR workflows that lacked concurrency cancellation and allowed superseded heads to accumulate ahead of the current candidate;
-20. release gates that did not share one immutable exact-head trigger, allowing evidence to be distributed across different candidate SHAs;
-21. both guard workflows omitted the future v3 authorization marker from their path filters, allowing a marker-only authorization change to trigger the paid workflow without triggering the fail-closed guards;
-22. legacy nonterminal PR runs created before concurrency controls remained outside the new groups and continued consuming runner capacity;
-23. the first stale-run cleanup design trusted only its event SHA, allowing an older queued cleanup event to start after a newer head appeared and cancel newer-head runs.
+4. generic `unzip` of the trusted Home seed and complete generated pack;
+5. the original unsafe and consumed v2 paid-resume workflows;
+6. both consumed authorization markers and the curl-based checker wrapper/core;
+7. incomplete three-marker default history;
+8. archive traversal, type, duplicate, Unicode/case-fold collision, size, and member-count gaps;
+9. extraction of the Home PNG without its required provider metadata sidecar;
+10. stale integrity validation against the deleted legacy workflow;
+11. GitHub-expression, token-substring, and retired-filename false positives in static controls;
+12. producer fields accepted merely because the certifier mentioned the same names;
+13. no proof that the post-certification workflow invoked the exact certifier and arguments;
+14. broad PR workflows without latest-head concurrency and one shared exact-head trigger;
+15. future v3 marker changes outside both independent guard path filters;
+16. legacy queued PR runs created before concurrency controls;
+17. an initial stale-run cleanup race that trusted event SHA without checking the live PR head;
+18. stale-run cancellation without mandatory explicit linkage to the same PR;
+19. object-storage retrieval using default `urlopen`, allowing an unvalidated secondary redirect after GitHub's validated redirect.
 
 ## Replacement security and queue boundary
 
 The replacement:
 
-- deletes both unsafe/consumed paid-resume workflows;
-- deletes both consumed authorization markers;
-- deletes the unsafe checker wrapper and core;
+- deletes both unsafe/consumed paid-resume workflows, both consumed markers, and the unsafe checker files;
 - leaves the future v3 authorization marker absent;
-- separates authenticated GitHub API access from credential-free object-storage access;
-- rejects non-HTTPS redirects and redirect URLs containing user information;
+- separates the authenticated GitHub API request from a credential-free storage request;
+- uses the same no-redirect opener for both requests;
+- validates the GitHub-provided redirect as HTTPS, with a hostname and no user information;
+- rejects any secondary redirect from object storage before reading artifact bytes;
+- sends no Authorization, API-version, cookie, or GitHub-specific credential header to storage;
 - bounds JSON, ZIP, per-member, total-extracted-byte, and member-count sizes;
 - performs atomic mode-0600 writes;
-- extracts the Home PNG and required `.render.json` metadata as unique regular files from the same retained archive;
-- extracts complete packs only through canonical relative paths and regular files/directories;
+- extracts the Home PNG and required `.render.json` sidecar as unique regular files;
+- extracts full packs only through canonical relative paths and regular files/directories;
 - rejects traversal, backslashes, drive-like paths, encryption, symlinks, non-regular files, exact duplicates, portable Unicode/case-fold collisions, and size/count violations;
 - inspects all four historical authorization SHAs through explicit arguments and CLI defaults;
 - treats unresolved execution, non-skipped generation, generated-output evidence, incomplete coverage, expired evidence, and technical errors as hard blockers;
-- confines provider secrets to the provider preflight and generation steps inside the protected `paid-asset-generation` job;
+- confines provider secrets to provider preflight and generation steps inside protected `paid-asset-generation`;
 - keeps checkout, history inspection, tests, artifact download, and dependency installation free of provider credentials;
 - enforces one attempt, 47 provider calls, USD 1 per unit, and USD 47 total ceilings;
-- retains evidence for 365 days;
+- retains paid-run evidence for 365 days;
 - prevents direct Spatial pushes, PR merges, auto-merge, promotion, or deployment from the paid workflow;
-- verifies the handoff exporter itself emits every file, metadata, decoded-pixel, and source-binding field before paid execution;
-- verifies the post-certification workflow invokes the exact certifier with generated-pack root, workflow conclusion, run ID, source head, artifact ID, and canonical report output;
-- gives CI, Production Readiness, Production Checks, Release Readiness, Pipeline Proof, Production Verify, Image Asset Validation, Safe Resume Validation, and V1 Integrity a stable PR/ref concurrency group with `cancel-in-progress: true`;
-- uses this immutable receipt path as the shared pull-request trigger for every required path-filtered release gate;
-- ensures one final receipt commit produces one coherent exact-head evidence set while superseded PR runs are cancelled;
-- includes `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json` in both pull-request and protected-main push filters for Artifact Credential Isolation and Safe Resume Validation, so a marker-only authorization cannot bypass either guard;
-- adds a same-repository PR cleanup job with only `actions: write` and `contents: read`, no checkout and no external actions;
-- reads the live pull-request head and current workflow-run record at execution time and exits without cancellation unless repository, branch, event SHA, run SHA, and live SHA still agree;
-- cancels only pull-request-event runs that explicitly link to the same PR, are on the same branch, use an older SHA, remain nonterminal, and were created before the cleanup run;
-- re-reads the live PR head immediately before each cancel request and stops if a newer head appears;
-- explicitly excludes the current run, current SHA, other branches, other pull requests, completed runs, push runs, fork pull requests, newer-created runs, and any cleanup event superseded before or during execution.
+- verifies exporter fields, certifier behavior, and the exact post-certification invocation independently;
+- gives every required release workflow a stable PR/ref concurrency group with `cancel-in-progress: true`;
+- uses this receipt path as the shared pull-request trigger for every path-filtered release gate;
+- includes the future v3 marker path in both guard workflows for pull requests and protected-main pushes;
+- adds a same-repository stale-run cleanup with only `actions: write` and `contents: read`, no checkout and no external actions;
+- makes cleanup a no-op unless live repository, branch, event SHA, run SHA, and live PR SHA agree;
+- cancels only older, nonterminal, pull-request-event runs explicitly linked to the same PR and created before the cleanup run;
+- revalidates the live PR head before every cancellation and aborts immediately if it changes;
+- excludes the current run/SHA, completed runs, push runs, forks, other branches/PRs, newer-created runs, and stale cleanup events.
 
 ## Executable regression coverage
 
-The branch includes executable tests for:
+The branch includes executable proof for:
 
-- authenticated API requests that do not follow redirects;
+- authenticated API requests that reject redirects except the single validated artifact handoff;
 - credential-free storage requests;
-- HTTPS/no-userinfo redirect validation;
-- JSON and archive size ceilings;
-- safe single-member extraction;
-- safe complete-tree extraction;
+- rejection of non-HTTPS, userinfo-bearing, and secondary storage redirects;
+- JSON and archive byte ceilings;
+- safe single-member and full-tree extraction;
 - traversal, symlink, encrypted, duplicate, portable-collision, and oversized archive rejection;
-- exact ordered four-marker default history;
-- complete four-run historical inspection;
+- exact ordered four-marker history and complete four-run inspection;
 - absence of retired workflows, markers, and checkers;
 - provider-secret confinement to exactly two provider-only steps;
-- safe post-certification artifact handling;
-- V1 integrity against the v3 control rather than the retired legacy workflow;
-- separate producer-field, certifier-behavior, and post-workflow invocation binding;
-- explicit Life Map `no ground`, `no orb`, and `no avatar` prompt contract for desktop and mobile;
-- latest-head workflow cancellation and a shared exact-head release receipt trigger;
-- marker-only v3 authorization path coverage in both independent guard workflows;
-- race-safe bounded cancellation of superseded nonterminal runs without touching current-head or unrelated workflow evidence.
+- safe post-certification handling and exact exporter/certifier/invocation binding;
+- explicit Life Map `no ground`, `no orb`, and `no avatar` contracts;
+- latest-head concurrency, a shared exact-head trigger, marker-only v3 guard coverage, and race-safe same-PR cleanup.
 
-Local executable regressions previously returned:
+Previously executed source regressions returned:
 
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-Local results validate the test implementation but do not substitute for unchanged exact-head GitHub evidence.
+Those earlier results validate the test implementation but do not replace final unchanged-head GitHub evidence.
 
-## Workflow-regression and independent-review repair record
+## Review and workflow repair record
 
-The corrected candidate exposed additional control-test defects rather than provider/runtime defects:
+Independent review and exact-head execution identified and corrected:
 
-- Artifact Credential Isolation and Safe Resume Validation embedded literal secret expressions inside their own `run:` scripts, allowing GitHub expression expansion to alter the text under inspection. The assertions now construct those markers at Python runtime without embedding a literal expression token in the workflow command.
-- V1 AAA Spatial Pack Integrity initially inspected the deleted legacy workflow. It now inspects v3 and asserts all retired controls remain absent.
-- Integrity then falsely matched the safe shell emptiness guard as a YAML secret assignment. It now uses a line-anchored YAML-key check.
-- Artifact Credential Isolation then rejected the retired checker filename even though that filename is intentionally retained in trigger coverage. It now rejects executable invocations only.
-- Integrity was updated to inspect the executable post-certifier after post-certification logic moved out of YAML.
-- Both Life Map prompts now state the required exclusions literally so paid preflight cannot diverge from product canon.
-- Independent review identified that exporter fields must be verified in the exporter itself rather than through a combined source string; the producer assertions are now separate.
-- Independent review identified that the post workflow must be proven to invoke the certifier; the exact command and all source/output arguments are now asserted.
-- Exact-head investigation confirmed the repository is public and all blocked jobs requested standard GitHub-hosted runners, while superseded runs lacked cancellation. The durable repair is workflow-level latest-head concurrency, not bypassing CI or treating queued state as success.
-- Final independent review identified that marker-only v3 authorization changes were outside both guard path filters. Both pull-request and `main` push filters now include the exact marker path.
-- Because runs created before those concurrency declarations cannot be retroactively grouped, a narrowly scoped same-PR cleanup workflow was introduced.
-- Its first queued execution proved event-SHA-only filtering was insufficient under out-of-order runner assignment. The current implementation fails closed against the live PR head, current run metadata, creation ordering, explicit PR linkage, and head changes during execution.
+- surviving unsafe workflows and consumed markers;
+- incomplete default history;
+- portable archive collisions;
+- missing Home seed metadata;
+- provider-secret over-scoping;
+- stale exporter/certifier/invocation assertions;
+- missing marker-only v3 guard triggers;
+- missing latest-head concurrency and shared receipt triggers;
+- stale-run cleanup PR-linkage and execution-order races;
+- unvalidated object-storage secondary redirects.
 
-Every repair changes the candidate SHA. Earlier workflow conclusions and review requests are stale and cannot authorize merge.
+The current helper rejects secondary storage redirects with the no-redirect opener, and the executable suite includes a storage-to-storage redirect case that must fail without writing an output file. The static security gate also requires the no-redirect storage call and forbids returning to default `urlopen` for the storage request.
+
+Every repair changes the candidate SHA. Earlier workflow conclusions, artifacts, and review requests are stale and cannot authorize merge.
 
 ## Separate authorization rule
 
-The replacement workflow listens only for:
+The replacement paid workflow listens only for:
 
 `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json`
 
@@ -165,7 +154,7 @@ A new marker may be added only as a later one-file protected-main commit after:
 
 1. every required workflow succeeds on one unchanged exact head;
 2. every retained artifact and receipt is inspected;
-3. an independent non-author security reviewer approves that exact head;
+3. an independent non-author security reviewer clears that exact head;
 4. the repair is merged;
 5. merged-main historical preflight proves all four authorization histories safe;
 6. provider, model, credentials, billing authority, protected-environment approval, and the USD 47 ceiling are explicitly confirmed;
@@ -174,7 +163,7 @@ A new marker may be added only as a later one-file protected-main commit after:
 ## Not yet proven
 
 - final exact-head success across every required workflow;
-- final exact-head independent non-author approval;
+- final exact-head independent non-author clearance;
 - merged-main preflight success;
 - valid paid provider credentials and billing authority;
 - any new provider-backed V1 output;
