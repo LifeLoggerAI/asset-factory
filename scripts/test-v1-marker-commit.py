@@ -5,10 +5,12 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
 MODULE_PATH = SCRIPT_DIR / "validate_v1_marker_commit.py"
 spec = importlib.util.spec_from_file_location("validate_v1_marker_commit", MODULE_PATH)
 assert spec and spec.loader
