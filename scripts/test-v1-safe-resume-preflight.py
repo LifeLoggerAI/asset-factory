@@ -7,6 +7,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from unittest import mock
+from urllib.parse import parse_qs, urlparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -121,6 +122,60 @@ def test_default_marker_history_is_complete_and_ordered() -> None:
     assert len(set(module.DEFAULT_MARKER_SHAS)) == 4
     assert module.WORKFLOW_NAMES == EXPECTED_WORKFLOW_NAMES
     assert module.GENERATION_STEP_NAMES == EXPECTED_GENERATION_STEP_NAMES
+
+
+def test_paged_items_collects_every_page() -> None:
+    calls: list[int] = []
+
+    def fake_json(url: str, token: str):
+        assert token == TOKEN
+        query = parse_qs(urlparse(url).query)
+        assert query["per_page"] == [str(module.API_PAGE_SIZE)]
+        page = int(query["page"][0])
+        calls.append(page)
+        if page == 1:
+            return {"workflow_runs": [{"id": index} for index in range(module.API_PAGE_SIZE)]}
+        if page == 2:
+            return {"workflow_runs": [{"id": module.API_PAGE_SIZE}]}
+        raise AssertionError(f"unexpected page {page}")
+
+    with mock.patch.object(module, "github_api_json", side_effect=fake_json):
+        items = module._paged_items(
+            f"{API_ROOT}/repos/{REPOSITORY}/actions/runs?head_sha={'a' * 40}",
+            TOKEN,
+            "workflow_runs",
+        )
+
+    assert calls == [1, 2]
+    assert len(items) == module.API_PAGE_SIZE + 1
+    assert items[-1]["id"] == module.API_PAGE_SIZE
+
+
+def test_paged_items_fails_closed_when_page_cap_is_exhausted() -> None:
+    calls: list[int] = []
+
+    def fake_json(url: str, token: str):
+        assert token == TOKEN
+        query = parse_qs(urlparse(url).query)
+        page = int(query["page"][0])
+        calls.append(page)
+        return {"jobs": [{"id": page * 1000 + index} for index in range(module.API_PAGE_SIZE)]}
+
+    with mock.patch.object(module, "github_api_json", side_effect=fake_json), mock.patch.object(
+        module, "MAX_API_PAGES", 2
+    ):
+        try:
+            module._paged_items(
+                f"{API_ROOT}/repos/{REPOSITORY}/actions/runs/123/jobs?filter=all",
+                TOKEN,
+                "jobs",
+            )
+        except RuntimeError as exc:
+            assert "pagination exceeded 2 pages" in str(exc)
+        else:
+            raise AssertionError("pagination page-cap exhaustion must fail closed")
+
+    assert calls == [1, 2]
 
 
 def test_skipped_execution_without_artifacts_is_safe() -> None:
@@ -247,6 +302,8 @@ def test_generated_output_artifact_blocks_execution() -> None:
 
 def main() -> int:
     test_default_marker_history_is_complete_and_ordered()
+    test_paged_items_collects_every_page()
+    test_paged_items_fails_closed_when_page_cap_is_exhausted()
     test_skipped_execution_without_artifacts_is_safe()
     test_original_paid_workflow_success_blocks_execution()
     test_legacy_generation_step_blocks_failed_execute_job()
