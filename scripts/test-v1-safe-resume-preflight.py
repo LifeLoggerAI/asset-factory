@@ -19,7 +19,13 @@ spec.loader.exec_module(module)
 REPOSITORY = "LifeLoggerAI/asset-factory"
 API_ROOT = "https://api.github.com"
 TOKEN = "test-token"
-MARKERS = ["a" * 40, "b" * 40, "c" * 40]
+MARKERS = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+EXPECTED_DEFAULT_MARKERS = [
+    "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+    "de27f2f36aa1ca73d504e5dffed99161078fb0c8",
+    "4dc05a67746e189054609e405ca3801683ab5445",
+    "0cf837d585d3d1c1d8e171938037098c72230c22",
+]
 
 
 def run_record(marker: str, run_id: int) -> dict:
@@ -86,6 +92,12 @@ def api_fixture(
     return fake_json, run_ids
 
 
+def test_default_marker_history_is_complete_and_ordered() -> None:
+    assert module.DEFAULT_MARKER_SHAS == EXPECTED_DEFAULT_MARKERS
+    assert len(module.DEFAULT_MARKER_SHAS) == 4
+    assert len(set(module.DEFAULT_MARKER_SHAS)) == 4
+
+
 def test_skipped_execution_without_artifacts_is_safe() -> None:
     fake_json, _ = api_fixture()
     with mock.patch.object(module, "github_api_json", side_effect=fake_json), mock.patch.object(
@@ -94,7 +106,7 @@ def test_skipped_execution_without_artifacts_is_safe() -> None:
         result = module.inspect_history(REPOSITORY, TOKEN, API_ROOT, MARKERS)
     assert result["safeToExecute"] is True
     assert result["blockingReasons"] == []
-    assert result["matchingRuns"] == 3
+    assert result["matchingRuns"] == 4
     download.assert_not_called()
 
 
@@ -177,6 +189,7 @@ def test_generated_output_artifact_blocks_execution() -> None:
 
 
 def main() -> int:
+    test_default_marker_history_is_complete_and_ordered()
     test_skipped_execution_without_artifacts_is_safe()
     test_expired_pack_artifact_blocks_execution()
     test_non_skipped_generation_step_blocks_execution()
