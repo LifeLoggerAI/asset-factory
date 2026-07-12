@@ -4,6 +4,7 @@
 **Repository:** `LifeLoggerAI/asset-factory`  
 **Replacement branch:** `security/v1-resume-v3-safe-rebase-20260711`  
 **Reconstructed base:** `main@6cd595344fba0fd759579789a3da795c72a12d95`  
+**Exact-head binding:** this receipt is committed on the candidate head and must be read with `git rev-parse HEAD`; any later branch commit supersedes its workflow evidence.  
 **Verdict:** **HOLD until unchanged-head CI, independent review, merge, merged-main preflight, and separate paid authorization are complete.**
 
 ## Historical paid-run reconstruction
@@ -46,7 +47,9 @@ The replacement removes or corrects:
 19. automatic Firebase deployment on every verified `main` push when the service-account secret existed;
 20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently;
 21. a second `Deploy Asset Factory` workflow that could mutate Firebase outside the canonical production confirmation, environment, and service-account boundary;
-22. a staging-labeled path that still called the production project deployment script.
+22. a staging-labeled path that still called the production project deployment script;
+23. authenticated smoke verification that could call mutation-capable endpoints while claiming Firebase mutation was disabled;
+24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records.
 
 ## Current security and execution boundary
 
@@ -58,6 +61,7 @@ The current branch:
 - bounds downloads and extraction and writes files atomically;
 - rejects traversal, encryption, symlinks, non-regular files, duplicate paths, portable Unicode/case collisions, and size/count violations;
 - checks all four historical authorization commits and fails closed on incomplete or ambiguous evidence;
+- paginates every historical workflow-run, job, and artifact collection until a short terminal page is reached, and fails closed if pagination cannot terminate safely;
 - scans every known V1 paid workflow name, including the original `One-Time V1 AAA Spatial Pack` issue-triggered workflow and all marker/safe-resume variants;
 - recognizes both legacy `Generate and certify all 53 V1 Spatial outputs` and current `Generate all 53 V1 Spatial outputs` steps, including failed execute jobs that generated before failure;
 - validates a later marker authorization against the commit's first parent as exactly one effective added file with exact canonical JSON and exact expected parent SHA;
@@ -80,8 +84,9 @@ The current branch:
 - permits canonical Firebase production deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
 - writes the service account under restrictive permissions and removes the file after canonical production deployment;
 - makes the alternate `.github/workflows/deploy-asset-factory.yml` workflow smoke-only for existing staging or production deployments;
+- globally forces `ASSET_FACTORY_SMOKE_READONLY=true` for both unauthenticated and authenticated smoke modes and asserts that boundary before authenticated checks;
 - removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
-- allows that alternate workflow to run read-only or authenticated smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
+- allows that alternate workflow to run read-only or authenticated read-only smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
 - statically rejects any reintroduction of deploy capability in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`.
 
 ## Artifact-class boundary
@@ -101,7 +106,7 @@ The branch contains executable proof for:
 
 - credential-isolated artifact retrieval and redirect rejection;
 - bounded safe extraction and portable-path collision rejection;
-- exact ordered four-marker history;
+- exact ordered four-marker history with complete API pagination;
 - all known historical paid workflow names and both legacy/current generation-step names;
 - absence of retired workflows, markers, and checkers;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
@@ -110,14 +115,14 @@ The branch contains executable proof for:
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, and smoke-only alternate workflow enforcement.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, globally read-only smoke verification, and smoke-only alternate workflow enforcement.
 
 Previously executed regressions returned:
 
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The expanded history, canonical-marker, merge-aware marker-commit, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history, pagination, canonical-marker, merge-aware marker-commit, read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
