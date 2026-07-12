@@ -44,7 +44,7 @@ concurrency:
 jobs:
   validate-contract:
     name: Validate manifests, version contract, and paid-forge gates
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
