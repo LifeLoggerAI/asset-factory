@@ -7,7 +7,19 @@ on:
       - .github/workflows/deployment-boundary-validation.yml
       - .github/workflows/deploy-asset-factory.yml
       - .github/workflows/production-readiness.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-forge-trigger.yml
+      - .github/workflows/v1-aaa-asset-forge.yml
+      - .github/workflows/patch-and-run-v1-forge.yml
+      - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/owner-issue-one-paid-v1-smoke.yml
+      - .github/workflows/versioned-aaa-asset-forge.yml
+      - .github/workflows/v2-living-state-forge.yml
+      - .github/workflows/final-v1-avatar-extension.yml
+      - .github/workflows/dispatch-one-paid-v1-smoke.yml
       - scripts/check-deploy-workflow.mjs
+      - scripts/check-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-boundary.py
       - package.json
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
@@ -16,7 +28,19 @@ on:
       - .github/workflows/deployment-boundary-validation.yml
       - .github/workflows/deploy-asset-factory.yml
       - .github/workflows/production-readiness.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-forge-trigger.yml
+      - .github/workflows/v1-aaa-asset-forge.yml
+      - .github/workflows/patch-and-run-v1-forge.yml
+      - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/owner-issue-one-paid-v1-smoke.yml
+      - .github/workflows/versioned-aaa-asset-forge.yml
+      - .github/workflows/v2-living-state-forge.yml
+      - .github/workflows/final-v1-avatar-extension.yml
+      - .github/workflows/dispatch-one-paid-v1-smoke.yml
       - scripts/check-deploy-workflow.mjs
+      - scripts/check-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-boundary.py
       - package.json
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   workflow_dispatch:
@@ -57,6 +81,11 @@ jobs:
 
       - name: Validate canonical production and smoke-only boundaries
         run: node scripts/check-deploy-workflow.mjs
+
+      - name: Validate sole paid marker workflow boundary
+        run: |
+          python3 scripts/check-paid-workflow-boundary.py
+          python3 scripts/test-paid-workflow-boundary.py
 
       - name: Verify smoke workflow is read-only and contains no mutation capability
         shell: bash
