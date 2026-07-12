@@ -38,7 +38,8 @@ The replacement removes or corrects:
 11. unvalidated secondary object-storage redirects;
 12. queued old heads cancelling newer evidence through shared concurrency groups;
 13. retained evidence bound to GitHub's synthetic pull-request merge commit instead of the reviewed branch head;
-14. generic Release Readiness artifact names without independent clean-head attestation.
+14. generic Release Readiness artifact names without independent clean-head attestation;
+15. security checks that used the pull-request fallback runner for protected-main pushes.
 
 ## Current security and execution boundary
 
@@ -56,7 +57,8 @@ The current branch:
 - verifies producer output fields, certifier behavior, and the post-certification invocation independently;
 - isolates every workflow and the cleanup job by exact candidate SHA;
 - limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
-- runs pull-request verification on available macOS runners, cleanup on Windows, and preserves Ubuntu for push, main, and deployment behavior;
+- runs pull-request verification on available macOS runners and cleanup on Windows;
+- runs push, protected-main, workflow-dispatch production checks, and deployment behavior on Ubuntu, including credential isolation, safe-resume validation, and V1 integrity;
 - explicitly checks out the reviewed branch head, proves the exact commit identity and clean tree, and scopes retained broad-workflow artifacts to that head.
 
 ## Artifact-class boundary
@@ -82,7 +84,7 @@ The branch contains executable proof for:
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
 - marker-only v3 guard coverage;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, and race-safe cleanup.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, and event-correct runner selection.
 
 Previously executed regressions returned:
 
