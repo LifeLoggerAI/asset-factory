@@ -66,7 +66,8 @@ It is source/manifest evidence, not provider-generation evidence.
 18. integrity checks that did not prove the post-certification workflow actually invoked the certifier with the exact source and output arguments;
 19. broad PR workflows that lacked concurrency cancellation and allowed superseded heads to accumulate ahead of the current candidate;
 20. release gates that did not share one immutable exact-head trigger, allowing evidence to be distributed across different candidate SHAs;
-21. both guard workflows omitted the future v3 authorization marker from their path filters, allowing a marker-only authorization change to trigger the paid workflow without triggering the fail-closed guards.
+21. both guard workflows omitted the future v3 authorization marker from their path filters, allowing a marker-only authorization change to trigger the paid workflow without triggering the fail-closed guards;
+22. legacy nonterminal PR runs created before concurrency controls remained outside the new groups and continued consuming runner capacity.
 
 ## Replacement security and queue boundary
 
@@ -95,7 +96,9 @@ The replacement:
 - gives CI, Production Readiness, Production Checks, Release Readiness, Pipeline Proof, Production Verify, Image Asset Validation, Safe Resume Validation, and V1 Integrity a stable PR/ref concurrency group with `cancel-in-progress: true`;
 - uses this immutable receipt path as the shared pull-request trigger for every required path-filtered release gate;
 - ensures one final receipt commit produces one coherent exact-head evidence set while superseded PR runs are cancelled;
-- includes `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json` in both pull-request and protected-main push filters for Artifact Credential Isolation and Safe Resume Validation, so a marker-only authorization cannot bypass either guard.
+- includes `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json` in both pull-request and protected-main push filters for Artifact Credential Isolation and Safe Resume Validation, so a marker-only authorization cannot bypass either guard;
+- adds a same-repository PR cleanup job with only `actions: write` and `contents: read`, no checkout and no external actions, which lists pull-request runs for the exact head branch and cancels only nonterminal runs from older SHAs associated with the same PR;
+- explicitly excludes the current run, current SHA, other branches, other pull requests, completed runs, push runs, and fork pull requests from cleanup.
 
 ## Executable regression coverage
 
@@ -117,7 +120,8 @@ The branch includes executable tests for:
 - separate producer-field, certifier-behavior, and post-workflow invocation binding;
 - explicit Life Map `no ground`, `no orb`, and `no avatar` prompt contract for desktop and mobile;
 - latest-head workflow cancellation and a shared exact-head release receipt trigger;
-- marker-only v3 authorization path coverage in both independent guard workflows.
+- marker-only v3 authorization path coverage in both independent guard workflows;
+- bounded cancellation of superseded nonterminal runs without touching current-head or unrelated workflow evidence.
 
 Local executable regressions previously returned:
 
@@ -140,6 +144,7 @@ The corrected candidate exposed additional control-test defects rather than prov
 - Independent review identified that the post workflow must be proven to invoke the certifier; the exact command and all source/output arguments are now asserted.
 - Exact-head investigation confirmed the repository is public and all blocked jobs requested standard GitHub-hosted runners, while superseded runs lacked cancellation. The durable repair is workflow-level latest-head concurrency, not bypassing CI or treating queued state as success.
 - Final independent review identified that marker-only v3 authorization changes were outside both guard path filters. Both pull-request and `main` push filters now include the exact marker path.
+- Because runs created before those concurrency declarations cannot be retroactively grouped, a narrowly scoped same-PR cleanup workflow now cancels only older nonterminal pull-request runs and records its inspected/cancelled counts in the job summary.
 
 Every repair changes the candidate SHA. Earlier workflow conclusions and review requests are stale and cannot authorize merge.
 
