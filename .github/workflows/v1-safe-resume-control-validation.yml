@@ -16,6 +16,7 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
     paths:
@@ -32,6 +33,7 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
   actions: read
