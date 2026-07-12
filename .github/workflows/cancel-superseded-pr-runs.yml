@@ -16,7 +16,7 @@ concurrency:
 jobs:
   cancel-stale:
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-latest
+    runs-on: windows-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          python - <<'PY'
           import json
           import os
           import urllib.error
