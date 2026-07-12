@@ -116,17 +116,17 @@ jobs:
           exporter = Path('image_asset_generator/export_spatial_handoff.py').read_text()
           certifier = Path('image_asset_generator/post_certify_v1_spatial_pack.py').read_text()
           post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-          combined = exporter + '\n' + certifier + '\n' + post
+
           for value in (
-              'lossless=True',
-              'sourceSha256',
-              'sourceMetadataSha256',
-              'sourcePixelSha256',
-              'handoffPixelSha256',
-              'lossless-webp-decoded-pixel-sha256',
+              'image.save(destination, "WEBP", method=6, lossless=True)',
+              '"sourceSha256": sha256(source_path)',
+              '"sourceMetadataSha256": sha256(metadata_path) if metadata_path.is_file() else None',
+              '"sourcePixelSha256": source_pixel_hash',
+              '"handoffPixelSha256": source_pixel_hash',
+              '"sourceBinding": "lossless-webp-decoded-pixel-sha256"',
           ):
-              assert value in combined, value
-          assert 'workflows: [One-Time V1 AAA Spatial Pack Marker]' in post
+              assert value in exporter, value
+
           for value in (
               'handoff_root = handoff_manifest_path.parents[4]',
               'receipt.get("newProviderCalls") != 47',
@@ -137,6 +137,19 @@ jobs:
               '"status": "failed" if duplicates else "passed"',
           ):
               assert value in certifier, value
+
+          for value in (
+              'workflows: [One-Time V1 AAA Spatial Pack Marker]',
+              'python3 image_asset_generator/post_certify_v1_spatial_pack.py',
+              '--root "$GENERATED_PACK_ROOT"',
+              '--source-conclusion "$SOURCE_CONCLUSION"',
+              '--source-run-id "$SOURCE_RUN_ID"',
+              '--source-head-sha "$SOURCE_HEAD_SHA"',
+              '--source-artifact-id "$SOURCE_ARTIFACT_ID"',
+              '--output post-certification/v1-spatial-duplicate-report.json',
+          ):
+              assert value in post, value
+
           for value in ('git push','merge_pull_request','enable_auto_merge','repository: LifeLoggerAI/urai-spatial'):
               assert value not in post, value
           PY
