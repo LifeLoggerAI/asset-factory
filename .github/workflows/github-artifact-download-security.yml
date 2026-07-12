@@ -19,6 +19,8 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
@@ -32,6 +34,8 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
   workflow_dispatch:
 
 permissions:
@@ -53,7 +57,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Set up Python 3.11
@@ -67,42 +71,59 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Compile and execute security regressions
         run: |
-          python3 -m py_compile scripts/github_artifact_download.py scripts/test-github-artifact-download.py scripts/test-v1-safe-resume-preflight.py scripts/v1_safe_resume_preflight.py
+          python3 -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
+            scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/test-v1-safe-resume-v3-marker.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
 
-      - name: Verify consumed and vulnerable paths are absent
+      - name: Verify retired paths and validate marker event boundary
+        shell: bash
         run: |
           set -euo pipefail
+          marker=authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
           test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
-          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           test ! -e image_asset_generator/check_v1_safe_resume_history.py
           test ! -e image_asset_generator/check_v1_safe_resume_history_core.py
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            test ! -e "$marker"
+          elif git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq "$marker"; then
+            test -f "$marker"
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+            python3 scripts/validate_v1_safe_resume_v3_marker.py \
+              --marker "$marker" \
+              --expected-parent-sha "$(git rev-parse "$GITHUB_SHA^")"
+          fi
 
-      - name: Verify v3 is separately authorized and credential-isolated
+      - name: Verify v3 is separately authorized and provider-pinned
         run: |
           python3 - <<'PY'
           from pathlib import Path
           workflow = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           for marker in (
+              'scripts/validate_v1_safe_resume_v3_marker.py',
               'authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
               'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
               'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
               '4dc05a67746e189054609e405ca3801683ab5445',
               '0cf837d585d3d1c1d8e171938037098c72230c22',
-              'scripts/test-github-artifact-download.py',
-              'scripts/v1_safe_resume_preflight.py',
-              'scripts/github_artifact_download.py',
-              '--extract-basename home-threshold-main_1600.png',
-              'home-threshold-main_1600.png.render.json',
+              'https://api.openai.com/v1/images/generations',
+              'gpt-image-2',
+              'gpt-image-1.5',
               'environment: paid-asset-generation',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
@@ -114,17 +135,16 @@ jobs:
           assert 'secrets.' not in before_execute
           execute_job, execute_steps = execute_section.split('\n    steps:\n', 1)
           assert 'secrets.' not in execute_job
-          secret_names = (
-              'OPENAI_API_KEY',
+          secret_expr = '$' + '{{ secrets.'
+          assert execute_steps.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 2
+          for name in (
               'ASSET_RENDERER_ENDPOINT',
               'ASSET_RENDERER_API_KEY',
               'ASSET_RENDERER_MODEL',
               'ASSET_RENDERER_AUTH_HEADER',
               'ASSET_RENDERER_AUTH_SCHEME',
-          )
-          for name in secret_names:
-              marker = name + ': ' + '$' + '{{ secrets.' + name + ' }}'
-              assert execute_steps.count(marker) == 2, (marker, execute_steps.count(marker))
+          ):
+              assert name + ': ' + secret_expr not in execute_steps, name
           download = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
           install = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
           assert 'secrets.' not in download
@@ -149,10 +169,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           validation = Path('.github/workflows/v1-safe-resume-control-validation.yml').read_text()
-          assert 'python image_asset_generator/check_v1_safe_resume_history.py' not in validation
-          assert 'python3 image_asset_generator/check_v1_safe_resume_history.py' not in validation
           assert 'scripts/v1_safe_resume_preflight.py' in validation
-          assert 'scripts/test-v1-safe-resume-preflight.py' in validation
+          assert 'scripts/validate_v1_safe_resume_v3_marker.py' in validation
+          assert 'scripts/test-v1-safe-resume-v3-marker.py' in validation
           assert '0cf837d585d3d1c1d8e171938037098c72230c22' in validation
           assert '.github/workflows/v1-aaa-spatial-pack-post-certification.yml' in validation
           PY
@@ -175,4 +194,4 @@ jobs:
           PY
 
       - name: Final clean-tree proof
-        run: test -z "$(git status --porcelain)"
+        run: test -z "$(git status --porcelain --untracked-files=all)"
