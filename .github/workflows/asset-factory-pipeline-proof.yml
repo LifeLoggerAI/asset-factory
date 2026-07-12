@@ -36,12 +36,26 @@ concurrency:
   group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   asset-factory-proof:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -88,7 +102,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-production-validation-${{ github.run_id }}
+          name: asset-factory-production-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           path: asset-factory-production-validation.log
           if-no-files-found: error
 
@@ -121,7 +135,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-image-pipeline-proof
+          name: asset-factory-image-pipeline-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           path: |
             image_asset_generator/validation_report.json
             image_asset_generator/firebase_seed.json
