@@ -23,20 +23,13 @@ on:
     branches: [main]
     paths:
       - .github/workflows/github-artifact-download-security.yml
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
-      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
-      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
-      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
-      - image_asset_generator/check_v1_safe_resume_history.py
-      - image_asset_generator/check_v1_safe_resume_history_core.py
       - scripts/github_artifact_download.py
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
-      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   workflow_dispatch:
 
 permissions:
@@ -76,18 +69,16 @@ jobs:
 
       - name: Compile and execute security regressions
         run: |
-          python3 -m py_compile \
-            scripts/github_artifact_download.py \
-            scripts/test-github-artifact-download.py \
-            scripts/test-v1-safe-resume-preflight.py \
-            scripts/v1_safe_resume_preflight.py
+          python3 -m py_compile scripts/github_artifact_download.py scripts/test-github-artifact-download.py scripts/test-v1-safe-resume-preflight.py scripts/v1_safe_resume_preflight.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
 
       - name: Verify consumed and vulnerable paths are absent
         run: |
+          set -euo pipefail
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
+          test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
@@ -98,9 +89,8 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           workflow = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
-          required = [
+          for marker in (
               'authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
               'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
               'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
@@ -114,8 +104,7 @@ jobs:
               'environment: paid-asset-generation',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
-          ]
-          for marker in required:
+          ):
               assert marker in workflow, marker
           assert 'curl --fail-with-body --location' not in workflow
           assert 'unzip -q' not in workflow
@@ -123,38 +112,29 @@ jobs:
           assert 'secrets.' not in before_execute
           execute_job, execute_steps = execute_section.split('\n    steps:\n', 1)
           assert 'secrets.' not in execute_job
-          secret_markers = [
+          secret_markers = (
               'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}',
               'ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}',
               'ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}',
               'ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}',
               'ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}',
               'ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}',
-          ]
+          )
           for marker in secret_markers:
               assert execute_steps.count(marker) == 2, (marker, execute_steps.count(marker))
-          install_section = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
-          download_section = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
-          assert 'secrets.' not in install_section
-          assert 'secrets.' not in download_section
-          assert 'home-threshold-main_1600.png.render.json' in download_section
+          download = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
+          install = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
+          assert 'secrets.' not in download
+          assert 'secrets.' not in install
+          assert 'home-threshold-main_1600.png.render.json' in download
           PY
 
       - name: Verify post-certification download and extraction isolation
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           workflow = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-          required = [
-              'from scripts.github_artifact_download import github_api_json',
-              'scripts/github_artifact_download.py',
-              '--extract-all-directory',
-              '--max-extracted-bytes 67108864',
-              '--max-total-extracted-bytes 536870912',
-              '--max-members 4096',
-          ]
-          for marker in required:
+          for marker in ('from scripts.github_artifact_download import github_api_json','scripts/github_artifact_download.py','--extract-all-directory','--max-extracted-bytes 67108864','--max-total-extracted-bytes 536870912','--max-members 4096'):
               assert marker in workflow, marker
           assert 'curl --fail-with-body --location' not in workflow
           assert 'unzip -q' not in workflow
@@ -166,8 +146,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           validation = Path('.github/workflows/v1-safe-resume-control-validation.yml').read_text()
-          assert 'python image_asset_generator/check_v1_safe_resume_history.py' not in validation
-          assert 'python3 image_asset_generator/check_v1_safe_resume_history.py' not in validation
+          assert 'image_asset_generator/check_v1_safe_resume_history.py' not in validation
           assert 'scripts/v1_safe_resume_preflight.py' in validation
           assert 'scripts/test-v1-safe-resume-preflight.py' in validation
           assert '0cf837d585d3d1c1d8e171938037098c72230c22' in validation
@@ -184,13 +163,8 @@ jobs:
           storage = source.split('storage_request = urllib.request.Request', 1)[1].split('with urllib.request.urlopen', 1)[0]
           assert 'Authorization' not in storage
           assert 'X-GitHub-Api-Version' not in storage
-          assert 'parsed.scheme != "https"' in source
-          assert 'extract_unique_member_by_basename' in source
-          assert 'extract_all_regular_files' in source
-          assert '_safe_member_parts' in source
-          assert 'max_total_bytes' in source
-          assert 'file_type != stat.S_IFREG' in source
-          assert '_portable_path_key' in source
+          for marker in ('parsed.scheme != "https"','extract_unique_member_by_basename','extract_all_regular_files','_safe_member_parts','max_total_bytes','file_type != stat.S_IFREG','_portable_path_key'):
+              assert marker in source, marker
           PY
 
       - name: Final clean-tree proof
