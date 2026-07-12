@@ -17,6 +17,8 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
@@ -35,6 +37,8 @@ on:
       - scripts/test-github-artifact-download.py
       - scripts/test-v1-safe-resume-preflight.py
       - scripts/v1_safe_resume_preflight.py
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
@@ -56,7 +60,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Set up Python 3.11
@@ -64,21 +68,32 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Prove exact source and clean tree
+      - name: Prove exact source, retired paths, and marker event boundary
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
         run: |
           set -euo pipefail
+          marker=authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain --untracked-files=all)"
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
           test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
           test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
-          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           test ! -e image_asset_generator/check_v1_safe_resume_history.py
           test ! -e image_asset_generator/check_v1_safe_resume_history_core.py
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            test ! -e "$marker"
+          elif git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq "$marker"; then
+            test -f "$marker"
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+            python3 scripts/validate_v1_safe_resume_v3_marker.py \
+              --marker "$marker" \
+              --expected-parent-sha "$(git rev-parse "$GITHUB_SHA^")"
+          fi
           python3 - <<'PY'
           from pathlib import Path
           post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
@@ -95,22 +110,28 @@ jobs:
           assert 'Authorization: Bearer' not in post
 
           resume = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
-          assert 'home-threshold-main_1600.png.render.json' in resume
+          for marker in (
+              'scripts/validate_v1_safe_resume_v3_marker.py',
+              'https://api.openai.com/v1/images/generations',
+              'gpt-image-2',
+              'gpt-image-1.5',
+              'home-threshold-main_1600.png.render.json',
+          ):
+              assert marker in resume, marker
           before_execute, execute_section = resume.split('\n  execute:\n', 1)
           assert 'secrets.' not in before_execute
           execute_job, execute_steps = execute_section.split('\n    steps:\n', 1)
           assert 'secrets.' not in execute_job
-          secret_names = (
-              'OPENAI_API_KEY',
+          secret_expr = '$' + '{{ secrets.'
+          assert execute_steps.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 2
+          for name in (
               'ASSET_RENDERER_ENDPOINT',
               'ASSET_RENDERER_API_KEY',
               'ASSET_RENDERER_MODEL',
               'ASSET_RENDERER_AUTH_HEADER',
               'ASSET_RENDERER_AUTH_SCHEME',
-          )
-          for name in secret_names:
-              marker = name + ': ' + '$' + '{{ secrets.' + name + ' }}'
-              assert execute_steps.count(marker) == 2, (marker, execute_steps.count(marker))
+          ):
+              assert name + ': ' + secret_expr not in execute_steps, name
           install_section = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
           download_section = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
           assert 'secrets.' not in install_section
@@ -119,9 +140,16 @@ jobs:
 
       - name: Compile and execute safe-control regressions
         run: |
-          python3 -m py_compile scripts/github_artifact_download.py scripts/test-github-artifact-download.py scripts/test-v1-safe-resume-preflight.py scripts/v1_safe_resume_preflight.py
+          python3 -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
+            scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/test-v1-safe-resume-v3-marker.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
 
       - name: Prove historical runs contain no generation evidence
         id: inspect
