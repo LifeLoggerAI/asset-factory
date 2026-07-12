@@ -76,19 +76,40 @@ jobs:
           test ! -e image_asset_generator/check_v1_safe_resume_history_core.py
           python3 - <<'PY'
           from pathlib import Path
-          workflow = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-          required = [
+
+          post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
+          required_post = [
               'from scripts.github_artifact_download import github_api_json',
               'scripts/github_artifact_download.py',
               '--extract-all-directory',
               '--max-total-extracted-bytes 536870912',
               '--max-members 4096',
           ]
-          for marker in required:
-              assert marker in workflow, marker
-          assert 'curl --fail-with-body --location' not in workflow
-          assert 'unzip -q' not in workflow
-          assert 'Authorization: Bearer' not in workflow
+          for marker in required_post:
+              assert marker in post, marker
+          assert 'curl --fail-with-body --location' not in post
+          assert 'unzip -q' not in post
+          assert 'Authorization: Bearer' not in post
+
+          resume = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
+          assert 'home-threshold-main_1600.png.render.json' in resume
+          before_execute, execute_section = resume.split('\n  execute:\n', 1)
+          assert 'secrets.' not in before_execute
+          execute_job, execute_steps = execute_section.split('\n    steps:\n', 1)
+          assert 'secrets.' not in execute_job
+          for marker in [
+              'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}',
+              'ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}',
+              'ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}',
+              'ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}',
+              'ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}',
+              'ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}',
+          ]:
+              assert execute_steps.count(marker) == 2, (marker, execute_steps.count(marker))
+          install_section = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
+          download_section = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
+          assert 'secrets.' not in install_section
+          assert 'secrets.' not in download_section
           PY
 
       - name: Compile and execute safe-control regressions
