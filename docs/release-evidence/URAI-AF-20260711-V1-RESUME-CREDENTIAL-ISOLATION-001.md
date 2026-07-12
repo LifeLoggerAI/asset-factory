@@ -52,7 +52,8 @@ It is source/manifest evidence, not provider-generation evidence.
 13. credential-free object storage allowed to follow an unvalidated secondary redirect;
 14. cleanup's Actions-write GitHub API calls used default redirect-following;
 15. PR-level concurrency groups allowed an older queued workflow to enter later and cancel newer-head evidence before jobs began;
-16. Ubuntu pull-request jobs remained unassigned while the equivalent macOS hosted verification lanes executed normally.
+16. Ubuntu pull-request jobs remained unassigned while equivalent macOS hosted verification lanes executed normally;
+17. stale macOS cleanup runs could remain ahead of the final macOS verification suite.
 
 ## Replacement security and execution boundary
 
@@ -80,8 +81,9 @@ The replacement:
 - limits cleanup to same-repository, explicitly same-PR, older-created, older-SHA, nonterminal pull-request runs;
 - validates live repository, branch, event/run/live SHA agreement, rechecks live head before every cancel, and aborts on any head change;
 - excludes current-head/current-run, completed, push, fork, other-branch, other-PR, newer-created, and unlinked runs;
-- runs pull-request-only verification jobs on `macos-latest` where Ubuntu assignment remained blocked, without changing the commands, security assertions, or artifact requirements;
-- preserves `ubuntu-latest` for push, `main`, workflow-dispatch production behavior, and the Firebase deploy job.
+- runs pull-request-only verification jobs on `macos-latest` where Ubuntu assignment remained blocked, without changing commands, assertions, or artifact requirements;
+- preserves `ubuntu-latest` for push, `main`, workflow-dispatch production behavior, and Firebase deployment;
+- runs only the stale-run queue-drainer on `windows-latest` with Git Bash and the preinstalled Python command, separating queue cleanup from both verification and production runner pools.
 
 ## Executable regression coverage
 
@@ -98,7 +100,8 @@ The branch proves:
 - Life Map, Focus, and Replay spatial prompt contracts;
 - marker-only v3 guard coverage;
 - exact-SHA workflow isolation and race-safe same-PR cleanup;
-- equivalent pull-request verification on an available GitHub-hosted macOS runner while production remains on Ubuntu.
+- equivalent pull-request verification on available macOS runners while production remains Ubuntu;
+- independent Windows execution of the queue-draining control.
 
 Previously executed source regressions returned:
 
@@ -116,7 +119,8 @@ Independent review and exact-head execution identified and corrected all defects
 - the static gate requires `opener.open(storage_request)`, requires the explicit storage-redirect error, and forbids default `urlopen` for storage;
 - cleanup requires explicit PR linkage, live-head agreement, creation ordering, and no-redirect GitHub API calls;
 - every workflow group includes the exact head SHA, so out-of-order runner assignment cannot cancel current evidence;
-- the broad pull-request suite keeps the same commands but selects `macos-latest` only for the pull-request event because those runners are available; push/main and deployment execution remain Ubuntu.
+- broad pull-request checks keep the same commands but select `macos-latest` only for pull-request events; push/main and deployment remain Ubuntu;
+- cleanup alone uses Windows, preventing stale cleanup entries in the verification runner pool from blocking the final suite.
 
 Every source repair changes the candidate SHA. Earlier workflow conclusions, artifacts, and reviews are stale and cannot authorize merge.
 
