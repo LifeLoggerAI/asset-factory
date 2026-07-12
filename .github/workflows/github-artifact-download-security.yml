@@ -147,7 +147,8 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           validation = Path('.github/workflows/v1-safe-resume-control-validation.yml').read_text()
-          assert 'image_asset_generator/check_v1_safe_resume_history.py' not in validation
+          assert 'python image_asset_generator/check_v1_safe_resume_history.py' not in validation
+          assert 'python3 image_asset_generator/check_v1_safe_resume_history.py' not in validation
           assert 'scripts/v1_safe_resume_preflight.py' in validation
           assert 'scripts/test-v1-safe-resume-preflight.py' in validation
           assert '0cf837d585d3d1c1d8e171938037098c72230c22' in validation
