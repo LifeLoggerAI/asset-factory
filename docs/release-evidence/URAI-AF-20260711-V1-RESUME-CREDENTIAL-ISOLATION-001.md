@@ -50,7 +50,28 @@ The replacement removes or corrects:
 22. a staging-labeled path that still called the production project deployment script;
 23. authenticated smoke verification that could call mutation-capable endpoints while claiming Firebase mutation was disabled;
 24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records;
-25. missing executable regression locks for multi-page history collection, page-cap failure, and authenticated read-only smoke enforcement.
+25. missing executable regression locks for multi-page history collection, page-cap failure, and authenticated read-only smoke enforcement;
+26. ordinary main pushes, issue creation, manual dispatches, repository dispatches, trigger-directory commits, wave dispatchers, rerun dispatchers, and legacy version/avatar/smoke workflows that could invoke paid provider generation or direct Spatial promotion outside the reviewed v3 marker authorization.
+
+## Retired paid entry points
+
+The following thirteen legacy paid execution or dispatcher workflows are removed from the candidate:
+
+1. `.github/workflows/v1-forge-trigger.yml`;
+2. `.github/workflows/v1-aaa-asset-forge.yml`;
+3. `.github/workflows/patch-and-run-v1-forge.yml`;
+4. `.github/workflows/canonical-version-forge.yml`;
+5. `.github/workflows/owner-issue-one-paid-v1-smoke.yml`;
+6. `.github/workflows/versioned-aaa-asset-forge.yml`;
+7. `.github/workflows/v2-living-state-forge.yml`;
+8. `.github/workflows/final-v1-avatar-extension.yml`;
+9. `.github/workflows/dispatch-one-paid-v1-smoke.yml`;
+10. `.github/workflows/dispatch-canonical-v2-v5-wave.yml`;
+11. `.github/workflows/rerun-v1-now.yml`;
+12. `.github/workflows/rerun-v2-now.yml`;
+13. `.github/workflows/rerun-v3-now.yml`.
+
+The sole remaining active paid generation workflow is `.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml`, and it is reachable only from the canonical one-file protected-main marker path.
 
 ## Current security and execution boundary
 
@@ -76,6 +97,10 @@ The current branch:
 - enforces one attempt, at most 47 new provider calls, at most USD 1 per unit, and at most USD 47 total;
 - prevents generation from directly merging, promoting, deploying, or pushing to Spatial;
 - verifies producer output fields, certifier behavior, and the post-certification invocation independently;
+- removes all thirteen legacy paid workflows and dispatchers, including the versioned workflow that could push directly to Spatial `main`;
+- uses `scripts/check-paid-workflow-boundary.py` to assert the v3 marker workflow is the sole paid path and to reject both known legacy filenames and differently named paid executors or dispatchers;
+- runs that paid-workflow checker and its negative regressions through root launch readiness on every pull request and protected-main push;
+- keeps compatibility integrity lanes active as absence/pinning proofs rather than expecting retired workflows to exist;
 - isolates every workflow and cleanup job by exact candidate SHA;
 - limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
 - runs pull-request verification on macOS, cleanup on Windows, and protected-main/security/deployment verification on Ubuntu;
@@ -89,7 +114,7 @@ The current branch:
 - removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
 - allows that alternate workflow to run read-only or authenticated read-only smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
 - statically rejects any reintroduction of deploy capability or removal of authenticated read-only enforcement in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`;
-- runs a dedicated exact-head deployment-boundary workflow on every relevant workflow, checker, package-script, or receipt change, with direct no-mutation and read-only assertions.
+- runs a dedicated exact-head deployment-boundary workflow on every relevant deployment, paid-workflow, dispatcher, checker, package-script, or receipt change, with direct no-mutation, read-only, and sole-paid-marker assertions.
 
 ## Artifact-class boundary
 
@@ -111,11 +136,13 @@ The branch contains executable proof for:
 - exact ordered four-marker history;
 - collection across multiple API pages and fail-closed page-cap exhaustion;
 - all known historical paid workflow names and both legacy/current generation-step names;
-- absence of retired workflows, markers, and checkers;
+- absence of retired workflows, markers, checkers, paid executors, and paid dispatchers;
+- rejection of differently named workflows containing paid environment, provider secret, provider mode, paid-run authorization, legacy repository-dispatch event, or legacy workflow-dispatch target signatures;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
 - direct, normal-merge, and multi-file-rejection marker commit behavior;
 - provider-secret and provider-value confinement;
 - valid marker-only push lifecycle in both guards and V1 integrity;
+- pinned remote actions and no alternate trigger/direct-promotion path in the sole paid marker workflow;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
 - exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, globally read-only smoke verification, and smoke-only alternate workflow enforcement.
@@ -125,7 +152,7 @@ Previously executed regressions returned:
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The expanded history, pagination, canonical-marker, merge-aware marker-commit, read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history, pagination, paid-workflow absence/dispatcher, canonical-marker, merge-aware marker-commit, read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
