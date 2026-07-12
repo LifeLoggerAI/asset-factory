@@ -8,6 +8,7 @@ on:
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
 
 permissions:
@@ -50,7 +52,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile image_asset_generator/forge_v1_spatial_pack_run.py image_asset_generator/export_spatial_handoff.py
+          python3 -m py_compile \
+            image_asset_generator/forge_v1_spatial_pack_run.py \
+            image_asset_generator/export_spatial_handoff.py \
+            image_asset_generator/post_certify_v1_spatial_pack.py
           python3 - <<'PY'
           import ast, json
           from pathlib import Path
@@ -109,11 +114,29 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           exporter = Path('image_asset_generator/export_spatial_handoff.py').read_text()
+          certifier = Path('image_asset_generator/post_certify_v1_spatial_pack.py').read_text()
           post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-          for value in ('lossless=True','sourceSha256','sourceMetadataSha256','sourcePixelSha256','handoffPixelSha256',"'sourceBinding': 'lossless-webp-decoded-pixel-sha256'"):
-              assert value in exporter or value in post, value
-          for value in ('workflows: [One-Time V1 AAA Spatial Pack Marker]',"handoff_root = handoff_manifest_path.parents[4]","receipt.get('newProviderCalls') == 47","receipt.get('ready') == 53","dropin.get('status') == 'certified'","'handoffAssetsChecked': len(handoff_records)","'directProviderAssetsChecked': len(direct_records)","'status': 'failed' if duplicates else 'passed'"):
-              assert value in post, value
+          combined = exporter + '\n' + certifier + '\n' + post
+          for value in (
+              'lossless=True',
+              'sourceSha256',
+              'sourceMetadataSha256',
+              'sourcePixelSha256',
+              'handoffPixelSha256',
+              'lossless-webp-decoded-pixel-sha256',
+          ):
+              assert value in combined, value
+          assert 'workflows: [One-Time V1 AAA Spatial Pack Marker]' in post
+          for value in (
+              'handoff_root = handoff_manifest_path.parents[4]',
+              'receipt.get("newProviderCalls") != 47',
+              'receipt.get("ready") != 53',
+              'dropin.get("status") != "certified"',
+              '"handoffAssetsChecked": len(handoff_records)',
+              '"directProviderAssetsChecked": len(direct_records)',
+              '"status": "failed" if duplicates else "passed"',
+          ):
+              assert value in certifier, value
           for value in ('git push','merge_pull_request','enable_auto_merge','repository: LifeLoggerAI/urai-spatial'):
               assert value not in post, value
           PY
