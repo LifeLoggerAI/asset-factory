@@ -19,6 +19,10 @@ LEGACY_PAID_WORKFLOWS = (
     Path(".github/workflows/v2-living-state-forge.yml"),
     Path(".github/workflows/final-v1-avatar-extension.yml"),
     Path(".github/workflows/dispatch-one-paid-v1-smoke.yml"),
+    Path(".github/workflows/dispatch-canonical-v2-v5-wave.yml"),
+    Path(".github/workflows/rerun-v1-now.yml"),
+    Path(".github/workflows/rerun-v2-now.yml"),
+    Path(".github/workflows/rerun-v3-now.yml"),
 )
 
 ACTIVE_PAID_PATTERNS = (
@@ -28,6 +32,10 @@ ACTIVE_PAID_PATTERNS = (
     ),
     re.compile(r"^\s*ASSET_FORGE_PAID_RUN_AUTHORIZED:\s*['\"]?1['\"]?\s*(?:#.*)?$"),
     re.compile(r"^\s*ASSET_RENDERER_MODE:\s*provider\s*(?:#.*)?$"),
+    re.compile(r"^\s*event_type:\s*['\"]urai-(?:v1|version)-forge-requested['\"]"),
+    re.compile(
+        r"^\s*workflow_id:\s*['\"](?:canonical-version-forge|v1-aaa-asset-forge|versioned-aaa-asset-forge)\.yml['\"]"
+    ),
 )
 
 FORBIDDEN_ALLOWED_TRIGGERS = (
@@ -70,7 +78,7 @@ def inspect(root: Path) -> list[str]:
             for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
                 if any(pattern.match(line) for pattern in ACTIVE_PAID_PATTERNS):
                     errors.append(
-                        f"paid execution configuration outside marker workflow: "
+                        f"paid execution or dispatch configuration outside marker workflow: "
                         f"{relative.as_posix()}:{number}: {line.strip()}"
                     )
 
