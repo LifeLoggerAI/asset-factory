@@ -13,6 +13,7 @@ import json
 import os
 import stat
 import tempfile
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -243,6 +244,12 @@ def _safe_member_parts(filename: str, *, allow_directory: bool) -> tuple[str, ..
     return tuple(pure.parts)
 
 
+def _portable_path_key(parts: tuple[str, ...]) -> tuple[str, ...]:
+    """Normalize archive paths for case-insensitive and Unicode-normalizing filesystems."""
+
+    return tuple(unicodedata.normalize("NFKC", part.casefold()) for part in parts)
+
+
 def _assert_no_symlink_ancestors(root: Path, destination: Path) -> None:
     current = destination.parent
     while True:
@@ -314,6 +321,7 @@ def extract_all_regular_files(
 
     extracted: list[Path] = []
     seen_paths: set[tuple[str, ...]] = set()
+    seen_portable_paths: dict[tuple[str, ...], tuple[str, ...]] = {}
     total_declared = 0
 
     with zipfile.ZipFile(Path(archive_path)) as bundle:
@@ -332,7 +340,16 @@ def extract_all_regular_files(
             )
             if parts in seen_paths:
                 raise RuntimeError(f"archive contains a duplicate path: {member.filename}")
+            portable_key = _portable_path_key(parts)
+            previous_parts = seen_portable_paths.get(portable_key)
+            if previous_parts is not None:
+                previous = "/".join(previous_parts)
+                raise RuntimeError(
+                    f"archive contains a portable path collision: "
+                    f"{member.filename} conflicts with {previous}"
+                )
             seen_paths.add(parts)
+            seen_portable_paths[portable_key] = parts
             if member.is_dir():
                 continue
             if member.file_size > max_member_bytes:
