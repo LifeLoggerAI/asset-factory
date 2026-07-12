@@ -312,6 +312,24 @@ def test_full_tree_duplicate_path_is_rejected() -> None:
             raise AssertionError("duplicate full-tree path was accepted")
 
 
+def test_full_tree_portable_path_collision_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "pack"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("Images/a.png", b"A")
+            bundle.writestr("images/a.png", b"B")
+        try:
+            module.extract_all_regular_files(archive, output)
+        except RuntimeError as exc:
+            assert "portable path collision" in str(exc)
+        else:
+            raise AssertionError("case-folding full-tree collision was accepted")
+        assert not (output / "Images" / "a.png").exists()
+        assert not (output / "images" / "a.png").exists()
+
+
 def main() -> int:
     test_redirect_strips_credentials()
     test_non_https_redirect_is_rejected()
@@ -326,6 +344,7 @@ def main() -> int:
     test_full_tree_symlink_is_rejected()
     test_full_tree_total_ceiling_is_enforced()
     test_full_tree_duplicate_path_is_rejected()
+    test_full_tree_portable_path_collision_is_rejected()
     print("PASS GitHub artifact redirect and extraction isolation")
     return 0
 
