@@ -264,12 +264,14 @@ def inspect_workflow(relative: Path, text: str) -> list[str]:
                         f"{relative.as_posix()}:{record.line + offset}: shell enables paid/provider authorization {key}"
                     )
 
+        if record.block:
+            block_label = f"{last} block"
             if SECRET_EXPRESSION_PATTERN.search(value):
-                errors.append(_record_error(relative, record, "run block consumes provider secret outside marker workflow"))
+                errors.append(_record_error(relative, record, f"{block_label} consumes provider secret outside marker workflow"))
             for match in DISPATCH_EVENT_PATTERN.finditer(value):
-                errors.append(_record_error(relative, record, f"run block dispatches legacy paid event {match.group(1)}"))
+                errors.append(_record_error(relative, record, f"{block_label} dispatches legacy paid event {match.group(1)}"))
             for match in DISPATCH_WORKFLOW_PATTERN.finditer(value):
-                errors.append(_record_error(relative, record, f"run block dispatches legacy paid workflow {match.group(1)}"))
+                errors.append(_record_error(relative, record, f"{block_label} dispatches legacy paid workflow {match.group(1)}"))
 
         if last == "env" and value:
             compact = value.lower().replace(" ", "")
