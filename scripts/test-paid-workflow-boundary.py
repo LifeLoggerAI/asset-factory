@@ -67,7 +67,30 @@ jobs:
     )
     errors = module.inspect(root)
     assert any("new-paid-path.yml" in error for error in errors)
-    assert any("paid execution configuration outside marker workflow" in error for error in errors)
+    assert any("paid execution or dispatch configuration outside marker workflow" in error for error in errors)
+
+
+def test_differently_named_paid_dispatcher_is_rejected() -> None:
+    root = make_root()
+    candidate = root / ".github/workflows/new-paid-dispatcher.yml"
+    candidate.write_text(
+        """name: New paid dispatcher
+on: workflow_dispatch
+jobs:
+  dispatch:
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            event_type: 'urai-version-forge-requested'
+            workflow_id: 'canonical-version-forge.yml'
+""",
+        encoding="utf-8",
+    )
+    errors = module.inspect(root)
+    assert any("new-paid-dispatcher.yml" in error for error in errors)
+    assert any("urai-version-forge-requested" in error for error in errors)
+    assert any("canonical-version-forge.yml" in error for error in errors)
 
 
 def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
@@ -82,6 +105,7 @@ def main() -> int:
     test_clean_marker_only_repository_passes()
     test_known_legacy_workflow_is_rejected()
     test_differently_named_paid_workflow_is_rejected()
+    test_differently_named_paid_dispatcher_is_rejected()
     test_marker_workflow_rejects_manual_or_repository_dispatch()
     print("PASS paid workflow boundary regressions")
     return 0
