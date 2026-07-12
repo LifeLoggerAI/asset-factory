@@ -10,6 +10,7 @@ on:
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
     paths:
@@ -20,12 +21,13 @@ on:
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
   contents: read
 
 concurrency:
-  group: v1-aaa-spatial-pack-integrity-${{ github.ref }}
+  group: v1-aaa-spatial-pack-integrity-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
