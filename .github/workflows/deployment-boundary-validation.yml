@@ -74,5 +74,16 @@ jobs:
           ! grep -q 'firebase deploy' "$workflow"
           ! grep -q 'npm run deploy:' "$workflow"
 
+      - name: Verify canonical production post-deploy smoke is read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/production-readiness.yml
+          deploy_section="$(sed -n '/^  deploy:/,$p' "$workflow")"
+          grep -q "ASSET_FACTORY_SMOKE_READONLY: 'true'" <<<"$deploy_section"
+          grep -q 'Read-only smoke production finalization endpoints' <<<"$deploy_section"
+          grep -F -q 'test "$ASSET_FACTORY_SMOKE_READONLY" = true' <<<"$deploy_section"
+          ! grep -q 'name: Smoke production finalization endpoints' <<<"$deploy_section"
+
       - name: Final clean-tree proof
         run: test -z "$(git status --porcelain --untracked-files=all)"
