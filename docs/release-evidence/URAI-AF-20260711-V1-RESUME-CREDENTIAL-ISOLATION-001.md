@@ -65,7 +65,9 @@ The checker refactor was not a security repair: the core still executed `curl --
 
 Exact head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b` passed GitHub Artifact Credential Isolation run `29170982030` and V1 Safe Resume Control Validation run `29170982029`, but an independent Codex review then identified that the original unsafe paid-resume workflow remained active. Follow-up inspection confirmed both consumed authorization markers remained. That head is superseded and cannot authorize merge.
 
-After correcting those paths, a further full-scope inspection found the active post-certification workflow still downloaded the generated pack with authenticated `curl --location` and extracted it with generic `unzip`. That path could forward the run token across the artifact redirect and trusted archive paths and types without bounds. It is now included in this repair and in both exact-head regression gates.
+After correcting those paths, a further full-scope inspection found the active post-certification workflow still downloaded the generated pack with authenticated `curl --location` and extracted it with generic `unzip`. That path could forward the run token across the artifact redirect and trust archive paths and types without bounds. It is now included in this repair and in both exact-head regression gates.
+
+A later Codex review found that `scripts/v1_safe_resume_preflight.py` passed all four marker SHAs when invoked by the workflows but its CLI default list contained only the first three. A manual or reused merged-main preflight could therefore undercount history. The fourth consumed marker is now part of the canonical default, and the executable test asserts the exact ordered four-marker set and four-run coverage.
 
 ## Security defects removed
 
@@ -79,7 +81,8 @@ After correcting those paths, a further full-scope inspection found the active p
 8. original consumed authorization marker;
 9. consumed v2 authorization marker;
 10. active curl-based checker wrapper and core;
-11. incomplete path filters and absence assertions that allowed retired controls to survive unnoticed.
+11. incomplete trigger filters and absence assertions that allowed retired controls to survive unnoticed;
+12. incomplete three-marker default for manual and reused historical preflight.
 
 ## Replacement boundary
 
@@ -97,23 +100,27 @@ The replacement:
 - extracts one unique regular seed file by basename;
 - extracts the full generated pack only through canonical relative paths and regular files/directories;
 - rejects directory/type mismatches, encryption, duplicates, traversal, backslash paths, drive-like paths, symlinks, non-regular files, oversized members, oversized totals, and oversized member counts;
-- inspects all four historical authorization SHAs;
+- inspects all four historical authorization SHAs whether invoked explicitly or through CLI defaults;
 - treats unresolved execution, non-skipped generation, generated-output evidence, expired pack evidence, incomplete coverage, and technical errors as hard blockers;
 - scopes provider secrets and paid flags only to the protected `paid-asset-generation` execute job;
 - retains one attempt, 47 provider calls, USD 1 per unit, and USD 47 total hard ceilings;
 - retains evidence for 365 days;
-- adds executable credential, single-file extraction, full-tree extraction, and historical-preflight regression tests;
+- adds executable credential, single-file extraction, full-tree extraction, default-history, and historical-preflight regression tests;
 - makes both security workflows trigger on every retired workflow, consumed marker, unsafe checker, post-certification workflow, and replacement control path;
 - asserts every retired workflow, consumed marker, and unsafe checker remains absent;
 - statically asserts post-certification cannot restore authenticated redirect-following or generic unzip.
 
 ## Local regression proof before push
 
-The expanded redirect and extraction regression suite completed successfully before the source update:
+The expanded redirect and extraction regression suite completed successfully before its source update:
 
 `PASS GitHub artifact redirect and extraction isolation`
 
-This local proof validates the test code and helper behavior, but it does not replace GitHub exact-head workflow evidence.
+The complete default-history regression also completed successfully before its source update:
+
+`PASS default four-marker preflight regression`
+
+These local proofs validate the test code and helper behavior, but they do not replace GitHub exact-head workflow evidence.
 
 ## Separate authorization rule
 
@@ -143,7 +150,7 @@ Implemented source capability:
 - bounded canonical full-pack extraction;
 - post-certification credential and archive isolation;
 - execute-job-only provider secrets;
-- complete four-marker history inspection;
+- complete four-marker history inspection by explicit arguments and defaults;
 - executable fail-closed tests;
 - separately authorized paid workflow;
 - explicit retirement of both consumed workflows and markers;
