@@ -1,0 +1,73 @@
+name: Asset Factory Deployment Boundary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/deployment-boundary-validation.yml
+      - .github/workflows/deploy-asset-factory.yml
+      - .github/workflows/production-readiness.yml
+      - scripts/check-deploy-workflow.mjs
+      - package.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deployment-boundary-validation.yml
+      - .github/workflows/deploy-asset-factory.yml
+      - .github/workflows/production-readiness.yml
+      - scripts/check-deploy-workflow.mjs
+      - package.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asset-factory-deployment-boundary-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  verify:
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate canonical production and smoke-only boundaries
+        run: node scripts/check-deploy-workflow.mjs
+
+      - name: Verify smoke workflow contains no mutation capability
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/deploy-asset-factory.yml
+          ! grep -Eq '(^|[[:space:]])deploy:' "$workflow"
+          ! grep -q 'FIREBASE_TOKEN' "$workflow"
+          ! grep -q 'FIREBASE_SERVICE_ACCOUNT' "$workflow"
+          ! grep -q 'firebase deploy' "$workflow"
+          ! grep -q 'npm run deploy:' "$workflow"
+
+      - name: Final clean-tree proof
+        run: test -z "$(git status --porcelain --untracked-files=all)"
