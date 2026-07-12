@@ -13,15 +13,27 @@ concurrency:
   group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   verify:
     name: Build, typecheck, and verify
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -82,9 +94,22 @@ jobs:
           echo "Add it in GitHub repo Settings -> Secrets and variables -> Actions before production deploy."
           exit 1
 
-      - name: Checkout
+      - name: Checkout exact main candidate
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean main identity
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
