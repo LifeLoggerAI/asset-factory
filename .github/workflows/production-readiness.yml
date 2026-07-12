@@ -9,6 +9,10 @@ on:
       - '.github/asset-forge-triggers/**'
   workflow_dispatch:
 
+concurrency:
+  group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Build, typecheck, and verify
