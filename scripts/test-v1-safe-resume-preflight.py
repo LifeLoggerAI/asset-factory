@@ -26,12 +26,19 @@ EXPECTED_DEFAULT_MARKERS = [
     "4dc05a67746e189054609e405ca3801683ab5445",
     "0cf837d585d3d1c1d8e171938037098c72230c22",
 ]
+EXPECTED_WORKFLOW_NAMES = {
+    "One-Time V1 AAA Spatial Pack",
+    "One-Time V1 AAA Spatial Pack Marker",
+    "One-Time V1 AAA Spatial Pack Safe Resume",
+    "One-Time V1 AAA Spatial Pack Safe Resume 2",
+    "One-Time V1 AAA Spatial Pack Safe Resume 3",
+}
 
 
-def run_record(marker: str, run_id: int) -> dict:
+def run_record(marker: str, run_id: int, *, name: str = "One-Time V1 AAA Spatial Pack Marker") -> dict:
     return {
         "id": run_id,
-        "name": "One-Time V1 AAA Spatial Pack Marker",
+        "name": name,
         "head_sha": marker,
         "status": "completed",
         "conclusion": "failure",
@@ -63,10 +70,12 @@ def api_fixture(
     artifacts_by_run: dict[int, list[dict]] | None = None,
     jobs_by_run: dict[int, list[dict]] | None = None,
     missing_markers: set[str] | None = None,
+    workflow_names_by_marker: dict[str, str] | None = None,
 ):
     artifacts_by_run = artifacts_by_run or {}
     jobs_by_run = jobs_by_run or {}
     missing_markers = missing_markers or set()
+    workflow_names_by_marker = workflow_names_by_marker or {}
     run_ids = {marker: index + 100 for index, marker in enumerate(MARKERS)}
 
     def fake_json(url: str, token: str):
@@ -75,7 +84,17 @@ def api_fixture(
             marker = url.split("head_sha=", 1)[1].split("&", 1)[0]
             if marker in missing_markers:
                 return {"workflow_runs": []}
-            return {"workflow_runs": [run_record(marker, run_ids[marker])]}
+            return {
+                "workflow_runs": [
+                    run_record(
+                        marker,
+                        run_ids[marker],
+                        name=workflow_names_by_marker.get(
+                            marker, "One-Time V1 AAA Spatial Pack Marker"
+                        ),
+                    )
+                ]
+            }
         if "/jobs?" in url:
             run_id = int(url.split("/actions/runs/", 1)[1].split("/", 1)[0])
             return {
@@ -96,6 +115,7 @@ def test_default_marker_history_is_complete_and_ordered() -> None:
     assert module.DEFAULT_MARKER_SHAS == EXPECTED_DEFAULT_MARKERS
     assert len(module.DEFAULT_MARKER_SHAS) == 4
     assert len(set(module.DEFAULT_MARKER_SHAS)) == 4
+    assert module.WORKFLOW_NAMES == EXPECTED_WORKFLOW_NAMES
 
 
 def test_skipped_execution_without_artifacts_is_safe() -> None:
@@ -107,7 +127,21 @@ def test_skipped_execution_without_artifacts_is_safe() -> None:
     assert result["safeToExecute"] is True
     assert result["blockingReasons"] == []
     assert result["matchingRuns"] == 4
+    assert set(result["inspectedWorkflowNames"]) == EXPECTED_WORKFLOW_NAMES
     download.assert_not_called()
+
+
+def test_original_paid_workflow_success_blocks_execution() -> None:
+    fake_json, _ = api_fixture(
+        workflow_names_by_marker={MARKERS[0]: "One-Time V1 AAA Spatial Pack"},
+        jobs_by_run={100: [execute_job(1100, conclusion="success")]},
+    )
+    with mock.patch.object(module, "github_api_json", side_effect=fake_json):
+        result = module.inspect_history(REPOSITORY, TOKEN, API_ROOT, MARKERS)
+    assert result["safeToExecute"] is False
+    assert result["matchingRuns"] == 4
+    assert result["runs"][0]["workflowName"] == "One-Time V1 AAA Spatial Pack"
+    assert any("may have generated outputs" in reason for reason in result["blockingReasons"])
 
 
 def test_expired_pack_artifact_blocks_execution() -> None:
@@ -191,6 +225,7 @@ def test_generated_output_artifact_blocks_execution() -> None:
 def main() -> int:
     test_default_marker_history_is_complete_and_ordered()
     test_skipped_execution_without_artifacts_is_safe()
+    test_original_paid_workflow_success_blocks_execution()
     test_expired_pack_artifact_blocks_execution()
     test_non_skipped_generation_step_blocks_execution()
     test_missing_marker_coverage_blocks_execution()
