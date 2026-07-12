@@ -43,7 +43,8 @@ The replacement removes or corrects:
 16. security checks that used the pull-request fallback runner for protected-main pushes;
 17. paid endpoint and model values supplied by mutable secrets rather than the authorization marker;
 18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch;
-19. automatic Firebase deployment on every verified `main` push when the service-account secret existed.
+19. automatic Firebase deployment on every verified `main` push when the service-account secret existed;
+20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently.
 
 ## Current security and execution boundary
 
@@ -57,7 +58,9 @@ The current branch:
 - checks all four historical authorization commits and fails closed on incomplete or ambiguous evidence;
 - scans every known V1 paid workflow name, including the original `One-Time V1 AAA Spatial Pack` issue-triggered workflow and all marker/safe-resume variants;
 - recognizes both legacy `Generate and certify all 53 V1 Spatial outputs` and current `Generate all 53 V1 Spatial outputs` steps, including failed execute jobs that generated before failure;
-- validates a later marker-only protected-main commit as exactly one added file with exact canonical JSON and exact parent SHA;
+- validates a later marker authorization against the commit's first parent as exactly one effective added file with exact canonical JSON and exact expected parent SHA;
+- supports a direct one-file commit, squash merge, or normal merge commit without weakening the one-effective-file boundary;
+- uses the same merge-aware commit validator in the paid authorizer, credential-isolation guard, safe-resume guard, and V1 integrity guard;
 - rejects the marker in pull requests while allowing all guard workflows to remain green for a valid marker-only protected-main push;
 - pins provider `openai`, endpoint `https://api.openai.com/v1/images/generations`, opaque model `gpt-image-2`, and transparent-output model `gpt-image-1.5` in marker schema `1.1.0`;
 - derives runtime provider values only from validated marker outputs;
@@ -96,6 +99,7 @@ The branch contains executable proof for:
 - all known historical paid workflow names and both legacy/current generation-step names;
 - absence of retired workflows, markers, and checkers;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
+- direct, normal-merge, and multi-file-rejection marker commit behavior;
 - provider-secret and provider-value confinement;
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
@@ -107,13 +111,13 @@ Previously executed regressions returned:
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The expanded history and canonical-marker regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history, canonical-marker, and merge-aware marker-commit regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
 The future v3 marker remains absent. Merging this repair cannot itself trigger provider generation or Firebase deployment.
 
-A later one-file protected-main marker requires:
+A later one-effective-file protected-main marker requires:
 
 1. every required workflow successful on one unchanged exact head;
 2. every retained artifact and log inspected;
