@@ -3,41 +3,35 @@
 **Receipt ID:** `URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001`  
 **Repository:** `LifeLoggerAI/asset-factory`  
 **Replacement branch:** `security/v1-resume-v3-safe-rebase-20260711`  
-**Live main reconstructed:** `6cd595344fba0fd759579789a3da795c72a12d95`  
-**Release verdict:** **HOLD — CURRENT EXACT-HEAD CI, INDEPENDENT REVIEW, MERGE, MERGED-MAIN PREFLIGHT, AND A NEW SEPARATE AUTHORIZATION ARE REQUIRED**
+**Reconstructed base:** `main@6cd595344fba0fd759579789a3da795c72a12d95`  
+**Release verdict:** **HOLD — FINAL EXACT-HEAD CI, INDEPENDENT REVIEW, MERGE, MERGED-MAIN PREFLIGHT, AND A SEPARATE PAID AUTHORIZATION ARE REQUIRED**
 
-## Paid-run reconstruction
+## Historical paid-run reconstruction
 
 ### Authorization `4dc05a67746e189054609e405ca3801683ab5445`
 
 Workflow run `29169591028`:
 
-- authorize `86588461085`: success;
-- historical preflight `86588508921`: failure;
-- execute `86588640540`: skipped;
-- retained artifacts: none.
+- authorization succeeded;
+- historical preflight failed;
+- paid execute job was skipped;
+- no retained output artifact exists.
 
 ### Authorization `0cf837d585d3d1c1d8e171938037098c72230c22`
 
 Workflow run `29170464085`:
 
-- authorize `86590713138`: success;
-- historical preflight `86590730386`: failure;
-- execute `86590777497`: skipped;
-- retained preflight artifact `8253381637`;
-- receipt digest `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
+- authorization succeeded;
+- historical preflight failed;
+- paid execute job was skipped;
+- retained preflight artifact: `8253381637`;
+- receipt digest: `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
 
-Neither run entered the paid generation job. No provider generation or provider spend is claimed from either run.
-
-## Exact preflight failure
-
-The retained receipt from run `29170464085` proves that historical artifact `8252999073` could not be downloaded by the active checker because authenticated `curl --location` received HTTP 415 from the artifact ZIP endpoint.
-
-The execute job remained skipped because the preflight failed closed.
+Neither run entered provider generation. No provider generation or provider spend is claimed from either run.
 
 ## Independent historical artifact inspection
 
-Artifact `8252999073` was downloaded through the authenticated GitHub connector and inspected separately.
+Historical artifact `8252999073` was independently downloaded and inspected.
 
 - ZIP digest: `sha256:6d6f61e9771d983320fb1881beb82523e9e202bb54db5bdbe87b37b59eb31afb`;
 - exactly six JSON manifest files;
@@ -46,131 +40,117 @@ Artifact `8252999073` was downloaded through the authenticated GitHub connector 
 - no forge receipt;
 - no quality report;
 - no drop-in receipt;
-- no Spatial handoff output.
+- no Spatial handoff.
 
 It is source/manifest evidence, not provider-generation evidence.
-
-## Current-main collision and review corrections
-
-While the first security branch was under review, `main` advanced and:
-
-- removed only the proposed v3 marker;
-- retained the original consumed authorization marker;
-- retained the consumed v2 authorization marker;
-- retained the original push-triggered paid-resume workflow;
-- moved the original checker into `image_asset_generator/check_v1_safe_resume_history_core.py`;
-- added a wrapper at `image_asset_generator/check_v1_safe_resume_history.py`.
-
-The checker refactor was not a security repair: the core still executed `curl --location` while attaching `Authorization: Bearer` and GitHub API headers.
-
-Exact head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b` passed GitHub Artifact Credential Isolation run `29170982030` and V1 Safe Resume Control Validation run `29170982029`, but an independent Codex review then identified that the original unsafe paid-resume workflow remained active. Follow-up inspection confirmed both consumed authorization markers remained. That head is superseded and cannot authorize merge.
-
-After correcting those paths, a further full-scope inspection found the active post-certification workflow still downloaded the generated pack with authenticated `curl --location` and extracted it with generic `unzip`. That path could forward the run token across the artifact redirect and trust archive paths and types without bounds. It is now included in this repair and in both exact-head regression gates.
-
-A later Codex review found that `scripts/v1_safe_resume_preflight.py` passed all four marker SHAs when invoked by the workflows but its CLI default list contained only the first three. A manual or reused merged-main preflight could therefore undercount history. The fourth consumed marker is now part of the canonical default, and the executable test asserts the exact ordered four-marker set and four-run coverage.
 
 ## Security defects removed
 
 1. authenticated cross-origin `curl --location` artifact retrieval in historical preflight;
 2. authenticated cross-origin `curl --location` artifact retrieval in post-certification;
-3. provider secrets and paid flags declared at workflow scope;
+3. provider secrets declared outside provider-only steps;
 4. generic `unzip` of the trusted Home seed;
 5. generic `unzip` of the complete generated pack;
-6. original unsafe paid-resume workflow;
-7. consumed v2 paid-resume workflow;
-8. original consumed authorization marker;
-9. consumed v2 authorization marker;
-10. active curl-based checker wrapper and core;
-11. incomplete trigger filters and absence assertions that allowed retired controls to survive unnoticed;
-12. incomplete three-marker default for manual and reused historical preflight.
+6. the original unsafe paid-resume workflow;
+7. the consumed v2 paid-resume workflow;
+8. both consumed authorization markers;
+9. the curl-based checker wrapper and core;
+10. incomplete three-marker default history;
+11. archive traversal, type, duplicate, Unicode/case-fold collision, size, and member-count gaps;
+12. extraction of the Home PNG without its required provider metadata sidecar;
+13. stale integrity validation against the deleted legacy workflow;
+14. static assertions that were altered by GitHub expression expansion;
+15. a forbidden-token substring check that falsely rejected the safe `${URAI_WHEEL_GITHUB_TOKEN:-}` emptiness guard;
+16. a retired-checker filename assertion that conflicted with intentional trigger-path coverage.
 
-## Replacement boundary
+## Replacement security boundary
 
 The replacement:
 
-- deletes the original unsafe paid-resume workflow;
-- deletes consumed v2;
+- deletes both unsafe/consumed paid-resume workflows;
 - deletes both consumed authorization markers;
-- deletes the checker wrapper and unsafe core;
-- converts post-certification artifact listing and download to the same credential-isolated helper;
+- deletes the unsafe checker wrapper and core;
+- leaves the future v3 authorization marker absent;
 - separates authenticated GitHub API access from credential-free object-storage access;
-- requires HTTPS redirect targets with no embedded credentials;
+- rejects non-HTTPS redirects and redirect URLs containing user information;
 - bounds JSON, ZIP, per-member, total-extracted-byte, and member-count sizes;
 - performs atomic mode-0600 writes;
-- extracts one unique regular seed file by basename;
-- extracts the full generated pack only through canonical relative paths and regular files/directories;
-- rejects directory/type mismatches, encryption, duplicates, traversal, backslash paths, drive-like paths, symlinks, non-regular files, oversized members, oversized totals, and oversized member counts;
-- inspects all four historical authorization SHAs whether invoked explicitly or through CLI defaults;
-- treats unresolved execution, non-skipped generation, generated-output evidence, expired pack evidence, incomplete coverage, and technical errors as hard blockers;
-- scopes provider secrets and paid flags only to the protected `paid-asset-generation` execute job;
-- retains one attempt, 47 provider calls, USD 1 per unit, and USD 47 total hard ceilings;
+- extracts the Home PNG and required `.render.json` metadata as unique regular files from the same retained archive;
+- extracts complete packs only through canonical relative paths and regular files/directories;
+- rejects traversal, backslashes, drive-like paths, encryption, symlinks, non-regular files, exact duplicates, portable Unicode/case-fold collisions, and size/count violations;
+- inspects all four historical authorization SHAs through explicit arguments and CLI defaults;
+- treats unresolved execution, non-skipped generation, generated-output evidence, incomplete coverage, expired evidence, and technical errors as hard blockers;
+- confines provider secrets to the provider preflight and generation steps inside the protected `paid-asset-generation` job;
+- keeps checkout, history inspection, tests, artifact download, and dependency installation free of provider credentials;
+- enforces one attempt, 47 provider calls, USD 1 per unit, and USD 47 total ceilings;
 - retains evidence for 365 days;
-- adds executable credential, single-file extraction, full-tree extraction, default-history, and historical-preflight regression tests;
-- makes both security workflows trigger on every retired workflow, consumed marker, unsafe checker, post-certification workflow, and replacement control path;
-- asserts every retired workflow, consumed marker, and unsafe checker remains absent;
-- statically asserts post-certification cannot restore authenticated redirect-following or generic unzip.
+- prevents direct Spatial pushes, PR merges, auto-merge, promotion, or deployment from the paid workflow.
 
-## Local regression proof before push
+## Executable regression coverage
 
-The expanded redirect and extraction regression suite completed successfully before its source update:
+The branch includes executable tests for:
 
-`PASS GitHub artifact redirect and extraction isolation`
+- authenticated API requests that do not follow redirects;
+- credential-free storage requests;
+- HTTPS/no-userinfo redirect validation;
+- JSON and archive size ceilings;
+- safe single-member extraction;
+- safe complete-tree extraction;
+- traversal, symlink, encrypted, duplicate, portable-collision, and oversized archive rejection;
+- exact ordered four-marker default history;
+- complete four-run historical inspection;
+- absence of retired workflows, markers, and checkers;
+- provider-secret confinement to exactly two provider-only steps;
+- safe post-certification artifact handling;
+- V1 integrity against the v3 control rather than the retired legacy workflow.
 
-The complete default-history regression also completed successfully before its source update:
+Local executable regressions previously returned:
 
-`PASS default four-marker preflight regression`
+- `PASS GitHub artifact redirect and extraction isolation`
+- `PASS default four-marker preflight regression`
 
-These local proofs validate the test code and helper behavior, but they do not replace GitHub exact-head workflow evidence.
+Local results validate the test implementation but do not substitute for unchanged exact-head GitHub evidence.
+
+## Workflow-regression repair record
+
+The first corrected candidate exposed additional control-test defects rather than provider/runtime defects:
+
+- Artifact Credential Isolation and Safe Resume Validation embedded literal secret expressions inside their own `run:` scripts, allowing GitHub expression expansion to alter the text under inspection. The assertions now construct those markers at Python runtime without embedding a literal expression token in the workflow command.
+- V1 AAA Spatial Pack Integrity initially inspected the deleted legacy workflow. It now inspects v3 and asserts all retired controls remain absent.
+- Integrity then falsely matched the safe shell emptiness guard as a YAML secret assignment. It now uses a line-anchored YAML-key check.
+- Artifact Credential Isolation then rejected the retired checker filename even though that filename is intentionally retained in trigger coverage. It now rejects executable invocations only.
+
+Every repair changes the candidate SHA. Earlier workflow conclusions are stale and cannot authorize merge.
 
 ## Separate authorization rule
 
-The replacement workflow listens for:
+The replacement workflow listens only for:
 
 `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json`
 
-That marker is absent from current main and remains absent in this repair. Merging the repair cannot trigger paid generation.
+That marker remains absent. Merging this repair cannot trigger provider generation.
 
 A new marker may be added only as a later one-file protected-main commit after:
 
-1. the corrected replacement PR is terminal-green on one unchanged exact head;
-2. an independent non-author security reviewer approves that exact head;
-3. the repair is merged;
-4. merged-main historical preflight proves all four authorization histories safe;
-5. provider, model, secrets, billing authority, and the absolute USD 47 ceiling are explicitly confirmed;
-6. duplicate-generation and prior-spend evidence remain absent.
+1. every required workflow succeeds on one unchanged exact head;
+2. every retained artifact and receipt is inspected;
+3. an independent non-author security reviewer approves that exact head;
+4. the repair is merged;
+5. merged-main historical preflight proves all four authorization histories safe;
+6. provider, model, credentials, billing authority, protected-environment approval, and the USD 47 ceiling are explicitly confirmed;
+7. duplicate-generation and prior-spend evidence remain absent.
 
-The new marker schema must include all four historical authorization SHAs and the reauthorization nonce defined by the merged workflow.
+## Not yet proven
 
-## Evidence classification
-
-Implemented source capability:
-
-- credential-isolated artifact listing and download;
-- bounded path-independent single-file extraction;
-- bounded canonical full-pack extraction;
-- post-certification credential and archive isolation;
-- execute-job-only provider secrets;
-- complete four-marker history inspection by explicit arguments and defaults;
-- executable fail-closed tests;
-- separately authorized paid workflow;
-- explicit retirement of both consumed workflows and markers;
-- exact-path regression coverage preventing silent restoration.
-
-Previously proven on superseded head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b`:
-
-- GitHub Artifact Credential Isolation succeeded;
-- V1 Safe Resume Control Validation succeeded.
-
-Not yet proven for the current corrected exact head:
-
-- current exact-head CI success;
-- current exact-head independent non-author approval;
+- final exact-head success across every required workflow;
+- final exact-head independent non-author approval;
 - merged-main preflight success;
-- valid provider and model identity;
-- any provider-backed V1 output;
-- complete 53-output pack;
-- certification, handoff, promotion, deployment, or public activation.
+- valid paid provider credentials and billing authority;
+- any new provider-backed V1 output;
+- the complete 53-output pack;
+- final certification and Spatial handoff;
+- Spatial activation, deployment, or public verification.
 
 ## Mutation and spend statement
 
-This repair changes source controls and documentation only. It does not create a paid marker, rerun a paid workflow, call a media provider, spend provider funds, promote assets, deploy code, mutate secrets or billing, mutate Firebase or production data, or activate public assets.
+This repair changes source controls and documentation only. It does not create a paid marker, trigger a paid workflow, call a media provider, spend provider funds, promote assets, deploy code, mutate secrets or billing, mutate Firebase or production data, or activate public assets.
