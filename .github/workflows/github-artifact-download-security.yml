@@ -110,6 +110,7 @@ jobs:
               'scripts/v1_safe_resume_preflight.py',
               'scripts/github_artifact_download.py',
               '--extract-basename home-threshold-main_1600.png',
+              'home-threshold-main_1600.png.render.json',
               'environment: paid-asset-generation',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
@@ -120,8 +121,23 @@ jobs:
           assert 'unzip -q' not in workflow
           before_execute, execute_section = workflow.split('\n  execute:\n', 1)
           assert 'secrets.' not in before_execute
-          assert 'OPENAI_API_KEY:' in execute_section
-          assert 'secrets.OPENAI_API_KEY' in execute_section
+          execute_job, execute_steps = execute_section.split('\n    steps:\n', 1)
+          assert 'secrets.' not in execute_job
+          secret_markers = [
+              'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}',
+              'ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}',
+              'ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}',
+              'ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}',
+              'ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}',
+              'ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}',
+          ]
+          for marker in secret_markers:
+              assert execute_steps.count(marker) == 2, (marker, execute_steps.count(marker))
+          install_section = execute_steps.split('- name: Install image dependencies', 1)[1].split('- name: Preflight provider and Spatial contract', 1)[0]
+          download_section = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
+          assert 'secrets.' not in install_section
+          assert 'secrets.' not in download_section
+          assert 'home-threshold-main_1600.png.render.json' in download_section
           PY
 
       - name: Verify post-certification download and extraction isolation
@@ -174,6 +190,7 @@ jobs:
           assert '_safe_member_parts' in source
           assert 'max_total_bytes' in source
           assert 'file_type != stat.S_IFREG' in source
+          assert '_portable_path_key' in source
           PY
 
       - name: Final clean-tree proof
