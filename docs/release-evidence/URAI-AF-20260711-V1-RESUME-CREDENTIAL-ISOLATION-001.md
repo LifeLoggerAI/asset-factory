@@ -51,7 +51,10 @@ The replacement removes or corrects:
 23. authenticated smoke verification that could call mutation-capable endpoints while claiming Firebase mutation was disabled;
 24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records;
 25. missing executable regression locks for multi-page history collection, page-cap failure, and authenticated read-only smoke enforcement;
-26. ordinary main pushes, issue creation, manual dispatches, repository dispatches, trigger-directory commits, wave dispatchers, rerun dispatchers, and legacy version/avatar/smoke workflows that could invoke paid provider generation or direct Spatial promotion outside the reviewed v3 marker authorization.
+26. ordinary main pushes, issue creation, manual dispatches, repository dispatches, trigger-directory commits, wave dispatchers, rerun dispatchers, and legacy version/avatar/smoke workflows that could invoke paid provider generation or direct Spatial promotion outside the reviewed v3 marker authorization;
+27. a line-oriented paid-workflow checker that could miss multiline environment mappings, quoted provider-secret keys, inline environment maps, exported secrets, and inline shell assignments;
+28. deployment-boundary triggers that omitted the two smoke implementations and lacked an executable proof that read-only mode issues no mutation request;
+29. a stale executable launch-readiness compatibility script that still required the retired Firebase-deploy workflow shape.
 
 ## Retired paid entry points
 
@@ -98,8 +101,10 @@ The current branch:
 - prevents generation from directly merging, promoting, deploying, or pushing to Spatial;
 - verifies producer output fields, certifier behavior, and the post-certification invocation independently;
 - removes all thirteen legacy paid workflows and dispatchers, including the versioned workflow that could push directly to Spatial `main`;
-- uses `scripts/check-paid-workflow-boundary.py` to assert the v3 marker workflow is the sole paid path and to reject both known legacy filenames and differently named paid executors or dispatchers;
-- runs that paid-workflow checker and its negative regressions through root launch readiness on every pull request and protected-main push;
+- uses `scripts/check-paid-workflow-boundary.py` to parse workflow mapping paths, quoted keys, inline values, and block scalars, and to analyze executable shell assignments rather than relying on exact single-line regex forms;
+- rejects known legacy filenames, differently named paid executors, differently named paid dispatchers, multiline paid environment mappings, inline environment maps, provider-secret expressions, exported provider secrets, provider mode, and paid/provider authorization assignments outside the v3 marker workflow;
+- fails closed on ambiguous leading-tab workflow indentation;
+- runs the paid-workflow checker and its negative regressions through root launch readiness on every pull request and protected-main push;
 - keeps compatibility integrity lanes active as absence/pinning proofs rather than expecting retired workflows to exist;
 - isolates every workflow and cleanup job by exact candidate SHA;
 - limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
@@ -113,8 +118,11 @@ The current branch:
 - globally forces `ASSET_FACTORY_SMOKE_READONLY=true` for both unauthenticated and authenticated smoke modes and asserts that boundary before authenticated checks;
 - removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
 - allows that alternate workflow to run read-only or authenticated read-only smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
-- statically rejects any reintroduction of deploy capability or removal of authenticated read-only enforcement in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`;
-- runs a dedicated exact-head deployment-boundary workflow on every relevant deployment, paid-workflow, dispatcher, checker, package-script, or receipt change, with direct no-mutation, read-only, and sole-paid-marker assertions.
+- runs `scripts/test-smoke-readonly-boundary.mjs` against a local HTTP recorder and fails if either smoke implementation issues any non-GET/HEAD request or reaches `/api/assets`, `/api/lifemap/events`, or `/api/generate` in read-only mode;
+- includes both smoke implementations and the executable behavior test in deployment-boundary path triggers;
+- statically rejects reintroduction of deploy capability or removal of authenticated read-only enforcement while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`;
+- runs a dedicated exact-head deployment-boundary workflow on every relevant deployment, paid-workflow, dispatcher, smoke implementation, checker, package-script, or receipt change;
+- removes the obsolete `scripts/test-launch-readiness.mjs` compatibility surface and its package alias so no executable gate still expects the retired deploy workflow.
 
 ## Artifact-class boundary
 
@@ -137,12 +145,13 @@ The branch contains executable proof for:
 - collection across multiple API pages and fail-closed page-cap exhaustion;
 - all known historical paid workflow names and both legacy/current generation-step names;
 - absence of retired workflows, markers, checkers, paid executors, and paid dispatchers;
-- rejection of differently named workflows containing paid environment, provider secret, provider mode, paid-run authorization, legacy repository-dispatch event, or legacy workflow-dispatch target signatures;
+- semantic rejection of multiline mapped environments, quoted provider-secret keys, inline environment maps, exported secrets, inline paid/provider assignments, legacy repository-dispatch events, and legacy workflow-dispatch targets;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
 - direct, normal-merge, and multi-file-rejection marker commit behavior;
 - provider-secret and provider-value confinement;
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - pinned remote actions and no alternate trigger/direct-promotion path in the sole paid marker workflow;
+- executable read-only smoke behavior for both remote and production-finalization scripts;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
 - exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, globally read-only smoke verification, and smoke-only alternate workflow enforcement.
@@ -152,7 +161,7 @@ Previously executed regressions returned:
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The expanded history, pagination, paid-workflow absence/dispatcher, canonical-marker, merge-aware marker-commit, read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history, pagination, semantic paid-workflow/dispatcher, canonical-marker, merge-aware marker-commit, executable read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
