@@ -17,6 +17,10 @@ on:
       - .github/workflows/v2-living-state-forge.yml
       - .github/workflows/final-v1-avatar-extension.yml
       - .github/workflows/dispatch-one-paid-v1-smoke.yml
+      - .github/workflows/dispatch-canonical-v2-v5-wave.yml
+      - .github/workflows/rerun-v1-now.yml
+      - .github/workflows/rerun-v2-now.yml
+      - .github/workflows/rerun-v3-now.yml
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
@@ -38,6 +42,10 @@ on:
       - .github/workflows/v2-living-state-forge.yml
       - .github/workflows/final-v1-avatar-extension.yml
       - .github/workflows/dispatch-one-paid-v1-smoke.yml
+      - .github/workflows/dispatch-canonical-v2-v5-wave.yml
+      - .github/workflows/rerun-v1-now.yml
+      - .github/workflows/rerun-v2-now.yml
+      - .github/workflows/rerun-v3-now.yml
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
