@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: macos-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Checkout exact candidate
