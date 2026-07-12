@@ -36,22 +36,33 @@ class FakeResponse:
         return False
 
 
-class RedirectingOpener:
-    def __init__(self, location: str):
+class Redirect:
+    def __init__(self, location: str, code: int = 302):
         self.location = location
+        self.code = code
+
+
+class ScriptedOpener:
+    def __init__(self, outcomes):
+        self.outcomes = list(outcomes)
         self.requests = []
 
     def open(self, request, timeout=0):
         self.requests.append(request)
-        headers = Message()
-        headers["Location"] = self.location
-        raise urllib.error.HTTPError(
-            request.full_url,
-            302,
-            "Found",
-            headers,
-            None,
-        )
+        if not self.outcomes:
+            raise AssertionError("unexpected opener call")
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Redirect):
+            headers = Message()
+            headers["Location"] = outcome.location
+            raise urllib.error.HTTPError(
+                request.full_url,
+                outcome.code,
+                "Found",
+                headers,
+                None,
+            )
+        return outcome
 
 
 def header_map(request) -> dict[str, str]:
@@ -59,19 +70,17 @@ def header_map(request) -> dict[str, str]:
 
 
 def test_redirect_strips_credentials() -> None:
-    opener = RedirectingOpener("https://storage.example.test/signed/artifact.zip?sig=abc")
-    storage_requests = []
-
-    def fake_urlopen(request, timeout=0):
-        storage_requests.append(request)
-        return FakeResponse(b"ZIP-BYTES", content_length=9)
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/signed/artifact.zip?sig=abc"),
+            FakeResponse(b"ZIP-BYTES", content_length=9),
+        ]
+    )
 
     with tempfile.TemporaryDirectory() as directory:
         output = Path(directory) / "artifact.zip"
         with mock.patch.object(
             module.urllib.request, "build_opener", return_value=opener
-        ), mock.patch.object(
-            module.urllib.request, "urlopen", side_effect=fake_urlopen
         ):
             module.download_artifact(
                 "LifeLoggerAI/asset-factory",
@@ -84,24 +93,23 @@ def test_redirect_strips_credentials() -> None:
         assert output.read_bytes() == b"ZIP-BYTES"
         assert stat.S_IMODE(output.stat().st_mode) == 0o600
 
-    assert len(opener.requests) == 1
+    assert len(opener.requests) == 2
     api_headers = header_map(opener.requests[0])
     assert api_headers["authorization"] == "Bearer run-scoped-secret"
     assert opener.requests[0].full_url.startswith("https://api.github.com/")
 
-    assert len(storage_requests) == 1
-    storage_headers = header_map(storage_requests[0])
+    storage_headers = header_map(opener.requests[1])
     assert "authorization" not in storage_headers
     assert "x-github-api-version" not in storage_headers
     assert "cookie" not in storage_headers
-    assert storage_requests[0].full_url.startswith("https://storage.example.test/")
+    assert opener.requests[1].full_url.startswith("https://storage.example.test/")
 
 
 def test_non_https_redirect_is_rejected() -> None:
-    opener = RedirectingOpener("http://storage.example.test/artifact.zip")
+    opener = ScriptedOpener([Redirect("http://storage.example.test/artifact.zip")])
     with tempfile.TemporaryDirectory() as directory, mock.patch.object(
         module.urllib.request, "build_opener", return_value=opener
-    ), mock.patch.object(module.urllib.request, "urlopen") as redirected:
+    ):
         try:
             module.download_artifact(
                 "LifeLoggerAI/asset-factory",
@@ -113,18 +121,49 @@ def test_non_https_redirect_is_rejected() -> None:
             assert "HTTPS" in str(exc)
         else:
             raise AssertionError("non-HTTPS redirect was accepted")
-        redirected.assert_not_called()
+    assert len(opener.requests) == 1
+
+
+def test_storage_redirect_is_rejected() -> None:
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/artifact.zip"),
+            Redirect("https://other-storage.example.test/artifact.zip"),
+        ]
+    )
+    with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+        module.urllib.request, "build_opener", return_value=opener
+    ):
+        output = Path(directory) / "artifact.zip"
+        try:
+            module.download_artifact(
+                "LifeLoggerAI/asset-factory",
+                123,
+                "secret",
+                output,
+            )
+        except RuntimeError as exc:
+            assert "artifact storage" in str(exc)
+        else:
+            raise AssertionError("secondary storage redirect was accepted")
+        assert not output.exists()
+
+    assert len(opener.requests) == 2
+    storage_headers = header_map(opener.requests[1])
+    assert "authorization" not in storage_headers
+    assert "x-github-api-version" not in storage_headers
 
 
 def test_byte_ceiling_is_enforced() -> None:
-    opener = RedirectingOpener("https://storage.example.test/artifact.zip")
-
-    def fake_urlopen(request, timeout=0):
-        return FakeResponse(b"0123456789", content_length=10)
-
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/artifact.zip"),
+            FakeResponse(b"0123456789", content_length=10),
+        ]
+    )
     with tempfile.TemporaryDirectory() as directory, mock.patch.object(
         module.urllib.request, "build_opener", return_value=opener
-    ), mock.patch.object(module.urllib.request, "urlopen", side_effect=fake_urlopen):
+    ):
         try:
             module.download_artifact(
                 "LifeLoggerAI/asset-factory",
@@ -140,7 +179,7 @@ def test_byte_ceiling_is_enforced() -> None:
 
 
 def test_json_api_rejects_redirects() -> None:
-    opener = RedirectingOpener("https://storage.example.test/not-json")
+    opener = ScriptedOpener([Redirect("https://storage.example.test/not-json")])
     with mock.patch.object(module.urllib.request, "build_opener", return_value=opener):
         try:
             module.github_api_json("https://api.github.com/example", "secret")
@@ -157,7 +196,6 @@ def test_unique_member_extraction_ignores_archive_path() -> None:
         output = root / "seed"
         with zipfile.ZipFile(archive, "w") as bundle:
             bundle.writestr("../../nested/home-threshold-main_1600.png", b"PNG-DATA")
-
         extracted = module.extract_unique_member_by_basename(
             archive,
             "home-threshold-main_1600.png",
@@ -333,6 +371,7 @@ def test_full_tree_portable_path_collision_is_rejected() -> None:
 def main() -> int:
     test_redirect_strips_credentials()
     test_non_https_redirect_is_rejected()
+    test_storage_redirect_is_rejected()
     test_byte_ceiling_is_enforced()
     test_json_api_rejects_redirects()
     test_unique_member_extraction_ignores_archive_path()
