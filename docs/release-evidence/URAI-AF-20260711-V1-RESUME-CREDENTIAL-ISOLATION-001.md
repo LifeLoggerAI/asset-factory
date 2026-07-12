@@ -44,7 +44,7 @@ Historical artifact `8252999073` was independently downloaded and inspected.
 
 It is source/manifest evidence, not provider-generation evidence.
 
-## Security defects removed
+## Security and release-control defects removed
 
 1. authenticated cross-origin `curl --location` artifact retrieval in historical preflight;
 2. authenticated cross-origin `curl --location` artifact retrieval in post-certification;
@@ -63,9 +63,11 @@ It is source/manifest evidence, not provider-generation evidence.
 15. a forbidden-token substring check that falsely rejected the safe `${URAI_WHEEL_GITHUB_TOKEN:-}` emptiness guard;
 16. a retired-checker filename assertion that conflicted with intentional trigger-path coverage;
 17. integrity checks that could accept producer fields merely because the certifier mentioned the same field names;
-18. integrity checks that did not prove the post-certification workflow actually invoked the certifier with the exact source and output arguments.
+18. integrity checks that did not prove the post-certification workflow actually invoked the certifier with the exact source and output arguments;
+19. broad PR workflows that lacked concurrency cancellation and allowed superseded heads to accumulate ahead of the current candidate;
+20. release gates that did not share one immutable exact-head trigger, allowing evidence to be distributed across different candidate SHAs.
 
-## Replacement security boundary
+## Replacement security and queue boundary
 
 The replacement:
 
@@ -88,7 +90,10 @@ The replacement:
 - retains evidence for 365 days;
 - prevents direct Spatial pushes, PR merges, auto-merge, promotion, or deployment from the paid workflow;
 - verifies the handoff exporter itself emits every file, metadata, decoded-pixel, and source-binding field before paid execution;
-- verifies the post-certification workflow invokes the exact certifier with generated-pack root, workflow conclusion, run ID, source head, artifact ID, and canonical report output.
+- verifies the post-certification workflow invokes the exact certifier with generated-pack root, workflow conclusion, run ID, source head, artifact ID, and canonical report output;
+- gives CI, Production Readiness, Production Checks, Release Readiness, Pipeline Proof, Production Verify, Image Asset Validation, Safe Resume Validation, and V1 Integrity a stable PR/ref concurrency group with `cancel-in-progress: true`;
+- uses this immutable receipt path as the shared pull-request trigger for every required path-filtered release gate;
+- ensures one final receipt commit produces one coherent exact-head evidence set while superseded PR runs are cancelled.
 
 ## Executable regression coverage
 
@@ -108,7 +113,8 @@ The branch includes executable tests for:
 - safe post-certification artifact handling;
 - V1 integrity against the v3 control rather than the retired legacy workflow;
 - separate producer-field, certifier-behavior, and post-workflow invocation binding;
-- explicit Life Map `no ground`, `no orb`, and `no avatar` prompt contract for desktop and mobile.
+- explicit Life Map `no ground`, `no orb`, and `no avatar` prompt contract for desktop and mobile;
+- latest-head workflow cancellation and a shared exact-head release receipt trigger.
 
 Local executable regressions previously returned:
 
@@ -129,6 +135,7 @@ The corrected candidate exposed additional control-test defects rather than prov
 - Both Life Map prompts now state the required exclusions literally so paid preflight cannot diverge from product canon.
 - Independent review identified that exporter fields must be verified in the exporter itself rather than through a combined source string; the producer assertions are now separate.
 - Independent review identified that the post workflow must be proven to invoke the certifier; the exact command and all source/output arguments are now asserted.
+- Exact-head investigation confirmed the repository is public and all blocked jobs requested standard GitHub-hosted runners, while superseded runs lacked cancellation. The durable repair is workflow-level latest-head concurrency, not bypassing CI or treating queued state as success.
 
 Every repair changes the candidate SHA. Earlier workflow conclusions and review requests are stale and cannot authorize merge.
 
