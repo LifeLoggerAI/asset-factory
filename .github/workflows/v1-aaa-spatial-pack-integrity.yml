@@ -10,6 +10,8 @@ on:
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
@@ -21,6 +23,8 @@ on:
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
       - image_asset_generator/spatial_prompt_overrides.json
+      - scripts/validate_v1_safe_resume_v3_marker.py
+      - scripts/test-v1-safe-resume-v3-marker.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
@@ -39,7 +43,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Verify exact candidate identity
@@ -48,16 +52,22 @@ jobs:
           set -euo pipefail
           expected='${{ github.event.pull_request.head.sha || github.sha }}'
           test "$(git rev-parse HEAD)" = "$expected"
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
+          fi
 
-      - name: Compile executor and parse prompt contract
+      - name: Compile executor, marker validator, and prompt contract
         shell: bash
         run: |
           set -euo pipefail
           python3 -m py_compile \
             image_asset_generator/forge_v1_spatial_pack_run.py \
             image_asset_generator/export_spatial_handoff.py \
-            image_asset_generator/post_certify_v1_spatial_pack.py
+            image_asset_generator/post_certify_v1_spatial_pack.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
           python3 - <<'PY'
           import ast, json
           from pathlib import Path
@@ -69,7 +79,7 @@ jobs:
           ast.parse(script)
           PY
 
-      - name: Verify immutable resume and duplicate-spend boundary
+      - name: Verify immutable resume, provider, and duplicate-spend boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -78,11 +88,11 @@ jobs:
           test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
-          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           python3 - <<'PY'
           import re
           from pathlib import Path
           text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
+          validator = Path('scripts/validate_v1_safe_resume_v3_marker.py').read_text()
           required = [
               'name: One-Time V1 AAA Spatial Pack Marker',
               'group: one-time-v1-aaa-spatial-pack-marker-20260711',
@@ -90,10 +100,11 @@ jobs:
               'github.actor == github.repository_owner && github.run_attempt == 1',
               'GITHUB_RUN_ATTEMPT',
               'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
-              'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
-              'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
-              '4dc05a67746e189054609e405ca3801683ab5445',
-              '0cf837d585d3d1c1d8e171938037098c72230c22',
+              'scripts/validate_v1_safe_resume_v3_marker.py',
+              'ASSET_RENDERER_PROVIDER: ${{ needs.authorize.outputs.provider }}',
+              'ASSET_RENDERER_ENDPOINT: ${{ needs.authorize.outputs.endpoint }}',
+              'ASSET_RENDERER_MODEL: ${{ needs.authorize.outputs.opaque_model }}',
+              'ASSET_RENDERER_ALPHA_MODEL: ${{ needs.authorize.outputs.alpha_model }}',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
@@ -104,6 +115,23 @@ jobs:
           ]
           for value in required:
               assert value in text, value
+          for value in (
+              'PROVIDER = "openai"',
+              'ENDPOINT = "https://api.openai.com/v1/images/generations"',
+              'OPAQUE_MODEL = "gpt-image-2"',
+              'ALPHA_MODEL = "gpt-image-1.5"',
+          ):
+              assert value in validator, value
+          secret_expr = '$' + '{{ secrets.'
+          assert text.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 2
+          for name in (
+              'ASSET_RENDERER_ENDPOINT',
+              'ASSET_RENDERER_API_KEY',
+              'ASSET_RENDERER_MODEL',
+              'ASSET_RENDERER_AUTH_HEADER',
+              'ASSET_RENDERER_AUTH_SCHEME',
+          ):
+              assert name + ': ' + secret_expr not in text, name
           for value in ('repository: LifeLoggerAI/urai-spatial', 'git push', 'merge_pull_request', 'enable_auto_merge'):
               assert value not in text, value
           assert not re.search(r'(?m)^\s*URAI_WHEEL_GITHUB_TOKEN:\s*', text)
