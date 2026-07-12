@@ -14,7 +14,7 @@ concurrency:
 jobs:
   launch-readiness:
     name: Launch readiness checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -26,7 +26,7 @@ jobs:
 
   root:
     name: Root orchestration
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -48,7 +48,7 @@ jobs:
 
   engine:
     name: Engine tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -62,7 +62,7 @@ jobs:
 
   studio:
     name: Asset Factory Studio checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 22
@@ -87,7 +87,7 @@ jobs:
 
   studio-emulator:
     name: Asset Factory emulator smoke
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 22
@@ -115,7 +115,7 @@ jobs:
 
   functions:
     name: Firebase functions checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
@@ -131,7 +131,7 @@ jobs:
 
   lifemap:
     name: LifeMap functions checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 20
