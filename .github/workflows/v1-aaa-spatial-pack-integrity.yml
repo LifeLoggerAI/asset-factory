@@ -6,6 +6,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
       - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
@@ -19,6 +20,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
+      - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
       - image_asset_generator/export_spatial_handoff.py
       - image_asset_generator/forge_v1_spatial_pack_run.py
       - image_asset_generator/post_certify_v1_spatial_pack.py
@@ -46,15 +48,23 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Verify exact candidate identity
+      - name: Verify exact candidate and marker lifecycle
         shell: bash
         run: |
           set -euo pipefail
+          marker=authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           expected='${{ github.event.pull_request.head.sha || github.sha }}'
           test "$(git rev-parse HEAD)" = "$expected"
           test -z "$(git status --porcelain --untracked-files=all)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
+            test ! -e "$marker"
+          elif git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq "$marker"; then
+            test -f "$marker"
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
+            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+            python3 scripts/validate_v1_safe_resume_v3_marker.py \
+              --marker "$marker" \
+              --expected-parent-sha "$(git rev-parse "$GITHUB_SHA^")"
           fi
 
       - name: Compile executor, marker validator, and prompt contract
@@ -93,6 +103,7 @@ jobs:
           from pathlib import Path
           text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           validator = Path('scripts/validate_v1_safe_resume_v3_marker.py').read_text()
+          expression = '$' + '{{ needs.authorize.outputs.'
           required = [
               'name: One-Time V1 AAA Spatial Pack Marker',
               'group: one-time-v1-aaa-spatial-pack-marker-20260711',
@@ -101,10 +112,10 @@ jobs:
               'GITHUB_RUN_ATTEMPT',
               'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
               'scripts/validate_v1_safe_resume_v3_marker.py',
-              'ASSET_RENDERER_PROVIDER: ${{ needs.authorize.outputs.provider }}',
-              'ASSET_RENDERER_ENDPOINT: ${{ needs.authorize.outputs.endpoint }}',
-              'ASSET_RENDERER_MODEL: ${{ needs.authorize.outputs.opaque_model }}',
-              'ASSET_RENDERER_ALPHA_MODEL: ${{ needs.authorize.outputs.alpha_model }}',
+              'ASSET_RENDERER_PROVIDER: ' + expression + 'provider }}',
+              'ASSET_RENDERER_ENDPOINT: ' + expression + 'endpoint }}',
+              'ASSET_RENDERER_MODEL: ' + expression + 'opaque_model }}',
+              'ASSET_RENDERER_ALPHA_MODEL: ' + expression + 'alpha_model }}',
               "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
               "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
               "ASSET_FORGE_MAX_COST_USD: '47.00'",
