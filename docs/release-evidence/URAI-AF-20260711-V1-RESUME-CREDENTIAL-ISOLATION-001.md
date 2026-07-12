@@ -4,61 +4,27 @@
 **Repository:** `LifeLoggerAI/asset-factory`  
 **Replacement branch:** `security/v1-resume-v3-safe-rebase-20260711`  
 **Reconstructed base:** `main@6cd595344fba0fd759579789a3da795c72a12d95`  
-**Exact-head binding:** this receipt is committed on the candidate head and must be read with `git rev-parse HEAD`; any later branch commit supersedes its workflow evidence.  
-**Verdict:** **HOLD until unchanged-head CI, independent review, merge, merged-main preflight, and separate paid authorization are complete.**
+**Exact-head binding:** this receipt is committed on the candidate head; any later branch commit supersedes its workflow evidence.  
+**Verdict:** **HOLD until unchanged-head CI, independent exact-head review, merge, merged-main preflight, and separate paid authorization are complete.**
 
 ## Historical paid-run reconstruction
 
-Four historical authorization commits are covered by the preflight. The two latest historical runs ended before generation:
+The fail-closed preflight covers four historical authorization commits. The two latest historical runs ended before provider generation:
 
 - marker `4dc05a67746e189054609e405ca3801683ab5445`, run `29169591028`: authorization passed, preflight failed, generation skipped, no retained output artifact;
-- marker `0cf837d585d3d1c1d8e171938037098c72230c22`, run `29170464085`: authorization passed, preflight failed, generation skipped, retained preflight artifact `8253381637` with receipt digest `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
+- marker `0cf837d585d3d1c1d8e171938037098c72230c22`, run `29170464085`: authorization passed, preflight failed, generation skipped, retained preflight artifact `8253381637`, receipt digest `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
 
 Historical artifact `8252999073` was independently inspected:
 
 - ZIP digest `sha256:6d6f61e9771d983320fb1881beb82523e9e202bb54db5bdbe87b37b59eb31afb`;
-- six JSON manifest files only;
+- six JSON manifests only;
 - no generated images, budget state, forge receipt, quality report, drop-in receipt, or Spatial handoff.
 
 No historical provider generation or provider spend is claimed.
 
-## Removed defects
-
-The replacement removes or corrects:
-
-1. unsafe cross-origin artifact retrieval;
-2. over-broad provider-secret scope;
-3. generic ZIP extraction;
-4. consumed workflows, markers, and legacy checkers;
-5. incomplete four-marker history coverage;
-6. omission of the original issue-triggered paid workflow and its legacy generation-step name from historical scans;
-7. traversal, type, duplicate, portable-path, size, and member-count gaps;
-8. missing Home seed metadata;
-9. incomplete producer, certifier, invocation, and prompt checks;
-10. marker-only authorization changes that could skip or fail guard workflows;
-11. stale-run cancellation races and unrelated-run cancellation risk;
-12. unvalidated secondary object-storage redirects;
-13. queued old heads cancelling newer evidence through shared concurrency groups;
-14. retained evidence bound to GitHub's synthetic pull-request merge commit instead of the reviewed branch head;
-15. generic Release Readiness artifact names without independent clean-head attestation;
-16. security checks that used the pull-request fallback runner for protected-main pushes;
-17. paid endpoint and model values supplied by mutable secrets rather than the authorization marker;
-18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch;
-19. automatic Firebase deployment on every verified `main` push when the service-account secret existed;
-20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently;
-21. a second `Deploy Asset Factory` workflow that could mutate Firebase outside the canonical production confirmation, environment, and service-account boundary;
-22. a staging-labeled path that still called the production project deployment script;
-23. authenticated smoke verification that could call mutation-capable endpoints while claiming Firebase mutation was disabled;
-24. single-page historical workflow-run, job, and artifact queries that could miss older paid evidence beyond 100 records;
-25. missing executable regression locks for multi-page history collection, page-cap failure, and authenticated read-only smoke enforcement;
-26. ordinary main pushes, issue creation, manual dispatches, repository dispatches, trigger-directory commits, wave dispatchers, rerun dispatchers, and legacy version/avatar/smoke workflows that could invoke paid provider generation or direct Spatial promotion outside the reviewed v3 marker authorization;
-27. a line-oriented paid-workflow checker that could miss multiline environment mappings, quoted provider-secret keys, inline environment maps, exported secrets, and inline shell assignments;
-28. deployment-boundary triggers that omitted the two smoke implementations and lacked an executable proof that read-only mode issues no mutation request;
-29. a stale executable launch-readiness compatibility script that still required the retired Firebase-deploy workflow shape.
-
 ## Retired paid entry points
 
-The following thirteen legacy paid execution or dispatcher workflows are removed from the candidate:
+The candidate removes thirteen legacy paid executors or dispatchers:
 
 1. `.github/workflows/v1-forge-trigger.yml`;
 2. `.github/workflows/v1-aaa-asset-forge.yml`;
@@ -74,118 +40,88 @@ The following thirteen legacy paid execution or dispatcher workflows are removed
 12. `.github/workflows/rerun-v2-now.yml`;
 13. `.github/workflows/rerun-v3-now.yml`.
 
-The sole remaining active paid generation workflow is `.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml`, and it is reachable only from the canonical one-file protected-main marker path.
+The sole remaining active paid workflow is `.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml`, reachable only through the future canonical one-file protected-main marker. That marker remains absent.
 
-## Current security and execution boundary
+## Current paid-generation boundary
 
-The current branch:
+The candidate:
 
-- leaves the future v3 paid marker absent;
-- separates authenticated API access from credential-free storage retrieval;
-- rejects unexpected redirects before reading artifact bytes;
-- bounds downloads and extraction and writes files atomically;
-- rejects traversal, encryption, symlinks, non-regular files, duplicate paths, portable Unicode/case collisions, and size/count violations;
-- checks all four historical authorization commits and fails closed on incomplete or ambiguous evidence;
-- paginates every historical workflow-run, job, and artifact collection until a short terminal page is reached, and fails closed if pagination cannot terminate safely;
-- scans every known V1 paid workflow name, including the original `One-Time V1 AAA Spatial Pack` issue-triggered workflow and all marker/safe-resume variants;
-- recognizes both legacy `Generate and certify all 53 V1 Spatial outputs` and current `Generate all 53 V1 Spatial outputs` steps, including failed execute jobs that generated before failure;
-- validates a later marker authorization against the commit's first parent as exactly one effective added file with exact canonical JSON and exact expected parent SHA;
-- supports a direct one-file commit, squash merge, or normal merge commit without weakening the one-effective-file boundary;
-- uses the same merge-aware commit validator in the paid authorizer, credential-isolation guard, safe-resume guard, and V1 integrity guard;
-- rejects the marker in pull requests while allowing all guard workflows to remain green for a valid marker-only protected-main push;
-- pins provider `openai`, endpoint `https://api.openai.com/v1/images/generations`, opaque model `gpt-image-2`, and transparent-output model `gpt-image-1.5` in marker schema `1.1.0`;
-- derives runtime provider values only from validated marker outputs;
-- supplies only `OPENAI_API_KEY` as a provider secret and rejects secret endpoint, model, alternate-key, or auth-header overrides;
-- confines the API key to protected provider preflight and generation steps;
+- uses one shared first-parent validator for direct, squash, and normal merge authorization commits;
+- requires exactly one effective added marker file with canonical JSON and the expected parent SHA;
+- pins provider `openai`, endpoint `https://api.openai.com/v1/images/generations`, opaque model `gpt-image-2`, and transparent model `gpt-image-1.5`;
+- supplies only `OPENAI_API_KEY` as a provider secret and confines it to protected provider steps;
 - enforces one attempt, at most 47 new provider calls, at most USD 1 per unit, and at most USD 47 total;
 - prevents generation from directly merging, promoting, deploying, or pushing to Spatial;
-- verifies producer output fields, certifier behavior, and the post-certification invocation independently;
-- removes all thirteen legacy paid workflows and dispatchers, including the versioned workflow that could push directly to Spatial `main`;
-- uses `scripts/check-paid-workflow-boundary.py` to parse workflow mapping paths, quoted keys, inline values, and block scalars, and to analyze executable shell assignments rather than relying on exact single-line regex forms;
-- rejects known legacy filenames, differently named paid executors, differently named paid dispatchers, multiline paid environment mappings, inline environment maps, provider-secret expressions, exported provider secrets, provider mode, and paid/provider authorization assignments outside the v3 marker workflow;
-- fails closed on ambiguous leading-tab workflow indentation;
-- runs the paid-workflow checker and its negative regressions through root launch readiness on every pull request and protected-main push;
-- keeps compatibility integrity lanes active as absence/pinning proofs rather than expecting retired workflows to exist;
-- isolates every workflow and cleanup job by exact candidate SHA;
-- limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
-- runs pull-request verification on macOS, cleanup on Windows, and protected-main/security/deployment verification on Ubuntu;
-- explicitly checks out the reviewed branch head, proves exact identity and a clean tree, and scopes retained broad-workflow artifacts to that head;
-- establishes `origin/main` before dependency installation and uses a step-scoped read token only if needed, without persisting credentials in git config;
+- paginates every historical run, job, and artifact collection and fails closed when a safe terminal page cannot be established;
+- recognizes original, marker, and safe-resume historical workflows and both legacy/current generation-step names;
+- rejects generated-output artifacts, non-skipped generation, successful execute jobs, incomplete coverage, and ambiguous history.
+
+## Artifact and archive boundary
+
+The candidate:
+
+- separates authenticated GitHub API access from credential-free object-storage retrieval;
+- validates or rejects every redirect before reading bytes;
+- bounds JSON, ZIP, member, total-size, and member-count inputs;
+- rejects traversal, encryption, symlinks, non-regular entries, duplicate names, and portable Unicode/case collisions;
+- extracts atomically with restrictive file modes;
+- verifies producer output fields, certifier behavior, post-certification invocation, and source binding.
+
+Superseded offline pipeline proofs contained 47 records, 17 unique image hashes, 30 repeated placeholders, and zero provider calls. They are smoke evidence only, not the final provider-backed 53-output pack, and cannot be promoted.
+
+## Semantic paid-workflow guard
+
+`scripts/check-paid-workflow-boundary.py` now:
+
+- parses indentation-aware workflow mapping paths, quoted keys, inline values, and literal/folded block scalars;
+- fails closed on ambiguous leading-tab indentation;
+- detects scalar, mapped, and inline paid environments;
+- detects quoted provider-secret keys and provider-secret expressions;
+- detects provider mode and paid/provider authorization in YAML environment mappings and executable shell assignments;
+- scans **all block scalars**, including both `run: |` and `actions/github-script` `script: |`, for provider-secret use and legacy paid dispatch event/workflow signatures;
+- rejects known legacy filenames and differently named paid executors or dispatchers outside the v3 marker workflow.
+
+Negative regressions cover multiline environments, inline environment maps, quoted `OPENAI_API_KEY`, exported provider secrets, inline paid/provider assignments, `script: |` legacy dispatchers, forbidden alternate marker triggers, and leading-tab YAML.
+
+The test loader registers the imported checker in `sys.modules` before dataclass evaluation, making the regression suite compatible with Python 3.13. The corrected semantic regression suite passed locally. Exact-head GitHub execution remains the merge authority.
+
+## Deployment and smoke boundary
+
+The candidate:
+
 - makes ordinary pull-request and `main` push execution verification-only;
-- permits canonical Firebase production deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
-- writes the service account under restrictive permissions and removes the file after canonical production deployment;
-- makes the alternate `.github/workflows/deploy-asset-factory.yml` workflow smoke-only for existing staging or production deployments;
-- globally forces `ASSET_FACTORY_SMOKE_READONLY=true` for both unauthenticated and authenticated smoke modes and asserts that boundary before authenticated checks;
-- removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
-- allows that alternate workflow to run read-only or authenticated read-only smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
-- runs `scripts/test-smoke-readonly-boundary.mjs` against a local HTTP recorder and fails if either smoke implementation issues any non-GET/HEAD request or reaches `/api/assets`, `/api/lifemap/events`, or `/api/generate` in read-only mode;
-- includes both smoke implementations and the executable behavior test in deployment-boundary path triggers;
-- statically rejects reintroduction of deploy capability or removal of authenticated read-only enforcement while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`;
-- runs a dedicated exact-head deployment-boundary workflow on every relevant deployment, paid-workflow, dispatcher, smoke implementation, checker, package-script, or receipt change;
-- removes the obsolete `scripts/test-launch-readiness.mjs` compatibility surface and its package alias so no executable gate still expects the retired deploy workflow.
+- permits Firebase production deployment only through an explicit `workflow_dispatch` on `main`, boolean authorization, exact `DEPLOY_ASSET_FACTORY` confirmation, `asset-factory-production` environment approval, and a configured service-account secret;
+- writes the service account with restrictive permissions and removes it after use;
+- converts `.github/workflows/deploy-asset-factory.yml` to smoke-only with no deploy input, Firebase credential, Firebase CLI, Java setup, or deploy command;
+- forces `ASSET_FACTORY_SMOKE_READONLY=true` for unauthenticated and authenticated staging/production smoke;
+- forces canonical post-deploy smoke to remain read-only;
+- includes both smoke implementations in deployment-boundary path triggers;
+- runs `scripts/test-smoke-readonly-boundary.mjs`, which executes both smoke implementations against a local HTTP recorder and fails on any non-GET/HEAD request or access to `/api/assets`, `/api/lifemap/events`, or `/api/generate`;
+- removes the stale executable `scripts/test-launch-readiness.mjs` compatibility script and its package alias.
 
-## Artifact-class boundary
+## Exact-head evidence requirements
 
-Previously retained offline pipeline proofs were independently inspected:
+Before merge, one unchanged exact head must prove:
 
-- 47 offline records;
-- 17 unique image hashes and 30 duplicate placeholder outputs;
-- two runs semantically identical after timestamp fields were removed;
-- provider calls executed: `0`.
+1. every required workflow succeeds;
+2. every job, log, and retained artifact is inspected;
+3. independent non-author review clears the exact SHA and diff;
+4. the base, head, changed paths, and mergeability are reverified;
+5. the exact tested SHA is merged.
 
-These files are local/offline smoke evidence only. They are not the final provider-backed 53-output V1 Spatial pack, must not be promoted, and cannot satisfy final asset certification.
+After merge, merged `main` must pass the full four-marker historical preflight before any later paid marker is considered.
 
-## Executable proof coverage
-
-The branch contains executable proof for:
-
-- credential-isolated artifact retrieval and redirect rejection;
-- bounded safe extraction and portable-path collision rejection;
-- exact ordered four-marker history;
-- collection across multiple API pages and fail-closed page-cap exhaustion;
-- all known historical paid workflow names and both legacy/current generation-step names;
-- absence of retired workflows, markers, checkers, paid executors, and paid dispatchers;
-- semantic rejection of multiline mapped environments, quoted provider-secret keys, inline environment maps, exported secrets, inline paid/provider assignments, legacy repository-dispatch events, and legacy workflow-dispatch targets;
-- canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
-- direct, normal-merge, and multi-file-rejection marker commit behavior;
-- provider-secret and provider-value confinement;
-- valid marker-only push lifecycle in both guards and V1 integrity;
-- pinned remote actions and no alternate trigger/direct-promotion path in the sole paid marker workflow;
-- executable read-only smoke behavior for both remote and production-finalization scripts;
-- post-certification source binding;
-- Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, globally read-only smoke verification, and smoke-only alternate workflow enforcement.
-
-Previously executed regressions returned:
-
-- `PASS GitHub artifact redirect and extraction isolation`
-- `PASS default four-marker preflight regression`
-
-The expanded history, pagination, semantic paid-workflow/dispatcher, canonical-marker, merge-aware marker-commit, executable read-only smoke, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
-
-## Separate authorization rule
-
-The future v3 marker remains absent. Merging this repair cannot itself trigger provider generation or Firebase deployment.
-
-A later one-effective-file protected-main marker requires:
-
-1. every required workflow successful on one unchanged exact head;
-2. every retained artifact and log inspected;
-3. independent non-author clearance of that exact head;
-4. merge and merged-main four-marker preflight success;
-5. explicit billing and protected-environment approval under the marker-pinned provider/model contract and USD 47 ceiling;
-6. continued absence of duplicate-generation or prior-spend evidence.
-
-A later Firebase production deployment is a separate operation and requires the explicit confirmed canonical dispatch and production environment described above. The alternate smoke-only workflow can never deploy.
+A later paid marker separately requires explicit billing authority, protected-environment approval, the pinned provider/model contract, the USD 47 ceiling, and continued absence of prior-spend or duplicate-generation evidence.
 
 ## Still unproven
 
-- final exact-head CI and independent clearance;
-- merged-main preflight success;
-- valid paid-provider billing authority and protected-environment approval;
+- final exact-head workflow completion and artifact inspection;
+- final independent exact-head clearance;
+- merged-main four-marker preflight;
+- valid paid-provider billing authority and environment approval;
 - a new provider-backed 53-output pack;
 - final certification, Spatial handoff, activation, deployment, or public verification.
 
 ## Mutation and spend statement
 
-This repair changes source controls and documentation only. It does not create a paid marker, trigger paid generation, call a provider, spend funds, promote assets, deploy, change billing, change production data, or activate public assets.
+This repair changes source controls, tests, workflows, and documentation only. It does not create a paid marker, trigger paid generation, call a provider, spend funds, promote assets, push to Spatial, deploy Firebase, change billing, change credentials, change production data, or activate public assets.
