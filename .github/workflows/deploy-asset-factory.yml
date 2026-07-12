@@ -37,6 +37,7 @@ jobs:
       ASSET_FACTORY_FORCE_LOCAL: 'false'
       ASSET_FACTORY_REQUIRE_API_KEY: 'true'
       ASSET_FACTORY_REQUIRE_AUTH: 'true'
+      ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
       - name: Checkout exact dispatch commit
         uses: actions/checkout@v4
@@ -54,6 +55,7 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           test "${{ inputs.environment }}" = staging -o "${{ inputs.environment }}" = production
           test "${{ inputs.smoke_mode }}" = readonly -o "${{ inputs.smoke_mode }}" = authenticated -o "${{ inputs.smoke_mode }}" = both
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -132,11 +134,10 @@ jobs:
       - name: Read-only smoke
         if: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
         env:
-          ASSET_FACTORY_SMOKE_READONLY: 'true'
           ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
         run: npm run smoke:website
 
-      - name: Authenticated smoke
+      - name: Authenticated read-only smoke
         if: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
         env:
           ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
@@ -147,6 +148,8 @@ jobs:
           ASSET_FACTORY_TENANT_ID: ${{ steps.target.outputs.tenant_id }}
           ASSET_FACTORY_OTHER_TENANT_ID: ${{ steps.target.outputs.other_tenant_id }}
         run: |
+          set -euo pipefail
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
           if [ "${{ inputs.environment }}" = production ]; then
             npm run smoke:prod
           else
@@ -183,8 +186,9 @@ jobs:
           - Exact dispatch commit checked: true
           - Working tree clean: true
           - Deploy workflow boundary checked: true
+          - Read-only smoke enforced globally: true
           - Read-only smoke requested: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
-          - Authenticated smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
+          - Authenticated read-only smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
           - Firebase mutation allowed: false
 
           ## Required follow-up
