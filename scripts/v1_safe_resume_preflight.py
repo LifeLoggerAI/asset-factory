@@ -17,6 +17,7 @@ DEFAULT_MARKER_SHAS = [
     "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
     "de27f2f36aa1ca73d504e5dffed99161078fb0c8",
     "4dc05a67746e189054609e405ca3801683ab5445",
+    "0cf837d585d3d1c1d8e171938037098c72230c22",
 ]
 WORKFLOW_NAMES = {
     "One-Time V1 AAA Spatial Pack Marker",
