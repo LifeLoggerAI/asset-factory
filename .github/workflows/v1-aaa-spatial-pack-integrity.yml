@@ -144,7 +144,7 @@ jobs:
               assert value in validator, value
           for value in (
               'first parent',
-              'git_output("diff"',
+              '"--no-renames"',
               'validate_marker(marker_path, parent_sha)',
           ):
               assert value in commit_validator, value
