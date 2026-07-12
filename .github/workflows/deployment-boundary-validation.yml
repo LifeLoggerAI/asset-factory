@@ -24,6 +24,9 @@ on:
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
+      - scripts/smoke-asset-factory-remote.mjs
+      - scripts/smoke-production-finalization.mjs
+      - scripts/test-smoke-readonly-boundary.mjs
       - package.json
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
@@ -49,6 +52,9 @@ on:
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
+      - scripts/smoke-asset-factory-remote.mjs
+      - scripts/smoke-production-finalization.mjs
+      - scripts/test-smoke-readonly-boundary.mjs
       - package.json
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   workflow_dispatch:
@@ -94,6 +100,9 @@ jobs:
         run: |
           python3 scripts/check-paid-workflow-boundary.py
           python3 scripts/test-paid-workflow-boundary.py
+
+      - name: Execute read-only smoke behavior regression
+        run: node scripts/test-smoke-readonly-boundary.mjs
 
       - name: Verify smoke workflow is read-only and contains no mutation capability
         shell: bash
