@@ -21,6 +21,10 @@ jobs:
     timeout-minutes: 10
     outputs:
       target_sha: ${{ steps.validate.outputs.target_sha }}
+      provider: ${{ steps.validate.outputs.provider }}
+      endpoint: ${{ steps.validate.outputs.endpoint }}
+      opaque_model: ${{ steps.validate.outputs.opaque_model }}
+      alpha_model: ${{ steps.validate.outputs.alpha_model }}
     steps:
       - name: Checkout exact authorization commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -40,36 +44,15 @@ jobs:
           test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
           test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain --untracked-files=all)"
           test -f "$marker"
           test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
           test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
           parent="$(git rev-parse "$GITHUB_SHA^")"
-          python3 - "$marker" "$parent" <<'PY'
-          import json, sys
-          from pathlib import Path
-          actual = json.loads(Path(sys.argv[1]).read_text())
-          expected = {
-              'schemaVersion': '1.0.0',
-              'confirm': 'AUTHORIZE_URAI_V1_AAA_SPATIAL_PACK_SAFE_RESUME_3',
-              'expectedParentSha': sys.argv[2],
-              'historicalMarkerShas': [
-                  'bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5',
-                  'de27f2f36aa1ca73d504e5dffed99161078fb0c8',
-                  '4dc05a67746e189054609e405ca3801683ab5445',
-                  '0cf837d585d3d1c1d8e171938037098c72230c22',
-              ],
-              'maxNewProviderCalls': 47,
-              'maxUnitCostUsd': '1.00',
-              'maxTotalCostUsd': '47.00',
-              'canonicalOutputs': 53,
-              'reuseProvenOutputs': 1,
-              'derivedProviderOutputs': 5,
-              'promote': False,
-              'executionNonce': 'URAI-V1-AAA-SPATIAL-20260711-SAFE-RESUME-3-REAUTHORIZED-ONE-TIME',
-          }
-          assert actual == expected, (actual, expected)
-          PY
+          python3 scripts/validate_v1_safe_resume_v3_marker.py \
+            --marker "$marker" \
+            --expected-parent-sha "$parent" \
+            --github-output "$GITHUB_OUTPUT"
           echo "target_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
   historical-preflight:
@@ -93,15 +76,18 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Verify redirect, extraction, and history controls
+      - name: Verify redirect, extraction, marker, and history controls
         run: |
           python3 -m py_compile \
             scripts/github_artifact_download.py \
             scripts/test-github-artifact-download.py \
             scripts/test-v1-safe-resume-preflight.py \
-            scripts/v1_safe_resume_preflight.py
+            scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/test-v1-safe-resume-v3-marker.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
 
       - name: Inspect all historical attempts and artifacts before spending
         id: inspect
@@ -137,8 +123,10 @@ jobs:
     env:
       PYTHONPYCACHEPREFIX: /tmp/urai-v1-execute-pycache-${{ github.run_id }}
       URAI_VERSION: v1
-      ASSET_RENDERER_PROVIDER: openai
-      ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+      ASSET_RENDERER_PROVIDER: ${{ needs.authorize.outputs.provider }}
+      ASSET_RENDERER_ENDPOINT: ${{ needs.authorize.outputs.endpoint }}
+      ASSET_RENDERER_MODEL: ${{ needs.authorize.outputs.opaque_model }}
+      ASSET_RENDERER_ALPHA_MODEL: ${{ needs.authorize.outputs.alpha_model }}
       ASSET_RENDERER_MODE: provider
       ASSET_RENDERER_MAX_ATTEMPTS: '1'
       ASSET_FORGE_REQUIRE_PROVIDER: '1'
@@ -163,21 +151,30 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Verify immutable source and hard limits
+      - name: Verify immutable source, provider identity, and hard limits
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = '${{ needs.authorize.outputs.target_sha }}'
-          test -z "$(git status --porcelain)"
+          test -z "$(git status --porcelain --untracked-files=all)"
           test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$ASSET_RENDERER_PROVIDER" = 'openai'
+          test "$ASSET_RENDERER_ENDPOINT" = 'https://api.openai.com/v1/images/generations'
+          test "$ASSET_RENDERER_MODEL" = 'gpt-image-2'
+          test "$ASSET_RENDERER_ALPHA_MODEL" = 'gpt-image-1.5'
           test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '47'
           test "$ASSET_FORGE_MAX_UNIT_COST_USD" = '1.00'
           test "$ASSET_FORGE_MAX_COST_USD" = '47.00'
           test "$ASSET_RENDERER_MAX_ATTEMPTS" = '1'
           test -z "${URAI_WHEEL_GITHUB_TOKEN:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          test -z "${ASSET_RENDERER_AUTH_HEADER:-}"
+          test -z "${ASSET_RENDERER_AUTH_SCHEME:-}"
 
-      - name: Re-run credential-isolation proof
-        run: python3 scripts/test-github-artifact-download.py
+      - name: Re-run credential-isolation and marker proof
+        run: |
+          python3 scripts/test-github-artifact-download.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
 
       - name: Download and safely extract proven provider-backed Home seed
         env:
@@ -215,21 +212,18 @@ jobs:
       - name: Preflight provider and Spatial contract
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
-          ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
-          ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
-          ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
-          ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$OPENAI_API_KEY" ] && [ -z "$ASSET_RENDERER_API_KEY" ]; then
-            echo '::error::OPENAI_API_KEY or ASSET_RENDERER_API_KEY is required.'
-            exit 1
-          fi
+          test -n "$OPENAI_API_KEY"
+          test "$ASSET_RENDERER_PROVIDER" = 'openai'
+          test "$ASSET_RENDERER_ENDPOINT" = 'https://api.openai.com/v1/images/generations'
+          test "$ASSET_RENDERER_MODEL" = 'gpt-image-2'
+          test "$ASSET_RENDERER_ALPHA_MODEL" = 'gpt-image-1.5'
           python -m py_compile \
             scripts/github_artifact_download.py \
             scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
             image_asset_generator/forge_v1_spatial_pack_run.py
           python image_asset_generator/check_canonical_version_contract.py
           python - <<'PY'
@@ -247,11 +241,6 @@ jobs:
       - name: Generate all 53 V1 Spatial outputs
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
-          ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
-          ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
-          ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
-          ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
         run: python image_asset_generator/forge_v1_spatial_pack_run.py
 
       - name: Certify atomic Spatial handoff
