@@ -20,7 +20,10 @@ DEFAULT_MARKER_SHAS = [
     "0cf837d585d3d1c1d8e171938037098c72230c22",
 ]
 WORKFLOW_NAMES = {
+    "One-Time V1 AAA Spatial Pack",
     "One-Time V1 AAA Spatial Pack Marker",
+    "One-Time V1 AAA Spatial Pack Safe Resume",
+    "One-Time V1 AAA Spatial Pack Safe Resume 2",
     "One-Time V1 AAA Spatial Pack Safe Resume 3",
 }
 ARTIFACT_PREFIX = "urai-v1-aaa-spatial-pack-"
@@ -186,9 +189,10 @@ def inspect_history(
         )
 
     return {
-        "schemaVersion": "3.0.0",
+        "schemaVersion": "3.1.0",
         "repository": repository,
         "historicalMarkerShas": marker_shas,
+        "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
         "matchingRuns": len(records),
         "safeToExecute": not reasons,
         "blockingReasons": sorted(set(reasons)),
@@ -222,9 +226,10 @@ def main() -> int:
         result = inspect_history(args.repository, token, args.api_root, marker_shas)
     except Exception as exc:
         result = {
-            "schemaVersion": "3.0.0",
+            "schemaVersion": "3.1.0",
             "repository": args.repository,
             "historicalMarkerShas": marker_shas,
+            "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
             "matchingRuns": 0,
             "safeToExecute": False,
             "blockingReasons": [f"preflight exception: {type(exc).__name__}: {exc}"],
