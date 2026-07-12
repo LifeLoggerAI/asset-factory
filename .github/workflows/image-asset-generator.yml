@@ -8,6 +8,7 @@ on:
       - "scripts/plan_versioned_forge.py"
       - "package.json"
       - ".github/workflows/image-asset-generator.yml"
+      - "docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md"
   push:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - "scripts/plan_versioned_forge.py"
       - "package.json"
       - ".github/workflows/image-asset-generator.yml"
+      - "docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md"
   workflow_dispatch:
     inputs:
       action:
@@ -36,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: image-asset-validation-${{ github.ref }}
+  group: image-asset-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
