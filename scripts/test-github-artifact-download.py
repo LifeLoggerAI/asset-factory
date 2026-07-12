@@ -221,6 +221,97 @@ def test_extracted_byte_ceiling_is_enforced() -> None:
             raise AssertionError("oversized extracted member was accepted")
 
 
+def test_full_tree_extraction_preserves_safe_paths() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "pack"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("manifests/pack.json", b"{}")
+            bundle.writestr("images/home.png", b"PNG")
+        extracted = module.extract_all_regular_files(
+            archive,
+            output,
+            max_member_bytes=100,
+            max_total_bytes=200,
+            max_members=10,
+        )
+        assert extracted == [
+            output.resolve() / "manifests" / "pack.json",
+            output.resolve() / "images" / "home.png",
+        ]
+        assert (output / "manifests" / "pack.json").read_bytes() == b"{}"
+        assert (output / "images" / "home.png").read_bytes() == b"PNG"
+        assert stat.S_IMODE((output / "images" / "home.png").stat().st_mode) == 0o600
+
+
+def test_full_tree_path_traversal_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../outside.txt", b"NO")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "canonical" in str(exc)
+        else:
+            raise AssertionError("path traversal member was accepted")
+        assert not (root / "outside.txt").exists()
+
+
+def test_full_tree_symlink_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        member = zipfile.ZipInfo("images/link.png")
+        member.create_system = 3
+        member.external_attr = (stat.S_IFLNK | 0o777) << 16
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(member, "../../outside")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "regular file" in str(exc)
+        else:
+            raise AssertionError("full-tree symlink was accepted")
+
+
+def test_full_tree_total_ceiling_is_enforced() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a.bin", b"12345")
+            bundle.writestr("b.bin", b"67890")
+        try:
+            module.extract_all_regular_files(
+                archive,
+                root / "pack",
+                max_member_bytes=10,
+                max_total_bytes=9,
+            )
+        except RuntimeError as exc:
+            assert "total extracted byte ceiling" in str(exc)
+        else:
+            raise AssertionError("oversized extracted tree was accepted")
+
+
+def test_full_tree_duplicate_path_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a/file.txt", b"A")
+            bundle.writestr("a/file.txt", b"B")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "duplicate path" in str(exc)
+        else:
+            raise AssertionError("duplicate full-tree path was accepted")
+
+
 def main() -> int:
     test_redirect_strips_credentials()
     test_non_https_redirect_is_rejected()
@@ -230,6 +321,11 @@ def main() -> int:
     test_duplicate_member_is_rejected()
     test_symlink_member_is_rejected()
     test_extracted_byte_ceiling_is_enforced()
+    test_full_tree_extraction_preserves_safe_paths()
+    test_full_tree_path_traversal_is_rejected()
+    test_full_tree_symlink_is_rejected()
+    test_full_tree_total_ceiling_is_enforced()
+    test_full_tree_duplicate_path_is_rejected()
     print("PASS GitHub artifact redirect and extraction isolation")
     return 0
 
