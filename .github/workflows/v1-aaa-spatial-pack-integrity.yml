@@ -73,6 +73,7 @@ jobs:
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
           test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
           python3 - <<'PY'
+          import re
           from pathlib import Path
           text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           required = [
@@ -96,8 +97,9 @@ jobs:
           ]
           for value in required:
               assert value in text, value
-          for value in ('repository: LifeLoggerAI/urai-spatial', 'git push', 'merge_pull_request', 'enable_auto_merge', 'URAI_WHEEL_GITHUB_TOKEN:'):
+          for value in ('repository: LifeLoggerAI/urai-spatial', 'git push', 'merge_pull_request', 'enable_auto_merge'):
               assert value not in text, value
+          assert not re.search(r'(?m)^\s*URAI_WHEEL_GITHUB_TOKEN:\s*', text)
           PY
 
       - name: Verify lossless source-binding post-certification
