@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download a GitHub Actions artifact without forwarding API credentials to storage.
+"""Download GitHub Actions artifacts without forwarding API credentials to storage.
 
 GitHub's artifact download endpoint returns a short-lived redirect to object storage.
 The authenticated API request and the unauthenticated storage request are deliberately
@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 API_VERSION = "2022-11-28"
@@ -26,6 +26,8 @@ REDIRECT_CODES = {301, 302, 303, 307, 308}
 DEFAULT_MAX_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_JSON_BYTES = 16 * 1024 * 1024
 DEFAULT_MAX_EXTRACTED_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_TOTAL_EXTRACTED_BYTES = 512 * 1024 * 1024
+DEFAULT_MAX_MEMBERS = 4096
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -149,7 +151,7 @@ def download_artifact(
     timeout: int = 90,
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> Path:
-    """Download an artifact zip using auth only for the first GitHub API request."""
+    """Download an artifact ZIP using auth only for the GitHub API request."""
 
     if not repository or repository.count("/") != 1:
         raise ValueError("repository must use owner/name form")
@@ -189,8 +191,8 @@ def download_artifact(
         exc.close()
         storage_url = _validate_redirect(api_url, location)
 
-        # Deliberately construct a brand-new request with no Authorization,
-        # API-version, cookie, or GitHub-specific headers.
+        # Construct a brand-new request with no Authorization, API-version,
+        # cookie, or GitHub-specific headers.
         storage_request = urllib.request.Request(
             storage_url,
             headers={
@@ -202,6 +204,55 @@ def download_artifact(
             payload = _bounded_read(response, max_bytes)
 
     return _atomic_write(Path(output_path), payload)
+
+
+def _validate_member_type(member: zipfile.ZipInfo) -> None:
+    if member.flag_bits & 0x1:
+        raise RuntimeError(f"encrypted archive member is not accepted: {member.filename}")
+    mode = (member.external_attr >> 16) & 0xFFFF
+    file_type = stat.S_IFMT(mode)
+    if member.is_dir():
+        if file_type and file_type != stat.S_IFDIR:
+            raise RuntimeError(
+                f"directory archive member has an invalid type: {member.filename}"
+            )
+        return
+    if file_type and file_type != stat.S_IFREG:
+        raise RuntimeError(f"archive member is not a regular file: {member.filename}")
+
+
+def _safe_member_parts(filename: str, *, allow_directory: bool) -> tuple[str, ...]:
+    if not filename:
+        raise RuntimeError("archive member has an empty name")
+    if "\\" in filename:
+        raise RuntimeError(f"archive member uses a backslash path: {filename}")
+    if "\x00" in filename:
+        raise RuntimeError("archive member name contains NUL")
+
+    raw_parts = filename.split("/")
+    if allow_directory and raw_parts[-1] == "":
+        raw_parts = raw_parts[:-1]
+    if not raw_parts or any(part in {"", ".", ".."} for part in raw_parts):
+        raise RuntimeError(f"archive member path is not canonical: {filename}")
+    if any(":" in part for part in raw_parts):
+        raise RuntimeError(f"archive member path contains a drive-like component: {filename}")
+
+    pure = PurePosixPath(*raw_parts)
+    if pure.is_absolute():
+        raise RuntimeError(f"archive member path must be relative: {filename}")
+    return tuple(pure.parts)
+
+
+def _assert_no_symlink_ancestors(root: Path, destination: Path) -> None:
+    current = destination.parent
+    while True:
+        if current.exists() and current.is_symlink():
+            raise RuntimeError(f"archive destination parent is a symlink: {current}")
+        if current == root:
+            break
+        if root not in current.parents:
+            raise RuntimeError("archive destination escaped extraction root")
+        current = current.parent
 
 
 def extract_unique_member_by_basename(
@@ -226,14 +277,9 @@ def extract_unique_member_by_basename(
                 f"archive must contain exactly one {basename}; found {len(matches)}"
             )
         member = matches[0]
+        _validate_member_type(member)
         if member.is_dir():
             raise RuntimeError("requested archive member is a directory")
-        if member.flag_bits & 0x1:
-            raise RuntimeError("encrypted archive members are not accepted")
-        mode = (member.external_attr >> 16) & 0xFFFF
-        file_type = stat.S_IFMT(mode)
-        if file_type and file_type != stat.S_IFREG:
-            raise RuntimeError("requested archive member is not a regular file")
         if member.file_size > max_bytes:
             raise RuntimeError(
                 f"extracted member exceeds configured byte ceiling: "
@@ -247,6 +293,75 @@ def extract_unique_member_by_basename(
     return _atomic_write(Path(output_directory) / basename, payload)
 
 
+def extract_all_regular_files(
+    archive_path: str | os.PathLike[str],
+    output_directory: str | os.PathLike[str],
+    *,
+    max_member_bytes: int = DEFAULT_MAX_EXTRACTED_BYTES,
+    max_total_bytes: int = DEFAULT_MAX_TOTAL_EXTRACTED_BYTES,
+    max_members: int = DEFAULT_MAX_MEMBERS,
+) -> list[Path]:
+    """Safely extract a bounded ZIP tree containing only regular files/directories."""
+
+    if max_member_bytes <= 0 or max_total_bytes <= 0 or max_members <= 0:
+        raise ValueError("extraction ceilings must be positive")
+
+    root = Path(output_directory)
+    root.mkdir(parents=True, exist_ok=True)
+    if root.is_symlink():
+        raise RuntimeError("extraction root must not be a symlink")
+    root = root.resolve()
+
+    extracted: list[Path] = []
+    seen_paths: set[tuple[str, ...]] = set()
+    total_declared = 0
+
+    with zipfile.ZipFile(Path(archive_path)) as bundle:
+        members = bundle.infolist()
+        if len(members) > max_members:
+            raise RuntimeError(
+                f"archive exceeds configured member ceiling: {len(members)} > {max_members}"
+            )
+
+        validated: list[tuple[zipfile.ZipInfo, tuple[str, ...]]] = []
+        for member in members:
+            _validate_member_type(member)
+            parts = _safe_member_parts(
+                member.filename,
+                allow_directory=member.is_dir(),
+            )
+            if parts in seen_paths:
+                raise RuntimeError(f"archive contains a duplicate path: {member.filename}")
+            seen_paths.add(parts)
+            if member.is_dir():
+                continue
+            if member.file_size > max_member_bytes:
+                raise RuntimeError(
+                    f"archive member exceeds configured byte ceiling: "
+                    f"{member.file_size} > {max_member_bytes}: {member.filename}"
+                )
+            total_declared += member.file_size
+            if total_declared > max_total_bytes:
+                raise RuntimeError(
+                    f"archive exceeds configured total extracted byte ceiling: "
+                    f"{total_declared} > {max_total_bytes}"
+                )
+            validated.append((member, parts))
+
+        for member, parts in validated:
+            destination = root.joinpath(*parts)
+            _assert_no_symlink_ancestors(root, destination)
+            with bundle.open(member, "r") as source:
+                payload = source.read(max_member_bytes + 1)
+            if len(payload) > max_member_bytes:
+                raise RuntimeError(
+                    f"archive member exceeds configured byte ceiling: {member.filename}"
+                )
+            extracted.append(_atomic_write(destination, payload))
+
+    return extracted
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", required=True)
@@ -257,11 +372,20 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--token-env", default="GH_TOKEN")
     parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
-    parser.add_argument("--extract-basename")
+
+    extraction = parser.add_mutually_exclusive_group()
+    extraction.add_argument("--extract-basename")
+    extraction.add_argument("--extract-all-directory")
     parser.add_argument("--extract-directory")
     parser.add_argument(
         "--max-extracted-bytes", type=int, default=DEFAULT_MAX_EXTRACTED_BYTES
     )
+    parser.add_argument(
+        "--max-total-extracted-bytes",
+        type=int,
+        default=DEFAULT_MAX_TOTAL_EXTRACTED_BYTES,
+    )
+    parser.add_argument("--max-members", type=int, default=DEFAULT_MAX_MEMBERS)
     return parser.parse_args()
 
 
@@ -270,6 +394,10 @@ def main() -> int:
     if bool(args.extract_basename) != bool(args.extract_directory):
         raise SystemExit(
             "--extract-basename and --extract-directory must be provided together"
+        )
+    if args.extract_all_directory and args.extract_directory:
+        raise SystemExit(
+            "--extract-directory is only valid with --extract-basename"
         )
 
     token = os.environ.get(args.token_env, "")
@@ -291,6 +419,15 @@ def main() -> int:
             max_bytes=args.max_extracted_bytes,
         )
         print(extracted)
+    elif args.extract_all_directory:
+        for extracted in extract_all_regular_files(
+            archive,
+            args.extract_all_directory,
+            max_member_bytes=args.max_extracted_bytes,
+            max_total_bytes=args.max_total_extracted_bytes,
+            max_members=args.max_members,
+        ):
+            print(extracted)
     return 0
 
 
