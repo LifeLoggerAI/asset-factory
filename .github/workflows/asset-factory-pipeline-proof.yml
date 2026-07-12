@@ -13,6 +13,7 @@ on:
       - '.github/workflows/asset-factory-pipeline-proof.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   pull_request:
     paths:
       - 'assetfactory-studio/**'
@@ -25,10 +26,15 @@ on:
       - '.github/workflows/asset-factory-pipeline-proof.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   asset-factory-proof:
