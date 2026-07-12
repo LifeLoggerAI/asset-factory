@@ -50,7 +50,7 @@ Artifact `8252999073` was downloaded through the authenticated GitHub connector 
 
 It is source/manifest evidence, not provider-generation evidence.
 
-## Current-main collision and review correction
+## Current-main collision and review corrections
 
 While the first security branch was under review, `main` advanced and:
 
@@ -63,21 +63,23 @@ While the first security branch was under review, `main` advanced and:
 
 The checker refactor was not a security repair: the core still executed `curl --location` while attaching `Authorization: Bearer` and GitHub API headers.
 
-Exact head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b` passed GitHub Artifact Credential Isolation run `29170982030` and V1 Safe Resume Control Validation run `29170982029`, but an independent Codex review then identified that the original unsafe paid-resume workflow and consumed markers were still active source paths. That head is superseded and cannot authorize merge.
+Exact head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b` passed GitHub Artifact Credential Isolation run `29170982030` and V1 Safe Resume Control Validation run `29170982029`, but an independent Codex review then identified that the original unsafe paid-resume workflow remained active. Follow-up inspection confirmed both consumed authorization markers remained. That head is superseded and cannot authorize merge.
 
-The correction removes the original and v2 paid-resume workflows, removes both consumed authorization markers, removes both unsafe checker files, and expands both security workflows so restoration of any retired path retriggers exact-head validation and fails closed.
+After correcting those paths, a further full-scope inspection found the active post-certification workflow still downloaded the generated pack with authenticated `curl --location` and extracted it with generic `unzip`. That path could forward the run token across the artifact redirect and trusted archive paths and types without bounds. It is now included in this repair and in both exact-head regression gates.
 
 ## Security defects removed
 
-1. authenticated cross-origin `curl --location` artifact retrieval;
-2. provider secrets and paid flags declared at workflow scope;
-3. generic `unzip` of the trusted Home seed;
-4. original unsafe paid-resume workflow;
-5. consumed v2 paid-resume workflow;
-6. original consumed authorization marker;
-7. consumed v2 authorization marker;
-8. active curl-based checker wrapper and core;
-9. incomplete path filters and absence assertions that allowed retired controls to survive unnoticed.
+1. authenticated cross-origin `curl --location` artifact retrieval in historical preflight;
+2. authenticated cross-origin `curl --location` artifact retrieval in post-certification;
+3. provider secrets and paid flags declared at workflow scope;
+4. generic `unzip` of the trusted Home seed;
+5. generic `unzip` of the complete generated pack;
+6. original unsafe paid-resume workflow;
+7. consumed v2 paid-resume workflow;
+8. original consumed authorization marker;
+9. consumed v2 authorization marker;
+10. active curl-based checker wrapper and core;
+11. incomplete path filters and absence assertions that allowed retired controls to survive unnoticed.
 
 ## Replacement boundary
 
@@ -87,20 +89,31 @@ The replacement:
 - deletes consumed v2;
 - deletes both consumed authorization markers;
 - deletes the checker wrapper and unsafe core;
-- keeps post-certification implementation untouched;
-- separates authenticated GitHub API access from credential-free storage access;
+- converts post-certification artifact listing and download to the same credential-isolated helper;
+- separates authenticated GitHub API access from credential-free object-storage access;
 - requires HTTPS redirect targets with no embedded credentials;
-- bounds JSON, ZIP, and extracted-member sizes;
+- bounds JSON, ZIP, per-member, total-extracted-byte, and member-count sizes;
 - performs atomic mode-0600 writes;
-- extracts one unique regular file by basename and rejects directory, encrypted, duplicate, symlink, non-regular, and oversized entries;
+- extracts one unique regular seed file by basename;
+- extracts the full generated pack only through canonical relative paths and regular files/directories;
+- rejects directory/type mismatches, encryption, duplicates, traversal, backslash paths, drive-like paths, symlinks, non-regular files, oversized members, oversized totals, and oversized member counts;
 - inspects all four historical authorization SHAs;
 - treats unresolved execution, non-skipped generation, generated-output evidence, expired pack evidence, incomplete coverage, and technical errors as hard blockers;
 - scopes provider secrets and paid flags only to the protected `paid-asset-generation` execute job;
 - retains one attempt, 47 provider calls, USD 1 per unit, and USD 47 total hard ceilings;
 - retains evidence for 365 days;
-- adds executable credential, extraction, and historical-preflight regression tests;
-- makes both security workflows trigger on every retired workflow, consumed marker, unsafe checker, and replacement control path;
-- asserts every retired workflow, consumed marker, and unsafe checker remains absent.
+- adds executable credential, single-file extraction, full-tree extraction, and historical-preflight regression tests;
+- makes both security workflows trigger on every retired workflow, consumed marker, unsafe checker, post-certification workflow, and replacement control path;
+- asserts every retired workflow, consumed marker, and unsafe checker remains absent;
+- statically asserts post-certification cannot restore authenticated redirect-following or generic unzip.
+
+## Local regression proof before push
+
+The expanded redirect and extraction regression suite completed successfully before the source update:
+
+`PASS GitHub artifact redirect and extraction isolation`
+
+This local proof validates the test code and helper behavior, but it does not replace GitHub exact-head workflow evidence.
 
 ## Separate authorization rule
 
@@ -125,8 +138,10 @@ The new marker schema must include all four historical authorization SHAs and th
 
 Implemented source capability:
 
-- credential-isolated artifact retrieval;
-- bounded path-independent extraction;
+- credential-isolated artifact listing and download;
+- bounded path-independent single-file extraction;
+- bounded canonical full-pack extraction;
+- post-certification credential and archive isolation;
 - execute-job-only provider secrets;
 - complete four-marker history inspection;
 - executable fail-closed tests;
@@ -139,7 +154,7 @@ Previously proven on superseded head `ca81be9907c73f617ef5bb35a4f4dccd01df9f7b`:
 - GitHub Artifact Credential Isolation succeeded;
 - V1 Safe Resume Control Validation succeeded.
 
-Not yet proven for the corrected exact head:
+Not yet proven for the current corrected exact head:
 
 - current exact-head CI success;
 - current exact-head independent non-author approval;
