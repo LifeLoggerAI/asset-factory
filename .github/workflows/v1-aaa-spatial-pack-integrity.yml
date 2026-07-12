@@ -13,6 +13,8 @@ on:
       - image_asset_generator/spatial_prompt_overrides.json
       - scripts/validate_v1_safe_resume_v3_marker.py
       - scripts/test-v1-safe-resume-v3-marker.py
+      - scripts/validate_v1_marker_commit.py
+      - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
@@ -27,6 +29,8 @@ on:
       - image_asset_generator/spatial_prompt_overrides.json
       - scripts/validate_v1_safe_resume_v3_marker.py
       - scripts/test-v1-safe-resume-v3-marker.py
+      - scripts/validate_v1_marker_commit.py
+      - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
@@ -58,16 +62,16 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             test ! -e "$marker"
-          elif git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq "$marker"; then
-            test -f "$marker"
-            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
-            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
-            python3 scripts/validate_v1_safe_resume_v3_marker.py \
-              --marker "$marker" \
-              --expected-parent-sha "$(git rev-parse "$GITHUB_SHA^")"
+          else
+            parent="$(git rev-parse "$GITHUB_SHA^1")"
+            if git diff --name-only --no-renames "$parent" "$GITHUB_SHA" | grep -Fxq "$marker"; then
+              python3 scripts/validate_v1_marker_commit.py \
+                --commit "$GITHUB_SHA" \
+                --marker "$marker"
+            fi
           fi
 
-      - name: Compile executor, marker validator, and prompt contract
+      - name: Compile executor, marker validators, and prompt contract
         shell: bash
         run: |
           set -euo pipefail
@@ -76,8 +80,11 @@ jobs:
             image_asset_generator/export_spatial_handoff.py \
             image_asset_generator/post_certify_v1_spatial_pack.py \
             scripts/validate_v1_safe_resume_v3_marker.py \
-            scripts/test-v1-safe-resume-v3-marker.py
+            scripts/test-v1-safe-resume-v3-marker.py \
+            scripts/validate_v1_marker_commit.py \
+            scripts/test-v1-marker-commit.py
           python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
           python3 - <<'PY'
           import ast, json
           from pathlib import Path
@@ -103,6 +110,7 @@ jobs:
           from pathlib import Path
           text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           validator = Path('scripts/validate_v1_safe_resume_v3_marker.py').read_text()
+          commit_validator = Path('scripts/validate_v1_marker_commit.py').read_text()
           expression = '$' + '{{ needs.authorize.outputs.'
           required = [
               'name: One-Time V1 AAA Spatial Pack Marker',
@@ -111,6 +119,7 @@ jobs:
               'github.actor == github.repository_owner && github.run_attempt == 1',
               'GITHUB_RUN_ATTEMPT',
               'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
+              'scripts/validate_v1_marker_commit.py',
               'scripts/validate_v1_safe_resume_v3_marker.py',
               'ASSET_RENDERER_PROVIDER: ' + expression + 'provider }}',
               'ASSET_RENDERER_ENDPOINT: ' + expression + 'endpoint }}',
@@ -133,6 +142,12 @@ jobs:
               'ALPHA_MODEL = "gpt-image-1.5"',
           ):
               assert value in validator, value
+          for value in (
+              'first parent',
+              'git_output("diff"',
+              'validate_marker(marker_path, parent_sha)',
+          ):
+              assert value in commit_validator, value
           secret_expr = '$' + '{{ secrets.'
           assert text.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 2
           for name in (
