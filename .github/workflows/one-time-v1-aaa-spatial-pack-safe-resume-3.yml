@@ -138,13 +138,7 @@ jobs:
       PYTHONPYCACHEPREFIX: /tmp/urai-v1-execute-pycache-${{ github.run_id }}
       URAI_VERSION: v1
       ASSET_RENDERER_PROVIDER: openai
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
-      ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
-      ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
       ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
-      ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
-      ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
       ASSET_RENDERER_MODE: provider
       ASSET_RENDERER_MAX_ATTEMPTS: '1'
       ASSET_FORGE_REQUIRE_PROVIDER: '1'
@@ -190,22 +184,42 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/urai-v1-home-seed"
+          seed_zip="$RUNNER_TEMP/urai-v1-home-seed.zip"
+          seed_dir="$RUNNER_TEMP/urai-v1-home-seed"
+          mkdir -p "$seed_dir"
           python3 scripts/github_artifact_download.py \
             --repository "$GITHUB_REPOSITORY" \
             --artifact-id 8250466400 \
-            --output "$RUNNER_TEMP/urai-v1-home-seed.zip" \
+            --output "$seed_zip" \
             --extract-basename home-threshold-main_1600.png \
-            --extract-directory "$RUNNER_TEMP/urai-v1-home-seed" \
+            --extract-directory "$seed_dir" \
             --max-extracted-bytes 67108864
-          test -f "$RUNNER_TEMP/urai-v1-home-seed/home-threshold-main_1600.png"
-          rm -f "$RUNNER_TEMP/urai-v1-home-seed.zip"
-          echo "ASSET_FORGE_SEED_DIR=$RUNNER_TEMP/urai-v1-home-seed" >> "$GITHUB_ENV"
+          PYTHONPATH=scripts python3 - "$seed_zip" "$seed_dir" <<'PY'
+          import sys
+          from github_artifact_download import extract_unique_member_by_basename
+          extract_unique_member_by_basename(
+              sys.argv[1],
+              'home-threshold-main_1600.png.render.json',
+              sys.argv[2],
+              max_bytes=1048576,
+          )
+          PY
+          test -f "$seed_dir/home-threshold-main_1600.png"
+          test -f "$seed_dir/home-threshold-main_1600.png.render.json"
+          rm -f "$seed_zip"
+          echo "ASSET_FORGE_SEED_DIR=$seed_dir" >> "$GITHUB_ENV"
 
       - name: Install image dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
       - name: Preflight provider and Spatial contract
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+          ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+          ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+          ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+          ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
         shell: bash
         run: |
           set -euo pipefail
@@ -231,6 +245,13 @@ jobs:
           PY
 
       - name: Generate all 53 V1 Spatial outputs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ASSET_RENDERER_ENDPOINT: ${{ secrets.ASSET_RENDERER_ENDPOINT }}
+          ASSET_RENDERER_API_KEY: ${{ secrets.ASSET_RENDERER_API_KEY }}
+          ASSET_RENDERER_MODEL: ${{ secrets.ASSET_RENDERER_MODEL }}
+          ASSET_RENDERER_AUTH_HEADER: ${{ secrets.ASSET_RENDERER_AUTH_HEADER }}
+          ASSET_RENDERER_AUTH_SCHEME: ${{ secrets.ASSET_RENDERER_AUTH_SCHEME }}
         run: python image_asset_generator/forge_v1_spatial_pack_run.py
 
       - name: Certify atomic Spatial handoff
