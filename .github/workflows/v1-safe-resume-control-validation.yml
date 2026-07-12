@@ -19,6 +19,8 @@ on:
       - scripts/v1_safe_resume_preflight.py
       - scripts/validate_v1_safe_resume_v3_marker.py
       - scripts/test-v1-safe-resume-v3-marker.py
+      - scripts/validate_v1_marker_commit.py
+      - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
   push:
     branches: [main]
@@ -39,6 +41,8 @@ on:
       - scripts/v1_safe_resume_preflight.py
       - scripts/validate_v1_safe_resume_v3_marker.py
       - scripts/test-v1-safe-resume-v3-marker.py
+      - scripts/validate_v1_marker_commit.py
+      - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
 
 permissions:
@@ -86,13 +90,13 @@ jobs:
           test ! -e image_asset_generator/check_v1_safe_resume_history_core.py
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             test ! -e "$marker"
-          elif git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep -Fxq "$marker"; then
-            test -f "$marker"
-            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
-            test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
-            python3 scripts/validate_v1_safe_resume_v3_marker.py \
-              --marker "$marker" \
-              --expected-parent-sha "$(git rev-parse "$GITHUB_SHA^")"
+          else
+            parent="$(git rev-parse "$GITHUB_SHA^1")"
+            if git diff --name-only --no-renames "$parent" "$GITHUB_SHA" | grep -Fxq "$marker"; then
+              python3 scripts/validate_v1_marker_commit.py \
+                --commit "$GITHUB_SHA" \
+                --marker "$marker"
+            fi
           fi
           python3 - <<'PY'
           from pathlib import Path
@@ -111,6 +115,7 @@ jobs:
 
           resume = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           for marker in (
+              'scripts/validate_v1_marker_commit.py',
               'scripts/validate_v1_safe_resume_v3_marker.py',
               'https://api.openai.com/v1/images/generations',
               'gpt-image-2',
@@ -146,10 +151,13 @@ jobs:
             scripts/test-v1-safe-resume-preflight.py \
             scripts/v1_safe_resume_preflight.py \
             scripts/validate_v1_safe_resume_v3_marker.py \
-            scripts/test-v1-safe-resume-v3-marker.py
+            scripts/test-v1-safe-resume-v3-marker.py \
+            scripts/validate_v1_marker_commit.py \
+            scripts/test-v1-marker-commit.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
           python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
 
       - name: Prove historical runs contain no generation evidence
         id: inspect
