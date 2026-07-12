@@ -16,6 +16,7 @@ on:
       - '.github/workflows/asset-factory-release-readiness.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   pull_request:
     branches:
       - main
@@ -31,6 +32,7 @@ on:
       - '.github/workflows/asset-factory-release-readiness.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   workflow_dispatch:
     inputs:
       live_url:
@@ -40,6 +42,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: asset-factory-release-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release-readiness:
