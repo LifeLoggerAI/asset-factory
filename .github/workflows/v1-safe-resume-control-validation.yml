@@ -47,7 +47,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: macos-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       PYTHONPYCACHEPREFIX: /tmp/urai-v1-control-pycache-${{ github.run_id }}
