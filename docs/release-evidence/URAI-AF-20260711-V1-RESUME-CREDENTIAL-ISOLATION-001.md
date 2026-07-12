@@ -30,17 +30,19 @@ The replacement removes or corrects:
 3. generic ZIP extraction;
 4. consumed workflows, markers, and legacy checkers;
 5. incomplete four-marker history coverage;
-6. traversal, type, duplicate, portable-path, size, and member-count gaps;
-7. missing Home seed metadata;
-8. incomplete producer, certifier, invocation, and prompt checks;
-9. marker-only authorization changes that could skip or fail guard workflows;
-10. stale-run cancellation races and unrelated-run cancellation risk;
-11. unvalidated secondary object-storage redirects;
-12. queued old heads cancelling newer evidence through shared concurrency groups;
-13. retained evidence bound to GitHub's synthetic pull-request merge commit instead of the reviewed branch head;
-14. generic Release Readiness artifact names without independent clean-head attestation;
-15. security checks that used the pull-request fallback runner for protected-main pushes;
-16. paid endpoint and model values supplied by mutable secrets rather than the authorization marker.
+6. omission of the original issue-triggered paid workflow and its legacy generation-step name from historical scans;
+7. traversal, type, duplicate, portable-path, size, and member-count gaps;
+8. missing Home seed metadata;
+9. incomplete producer, certifier, invocation, and prompt checks;
+10. marker-only authorization changes that could skip or fail guard workflows;
+11. stale-run cancellation races and unrelated-run cancellation risk;
+12. unvalidated secondary object-storage redirects;
+13. queued old heads cancelling newer evidence through shared concurrency groups;
+14. retained evidence bound to GitHub's synthetic pull-request merge commit instead of the reviewed branch head;
+15. generic Release Readiness artifact names without independent clean-head attestation;
+16. security checks that used the pull-request fallback runner for protected-main pushes;
+17. paid endpoint and model values supplied by mutable secrets rather than the authorization marker;
+18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch.
 
 ## Current security and execution boundary
 
@@ -52,6 +54,8 @@ The current branch:
 - bounds downloads and extraction and writes files atomically;
 - rejects traversal, encryption, symlinks, non-regular files, duplicate paths, portable Unicode/case collisions, and size/count violations;
 - checks all four historical authorization commits and fails closed on incomplete or ambiguous evidence;
+- scans every known V1 paid workflow name, including the original `One-Time V1 AAA Spatial Pack` issue-triggered workflow and all marker/safe-resume variants;
+- recognizes both legacy `Generate and certify all 53 V1 Spatial outputs` and current `Generate all 53 V1 Spatial outputs` steps, including failed execute jobs that generated before failure;
 - validates a later marker-only protected-main commit as exactly one added file with exact canonical JSON and exact parent SHA;
 - rejects the marker in pull requests while allowing all guard workflows to remain green for a valid marker-only protected-main push;
 - pins provider `openai`, endpoint `https://api.openai.com/v1/images/generations`, opaque model `gpt-image-2`, and transparent-output model `gpt-image-1.5` in marker schema `1.1.0`;
@@ -64,7 +68,8 @@ The current branch:
 - isolates every workflow and cleanup job by exact candidate SHA;
 - limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
 - runs pull-request verification on macOS, cleanup on Windows, and protected-main/security/deployment verification on Ubuntu;
-- explicitly checks out the reviewed branch head, proves exact identity and a clean tree, and scopes retained broad-workflow artifacts to that head.
+- explicitly checks out the reviewed branch head, proves exact identity and a clean tree, and scopes retained broad-workflow artifacts to that head;
+- establishes `origin/main` before dependency installation and uses a step-scoped read token only if the full checkout did not create the ref, without persisting credentials in git config.
 
 ## Artifact-class boundary
 
@@ -84,20 +89,21 @@ The branch contains executable proof for:
 - credential-isolated artifact retrieval and redirect rejection;
 - bounded safe extraction and portable-path collision rejection;
 - exact ordered four-marker history;
+- all known historical paid workflow names and both legacy/current generation-step names;
 - absence of retired workflows, markers, and checkers;
 - canonical marker acceptance and rejection of provider, endpoint, model, parent-SHA, and extra-field mutations;
 - provider-secret and provider-value confinement;
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, and event-correct runner selection.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, and non-persistent authenticated base-ref setup.
 
 Previously executed regressions returned:
 
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The new canonical-marker regression must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history and canonical-marker regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
