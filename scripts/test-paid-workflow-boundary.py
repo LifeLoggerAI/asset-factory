@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import tempfile
+import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -10,6 +11,7 @@ MODULE_PATH = SCRIPT_DIR / "check-paid-workflow-boundary.py"
 spec = importlib.util.spec_from_file_location("check_paid_workflow_boundary", MODULE_PATH)
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 ALLOWED_TEXT = """name: Safe Resume 3
