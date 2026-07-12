@@ -4,133 +4,96 @@
 **Repository:** `LifeLoggerAI/asset-factory`  
 **Replacement branch:** `security/v1-resume-v3-safe-rebase-20260711`  
 **Reconstructed base:** `main@6cd595344fba0fd759579789a3da795c72a12d95`  
-**Release verdict:** **HOLD — FINAL EXACT-HEAD CI, INDEPENDENT REVIEW, MERGE, MERGED-MAIN PREFLIGHT, AND A SEPARATE PAID AUTHORIZATION ARE REQUIRED**
+**Verdict:** **HOLD until unchanged-head CI, independent review, merge, merged-main preflight, and separate paid authorization are complete.**
 
 ## Historical paid-run reconstruction
 
-Authorization `4dc05a67746e189054609e405ca3801683ab5445`, run `29169591028`:
+Four historical authorization commits are covered by the preflight. The two latest historical runs ended before generation:
 
-- authorization succeeded;
-- historical preflight failed;
-- paid execute job was skipped;
-- no retained output artifact exists.
+- marker `4dc05a67746e189054609e405ca3801683ab5445`, run `29169591028`: authorization passed, preflight failed, generation skipped, no retained output artifact;
+- marker `0cf837d585d3d1c1d8e171938037098c72230c22`, run `29170464085`: authorization passed, preflight failed, generation skipped, retained preflight artifact `8253381637` with receipt digest `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
 
-Authorization `0cf837d585d3d1c1d8e171938037098c72230c22`, run `29170464085`:
-
-- authorization succeeded;
-- historical preflight failed;
-- paid execute job was skipped;
-- retained preflight artifact `8253381637`;
-- receipt digest `sha256:94363e853adfb63c802ab0e5c2a532ad9fb393396568d98da9e964615c4b2672`.
-
-Neither run entered provider generation. No provider generation or provider spend is claimed.
-
-## Independent historical artifact inspection
-
-Artifact `8252999073` was independently downloaded and inspected.
+Historical artifact `8252999073` was independently inspected:
 
 - ZIP digest `sha256:6d6f61e9771d983320fb1881beb82523e9e202bb54db5bdbe87b37b59eb31afb`;
-- exactly six JSON manifest files;
-- no budget state, generated image, forge receipt, quality report, drop-in receipt, or Spatial handoff.
+- six JSON manifest files only;
+- no generated images, budget state, forge receipt, quality report, drop-in receipt, or Spatial handoff.
 
-It is source/manifest evidence, not provider-generation evidence.
+No historical provider generation or provider spend is claimed.
 
-## Security and release-control defects removed
+## Removed defects
 
-1. authenticated cross-origin redirect following in historical and post-certification artifact retrieval;
-2. provider secrets outside provider-only steps;
-3. generic ZIP extraction of the seed and generated pack;
-4. unsafe/consumed paid workflows, consumed markers, and curl-based checkers;
-5. incomplete default history coverage;
-6. archive traversal, type, duplicate, portable-collision, size, and count gaps;
-7. missing Home seed metadata sidecar;
-8. stale or incomplete exporter, certifier, invocation, and prompt assertions;
-9. GitHub-expression and static-check false positives;
-10. future v3 marker changes outside both independent guard filters;
-11. broad PR workflows without one shared exact-head trigger;
-12. cleanup without mandatory same-PR linkage or live-head race protection;
-13. credential-free object storage allowed to follow an unvalidated secondary redirect;
-14. cleanup's Actions-write GitHub API calls used default redirect-following;
-15. PR-level concurrency groups allowed an older queued workflow to enter later and cancel newer-head evidence before jobs began;
-16. Ubuntu pull-request jobs remained unassigned while equivalent macOS hosted verification lanes executed normally;
-17. stale macOS cleanup runs could remain ahead of the final macOS verification suite.
+The replacement removes or corrects:
 
-## Replacement security and execution boundary
+1. unsafe cross-origin artifact retrieval;
+2. over-broad provider-secret scope;
+3. generic ZIP extraction;
+4. consumed workflows, markers, and legacy checkers;
+5. incomplete four-marker history coverage;
+6. traversal, type, duplicate, portable-path, size, and member-count gaps;
+7. missing Home seed metadata;
+8. incomplete producer, certifier, invocation, and prompt checks;
+9. marker-only authorization changes that could skip guard workflows;
+10. stale-run cancellation races and unrelated-run cancellation risk;
+11. unvalidated secondary object-storage redirects;
+12. queued old heads cancelling newer evidence through shared concurrency groups;
+13. retained evidence bound to GitHub's synthetic pull-request merge commit instead of the reviewed branch head;
+14. generic Release Readiness artifact names without independent clean-head attestation.
 
-The replacement:
+## Current security and execution boundary
 
-- deletes unsafe/consumed workflows, markers, and checker files;
-- leaves the future v3 marker absent;
-- separates authenticated GitHub API access from credential-free storage access;
-- uses a no-redirect opener for GitHub API, object storage, and cleanup API/cancel requests;
-- validates the single GitHub artifact handoff as HTTPS with a hostname and no user information;
-- rejects any secondary object-storage redirect before reading bytes;
-- sends no Authorization, API-version, cookie, or GitHub credential header to storage;
-- bounds JSON, ZIP, member, total, and member-count sizes and performs atomic mode-0600 writes;
-- safely extracts the Home PNG plus required render metadata and complete canonical packs;
-- rejects traversal, backslashes, drive-like paths, encryption, symlinks, non-regular types, duplicates, and Unicode/case-fold collisions;
-- inspects all four authorization histories explicitly and by CLI default;
-- fails closed on unresolved execution, non-skipped generation, generated-output evidence, incomplete/expired evidence, or technical errors;
-- confines provider credentials to preflight/generation inside protected `paid-asset-generation`;
-- enforces one attempt, 47 provider calls, USD 1 per unit, and USD 47 total;
-- prevents direct Spatial pushes, merge, auto-merge, promotion, or deployment from generation;
-- verifies producer fields, certifier behavior, and the exact post-certification invocation separately;
-- uses this receipt as the shared pull-request trigger for every path-filtered release gate;
-- keys every required workflow and cleanup concurrency group by exact candidate SHA, preventing stale executions from cancelling newer-head evidence;
-- uses explicit cleanup for older heads instead of cross-SHA concurrency cancellation;
-- limits cleanup to same-repository, explicitly same-PR, older-created, older-SHA, nonterminal pull-request runs;
-- validates live repository, branch, event/run/live SHA agreement, rechecks live head before every cancel, and aborts on any head change;
-- excludes current-head/current-run, completed, push, fork, other-branch, other-PR, newer-created, and unlinked runs;
-- runs pull-request-only verification jobs on `macos-latest` where Ubuntu assignment remained blocked, without changing commands, assertions, or artifact requirements;
-- preserves `ubuntu-latest` for push, `main`, workflow-dispatch production behavior, and Firebase deployment;
-- runs only the stale-run queue-drainer on `windows-latest` with Git Bash and the preinstalled Python command, separating queue cleanup from both verification and production runner pools.
+The current branch:
 
-## Executable regression coverage
+- leaves the future v3 paid marker absent;
+- separates authenticated API access from credential-free storage retrieval;
+- rejects unexpected redirects before reading artifact bytes;
+- bounds downloads and extraction and writes files atomically;
+- rejects traversal, encryption, symlinks, non-regular files, duplicate paths, portable Unicode/case collisions, and size/count violations;
+- checks all four historical authorization commits and fails closed on incomplete or ambiguous evidence;
+- confines provider values to the protected provider preflight and generation steps;
+- enforces one attempt, at most 47 new provider calls, at most USD 1 per unit, and at most USD 47 total;
+- prevents generation from directly merging, promoting, deploying, or pushing to Spatial;
+- verifies producer output fields, certifier behavior, and the post-certification invocation independently;
+- isolates every workflow and the cleanup job by exact candidate SHA;
+- limits cleanup to older, nonterminal runs explicitly linked to the same pull request and rechecks the live head before every cancellation;
+- runs pull-request verification on available macOS runners, cleanup on Windows, and preserves Ubuntu for push, main, and deployment behavior;
+- explicitly checks out the reviewed branch head, proves the exact commit identity and clean tree, and scopes retained broad-workflow artifacts to that head.
 
-The branch proves:
+## Artifact-class boundary
 
-- API redirects are rejected except the one validated artifact handoff;
-- storage requests contain no credentials and reject secondary redirects;
-- JSON/archive byte ceilings and safe single-member/full-tree extraction;
-- traversal, symlink, encrypted, duplicate, portable-collision, and oversized archive rejection;
-- exact ordered four-marker history and complete four-run inspection;
-- retirement of unsafe workflows/markers/checkers;
-- provider-secret confinement to exactly two provider-only steps;
-- post-certification handling and exporter/certifier/invocation binding;
-- Life Map, Focus, and Replay spatial prompt contracts;
+Previously retained offline pipeline proofs were independently inspected:
+
+- 47 offline records;
+- 17 unique image hashes and 30 duplicate placeholder outputs;
+- two runs semantically identical after timestamp fields were removed;
+- provider calls executed: `0`.
+
+These files are local/offline smoke evidence only. They are not the final provider-backed 53-output V1 Spatial pack, must not be promoted, and cannot satisfy final asset certification.
+
+## Executable proof coverage
+
+The branch contains executable proof for:
+
+- credential-isolated artifact retrieval and redirect rejection;
+- bounded safe extraction and portable-path collision rejection;
+- exact ordered four-marker history;
+- absence of retired workflows, markers, and checkers;
+- provider-value confinement;
+- post-certification source binding;
+- Life Map, Focus, and Replay prompt contracts;
 - marker-only v3 guard coverage;
-- exact-SHA workflow isolation and race-safe same-PR cleanup;
-- equivalent pull-request verification on available macOS runners while production remains Ubuntu;
-- independent Windows execution of the queue-draining control.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, and race-safe cleanup.
 
-Previously executed source regressions returned:
+Previously executed regressions returned:
 
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-Earlier results validate the test code but do not replace final unchanged-head GitHub evidence.
-
-## Review and workflow repair record
-
-Independent review and exact-head execution identified and corrected all defects listed above. In particular:
-
-- the artifact helper now uses the no-redirect opener for storage and rejects any second hop;
-- the regression suite attempts a storage-to-storage redirect and requires failure without creating an output file;
-- the static gate requires `opener.open(storage_request)`, requires the explicit storage-redirect error, and forbids default `urlopen` for storage;
-- cleanup requires explicit PR linkage, live-head agreement, creation ordering, and no-redirect GitHub API calls;
-- every workflow group includes the exact head SHA, so out-of-order runner assignment cannot cancel current evidence;
-- broad pull-request checks keep the same commands but select `macos-latest` only for pull-request events; push/main and deployment remain Ubuntu;
-- cleanup alone uses Windows, preventing stale cleanup entries in the verification runner pool from blocking the final suite.
-
-Every source repair changes the candidate SHA. Earlier workflow conclusions, artifacts, and reviews are stale and cannot authorize merge.
+Earlier results do not replace final unchanged-head GitHub evidence.
 
 ## Separate authorization rule
 
-The paid workflow listens only for:
-
-`authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json`
-
-That marker is absent. Merging this repair cannot trigger provider generation.
+The future v3 marker remains absent. Merging this repair cannot itself trigger provider generation.
 
 A later one-file protected-main marker requires:
 
@@ -138,17 +101,17 @@ A later one-file protected-main marker requires:
 2. every retained artifact and log inspected;
 3. independent non-author clearance of that exact head;
 4. merge and merged-main four-marker preflight success;
-5. explicit provider, model, credentials, billing, protected-environment, and USD 47 authorization;
+5. explicit provider, model, billing, protected-environment, and USD 47 authorization;
 6. continued absence of duplicate-generation or prior-spend evidence.
 
-## Not yet proven
+## Still unproven
 
-- final exact-head success and independent clearance;
+- final exact-head CI and independent clearance;
 - merged-main preflight success;
-- valid paid credentials/billing authority;
-- any new provider-backed output or complete 53-output pack;
+- valid paid-provider and billing authority;
+- a new provider-backed 53-output pack;
 - final certification, Spatial handoff, activation, deployment, or public verification.
 
 ## Mutation and spend statement
 
-This repair changes source controls and documentation only. It does not create a paid marker, trigger paid generation, call a provider, spend funds, promote assets, deploy, mutate secrets/billing/production data, or activate public assets.
+This repair changes source controls and documentation only. It does not create a paid marker, trigger paid generation, call a provider, spend funds, promote assets, deploy, change billing, change production data, or activate public assets.
