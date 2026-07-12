@@ -26,6 +26,10 @@ WORKFLOW_NAMES = {
     "One-Time V1 AAA Spatial Pack Safe Resume 2",
     "One-Time V1 AAA Spatial Pack Safe Resume 3",
 }
+GENERATION_STEP_NAMES = {
+    "Generate and certify all 53 V1 Spatial outputs",
+    "Generate all 53 V1 Spatial outputs",
+}
 ARTIFACT_PREFIX = "urai-v1-aaa-spatial-pack-"
 MAX_ARTIFACT_BYTES = 1024 * 1024 * 1024
 
@@ -162,14 +166,16 @@ def inspect_history(
                             ],
                         }
                     )
-                    if str(job.get("name", "")).lower() != "execute":
-                        continue
-                    if job.get("status") == "in_progress" or job.get("conclusion") == "success":
+                    is_execute_job = str(job.get("name", "")).lower() == "execute"
+                    if is_execute_job and (
+                        job.get("status") == "in_progress"
+                        or job.get("conclusion") == "success"
+                    ):
                         reasons.append(
                             f"historical execute job {job.get('id')} may have generated outputs"
                         )
                     for step in steps:
-                        if step.get("name") != "Generate all 53 V1 Spatial outputs":
+                        if step.get("name") not in GENERATION_STEP_NAMES:
                             continue
                         status = step.get("status")
                         conclusion = step.get("conclusion")
@@ -189,10 +195,11 @@ def inspect_history(
         )
 
     return {
-        "schemaVersion": "3.1.0",
+        "schemaVersion": "3.2.0",
         "repository": repository,
         "historicalMarkerShas": marker_shas,
         "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
+        "generationStepNames": sorted(GENERATION_STEP_NAMES),
         "matchingRuns": len(records),
         "safeToExecute": not reasons,
         "blockingReasons": sorted(set(reasons)),
@@ -226,10 +233,11 @@ def main() -> int:
         result = inspect_history(args.repository, token, args.api_root, marker_shas)
     except Exception as exc:
         result = {
-            "schemaVersion": "3.1.0",
+            "schemaVersion": "3.2.0",
             "repository": args.repository,
             "historicalMarkerShas": marker_shas,
             "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
+            "generationStepNames": sorted(GENERATION_STEP_NAMES),
             "matchingRuns": 0,
             "safeToExecute": False,
             "blockingReasons": [f"preflight exception: {type(exc).__name__}: {exc}"],
