@@ -9,6 +9,9 @@ on:
       - '.github/asset-forge-triggers/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
@@ -35,6 +38,21 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
 
+      - name: Establish authenticated main reference for doctor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git show-ref --verify --quiet refs/remotes/origin/main; then
+            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\r\n')"
+            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+              fetch --no-tags origin main:refs/remotes/origin/main
+            unset auth
+          fi
+          git show-ref --verify refs/remotes/origin/main
+          test -z "$(git config --local --get-all http.https://github.com/.extraheader || true)"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -57,9 +75,6 @@ jobs:
 
       - name: Install Studio dependencies
         run: npm --prefix assetfactory-studio install
-
-      - name: Fetch main for doctor
-        run: git fetch origin main:refs/remotes/origin/main
 
       - name: Doctor
         env:
