@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Download GitHub Actions artifacts without forwarding API credentials to storage.
 
-GitHub's artifact download endpoint returns a short-lived redirect to object storage.
-The authenticated API request and the unauthenticated storage request are deliberately
-separate so the run-scoped token can never cross origins.
+GitHub's artifact endpoint returns a short-lived object-storage URL. The
+GitHub API request and storage request are separate, both use a no-redirect
+opener, and every redirect boundary is validated or rejected explicitly.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 API_VERSION = "2022-11-28"
-USER_AGENT = "urai-github-artifact-download/1"
+USER_AGENT = "urai-github-artifact-download/2"
 REDIRECT_CODES = {301, 302, 303, 307, 308}
 DEFAULT_MAX_BYTES = 512 * 1024 * 1024
 DEFAULT_MAX_JSON_BYTES = 16 * 1024 * 1024
@@ -133,6 +133,7 @@ def github_api_json(
             payload = _bounded_read(response, max_bytes, "GitHub JSON API")
     except urllib.error.HTTPError as exc:
         if exc.code in REDIRECT_CODES:
+            exc.close()
             raise RuntimeError("unexpected redirect from GitHub JSON API") from exc
         raise
 
@@ -152,7 +153,7 @@ def download_artifact(
     timeout: int = 90,
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> Path:
-    """Download an artifact ZIP using auth only for the GitHub API request."""
+    """Download an artifact ZIP with credentials confined to the API request."""
 
     if not repository or repository.count("/") != 1:
         raise ValueError("repository must use owner/name form")
@@ -201,8 +202,16 @@ def download_artifact(
                 "User-Agent": USER_AGENT,
             },
         )
-        with urllib.request.urlopen(storage_request, timeout=timeout) as response:
-            payload = _bounded_read(response, max_bytes)
+        try:
+            with opener.open(storage_request, timeout=timeout) as response:
+                payload = _bounded_read(response, max_bytes)
+        except urllib.error.HTTPError as storage_exc:
+            if storage_exc.code in REDIRECT_CODES:
+                storage_exc.close()
+                raise RuntimeError(
+                    "unexpected redirect from artifact storage"
+                ) from storage_exc
+            raise
 
     return _atomic_write(Path(output_path), payload)
 
@@ -245,7 +254,7 @@ def _safe_member_parts(filename: str, *, allow_directory: bool) -> tuple[str, ..
 
 
 def _portable_path_key(parts: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalize archive paths for case-insensitive and Unicode-normalizing filesystems."""
+    """Normalize paths for case-insensitive and Unicode-normalizing filesystems."""
 
     return tuple(unicodedata.normalize("NFKC", part.casefold()) for part in parts)
 
@@ -308,7 +317,7 @@ def extract_all_regular_files(
     max_total_bytes: int = DEFAULT_MAX_TOTAL_EXTRACTED_BYTES,
     max_members: int = DEFAULT_MAX_MEMBERS,
 ) -> list[Path]:
-    """Safely extract a bounded ZIP tree containing only regular files/directories."""
+    """Safely extract a bounded ZIP tree containing regular files/directories."""
 
     if max_member_bytes <= 0 or max_total_bytes <= 0 or max_members <= 0:
         raise ValueError("extraction ceilings must be positive")
