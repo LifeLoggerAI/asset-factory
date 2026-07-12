@@ -63,9 +63,14 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     parent_sha = validate_marker_commit(args.commit, args.marker)
+    marker = validate_marker(args.marker, parent_sha)
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"parent_sha={parent_sha}\n")
+            output.write(f"provider={marker['provider']}\n")
+            output.write(f"endpoint={marker['endpoint']}\n")
+            output.write(f"opaque_model={marker['opaqueModel']}\n")
+            output.write(f"alpha_model={marker['alphaModel']}\n")
     print(parent_sha)
     return 0
 
