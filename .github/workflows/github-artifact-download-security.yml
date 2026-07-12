@@ -8,6 +8,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
@@ -25,6 +26,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
@@ -122,6 +124,27 @@ jobs:
           assert 'secrets.OPENAI_API_KEY' in execute_section
           PY
 
+      - name: Verify post-certification download and extraction isolation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
+          required = [
+              'from scripts.github_artifact_download import github_api_json',
+              'scripts/github_artifact_download.py',
+              '--extract-all-directory',
+              '--max-extracted-bytes 67108864',
+              '--max-total-extracted-bytes 536870912',
+              '--max-members 4096',
+          ]
+          for marker in required:
+              assert marker in workflow, marker
+          assert 'curl --fail-with-body --location' not in workflow
+          assert 'unzip -q' not in workflow
+          assert 'Authorization: Bearer' not in workflow
+          PY
+
       - name: Verify validation uses the safe inspector and complete history
         run: |
           python3 - <<'PY'
@@ -132,6 +155,7 @@ jobs:
           assert 'scripts/v1_safe_resume_preflight.py' in validation
           assert 'scripts/test-v1-safe-resume-preflight.py' in validation
           assert '0cf837d585d3d1c1d8e171938037098c72230c22' in validation
+          assert '.github/workflows/v1-aaa-spatial-pack-post-certification.yml' in validation
           PY
 
       - name: Verify authenticated and storage requests are separated
@@ -146,6 +170,9 @@ jobs:
           assert 'X-GitHub-Api-Version' not in storage
           assert 'parsed.scheme != "https"' in source
           assert 'extract_unique_member_by_basename' in source
+          assert 'extract_all_regular_files' in source
+          assert '_safe_member_parts' in source
+          assert 'max_total_bytes' in source
           assert 'file_type != stat.S_IFREG' in source
           PY
 
