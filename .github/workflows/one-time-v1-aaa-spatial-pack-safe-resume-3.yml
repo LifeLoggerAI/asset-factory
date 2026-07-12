@@ -45,13 +45,9 @@ jobs:
           test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
-          test -f "$marker"
-          test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA" | wc -l | tr -d ' ')" = '1'
-          test "$(git diff-tree --no-commit-id --name-status -r "$GITHUB_SHA")" = $'A\tauthorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
-          parent="$(git rev-parse "$GITHUB_SHA^")"
-          python3 scripts/validate_v1_safe_resume_v3_marker.py \
+          python3 scripts/validate_v1_marker_commit.py \
+            --commit "$GITHUB_SHA" \
             --marker "$marker" \
-            --expected-parent-sha "$parent" \
             --github-output "$GITHUB_OUTPUT"
           echo "target_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
@@ -84,10 +80,13 @@ jobs:
             scripts/test-v1-safe-resume-preflight.py \
             scripts/v1_safe_resume_preflight.py \
             scripts/validate_v1_safe_resume_v3_marker.py \
-            scripts/test-v1-safe-resume-v3-marker.py
+            scripts/test-v1-safe-resume-v3-marker.py \
+            scripts/validate_v1_marker_commit.py \
+            scripts/test-v1-marker-commit.py
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-preflight.py
           python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
 
       - name: Inspect all historical attempts and artifacts before spending
         id: inspect
@@ -175,6 +174,7 @@ jobs:
         run: |
           python3 scripts/test-github-artifact-download.py
           python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
 
       - name: Download and safely extract proven provider-backed Home seed
         env:
@@ -224,6 +224,7 @@ jobs:
             scripts/github_artifact_download.py \
             scripts/v1_safe_resume_preflight.py \
             scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/validate_v1_marker_commit.py \
             image_asset_generator/forge_v1_spatial_pack_run.py
           python image_asset_generator/check_canonical_version_contract.py
           python - <<'PY'
