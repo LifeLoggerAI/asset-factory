@@ -45,7 +45,8 @@ The replacement removes or corrects:
 18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch;
 19. automatic Firebase deployment on every verified `main` push when the service-account secret existed;
 20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently;
-21. a second `Deploy Asset Factory` workflow that could still deploy production with a legacy token outside the canonical confirmation, environment, and service-account boundary.
+21. a second `Deploy Asset Factory` workflow that could mutate Firebase outside the canonical production confirmation, environment, and service-account boundary;
+22. a staging-labeled path that still called the production project deployment script.
 
 ## Current security and execution boundary
 
@@ -78,9 +79,10 @@ The current branch:
 - makes ordinary pull-request and `main` push execution verification-only;
 - permits canonical Firebase production deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
 - writes the service account under restrictive permissions and removes the file after canonical production deployment;
-- retires production deployment from the alternate `Deploy Asset Factory` workflow while preserving read-only/authenticated production smoke;
-- permits that alternate workflow to mutate staging only from `main`, only with `deploy=true`, exact `DEPLOY_ASSET_FACTORY_STAGING` confirmation, and the staging environment;
-- statically verifies both the canonical production boundary and the alternate staging-only boundary in `scripts/check-deploy-workflow.mjs`.
+- makes the alternate `.github/workflows/deploy-asset-factory.yml` workflow smoke-only for existing staging or production deployments;
+- removes every deploy input, confirmation, Firebase token, Firebase CLI install, Java setup, and deploy command from that alternate workflow;
+- allows that alternate workflow to run read-only or authenticated smoke checks only, with evidence that explicitly states `Deployment performed: false` and `Firebase mutation allowed: false`;
+- statically rejects any reintroduction of deploy capability in the smoke-only workflow while independently enforcing the canonical production deployment boundary in `scripts/check-deploy-workflow.mjs`.
 
 ## Artifact-class boundary
 
@@ -108,7 +110,7 @@ The branch contains executable proof for:
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical deployment authorization, and alternate staging-only deployment enforcement.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical production authorization, and smoke-only alternate workflow enforcement.
 
 Previously executed regressions returned:
 
@@ -130,7 +132,7 @@ A later one-effective-file protected-main marker requires:
 5. explicit billing and protected-environment approval under the marker-pinned provider/model contract and USD 47 ceiling;
 6. continued absence of duplicate-generation or prior-spend evidence.
 
-A later Firebase production deployment is a separate operation and requires the explicit confirmed canonical dispatch and production environment described above.
+A later Firebase production deployment is a separate operation and requires the explicit confirmed canonical dispatch and production environment described above. The alternate smoke-only workflow can never deploy.
 
 ## Still unproven
 
