@@ -32,6 +32,8 @@ GENERATION_STEP_NAMES = {
 }
 ARTIFACT_PREFIX = "urai-v1-aaa-spatial-pack-"
 MAX_ARTIFACT_BYTES = 1024 * 1024 * 1024
+API_PAGE_SIZE = 100
+MAX_API_PAGES = 1000
 
 
 def _evidence_files(names: list[str]) -> list[str]:
@@ -51,6 +53,24 @@ def _evidence_files(names: list[str]) -> list[str]:
     )
 
 
+def _paged_items(url: str, token: str, key: str) -> list[dict[str, Any]]:
+    """Read every GitHub API page or fail closed if pagination cannot terminate."""
+    items: list[dict[str, Any]] = []
+    separator = "&" if "?" in url else "?"
+    for page in range(1, MAX_API_PAGES + 1):
+        page_url = f"{url}{separator}per_page={API_PAGE_SIZE}&page={page}"
+        payload = github_api_json(page_url, token)
+        page_items = payload.get(key)
+        if not isinstance(page_items, list):
+            raise RuntimeError(f"GitHub API response missing list field {key!r}: {page_url}")
+        items.extend(page_items)
+        if len(page_items) < API_PAGE_SIZE:
+            return items
+    raise RuntimeError(
+        f"GitHub API pagination exceeded {MAX_API_PAGES} pages for {key}: {url}"
+    )
+
+
 def inspect_history(
     repository: str,
     token: str,
@@ -66,9 +86,9 @@ def inspect_history(
         for marker_sha in marker_shas:
             runs_url = (
                 f"{api_root.rstrip('/')}/repos/{repository}/actions/runs"
-                f"?head_sha={marker_sha}&per_page=100"
+                f"?head_sha={marker_sha}"
             )
-            returned = github_api_json(runs_url, token).get("workflow_runs", [])
+            returned = _paged_items(runs_url, token, "workflow_runs")
             relevant = sorted(
                 [run for run in returned if run.get("name") in WORKFLOW_NAMES],
                 key=lambda run: int(run["id"]),
@@ -78,16 +98,18 @@ def inspect_history(
 
             for run in relevant:
                 run_id = int(run["id"])
-                jobs = github_api_json(
+                jobs = _paged_items(
                     f"{api_root.rstrip('/')}/repos/{repository}/actions/runs/"
-                    f"{run_id}/jobs?filter=all&per_page=100",
+                    f"{run_id}/jobs?filter=all",
                     token,
-                ).get("jobs", [])
-                artifacts = github_api_json(
+                    "jobs",
+                )
+                artifacts = _paged_items(
                     f"{api_root.rstrip('/')}/repos/{repository}/actions/runs/"
-                    f"{run_id}/artifacts?per_page=100",
+                    f"{run_id}/artifacts",
                     token,
-                ).get("artifacts", [])
+                    "artifacts",
+                )
 
                 artifact_records: list[dict[str, Any]] = []
                 for artifact in artifacts:
@@ -195,7 +217,7 @@ def inspect_history(
         )
 
     return {
-        "schemaVersion": "3.2.0",
+        "schemaVersion": "3.3.0",
         "repository": repository,
         "historicalMarkerShas": marker_shas,
         "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
@@ -233,7 +255,7 @@ def main() -> int:
         result = inspect_history(args.repository, token, args.api_root, marker_shas)
     except Exception as exc:
         result = {
-            "schemaVersion": "3.2.0",
+            "schemaVersion": "3.3.0",
             "repository": args.repository,
             "historicalMarkerShas": marker_shas,
             "inspectedWorkflowNames": sorted(WORKFLOW_NAMES),
