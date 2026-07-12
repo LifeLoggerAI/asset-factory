@@ -117,6 +117,7 @@ jobs:
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
+      ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
       - name: Require Firebase service account
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
@@ -144,6 +145,7 @@ jobs:
           test '${{ inputs.confirm }}' = 'DEPLOY_ASSET_FACTORY'
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
       - name: Setup Node
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
@@ -180,9 +182,13 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
-      - name: Smoke production finalization endpoints
+      - name: Read-only smoke production finalization endpoints
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        run: npm run smoke:production-finalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          npm run smoke:production-finalization
 
       - name: Remove service-account file
         if: always()
