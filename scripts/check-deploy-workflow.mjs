@@ -4,24 +4,36 @@ import path from 'node:path';
 
 const root = process.cwd();
 const workflowPath = path.join(root, '.github/workflows/deploy-asset-factory.yml');
+const productionReadinessPath = path.join(root, '.github/workflows/production-readiness.yml');
 
 function fail(message) {
   console.error(`FAIL deploy workflow: ${message}`);
   process.exit(1);
 }
 
-if (!fs.existsSync(workflowPath)) {
-  fail('missing .github/workflows/deploy-asset-factory.yml');
+for (const requiredPath of [workflowPath, productionReadinessPath]) {
+  if (!fs.existsSync(requiredPath)) {
+    fail(`missing ${path.relative(root, requiredPath)}`);
+  }
 }
 
 const workflow = fs.readFileSync(workflowPath, 'utf8');
+const productionReadiness = fs.readFileSync(productionReadinessPath, 'utf8');
 
 const requiredPhrases = [
   'name: Deploy Asset Factory',
   'workflow_dispatch:',
-  'environment:',
-  'staging',
-  'production',
+  'confirm:',
+  'DEPLOY_ASSET_FACTORY_STAGING',
+  "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
+  'Checkout exact dispatch commit',
+  'ref: ${{ github.sha }}',
+  'persist-credentials: false',
+  'Verify exact clean dispatch identity',
+  'test "$GITHUB_REF" = refs/heads/main',
+  'Production deployment is retired in this workflow.',
+  'Deploy Firebase Studio to staging',
+  "inputs.deploy && inputs.environment == 'staging'",
   'Use Node.js 22',
   "node-version: '22'",
   'Use Java 21 for Firebase CLI',
@@ -36,7 +48,6 @@ const requiredPhrases = [
   'ASSET_FACTORY_BEARER_TOKEN',
   'ASSET_FACTORY_OTHER_BEARER_TOKEN',
   'CRON_SECRET',
-  'Deploy Firebase Studio',
   'npm run deploy:studio',
   'https://staging.uraiassetfactory.com',
   'https://urai-4dc1d.web.app',
@@ -47,10 +58,10 @@ const requiredPhrases = [
   'npm run smoke:website',
   'npm run smoke:staging',
   'npm run smoke:prod',
-  'Deploy command: npm run deploy:studio',
+  'Deploy allowed by this workflow: staging only',
+  'Production deploy workflow: Asset Factory Production Readiness',
+  'Production deployment retired from this workflow: true',
   'Two-token support isolation smoke required: true',
-  'Node runtime: 22',
-  'Java runtime: 21',
   'Upload release evidence',
   'actions/upload-artifact@v4',
   'This artifact is a workflow run summary, not final completion-lock evidence.',
@@ -70,10 +81,38 @@ for (const phrase of requiredPhrases) {
   }
 }
 
+const canonicalProductionPhrases = [
+  'name: Asset Factory Production Readiness',
+  'workflow_dispatch:',
+  "confirm == 'DEPLOY_ASSET_FACTORY'",
+  'environment: asset-factory-production',
+  'FIREBASE_SERVICE_ACCOUNT',
+  'github.ref == \'refs/heads/main\'',
+  'Remove service-account file'
+];
+for (const phrase of canonicalProductionPhrases) {
+  if (!productionReadiness.includes(phrase)) {
+    fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
+  }
+}
+
+const deploySection = workflow
+  .split('- name: Deploy Firebase Studio to staging', 2)[1]
+  ?.split('- name: Read-only smoke', 1)[0];
+if (!deploySection) {
+  fail('cannot isolate staging deploy step');
+}
+if (!deploySection.includes("inputs.deploy && inputs.environment == 'staging'")) {
+  fail('staging deploy step is not restricted to the staging target');
+}
+if (deploySection.includes("inputs.environment == 'production'")) {
+  fail('alternate workflow contains a production deploy condition');
+}
+
 const forbiddenPhrases = [
-  'ASSET_FACTORY_TENANT_ID: smoke-tenant-a\n          ASSET_FACTORY_OTHER_TENANT_ID: smoke-tenant-b\n        run: |\n          if [ "${{ inputs.environment }}" = "production" ]',
+  'environment: ${{ inputs.environment }}',
+  '- name: Deploy Firebase Studio\n        if: ${{ inputs.deploy }}',
   'npm run deploy:firebase -- --token',
-  'Use Node.js 20\n        uses: actions/setup-node@v4\n        with:\n          node-version: \'20.19.0\'',
   'fully production ready',
   'system of systems complete',
   'WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke',
