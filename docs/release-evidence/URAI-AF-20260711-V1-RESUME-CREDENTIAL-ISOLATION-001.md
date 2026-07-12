@@ -44,7 +44,8 @@ The replacement removes or corrects:
 17. paid endpoint and model values supplied by mutable secrets rather than the authorization marker;
 18. Production Readiness dropping checkout credentials before a required private-repository `main` fetch;
 19. automatic Firebase deployment on every verified `main` push when the service-account secret existed;
-20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently.
+20. marker detection that was not first-parent merge aware, allowing guards to miss marker changes in normal merge commits while the authorizer rejected them inconsistently;
+21. a second `Deploy Asset Factory` workflow that could still deploy production with a legacy token outside the canonical confirmation, environment, and service-account boundary.
 
 ## Current security and execution boundary
 
@@ -75,8 +76,11 @@ The current branch:
 - explicitly checks out the reviewed branch head, proves exact identity and a clean tree, and scopes retained broad-workflow artifacts to that head;
 - establishes `origin/main` before dependency installation and uses a step-scoped read token only if needed, without persisting credentials in git config;
 - makes ordinary pull-request and `main` push execution verification-only;
-- permits Firebase deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
-- writes the service account under restrictive permissions and removes the file after deployment.
+- permits canonical Firebase production deployment only through a deliberate `workflow_dispatch` on `main` with boolean authorization, exact confirmation `DEPLOY_ASSET_FACTORY`, the `asset-factory-production` environment, and a configured service-account secret;
+- writes the service account under restrictive permissions and removes the file after canonical production deployment;
+- retires production deployment from the alternate `Deploy Asset Factory` workflow while preserving read-only/authenticated production smoke;
+- permits that alternate workflow to mutate staging only from `main`, only with `deploy=true`, exact `DEPLOY_ASSET_FACTORY_STAGING` confirmation, and the staging environment;
+- statically verifies both the canonical production boundary and the alternate staging-only boundary in `scripts/check-deploy-workflow.mjs`.
 
 ## Artifact-class boundary
 
@@ -104,14 +108,14 @@ The branch contains executable proof for:
 - valid marker-only push lifecycle in both guards and V1 integrity;
 - post-certification source binding;
 - Life Map, Focus, and Replay prompt contracts;
-- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, and explicit deployment authorization.
+- exact-head checkout, clean-tree identity, SHA-scoped evidence, race-safe cleanup, event-correct runners, non-persistent base-ref authentication, canonical deployment authorization, and alternate staging-only deployment enforcement.
 
 Previously executed regressions returned:
 
 - `PASS GitHub artifact redirect and extraction isolation`
 - `PASS default four-marker preflight regression`
 
-The expanded history, canonical-marker, and merge-aware marker-commit regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
+The expanded history, canonical-marker, merge-aware marker-commit, and deploy-boundary regressions must pass on the final unchanged GitHub head. Earlier results do not replace final evidence.
 
 ## Separate authorization rule
 
@@ -126,7 +130,7 @@ A later one-effective-file protected-main marker requires:
 5. explicit billing and protected-environment approval under the marker-pinned provider/model contract and USD 47 ceiling;
 6. continued absence of duplicate-generation or prior-spend evidence.
 
-A later Firebase production deployment is a separate operation and requires the explicit confirmed dispatch and production environment described above.
+A later Firebase production deployment is a separate operation and requires the explicit confirmed canonical dispatch and production environment described above.
 
 ## Still unproven
 
