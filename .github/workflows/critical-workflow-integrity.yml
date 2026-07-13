@@ -5,6 +5,8 @@ on:
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
@@ -13,6 +15,8 @@ on:
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
