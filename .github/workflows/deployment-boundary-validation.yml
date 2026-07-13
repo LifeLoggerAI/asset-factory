@@ -1,0 +1,140 @@
+name: Asset Factory Deployment Boundary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/deployment-boundary-validation.yml
+      - .github/workflows/deploy-asset-factory.yml
+      - .github/workflows/production-readiness.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-forge-trigger.yml
+      - .github/workflows/v1-aaa-asset-forge.yml
+      - .github/workflows/patch-and-run-v1-forge.yml
+      - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/owner-issue-one-paid-v1-smoke.yml
+      - .github/workflows/versioned-aaa-asset-forge.yml
+      - .github/workflows/v2-living-state-forge.yml
+      - .github/workflows/final-v1-avatar-extension.yml
+      - .github/workflows/dispatch-one-paid-v1-smoke.yml
+      - .github/workflows/dispatch-canonical-v2-v5-wave.yml
+      - .github/workflows/rerun-v1-now.yml
+      - .github/workflows/rerun-v2-now.yml
+      - .github/workflows/rerun-v3-now.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
+      - scripts/check-deploy-workflow.mjs
+      - scripts/check-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-boundary.py
+      - scripts/smoke-asset-factory-remote.mjs
+      - scripts/smoke-production-finalization.mjs
+      - scripts/test-smoke-readonly-boundary.mjs
+      - package.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deployment-boundary-validation.yml
+      - .github/workflows/deploy-asset-factory.yml
+      - .github/workflows/production-readiness.yml
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-forge-trigger.yml
+      - .github/workflows/v1-aaa-asset-forge.yml
+      - .github/workflows/patch-and-run-v1-forge.yml
+      - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/owner-issue-one-paid-v1-smoke.yml
+      - .github/workflows/versioned-aaa-asset-forge.yml
+      - .github/workflows/v2-living-state-forge.yml
+      - .github/workflows/final-v1-avatar-extension.yml
+      - .github/workflows/dispatch-one-paid-v1-smoke.yml
+      - .github/workflows/dispatch-canonical-v2-v5-wave.yml
+      - .github/workflows/rerun-v1-now.yml
+      - .github/workflows/rerun-v2-now.yml
+      - .github/workflows/rerun-v3-now.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
+      - scripts/check-deploy-workflow.mjs
+      - scripts/check-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-boundary.py
+      - scripts/smoke-asset-factory-remote.mjs
+      - scripts/smoke-production-finalization.mjs
+      - scripts/test-smoke-readonly-boundary.mjs
+      - package.json
+      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asset-factory-deployment-boundary-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  verify:
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate canonical production and smoke-only boundaries
+        run: node scripts/check-deploy-workflow.mjs
+
+      - name: Validate sole paid marker workflow boundary
+        run: |
+          python3 scripts/check-paid-workflow-boundary.py
+          python3 scripts/test-paid-workflow-boundary.py
+
+      - name: Execute read-only smoke behavior regression
+        run: node scripts/test-smoke-readonly-boundary.mjs
+
+      - name: Verify smoke workflow is read-only and contains no mutation capability
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/deploy-asset-factory.yml
+          grep -q "ASSET_FACTORY_SMOKE_READONLY: 'true'" "$workflow"
+          grep -q 'Authenticated read-only smoke' "$workflow"
+          test "$(grep -F -c 'test "$ASSET_FACTORY_SMOKE_READONLY" = true' "$workflow")" -ge 2
+          grep -q 'Read-only smoke enforced globally: true' "$workflow"
+          grep -q 'Firebase mutation allowed: false' "$workflow"
+          ! grep -Eq '(^|[[:space:]])deploy:' "$workflow"
+          ! grep -q 'FIREBASE_TOKEN' "$workflow"
+          ! grep -q 'FIREBASE_SERVICE_ACCOUNT' "$workflow"
+          ! grep -q 'firebase deploy' "$workflow"
+          ! grep -q 'npm run deploy:' "$workflow"
+
+      - name: Verify canonical production post-deploy smoke is read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/production-readiness.yml
+          deploy_section="$(sed -n '/^  deploy:/,$p' "$workflow")"
+          grep -q "ASSET_FACTORY_SMOKE_READONLY: 'true'" <<<"$deploy_section"
+          grep -q 'Read-only smoke production finalization endpoints' <<<"$deploy_section"
+          grep -F -q 'test "$ASSET_FACTORY_SMOKE_READONLY" = true' <<<"$deploy_section"
+          ! grep -q 'name: Smoke production finalization endpoints' <<<"$deploy_section"
+
+      - name: Final clean-tree proof
+        run: test -z "$(git status --porcelain --untracked-files=all)"

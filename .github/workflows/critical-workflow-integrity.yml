@@ -3,34 +3,39 @@ name: Critical Workflow Integrity
 on:
   pull_request:
     paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
+      - scripts/check-paid-workflow-boundary.py
   push:
     branches: [main]
     paths:
+      - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/canonical-version-forge.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
+      - scripts/check-paid-workflow-boundary.py
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: critical-workflow-integrity-${{ github.ref }}
+  group: critical-workflow-integrity-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
   verify-critical-workflows:
-    # Cross-runner diagnostic 29155961477 proved macOS/Windows assignment while
-    # the equivalent ubuntu-latest job remained unassigned. This no-secret,
-    # platform-neutral static gate uses macOS until Ubuntu runner service recovers.
-    runs-on: macos-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -42,9 +47,12 @@ jobs:
           set -euo pipefail
           expected='${{ github.event.pull_request.head.sha || github.sha }}'
           test "$(git rev-parse HEAD)" = "$expected"
-          test -z "$(git status --porcelain)"
-          echo "- verified candidate SHA: $expected" >> "$GITHUB_STEP_SUMMARY"
-          echo '- runner workaround: macos-latest; ubuntu-latest remains independently blocked' >> "$GITHUB_STEP_SUMMARY"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
-      - name: Reject mutable critical action references
-        run: python3 scripts/check-critical-workflow-pins.py
+      - name: Verify pinned sole paid workflow
+        run: |
+          python3 scripts/check-critical-workflow-pins.py
+          python3 scripts/check-paid-workflow-boundary.py
+
+      - name: Final clean-tree proof
+        run: test -z "$(git status --porcelain --untracked-files=all)"

@@ -8,16 +8,61 @@ on:
     paths-ignore:
       - '.github/asset-forge-triggers/**'
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Run the Firebase production deployment after verification'
+        required: true
+        type: boolean
+        default: false
+      confirm:
+        description: 'Type DEPLOY_ASSET_FACTORY to authorize deployment'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   verify:
     name: Build, typecheck, and verify
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Establish authenticated main reference for doctor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git show-ref --verify --quiet refs/remotes/origin/main; then
+            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\r\n')"
+            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+              fetch --no-tags origin main:refs/remotes/origin/main
+            unset auth
+          fi
+          git show-ref --verify refs/remotes/origin/main
+          test -z "$(git config --local --get-all http.https://github.com/.extraheader || true)"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -42,9 +87,6 @@ jobs:
       - name: Install Studio dependencies
         run: npm --prefix assetfactory-studio install
 
-      - name: Fetch main for doctor
-        run: git fetch origin main:refs/remotes/origin/main
-
       - name: Doctor
         env:
           ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
@@ -66,10 +108,16 @@ jobs:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
     needs: verify
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.deploy == true &&
+      inputs.confirm == 'DEPLOY_ASSET_FACTORY'
+    environment: asset-factory-production
     env:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
+      ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
       - name: Require Firebase service account
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
@@ -78,9 +126,26 @@ jobs:
           echo "Add it in GitHub repo Settings -> Secrets and variables -> Actions before production deploy."
           exit 1
 
-      - name: Checkout
+      - name: Checkout exact main candidate
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean main identity
+        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test '${{ inputs.deploy }}' = 'true'
+          test '${{ inputs.confirm }}' = 'DEPLOY_ASSET_FACTORY'
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
       - name: Setup Node
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
@@ -105,7 +170,11 @@ jobs:
 
       - name: Write service account
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        run: echo "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Deploy
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
@@ -113,6 +182,15 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
-      - name: Smoke production finalization endpoints
+      - name: Read-only smoke production finalization endpoints
         if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        run: npm run smoke:production-finalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          npm run smoke:production-finalization
+
+      - name: Remove service-account file
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"

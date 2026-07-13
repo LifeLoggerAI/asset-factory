@@ -4,11 +4,29 @@ on:
   workflow_dispatch:
   pull_request:
 
+concurrency:
+  group: urai-production-verify-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - uses: actions/setup-node@v4
         with:
           node-version: '20.19.0'

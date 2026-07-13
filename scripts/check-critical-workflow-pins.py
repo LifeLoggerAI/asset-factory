@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when a spend/promotion-critical workflow uses mutable actions."""
+"""Fail closed when the sole spend-critical workflow uses mutable actions or weak authorization."""
 
 from __future__ import annotations
 
@@ -8,7 +8,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_WORKFLOWS = [Path('.github/workflows/canonical-version-forge.yml')]
+DEFAULT_WORKFLOWS = [
+    Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml')
+]
 FULL_SHA = re.compile(r'^[0-9a-f]{40}$')
 USES_LINE = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
 
@@ -32,18 +34,30 @@ def check_remote_uses(path: Path, text: str) -> None:
             fail(f'{path}: mutable or non-SHA action reference: {reference}')
 
 
-def check_paid_forge_contract(path: Path, text: str) -> None:
+def check_v3_marker_contract(path: Path, text: str) -> None:
     required_fragments = {
+        'canonical marker trigger': 'authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
+        'push-only event': '\n  push:',
+        'protected main branch': 'branches: [main]',
         'protected paid environment': 'environment: paid-asset-generation',
         'exact main ref check': 'test "$GITHUB_REF" = refs/heads/main',
         'exact checked-out source check': 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"',
-        'promotion defaults disabled': "promote:\n        description: 'Open a Spatial promotion PR after complete certification'\n        required: true\n        type: boolean\n        default: false",
-        'spatial base identity': 'SPATIAL_BASE_SHA',
-        'promotion is review only': 'Promotion remains review-only and is never auto-merged.',
+        'shared merge-aware validator': 'scripts/validate_v1_marker_commit.py',
+        'complete history preflight': 'scripts/v1_safe_resume_preflight.py',
+        'one-attempt limit': "test \"$GITHUB_RUN_ATTEMPT\" = '1'",
+        '47-call ceiling': "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
+        '47-dollar ceiling': "ASSET_FORGE_MAX_COST_USD: '47.00'",
+        'pinned OpenAI endpoint': "test \"$ASSET_RENDERER_ENDPOINT\" = 'https://api.openai.com/v1/images/generations'",
+        'no Spatial token': 'test -z "${URAI_WHEEL_GITHUB_TOKEN:-}"',
+        'read-only contents permission': 'contents: read',
     }
     missing = [label for label, fragment in required_fragments.items() if fragment not in text]
     if missing:
         fail(f'{path}: missing critical controls: {", ".join(missing)}')
+
+    for forbidden in ('workflow_dispatch:', 'repository_dispatch:', '\n  issues:', 'git push origin'):
+        if forbidden in text:
+            fail(f'{path}: forbidden alternate trigger or direct promotion path: {forbidden!r}')
 
 
 def main(argv: list[str]) -> int:
@@ -54,8 +68,8 @@ def main(argv: list[str]) -> int:
             fail(f'missing critical workflow: {relative}')
         text = path.read_text(encoding='utf-8')
         check_remote_uses(relative, text)
-        if relative.as_posix().endswith('canonical-version-forge.yml'):
-            check_paid_forge_contract(relative, text)
+        if relative == DEFAULT_WORKFLOWS[0]:
+            check_v3_marker_contract(relative, text)
         print(f'workflow-integrity: verified {relative}')
     return 0
 

@@ -8,6 +8,7 @@ on:
       - "scripts/plan_versioned_forge.py"
       - "package.json"
       - ".github/workflows/image-asset-generator.yml"
+      - "docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md"
   push:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - "scripts/plan_versioned_forge.py"
       - "package.json"
       - ".github/workflows/image-asset-generator.yml"
+      - "docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md"
   workflow_dispatch:
     inputs:
       action:
@@ -36,17 +38,31 @@ permissions:
   contents: read
 
 concurrency:
-  group: image-asset-validation-${{ github.ref }}
+  group: image-asset-validation-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   validate-contract:
     name: Validate manifests, version contract, and paid-forge gates
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -82,7 +98,7 @@ jobs:
       - name: Upload validation and cost-control evidence
         uses: actions/upload-artifact@v4
         with:
-          name: urai-image-validation-${{ github.sha }}
+          name: urai-image-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}
           retention-days: 30
           if-no-files-found: error
           path: |
@@ -103,8 +119,19 @@ jobs:
       ASSET_FORGE_REQUIRE_PROVIDER: "0"
       ASSET_QUALITY_REQUIRE_PROVIDER: "0"
     steps:
-      - name: Checkout
+      - name: Checkout exact candidate
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -120,7 +147,7 @@ jobs:
       - name: Upload local-only artifact
         uses: actions/upload-artifact@v4
         with:
-          name: urai-local-image-asset-pack-${{ github.run_id }}
+          name: urai-local-image-asset-pack-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           retention-days: 7
           if-no-files-found: error
           path: |

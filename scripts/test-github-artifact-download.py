@@ -1,0 +1,392 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import importlib.util
+import stat
+import tempfile
+import urllib.error
+import zipfile
+from email.message import Message
+from pathlib import Path
+from unittest import mock
+
+MODULE_PATH = Path(__file__).with_name("github_artifact_download.py")
+spec = importlib.util.spec_from_file_location("github_artifact_download", MODULE_PATH)
+assert spec and spec.loader
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+class FakeResponse:
+    def __init__(self, payload: bytes, *, content_length: int | None = None):
+        self.payload = payload
+        self.headers = Message()
+        if content_length is not None:
+            self.headers["Content-Length"] = str(content_length)
+
+    def read(self, amount: int | None = None) -> bytes:
+        if amount is None:
+            return self.payload
+        return self.payload[:amount]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+class Redirect:
+    def __init__(self, location: str, code: int = 302):
+        self.location = location
+        self.code = code
+
+
+class ScriptedOpener:
+    def __init__(self, outcomes):
+        self.outcomes = list(outcomes)
+        self.requests = []
+
+    def open(self, request, timeout=0):
+        self.requests.append(request)
+        if not self.outcomes:
+            raise AssertionError("unexpected opener call")
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Redirect):
+            headers = Message()
+            headers["Location"] = outcome.location
+            raise urllib.error.HTTPError(
+                request.full_url,
+                outcome.code,
+                "Found",
+                headers,
+                None,
+            )
+        return outcome
+
+
+def header_map(request) -> dict[str, str]:
+    return {key.lower(): value for key, value in request.header_items()}
+
+
+def test_redirect_strips_credentials() -> None:
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/signed/artifact.zip?sig=abc"),
+            FakeResponse(b"ZIP-BYTES", content_length=9),
+        ]
+    )
+
+    with tempfile.TemporaryDirectory() as directory:
+        output = Path(directory) / "artifact.zip"
+        with mock.patch.object(
+            module.urllib.request, "build_opener", return_value=opener
+        ):
+            module.download_artifact(
+                "LifeLoggerAI/asset-factory",
+                123,
+                "run-scoped-secret",
+                output,
+                max_bytes=100,
+            )
+
+        assert output.read_bytes() == b"ZIP-BYTES"
+        assert stat.S_IMODE(output.stat().st_mode) == 0o600
+
+    assert len(opener.requests) == 2
+    api_headers = header_map(opener.requests[0])
+    assert api_headers["authorization"] == "Bearer run-scoped-secret"
+    assert opener.requests[0].full_url.startswith("https://api.github.com/")
+
+    storage_headers = header_map(opener.requests[1])
+    assert "authorization" not in storage_headers
+    assert "x-github-api-version" not in storage_headers
+    assert "cookie" not in storage_headers
+    assert opener.requests[1].full_url.startswith("https://storage.example.test/")
+
+
+def test_non_https_redirect_is_rejected() -> None:
+    opener = ScriptedOpener([Redirect("http://storage.example.test/artifact.zip")])
+    with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+        module.urllib.request, "build_opener", return_value=opener
+    ):
+        try:
+            module.download_artifact(
+                "LifeLoggerAI/asset-factory",
+                123,
+                "secret",
+                Path(directory) / "artifact.zip",
+            )
+        except RuntimeError as exc:
+            assert "HTTPS" in str(exc)
+        else:
+            raise AssertionError("non-HTTPS redirect was accepted")
+    assert len(opener.requests) == 1
+
+
+def test_storage_redirect_is_rejected() -> None:
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/artifact.zip"),
+            Redirect("https://other-storage.example.test/artifact.zip"),
+        ]
+    )
+    with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+        module.urllib.request, "build_opener", return_value=opener
+    ):
+        output = Path(directory) / "artifact.zip"
+        try:
+            module.download_artifact(
+                "LifeLoggerAI/asset-factory",
+                123,
+                "secret",
+                output,
+            )
+        except RuntimeError as exc:
+            assert "artifact storage" in str(exc)
+        else:
+            raise AssertionError("secondary storage redirect was accepted")
+        assert not output.exists()
+
+    assert len(opener.requests) == 2
+    storage_headers = header_map(opener.requests[1])
+    assert "authorization" not in storage_headers
+    assert "x-github-api-version" not in storage_headers
+
+
+def test_byte_ceiling_is_enforced() -> None:
+    opener = ScriptedOpener(
+        [
+            Redirect("https://storage.example.test/artifact.zip"),
+            FakeResponse(b"0123456789", content_length=10),
+        ]
+    )
+    with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+        module.urllib.request, "build_opener", return_value=opener
+    ):
+        try:
+            module.download_artifact(
+                "LifeLoggerAI/asset-factory",
+                123,
+                "secret",
+                Path(directory) / "artifact.zip",
+                max_bytes=5,
+            )
+        except RuntimeError as exc:
+            assert "byte ceiling" in str(exc)
+        else:
+            raise AssertionError("oversized artifact was accepted")
+
+
+def test_json_api_rejects_redirects() -> None:
+    opener = ScriptedOpener([Redirect("https://storage.example.test/not-json")])
+    with mock.patch.object(module.urllib.request, "build_opener", return_value=opener):
+        try:
+            module.github_api_json("https://api.github.com/example", "secret")
+        except RuntimeError as exc:
+            assert "unexpected redirect" in str(exc)
+        else:
+            raise AssertionError("JSON API redirect was accepted")
+
+
+def test_unique_member_extraction_ignores_archive_path() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "seed"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../../nested/home-threshold-main_1600.png", b"PNG-DATA")
+        extracted = module.extract_unique_member_by_basename(
+            archive,
+            "home-threshold-main_1600.png",
+            output,
+            max_bytes=100,
+        )
+        assert extracted == output / "home-threshold-main_1600.png"
+        assert extracted.read_bytes() == b"PNG-DATA"
+        assert stat.S_IMODE(extracted.stat().st_mode) == 0o600
+        assert not (root.parent / "home-threshold-main_1600.png").exists()
+
+
+def test_duplicate_member_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a/seed.png", b"A")
+            bundle.writestr("b/seed.png", b"B")
+        try:
+            module.extract_unique_member_by_basename(archive, "seed.png", root / "out")
+        except RuntimeError as exc:
+            assert "exactly one" in str(exc)
+        else:
+            raise AssertionError("duplicate archive basename was accepted")
+
+
+def test_symlink_member_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        member = zipfile.ZipInfo("seed.png")
+        member.create_system = 3
+        member.external_attr = (stat.S_IFLNK | 0o777) << 16
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(member, "../../outside")
+        try:
+            module.extract_unique_member_by_basename(archive, "seed.png", root / "out")
+        except RuntimeError as exc:
+            assert "regular file" in str(exc)
+        else:
+            raise AssertionError("symlink archive member was accepted")
+
+
+def test_extracted_byte_ceiling_is_enforced() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("seed.png", b"0123456789")
+        try:
+            module.extract_unique_member_by_basename(
+                archive,
+                "seed.png",
+                root / "out",
+                max_bytes=5,
+            )
+        except RuntimeError as exc:
+            assert "byte ceiling" in str(exc)
+        else:
+            raise AssertionError("oversized extracted member was accepted")
+
+
+def test_full_tree_extraction_preserves_safe_paths() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "pack"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("manifests/pack.json", b"{}")
+            bundle.writestr("images/home.png", b"PNG")
+        extracted = module.extract_all_regular_files(
+            archive,
+            output,
+            max_member_bytes=100,
+            max_total_bytes=200,
+            max_members=10,
+        )
+        assert extracted == [
+            output.resolve() / "manifests" / "pack.json",
+            output.resolve() / "images" / "home.png",
+        ]
+        assert (output / "manifests" / "pack.json").read_bytes() == b"{}"
+        assert (output / "images" / "home.png").read_bytes() == b"PNG"
+        assert stat.S_IMODE((output / "images" / "home.png").stat().st_mode) == 0o600
+
+
+def test_full_tree_path_traversal_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../outside.txt", b"NO")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "canonical" in str(exc)
+        else:
+            raise AssertionError("path traversal member was accepted")
+        assert not (root / "outside.txt").exists()
+
+
+def test_full_tree_symlink_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        member = zipfile.ZipInfo("images/link.png")
+        member.create_system = 3
+        member.external_attr = (stat.S_IFLNK | 0o777) << 16
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(member, "../../outside")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "regular file" in str(exc)
+        else:
+            raise AssertionError("full-tree symlink was accepted")
+
+
+def test_full_tree_total_ceiling_is_enforced() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a.bin", b"12345")
+            bundle.writestr("b.bin", b"67890")
+        try:
+            module.extract_all_regular_files(
+                archive,
+                root / "pack",
+                max_member_bytes=10,
+                max_total_bytes=9,
+            )
+        except RuntimeError as exc:
+            assert "total extracted byte ceiling" in str(exc)
+        else:
+            raise AssertionError("oversized extracted tree was accepted")
+
+
+def test_full_tree_duplicate_path_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("a/file.txt", b"A")
+            bundle.writestr("a/file.txt", b"B")
+        try:
+            module.extract_all_regular_files(archive, root / "pack")
+        except RuntimeError as exc:
+            assert "duplicate path" in str(exc)
+        else:
+            raise AssertionError("duplicate full-tree path was accepted")
+
+
+def test_full_tree_portable_path_collision_is_rejected() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        archive = root / "artifact.zip"
+        output = root / "pack"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("Images/a.png", b"A")
+            bundle.writestr("images/a.png", b"B")
+        try:
+            module.extract_all_regular_files(archive, output)
+        except RuntimeError as exc:
+            assert "portable path collision" in str(exc)
+        else:
+            raise AssertionError("case-folding full-tree collision was accepted")
+        assert not (output / "Images" / "a.png").exists()
+        assert not (output / "images" / "a.png").exists()
+
+
+def main() -> int:
+    test_redirect_strips_credentials()
+    test_non_https_redirect_is_rejected()
+    test_storage_redirect_is_rejected()
+    test_byte_ceiling_is_enforced()
+    test_json_api_rejects_redirects()
+    test_unique_member_extraction_ignores_archive_path()
+    test_duplicate_member_is_rejected()
+    test_symlink_member_is_rejected()
+    test_extracted_byte_ceiling_is_enforced()
+    test_full_tree_extraction_preserves_safe_paths()
+    test_full_tree_path_traversal_is_rejected()
+    test_full_tree_symlink_is_rejected()
+    test_full_tree_total_ceiling_is_enforced()
+    test_full_tree_duplicate_path_is_rejected()
+    test_full_tree_portable_path_collision_is_rejected()
+    print("PASS GitHub artifact redirect and extraction isolation")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

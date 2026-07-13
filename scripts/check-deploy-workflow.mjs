@@ -3,41 +3,34 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-const workflowPath = path.join(root, '.github/workflows/deploy-asset-factory.yml');
+const smokeWorkflowPath = path.join(root, '.github/workflows/deploy-asset-factory.yml');
+const productionReadinessPath = path.join(root, '.github/workflows/production-readiness.yml');
 
 function fail(message) {
   console.error(`FAIL deploy workflow: ${message}`);
   process.exit(1);
 }
 
-if (!fs.existsSync(workflowPath)) {
-  fail('missing .github/workflows/deploy-asset-factory.yml');
+for (const requiredPath of [smokeWorkflowPath, productionReadinessPath]) {
+  if (!fs.existsSync(requiredPath)) {
+    fail(`missing ${path.relative(root, requiredPath)}`);
+  }
 }
 
-const workflow = fs.readFileSync(workflowPath, 'utf8');
+const smokeWorkflow = fs.readFileSync(smokeWorkflowPath, 'utf8');
+const productionReadiness = fs.readFileSync(productionReadinessPath, 'utf8');
 
-const requiredPhrases = [
-  'name: Deploy Asset Factory',
+const smokeRequired = [
+  'name: Verify Deployed Asset Factory',
   'workflow_dispatch:',
-  'environment:',
-  'staging',
-  'production',
-  'Use Node.js 22',
-  "node-version: '22'",
-  'Use Java 21 for Firebase CLI',
-  "java-version: '21'",
-  'npm run doctor',
-  'npm run test:launch-readiness',
-  'npm run test:completion-lock',
-  'npm run verify:local',
-  'Validate required secrets',
-  'FIREBASE_TOKEN',
-  'ASSET_FACTORY_API_KEY',
-  'ASSET_FACTORY_BEARER_TOKEN',
-  'ASSET_FACTORY_OTHER_BEARER_TOKEN',
-  'CRON_SECRET',
-  'Deploy Firebase Studio',
-  'npm run deploy:studio',
+  'description: Existing deployed target to verify',
+  "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
+  'Checkout exact dispatch commit',
+  'ref: ${{ github.sha }}',
+  'persist-credentials: false',
+  'Verify exact clean dispatch identity and smoke-only boundary',
+  "ASSET_FACTORY_SMOKE_READONLY: 'true'",
+  'Deploy workflow boundary gate',
   'https://staging.uraiassetfactory.com',
   'https://urai-4dc1d.web.app',
   'prod-smoke',
@@ -45,47 +38,109 @@ const requiredPhrases = [
   'smoke-tenant-a',
   'smoke-tenant-b',
   'npm run smoke:website',
+  'Authenticated read-only smoke',
   'npm run smoke:staging',
   'npm run smoke:prod',
-  'Deploy command: npm run deploy:studio',
-  'Two-token support isolation smoke required: true',
-  'Node runtime: 22',
-  'Java runtime: 21',
-  'Upload release evidence',
+  'test "$ASSET_FACTORY_SMOKE_READONLY" = true',
+  'Deployment performed: false',
+  'Production deploy workflow: Asset Factory Production Readiness',
+  'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
+  'Read-only smoke enforced globally: true',
+  'Authenticated read-only smoke requested:',
+  'Firebase mutation allowed: false',
+  'Upload smoke evidence',
   'actions/upload-artifact@v4',
-  'This artifact is a workflow run summary, not final completion-lock evidence.',
-  'Evidence artifact type: workflow run summary (not final completion-lock evidence)',
-  'Workflow run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}',
+  'This artifact verifies an existing deployment. It performs no Firebase deployment',
   'Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
   'Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md',
-  'Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md',
-  'Latest evidence validator command: npm run check:release-evidence:latest',
-  'copy concrete evidence into docs/release-evidence/YYYY-MM-DD-environment.md',
-  'only update the completion lock after staging and production evidence pass'
+  'Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md'
 ];
 
-for (const phrase of requiredPhrases) {
-  if (!workflow.includes(phrase)) {
-    fail(`missing required phrase ${JSON.stringify(phrase)}`);
+for (const phrase of smokeRequired) {
+  if (!smokeWorkflow.includes(phrase)) {
+    fail(`smoke-only workflow missing ${JSON.stringify(phrase)}`);
   }
 }
 
-const forbiddenPhrases = [
-  'ASSET_FACTORY_TENANT_ID: smoke-tenant-a\n          ASSET_FACTORY_OTHER_TENANT_ID: smoke-tenant-b\n        run: |\n          if [ "${{ inputs.environment }}" = "production" ]',
-  'npm run deploy:firebase -- --token',
-  'Use Node.js 20\n        uses: actions/setup-node@v4\n        with:\n          node-version: \'20.19.0\'',
+const readonlyAssertions = smokeWorkflow.match(
+  /test "\$ASSET_FACTORY_SMOKE_READONLY" = true/g,
+) ?? [];
+if (readonlyAssertions.length < 2) {
+  fail('smoke-only workflow must assert read-only mode before dispatch validation and authenticated smoke');
+}
+
+const smokeForbidden = [
+  'deploy:',
+  'confirm:',
+  'FIREBASE_TOKEN',
+  'FIREBASE_SERVICE_ACCOUNT',
+  'firebase deploy',
+  'npm run deploy:',
+  'Install Firebase CLI',
+  'Use Java 21 for Firebase CLI',
+  'DEPLOY_ASSET_FACTORY_STAGING',
+  'Deploy Firebase Studio',
+  'Deployment or smoke target',
+  'Run the staging Firebase Studio deploy',
+  'Deploy allowed by this workflow',
+  'Staging deploy command',
   'fully production ready',
   'system of systems complete',
-  'WARN ASSET_FACTORY_OTHER_BEARER_TOKEN missing; skipping two-token support tenant isolation smoke',
   'This artifact is final completion-lock evidence',
-  'Evidence artifact type: final completion-lock evidence',
   'update the completion lock after this workflow passes'
 ];
 
-for (const phrase of forbiddenPhrases) {
-  if (workflow.includes(phrase)) {
-    fail(`forbidden fragile or premature phrase found: ${JSON.stringify(phrase)}`);
+for (const phrase of smokeForbidden) {
+  if (smokeWorkflow.includes(phrase)) {
+    fail(`smoke-only workflow contains forbidden deployment capability: ${JSON.stringify(phrase)}`);
   }
+}
+
+const canonicalProductionRequired = [
+  'name: Asset Factory Production Readiness',
+  'workflow_dispatch:',
+  'deploy:',
+  'confirm:',
+  "inputs.deploy == true",
+  "inputs.confirm == 'DEPLOY_ASSET_FACTORY'",
+  "github.ref == 'refs/heads/main'",
+  'environment: asset-factory-production',
+  'FIREBASE_SERVICE_ACCOUNT',
+  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
+  'Remove service-account file'
+];
+
+for (const phrase of canonicalProductionRequired) {
+  if (!productionReadiness.includes(phrase)) {
+    fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
+  }
+}
+
+const productionDeploySection = productionReadiness
+  .split('\n  deploy:\n', 2)[1];
+if (!productionDeploySection) {
+  fail('canonical production deploy job is missing');
+}
+if (!productionDeploySection.includes("github.event_name == 'workflow_dispatch'")) {
+  fail('canonical production deploy is not dispatch-only');
+}
+if (!productionDeploySection.includes("inputs.confirm == 'DEPLOY_ASSET_FACTORY'")) {
+  fail('canonical production deploy lacks exact confirmation');
+}
+if (!productionDeploySection.includes('environment: asset-factory-production')) {
+  fail('canonical production deploy lacks protected environment');
+}
+if (!productionDeploySection.includes("ASSET_FACTORY_SMOKE_READONLY: 'true'")) {
+  fail('canonical production deploy must force read-only post-deploy smoke');
+}
+if (!productionDeploySection.includes('Read-only smoke production finalization endpoints')) {
+  fail('canonical production deploy lacks an explicitly read-only smoke step');
+}
+if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = true')) {
+  fail('canonical production deploy does not assert read-only mode before smoke');
+}
+if (productionDeploySection.includes('Smoke production finalization endpoints')) {
+  fail('canonical production deploy retains the mutation-capable smoke step name');
 }
 
 console.log('PASS deploy workflow static checks');

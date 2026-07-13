@@ -1,22 +1,17 @@
-name: Deploy Asset Factory
+name: Verify Deployed Asset Factory
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Deployment target
+        description: Existing deployed target to verify
         required: true
         type: choice
         options:
           - staging
           - production
-      deploy:
-        description: Run Firebase Studio deploy before smoke tests
-        required: true
-        type: boolean
-        default: false
       smoke_mode:
-        description: Smoke mode to run after optional deploy
+        description: Smoke mode to run against the existing deployment
         required: true
         type: choice
         options:
@@ -25,39 +20,52 @@ on:
           - both
         default: readonly
 
+permissions:
+  contents: read
+
 concurrency:
-  group: asset-factory-${{ inputs.environment }}-deploy
+  group: asset-factory-${{ inputs.environment }}-smoke-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
-  deploy-and-smoke:
+  verify-deployed-target:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}
     env:
       ACTIONS_STEP_DEBUG: 'true'
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       ASSET_FACTORY_FORCE_LOCAL: 'false'
       ASSET_FACTORY_REQUIRE_API_KEY: 'true'
       ASSET_FACTORY_REQUIRE_AUTH: 'true'
+      ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact dispatch commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact clean dispatch identity and smoke-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test "${{ inputs.environment }}" = staging -o "${{ inputs.environment }}" = production
+          test "${{ inputs.smoke_mode }}" = readonly -o "${{ inputs.smoke_mode }}" = authenticated -o "${{ inputs.smoke_mode }}" = both
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Use Java 21 for Firebase CLI
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: Print runtime versions
         run: |
           node --version
           npm --version
-          java -version
 
       - name: Install root dependencies
         run: npm install
@@ -86,14 +94,15 @@ jobs:
       - name: Local verification gate
         run: npm run verify:local
 
-      - name: Deploy workflow gate
+      - name: Deploy workflow boundary gate
         run: node scripts/check-deploy-workflow.mjs
 
-      - name: Resolve deployment target
+      - name: Resolve existing target
         id: target
         shell: bash
         run: |
-          if [ "${{ inputs.environment }}" = "production" ]; then
+          set -euo pipefail
+          if [ "${{ inputs.environment }}" = production ]; then
             echo "base_url=https://urai-4dc1d.web.app" >> "$GITHUB_OUTPUT"
             echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
             echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
@@ -103,53 +112,32 @@ jobs:
             echo "other_tenant_id=smoke-tenant-b" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Validate required secrets
+      - name: Validate authenticated smoke secrets
+        if: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
         shell: bash
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           ASSET_FACTORY_API_KEY: ${{ secrets.ASSET_FACTORY_API_KEY }}
           ASSET_FACTORY_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_BEARER_TOKEN }}
           ASSET_FACTORY_OTHER_BEARER_TOKEN: ${{ secrets.ASSET_FACTORY_OTHER_BEARER_TOKEN }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          set -euo pipefail
           missing=0
-
-          if [ "${{ inputs.deploy }}" = "true" ] && [ -z "$FIREBASE_TOKEN" ]; then
-            echo "Missing required deploy secret: FIREBASE_TOKEN"
-            missing=1
-          fi
-
-          if [ "${{ inputs.smoke_mode }}" = "authenticated" ] || [ "${{ inputs.smoke_mode }}" = "both" ]; then
-            for name in ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_OTHER_BEARER_TOKEN CRON_SECRET; do
-              if [ -z "${!name}" ]; then
-                echo "Missing required authenticated smoke secret: $name"
-                missing=1
-              fi
-            done
-          fi
-
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Install Firebase CLI
-        if: ${{ inputs.deploy }}
-        run: npm install -g firebase-tools
-
-      - name: Deploy Firebase Studio
-        if: ${{ inputs.deploy }}
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: npm run deploy:studio -- --token "$FIREBASE_TOKEN"
+          for name in ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_OTHER_BEARER_TOKEN CRON_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required authenticated smoke secret: $name"
+              missing=1
+            fi
+          done
+          test "$missing" -eq 0
 
       - name: Read-only smoke
         if: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
         env:
-          ASSET_FACTORY_SMOKE_READONLY: 'true'
           ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
         run: npm run smoke:website
 
-      - name: Authenticated smoke
+      - name: Authenticated read-only smoke
         if: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
         env:
           ASSET_FACTORY_BASE_URL: ${{ steps.target.outputs.base_url }}
@@ -160,61 +148,57 @@ jobs:
           ASSET_FACTORY_TENANT_ID: ${{ steps.target.outputs.tenant_id }}
           ASSET_FACTORY_OTHER_TENANT_ID: ${{ steps.target.outputs.other_tenant_id }}
         run: |
-          if [ "${{ inputs.environment }}" = "production" ]; then
+          set -euo pipefail
+          test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          if [ "${{ inputs.environment }}" = production ]; then
             npm run smoke:prod
           else
             npm run smoke:staging
           fi
 
-      - name: Write release evidence
+      - name: Write smoke evidence
         if: always()
         shell: bash
         run: |
           mkdir -p release-evidence
-          cat > "release-evidence/asset-factory-${{ inputs.environment }}-${GITHUB_RUN_ID}.md" <<EOF
-          # Asset Factory ${{ inputs.environment }} deployment evidence
+          cat > "release-evidence/asset-factory-${{ inputs.environment }}-smoke-${GITHUB_RUN_ID}.md" <<EOF
+          # Asset Factory ${{ inputs.environment }} smoke evidence
 
-          This artifact is a workflow run summary, not final completion-lock evidence. Copy concrete run details from this artifact into a completed docs/release-evidence/YYYY-MM-DD-environment.md file before attempting production lock.
+          This artifact verifies an existing deployment. It performs no Firebase deployment and is not final completion-lock evidence.
 
-          - Evidence artifact type: workflow run summary (not final completion-lock evidence)
           - Repository: ${GITHUB_REPOSITORY}
           - Commit: ${GITHUB_SHA}
           - Workflow run: ${GITHUB_RUN_ID}
           - Workflow run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           - Environment: ${{ inputs.environment }}
           - Base URL: ${{ steps.target.outputs.base_url }}
-          - Deploy requested: ${{ inputs.deploy }}
           - Smoke mode: ${{ inputs.smoke_mode }}
-          - Deploy command: npm run deploy:studio
-          - Local fallback disabled: true
-          - Auth required: true
-          - API key required: true
-          - Two-token support isolation smoke required: true
-          - Node runtime: 22
-          - Java runtime: 21
+          - Deployment performed: false
+          - Production deploy workflow: Asset Factory Production Readiness
+          - Production deploy confirmation: DEPLOY_ASSET_FACTORY
+          - Production deploy environment: asset-factory-production
           - Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md
           - Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md
           - Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md
-          - Latest evidence validator command: npm run check:release-evidence:latest
 
           ## Gate status
 
-          - Doctor gate requested: true
-          - Launch readiness gate requested: true
-          - Completion lock gate requested: true
-          - Local verification gate requested: true
-          - Deploy workflow gate requested: true
+          - Exact dispatch commit checked: true
+          - Working tree clean: true
+          - Deploy workflow boundary checked: true
+          - Read-only smoke enforced globally: true
           - Read-only smoke requested: ${{ inputs.smoke_mode == 'readonly' || inputs.smoke_mode == 'both' }}
-          - Authenticated smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
+          - Authenticated read-only smoke requested: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
+          - Firebase mutation allowed: false
 
           ## Required follow-up
 
-          Attach this artifact to the release issue, copy concrete evidence into docs/release-evidence/YYYY-MM-DD-environment.md, validate that final evidence file, and only update the completion lock after staging and production evidence pass.
+          Attach this smoke artifact to the release issue. Production deployment remains a separate explicitly confirmed operation in Asset Factory Production Readiness.
           EOF
 
-      - name: Upload release evidence
+      - name: Upload smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-${{ inputs.environment }}-evidence-${{ github.run_id }}
+          name: asset-factory-${{ inputs.environment }}-smoke-${{ github.sha }}-${{ github.run_id }}
           path: release-evidence/*.md
