@@ -1,11 +1,10 @@
 name: V1 Spatial Pack Run Discovery
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/v1-spatial-run-discovery.yml
-  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - V1 Safe Resume Control Validation
+    types: [completed]
 
 permissions:
   actions: read
@@ -13,106 +12,79 @@ permissions:
   issues: write
 
 concurrency:
-  group: v1-spatial-pack-run-discovery-safe-resume
-  cancel-in-progress: true
+  group: v1-safe-resume-receipt-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 jobs:
-  discover:
+  publish:
+    if: >-
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Record exact safe-resume run metadata
+      - name: Publish exact merged-main validation metadata
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const owner = context.repo.owner
             const repo = context.repo.repo
-            const markerSha = '0cf837d585d3d1c1d8e171938037098c72230c22'
             const issueNumber = 179
-            const markerWorkflowName = 'One-Time V1 AAA Spatial Pack Marker'
-            const postWorkflowName = 'V1 AAA Spatial Pack Post-Certification'
-
-            const runs = await github.paginate(
-              github.rest.actions.listWorkflowRunsForRepo,
-              { owner, repo, head_sha: markerSha, per_page: 100 }
+            const run = context.payload.workflow_run
+            const jobs = await github.paginate(
+              github.rest.actions.listJobsForWorkflowRun,
+              { owner, repo, run_id: run.id, per_page: 100, filter: 'all' }
             )
-            const relevant = runs
-              .filter(run => [markerWorkflowName, postWorkflowName].includes(run.name))
-              .sort((a, b) => Number(a.id) - Number(b.id))
-
-            const records = []
-            for (const run of relevant) {
-              const jobs = await github.paginate(
-                github.rest.actions.listJobsForWorkflowRun,
-                { owner, repo, run_id: run.id, per_page: 100, filter: 'all' }
-              )
-              const artifacts = await github.paginate(
-                github.rest.actions.listWorkflowRunArtifacts,
-                { owner, repo, run_id: run.id, per_page: 100 }
-              )
-              records.push({ run, jobs, artifacts })
-            }
-
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              { owner, repo, run_id: run.id, per_page: 100 }
+            )
+            const expectedArtifact = `v1-safe-resume-control-${run.head_sha}`
+            const receipt = artifacts.find(item => item.name === expectedArtifact)
             const lines = [
-              '# Safe-Resume V1 Spatial Pack Receipt',
+              '# Merged-Main V1 Safe-Resume Validation Receipt',
               '',
-              `- Marker commit: \`${markerSha}\``,
-              `- Discovery run: \`${context.runId}\``,
+              `- Exact target SHA: \`${run.head_sha}\``,
+              `- Branch: \`${run.head_branch}\``,
+              `- Validation run: \`${run.id}\``,
+              `- Event: \`${run.event}\``,
+              `- Status: \`${run.status}\``,
+              `- Conclusion: \`${run.conclusion || 'none'}\``,
+              `- Attempt: \`${run.run_attempt || 'unknown'}\``,
+              `- URL: ${run.html_url}`,
+              `- Publisher run: \`${context.runId}\``,
               `- Recorded: \`${new Date().toISOString()}\``,
-              `- Matching runs: **${records.length}**`,
-              '- Operation: read-only Actions metadata lookup',
-              '- Re-run requested: **no**',
-              '- Provider request made by discovery: **no**',
+              '- Publisher operation: read-only Actions metadata lookup plus update of this receipt issue',
+              '- Provider call, spend, generation, promotion, deployment, secret mutation, billing action, or production-data mutation by publisher: **none**',
               '',
+              '## Jobs from all attempts',
+              ''
             ]
-
-            if (records.length === 0) {
-              lines.push('## Result', '', 'No matching run was returned for the exact safe-resume marker at lookup time.', '')
-            }
-
-            for (const { run, jobs, artifacts } of records) {
-              lines.push(
-                `## ${run.name} — run ${run.id}`,
-                '',
-                `- Event: \`${run.event}\``,
-                `- Status: \`${run.status}\``,
-                `- Conclusion: \`${run.conclusion ?? 'none'}\``,
-                `- Attempt: \`${run.run_attempt ?? 'unknown'}\``,
-                `- Head SHA: \`${run.head_sha}\``,
-                `- Created: \`${run.created_at}\``,
-                `- Updated: \`${run.updated_at}\``,
-                `- URL: ${run.html_url}`,
-                '',
-                '### Jobs from all attempts',
-                ''
-              )
-              if (jobs.length === 0) lines.push('- No jobs returned.')
-              for (const job of jobs) {
-                lines.push(`- \`${job.id}\` **${job.name}** — attempt \`${job.run_attempt ?? 'unknown'}\`, status \`${job.status}\`, conclusion \`${job.conclusion ?? 'none'}\`, runner \`${job.runner_name || 'unassigned'}\``)
-                for (const step of job.steps || []) {
-                  lines.push(`  - ${step.number}. ${step.name}: \`${step.status}\` / \`${step.conclusion ?? 'none'}\``)
-                }
+            if (jobs.length === 0) lines.push('- No jobs returned.')
+            for (const job of jobs) {
+              lines.push(`- \`${job.id}\` **${job.name}** — attempt \`${job.run_attempt || 'unknown'}\`, status \`${job.status}\`, conclusion \`${job.conclusion || 'none'}\``)
+              for (const step of job.steps || []) {
+                lines.push(`  - ${step.number}. ${step.name}: \`${step.status}\` / \`${step.conclusion || 'none'}\``)
               }
-              lines.push('', '### Artifacts', '')
-              if (artifacts.length === 0) lines.push('- No artifacts returned.')
-              for (const artifact of artifacts) {
-                lines.push(`- \`${artifact.id}\` **${artifact.name}** — expired \`${artifact.expired}\`, bytes \`${artifact.size_in_bytes}\`, created \`${artifact.created_at}\``)
-              }
-              lines.push('')
             }
-
+            lines.push('', '## Artifacts', '')
+            if (artifacts.length === 0) lines.push('- No artifacts returned.')
+            for (const artifact of artifacts) {
+              lines.push(`- \`${artifact.id}\` **${artifact.name}** — expired \`${artifact.expired}\`, bytes \`${artifact.size_in_bytes}\`, created \`${artifact.created_at}\``)
+            }
             lines.push(
-              '## Evidence boundary',
               '',
-              'Generation and billing claims require the budget ledger, forge receipt, quality report, handoff receipt, and post-certification report.'
+              '## Gate',
+              '',
+              `- Expected exact-SHA receipt: \`${expectedArtifact}\``,
+              `- Exact receipt present: **${Boolean(receipt)}**`,
+              `- Validation successful: **${run.conclusion === 'success'}**`,
+              '- Paid execution remains blocked unless the successful exact-SHA receipt is independently inspected and all separate billing, environment, credential, generation, certification, promotion, and deployment gates are satisfied.'
             )
-
-            const marker = records.find(record => record.run.name === markerWorkflowName)
-            const state = marker ? `${marker.run.status}${marker.run.conclusion ? `/${marker.run.conclusion}` : ''}` : 'not-found'
             await github.rest.issues.update({
               owner,
               repo,
               issue_number: issueNumber,
-              title: `[${state.toUpperCase()}] V1 Spatial Pack Receipt`,
+              title: `[${String(run.conclusion || 'unknown').toUpperCase()}] Merged-Main V1 Safe-Resume Receipt`,
               body: lines.join('\n').slice(0, 65000),
             })
