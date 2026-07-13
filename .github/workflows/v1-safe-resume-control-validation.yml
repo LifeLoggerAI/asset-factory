@@ -8,6 +8,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - .github/workflows/v1-spatial-run-discovery.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
@@ -30,6 +31,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - .github/workflows/v1-spatial-run-discovery.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
@@ -44,6 +46,7 @@ on:
       - scripts/validate_v1_marker_commit.py
       - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -100,6 +103,7 @@ jobs:
           fi
           python3 - <<'PY'
           from pathlib import Path
+
           post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
           for marker in (
               'from scripts.github_artifact_download import github_api_json',
@@ -141,6 +145,41 @@ jobs:
           download_section = execute_steps.split('- name: Download and safely extract proven provider-backed Home seed', 1)[1].split('- name: Install image dependencies', 1)[0]
           assert 'secrets.' not in install_section
           assert 'secrets.' not in download_section
+
+          discovery = Path('.github/workflows/v1-spatial-run-discovery.yml').read_text()
+          permissions = discovery.split('\npermissions:\n', 1)[1].split('\n\n', 1)[0].splitlines()
+          assert permissions == ['  actions: read', '  issues: write'], permissions
+          for marker in (
+              'workflow_run:',
+              '- V1 Safe Resume Control Validation',
+              'types: [completed]',
+              'github.event.workflow_run.head_repository.full_name == github.repository',
+              "github.event.workflow_run.head_branch == 'main'",
+              "github.event.workflow_run.event == 'push'",
+              "github.event.workflow_run.event == 'workflow_dispatch'",
+              'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea',
+              'github.rest.actions.listJobsForWorkflowRun',
+              'github.rest.actions.listWorkflowRunArtifacts',
+              'issueNumber = 179',
+              'expectedArtifact = `v1-safe-resume-control-${run.head_sha}`',
+              'github.rest.issues.update',
+          ):
+              assert marker in discovery, marker
+          assert '\n  workflow_dispatch:' not in discovery
+          for forbidden in (
+              'actions/checkout@',
+              'secrets.',
+              'contents: write',
+              'deployments: write',
+              'packages: write',
+              'id-token: write',
+              'github.rest.actions.createWorkflowDispatch',
+              'github.rest.repos.createDispatchEvent',
+              'github.rest.actions.reRunWorkflow',
+              'github.rest.actions.cancelWorkflowRun',
+              'github.rest.repos.createOrUpdateFileContents',
+          ):
+              assert forbidden not in discovery, forbidden
           PY
 
       - name: Compile and execute safe-control regressions
