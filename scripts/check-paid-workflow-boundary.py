@@ -26,24 +26,18 @@ LEGACY_PAID_WORKFLOWS = (
     Path(".github/workflows/rerun-v2-now.yml"),
     Path(".github/workflows/rerun-v3-now.yml"),
 )
-
 PROVIDER_SECRET_KEYS = {
     "OPENAI_API_KEY",
     "ASSET_RENDERER_API_KEY",
     "ASSET_RENDERER_AUTH_HEADER",
 }
-PROVIDER_MODE_KEYS = {
-    "ASSET_RENDERER_MODE",
-}
+PROVIDER_MODE_KEYS = {"ASSET_RENDERER_MODE"}
 PROVIDER_REQUIRED_KEYS = {
     "ASSET_FORGE_PAID_RUN_AUTHORIZED",
     "ASSET_FORGE_REQUIRE_PROVIDER",
     "ASSET_QUALITY_REQUIRE_PROVIDER",
 }
-LEGACY_DISPATCH_EVENTS = {
-    "urai-v1-forge-requested",
-    "urai-version-forge-requested",
-}
+LEGACY_DISPATCH_EVENTS = {"urai-v1-forge-requested", "urai-version-forge-requested"}
 LEGACY_DISPATCH_WORKFLOWS = {
     "canonical-version-forge.yml",
     "v1-aaa-asset-forge.yml",
@@ -54,9 +48,10 @@ KEY_PATTERN = re.compile(
 )
 ASSIGNMENT_PATTERN = re.compile(r"^(?P<key>[A-Za-z_][A-Za-z0-9_]*)=(?P<value>.*)$")
 SECRET_EXPRESSION_PATTERN = re.compile(
-    r"\$\{\{\s*secrets\.(OPENAI_API_KEY|ASSET_RENDERER_API_KEY|ASSET_RENDERER_AUTH_HEADER)\s*\}\}",
+    r"\$\{\{\s*secrets(?:\.(OPENAI_API_KEY|ASSET_RENDERER_API_KEY|ASSET_RENDERER_AUTH_HEADER)|\[\s*['\"](OPENAI_API_KEY|ASSET_RENDERER_API_KEY|ASSET_RENDERER_AUTH_HEADER)['\"]\s*\])\s*\}\}",
     re.IGNORECASE,
 )
+BLOCK_SCALAR_PATTERN = re.compile(r"[|>](?:(?:[+-][1-9]?)|(?:[1-9][+-]?))?")
 DISPATCH_EVENT_PATTERN = re.compile(
     r"event_type\s*:\s*['\"]?(urai-(?:v1|version)-forge-requested)['\"]?",
     re.IGNORECASE,
@@ -109,18 +104,10 @@ def _unquote(value: str) -> str:
 
 
 def parse_workflow_yaml(text: str) -> list[YamlRecord]:
-    """Parse the workflow subset needed for security decisions.
-
-    This indentation-aware parser preserves mapping paths, quoted keys, inline
-    values, and literal/folded block scalars. It deliberately fails on leading
-    tabs so ambiguous YAML cannot silently bypass the boundary check.
-    """
-
     lines = text.splitlines()
     records: list[YamlRecord] = []
     stack: list[tuple[int, str]] = []
     index = 0
-
     while index < len(lines):
         raw = lines[index]
         leading = raw[: len(raw) - len(raw.lstrip(" \t"))]
@@ -130,21 +117,17 @@ def parse_workflow_yaml(text: str) -> list[YamlRecord]:
         if not cleaned.strip() or cleaned.strip() in {"---", "..."}:
             index += 1
             continue
-
         indent = len(cleaned) - len(cleaned.lstrip(" "))
-        content = cleaned[indent:]
-        match = KEY_PATTERN.match(content)
+        match = KEY_PATTERN.match(cleaned[indent:])
         if not match:
             index += 1
             continue
-
         key = _unquote(match.group("key"))
         value = match.group("value").strip()
         while stack and stack[-1][0] >= indent:
             stack.pop()
         path = tuple(item[1] for item in stack) + (key,)
-
-        if re.fullmatch(r"[|>][+-]?[0-9]*", value):
+        if BLOCK_SCALAR_PATTERN.fullmatch(value):
             block_lines: list[str] = []
             cursor = index + 1
             while cursor < len(lines):
@@ -153,21 +136,19 @@ def parse_workflow_yaml(text: str) -> list[YamlRecord]:
                     candidate_indent = len(candidate) - len(candidate.lstrip(" "))
                     if candidate_indent <= indent:
                         break
-                    block_lines.append(candidate[min(len(candidate), indent + 1) :])
+                    block_lines.append(candidate[min(len(candidate), indent + 1):])
                 else:
                     block_lines.append("")
                 cursor += 1
-            records.append(YamlRecord(path=path, value="\n".join(block_lines), line=index + 1, block=True))
+            records.append(YamlRecord(path, "\n".join(block_lines), index + 1, True))
             index = cursor
             continue
-
         if value == "":
-            records.append(YamlRecord(path=path, value=None, line=index + 1))
+            records.append(YamlRecord(path, None, index + 1))
             stack.append((indent, key))
         else:
-            records.append(YamlRecord(path=path, value=_unquote(value), line=index + 1))
+            records.append(YamlRecord(path, _unquote(value), index + 1))
         index += 1
-
     return records
 
 
@@ -212,25 +193,22 @@ def _record_error(relative: Path, record: YamlRecord, detail: str) -> str:
 
 
 def inspect_workflow(relative: Path, text: str) -> list[str]:
-    errors: list[str] = []
     try:
         records = parse_workflow_yaml(text)
     except ValueError as exc:
         return [f"{relative.as_posix()}: workflow YAML cannot be parsed safely: {exc}"]
-
+    errors: list[str] = []
     for record in records:
         lowered_path = tuple(part.lower() for part in record.path)
         last = lowered_path[-1]
         value = record.value or ""
         normalized = _normalized(value)
-
         if last == "environment" and "paid-asset-generation" in normalized:
             errors.append(_record_error(relative, record, "paid environment outside marker workflow"))
         if len(lowered_path) >= 2 and lowered_path[-2:] == ("environment", "name") and "paid-asset-generation" in normalized:
             errors.append(_record_error(relative, record, "mapped paid environment outside marker workflow"))
         if last == "environment" and "paid-asset-generation" in value.lower().replace(" ", ""):
             errors.append(_record_error(relative, record, "inline paid environment outside marker workflow"))
-
         under_env = "env" in lowered_path[:-1]
         upper_key = record.path[-1].upper()
         if under_env and upper_key in PROVIDER_SECRET_KEYS:
@@ -239,31 +217,21 @@ def inspect_workflow(relative: Path, text: str) -> list[str]:
             errors.append(_record_error(relative, record, f"provider mode {upper_key}=provider outside marker workflow"))
         if under_env and upper_key in PROVIDER_REQUIRED_KEYS and not _is_explicit_false(value):
             errors.append(_record_error(relative, record, f"paid/provider authorization {upper_key} outside marker workflow"))
-
         if not record.block and SECRET_EXPRESSION_PATTERN.search(value):
             errors.append(_record_error(relative, record, "provider secret expression outside marker workflow"))
-
         if last == "event_type" and normalized in LEGACY_DISPATCH_EVENTS:
             errors.append(_record_error(relative, record, f"legacy paid dispatch event {normalized}"))
         if last == "workflow_id" and Path(normalized).name in LEGACY_DISPATCH_WORKFLOWS:
             errors.append(_record_error(relative, record, f"legacy paid workflow dispatch target {normalized}"))
-
         if last == "run" and record.block:
             for offset, key, assigned_value in _shell_assignments(value):
                 normalized_assignment = _normalized(assigned_value)
                 if key in PROVIDER_SECRET_KEYS:
-                    errors.append(
-                        f"{relative.as_posix()}:{record.line + offset}: shell assigns provider secret {key} outside marker workflow"
-                    )
+                    errors.append(f"{relative.as_posix()}:{record.line + offset}: shell assigns provider secret {key} outside marker workflow")
                 elif key in PROVIDER_MODE_KEYS and normalized_assignment == "provider":
-                    errors.append(
-                        f"{relative.as_posix()}:{record.line + offset}: shell enables provider mode outside marker workflow"
-                    )
+                    errors.append(f"{relative.as_posix()}:{record.line + offset}: shell enables provider mode outside marker workflow")
                 elif key in PROVIDER_REQUIRED_KEYS and not _is_explicit_false(assigned_value):
-                    errors.append(
-                        f"{relative.as_posix()}:{record.line + offset}: shell enables paid/provider authorization {key}"
-                    )
-
+                    errors.append(f"{relative.as_posix()}:{record.line + offset}: shell enables paid/provider authorization {key}")
         if record.block:
             block_label = f"{last} block"
             if SECRET_EXPRESSION_PATTERN.search(value):
@@ -272,7 +240,6 @@ def inspect_workflow(relative: Path, text: str) -> list[str]:
                 errors.append(_record_error(relative, record, f"{block_label} dispatches legacy paid event {match.group(1)}"))
             for match in DISPATCH_WORKFLOW_PATTERN.finditer(value):
                 errors.append(_record_error(relative, record, f"{block_label} dispatches legacy paid workflow {match.group(1)}"))
-
         if last == "env" and value:
             compact = value.lower().replace(" ", "")
             if "paid-asset-generation" in compact:
@@ -282,19 +249,16 @@ def inspect_workflow(relative: Path, text: str) -> list[str]:
                     errors.append(_record_error(relative, record, f"inline env map contains {key}"))
             if "asset_renderer_mode" in compact and "provider" in compact:
                 errors.append(_record_error(relative, record, "inline env map enables provider mode"))
-
     return errors
 
 
 def inspect(root: Path) -> list[str]:
-    errors: list[str] = []
     root = root.resolve()
+    errors: list[str] = []
     workflows = root / ".github" / "workflows"
-
     for relative in LEGACY_PAID_WORKFLOWS:
         if (root / relative).exists():
             errors.append(f"legacy paid workflow remains active: {relative.as_posix()}")
-
     allowed = root / ALLOWED_PAID_WORKFLOW
     if not allowed.is_file():
         errors.append(f"authorized marker workflow is missing: {ALLOWED_PAID_WORKFLOW.as_posix()}")
@@ -319,30 +283,24 @@ def inspect(root: Path) -> list[str]:
             for record in allowed_records
         ):
             errors.append("authorized paid workflow push trigger is not restricted to main")
-
     if workflows.is_dir():
         for path in sorted((*workflows.glob("*.yml"), *workflows.glob("*.yaml"))):
             relative = path.relative_to(root)
             if relative == ALLOWED_PAID_WORKFLOW:
                 continue
             errors.extend(inspect_workflow(relative, path.read_text(encoding="utf-8")))
-
     return errors
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Fail closed unless the v3 marker workflow is the sole active paid generation path."
-    )
+    parser = argparse.ArgumentParser(description="Fail closed unless the v3 marker workflow is the sole active paid generation path.")
     parser.add_argument("--root", default=".", help="repository root")
     args = parser.parse_args()
-
     errors = inspect(Path(args.root))
     if errors:
         for error in errors:
             print(f"FAIL paid workflow boundary: {error}")
         return 1
-
     print("PASS paid workflow boundary: v3 marker is the sole active paid generation path")
     return 0
 
