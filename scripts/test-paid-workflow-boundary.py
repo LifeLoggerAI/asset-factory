@@ -60,10 +60,7 @@ def test_known_legacy_workflow_is_rejected() -> None:
 
 def test_multiline_environment_and_quoted_secret_key_are_rejected() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "multiline-paid-path.yml",
-        """name: Multiline paid path
+    write_workflow(root, "multiline-paid-path.yml", """name: Multiline paid path
 on: workflow_dispatch
 jobs:
   paid:
@@ -73,8 +70,7 @@ jobs:
       "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}"
     steps:
       - run: echo should-not-run
-""",
-    )
+""")
     errors = module.inspect(root)
     assert any("mapped paid environment" in error for error in errors)
     assert any("provider secret key OPENAI_API_KEY" in error for error in errors)
@@ -82,36 +78,28 @@ jobs:
 
 def test_inline_environment_map_is_rejected() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "inline-environment.yml",
-        """name: Inline paid environment
+    write_workflow(root, "inline-environment.yml", """name: Inline paid environment
 on: workflow_dispatch
 jobs:
   paid:
     environment: { name: paid-asset-generation }
     steps:
       - run: echo should-not-run
-""",
-    )
+""")
     errors = module.inspect(root)
     assert any("inline paid environment" in error or "paid environment" in error for error in errors)
 
 
 def test_inline_shell_assignments_are_rejected() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "inline-shell-paid-path.yml",
-        """name: Inline shell paid path
+    write_workflow(root, "inline-shell-paid-path.yml", """name: Inline shell paid path
 on: workflow_dispatch
 jobs:
   paid:
     steps:
       - run: |
           ASSET_FORGE_PAID_RUN_AUTHORIZED=1 ASSET_RENDERER_MODE=provider python3 forge.py
-""",
-    )
+""")
     errors = module.inspect(root)
     assert any("shell enables paid/provider authorization" in error for error in errors)
     assert any("shell enables provider mode" in error for error in errors)
@@ -119,10 +107,7 @@ jobs:
 
 def test_exported_provider_secret_is_rejected() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "exported-secret.yml",
-        """name: Exported provider secret
+    write_workflow(root, "exported-secret.yml", """name: Exported provider secret
 on: workflow_dispatch
 jobs:
   paid:
@@ -130,18 +115,14 @@ jobs:
       - run: |
           export ASSET_RENDERER_API_KEY=placeholder
           python3 forge.py
-""",
-    )
+""")
     errors = module.inspect(root)
     assert any("shell assigns provider secret ASSET_RENDERER_API_KEY" in error for error in errors)
 
 
 def test_differently_named_paid_dispatcher_is_rejected() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "new-paid-dispatcher.yml",
-        """name: New paid dispatcher
+    write_workflow(root, "new-paid-dispatcher.yml", """name: New paid dispatcher
 on: workflow_dispatch
 jobs:
   dispatch:
@@ -155,11 +136,54 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               workflow_id: 'canonical-version-forge.yml'
             });
-""",
-    )
+""")
     errors = module.inspect(root)
     assert any("legacy paid event" in error for error in errors)
     assert any("legacy paid workflow" in error for error in errors)
+
+
+def test_indent_then_chomp_block_scalar_is_rejected() -> None:
+    root = make_root()
+    write_workflow(root, "indexed-scalar.yml", """name: Indexed scalar
+on: workflow_dispatch
+jobs:
+  inspect:
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |2-
+            const key = ${{ secrets.OPENAI_API_KEY }};
+""")
+    errors = module.inspect(root)
+    assert any("script block consumes provider secret" in error for error in errors)
+
+
+def test_folded_indent_then_keep_scalar_is_rejected() -> None:
+    root = make_root()
+    write_workflow(root, "folded-indexed-scalar.yml", """name: Folded indexed scalar
+on: workflow_dispatch
+jobs:
+  inspect:
+    steps:
+      - run: >2+
+          echo ${{ secrets.ASSET_RENDERER_API_KEY }}
+""")
+    errors = module.inspect(root)
+    assert any("run block consumes provider secret" in error for error in errors)
+
+
+def test_bracket_indexed_provider_secret_is_rejected() -> None:
+    root = make_root()
+    write_workflow(root, "bracket-secret.yml", """name: Bracket secret
+on: workflow_dispatch
+jobs:
+  inspect:
+    steps:
+      - run: |
+          echo ${{ secrets['OPENAI_API_KEY'] }}
+""")
+    errors = module.inspect(root)
+    assert any("run block consumes provider secret" in error for error in errors)
 
 
 def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
@@ -172,11 +196,7 @@ def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
 
 def test_ambiguous_leading_tabs_fail_closed() -> None:
     root = make_root()
-    write_workflow(
-        root,
-        "tabbed.yml",
-        "name: Tabbed\njobs:\n\tpaid:\n    environment: paid-asset-generation\n",
-    )
+    write_workflow(root, "tabbed.yml", "name: Tabbed\njobs:\n\tpaid:\n    environment: paid-asset-generation\n")
     errors = module.inspect(root)
     assert any("cannot be parsed safely" in error for error in errors)
 
@@ -189,6 +209,9 @@ def main() -> int:
     test_inline_shell_assignments_are_rejected()
     test_exported_provider_secret_is_rejected()
     test_differently_named_paid_dispatcher_is_rejected()
+    test_indent_then_chomp_block_scalar_is_rejected()
+    test_folded_indent_then_keep_scalar_is_rejected()
+    test_bracket_indexed_provider_secret_is_rejected()
     test_marker_workflow_rejects_manual_or_repository_dispatch()
     test_ambiguous_leading_tabs_fail_closed()
     print("PASS paid workflow boundary regressions")
