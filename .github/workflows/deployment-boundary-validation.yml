@@ -21,6 +21,8 @@ on:
       - .github/workflows/rerun-v1-now.yml
       - .github/workflows/rerun-v2-now.yml
       - .github/workflows/rerun-v3-now.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
@@ -49,6 +51,8 @@ on:
       - .github/workflows/rerun-v1-now.yml
       - .github/workflows/rerun-v2-now.yml
       - .github/workflows/rerun-v3-now.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - scripts/check-deploy-workflow.mjs
       - scripts/check-paid-workflow-boundary.py
       - scripts/test-paid-workflow-boundary.py
