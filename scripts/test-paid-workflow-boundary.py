@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import importlib.util
-import tempfile
 import sys
+import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -56,6 +56,14 @@ def test_known_legacy_workflow_is_rejected() -> None:
     legacy.write_text("name: legacy\n", encoding="utf-8")
     errors = module.inspect(root)
     assert any("legacy paid workflow remains active" in error for error in errors)
+
+
+def test_retired_checkpoint_workflows_are_rejected() -> None:
+    for filename in ("v1-checkpoint-finalize.yml", "v1-promote-finalized-checkpoint.yml"):
+        root = make_root()
+        write_workflow(root, filename, "name: resurrected checkpoint\n")
+        errors = module.inspect(root)
+        assert any(filename in error and "legacy paid workflow remains active" in error for error in errors)
 
 
 def test_multiline_environment_and_quoted_secret_key_are_rejected() -> None:
@@ -186,6 +194,27 @@ jobs:
     assert any("run block consumes provider secret" in error for error in errors)
 
 
+def test_spaced_bracket_indexed_provider_secrets_are_rejected() -> None:
+    cases = (
+        ("spaced-single-secret.yml", "${{ secrets ['OPENAI_API_KEY'] }}"),
+        ("spaced-double-secret.yml", '${{ secrets   [ "ASSET_RENDERER_API_KEY" ] }}'),
+    )
+    for filename, expression in cases:
+        root = make_root()
+        write_workflow(root, filename, f"""name: Spaced bracket secret
+on: workflow_dispatch
+jobs:
+  inspect:
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |2-
+            console.log({expression});
+""")
+        errors = module.inspect(root)
+        assert any("script block consumes provider secret" in error for error in errors)
+
+
 def test_marker_workflow_rejects_manual_or_repository_dispatch() -> None:
     root = make_root()
     allowed = root / module.ALLOWED_PAID_WORKFLOW
@@ -204,6 +233,7 @@ def test_ambiguous_leading_tabs_fail_closed() -> None:
 def main() -> int:
     test_clean_marker_only_repository_passes()
     test_known_legacy_workflow_is_rejected()
+    test_retired_checkpoint_workflows_are_rejected()
     test_multiline_environment_and_quoted_secret_key_are_rejected()
     test_inline_environment_map_is_rejected()
     test_inline_shell_assignments_are_rejected()
@@ -212,6 +242,7 @@ def main() -> int:
     test_indent_then_chomp_block_scalar_is_rejected()
     test_folded_indent_then_keep_scalar_is_rejected()
     test_bracket_indexed_provider_secret_is_rejected()
+    test_spaced_bracket_indexed_provider_secrets_are_rejected()
     test_marker_workflow_rejects_manual_or_repository_dispatch()
     test_ambiguous_leading_tabs_fail_closed()
     print("PASS paid workflow boundary regressions")
