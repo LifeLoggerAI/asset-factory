@@ -5,6 +5,8 @@ on:
     paths:
       - .github/workflows/dispatch-one-paid-v1-smoke.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/paid-smoke-guard-integrity.yml
       - scripts/check-paid-smoke-guard.py
       - scripts/check-paid-workflow-boundary.py
@@ -14,6 +16,8 @@ on:
     paths:
       - .github/workflows/dispatch-one-paid-v1-smoke.yml
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/v1-checkpoint-finalize.yml
+      - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/paid-smoke-guard-integrity.yml
       - scripts/check-paid-smoke-guard.py
       - scripts/check-paid-workflow-boundary.py
