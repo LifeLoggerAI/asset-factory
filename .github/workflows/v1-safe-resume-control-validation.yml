@@ -8,6 +8,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - .github/workflows/v1-spatial-run-discovery.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
@@ -30,6 +31,7 @@ on:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - .github/workflows/v1-safe-resume-control-validation.yml
+      - .github/workflows/v1-spatial-run-discovery.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
@@ -44,6 +46,7 @@ on:
       - scripts/validate_v1_marker_commit.py
       - scripts/test-v1-marker-commit.py
       - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -68,7 +71,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        uses: actions/setup-python@a26af69be951a213d495e4c3e4e4022e16d87065
         with:
           python-version: '3.11'
 
