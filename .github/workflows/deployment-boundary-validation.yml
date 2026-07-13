@@ -68,6 +68,7 @@ concurrency:
 
 env:
   ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
   verify:
