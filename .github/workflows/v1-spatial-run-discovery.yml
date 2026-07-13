@@ -8,7 +8,6 @@ on:
 
 permissions:
   actions: read
-  contents: read
   issues: write
 
 concurrency:
@@ -18,6 +17,7 @@ concurrency:
 jobs:
   publish:
     if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.head_branch == 'main' &&
       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -44,6 +44,7 @@ jobs:
             const lines = [
               '# Merged-Main V1 Safe-Resume Validation Receipt',
               '',
+              `- Source repository: \`${run.head_repository?.full_name || 'unknown'}\``,
               `- Exact target SHA: \`${run.head_sha}\``,
               `- Branch: \`${run.head_branch}\``,
               `- Validation run: \`${run.id}\``,
@@ -70,7 +71,7 @@ jobs:
             lines.push('', '## Artifacts', '')
             if (artifacts.length === 0) lines.push('- No artifacts returned.')
             for (const artifact of artifacts) {
-              lines.push(`- \`${artifact.id}\` **${artifact.name}** — expired \`${artifact.expired}\`, bytes \`${artifact.size_in_bytes}\`, created \`${artifact.created_at}\``)
+              lines.push(`- \`${artifact.id}\` **${artifact.name}** — digest \`${artifact.digest || 'unavailable'}\`, expired \`${artifact.expired}\`, bytes \`${artifact.size_in_bytes}\`, created \`${artifact.created_at}\``)
             }
             lines.push(
               '',
