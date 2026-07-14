@@ -1,6 +1,6 @@
 # URAI Asset Factory paid-environment readiness hold
 
-Status: BLOCKED — external secret installation and explicit cost authorization required.
+Status: BLOCKED — authorization is recorded; external key and usable-credit proof remain required.
 
 ## Proven complete
 
@@ -11,6 +11,8 @@ Status: BLOCKED — external secret installation and explicit cost authorization
 - All four historical marker attempts showed generation skipped.
 - Provider calls and confirmed spend from the current lane remain `0` and `USD 0`.
 - The future paid marker is absent.
+- The user explicitly authorized one V1 Spatial generation run with no more than 47 provider calls and no more than USD 47 total spend.
+- Immutable authorization receipt: `docs/release-evidence/URAI-AF-20260714-V1-SPATIAL-SPEND-AUTHORIZATION.md` at commit `9f064d8da2ce0cf93aef20b388e4ae589009cac7`.
 
 ## Current paid contract
 
@@ -27,16 +29,15 @@ Status: BLOCKED — external secret installation and explicit cost authorization
 - Canonical outputs: `53`
 - Promotion: disabled
 
-## Unproven requirements
+## Satisfied requirement
+
+1. Explicit user authorization for one run with no more than 47 provider calls and no more than USD 47 total spend: **SATISFIED**.
+
+## Remaining unproven requirements
 
 1. `OPENAI_API_KEY` is installed and non-empty in the Asset Factory `paid-asset-generation` environment.
 2. At least `USD 47.00` of usable API credit remains available at execution time.
-3. The user explicitly authorizes one run with no more than 47 provider calls and no more than USD 47 total spend.
-
-## Required explicit authorization
-
-`I authorize one V1 Spatial generation run with no more than 47 provider calls and no more than $47 total spend.`
 
 ## Safety boundary
 
-Do not create or merge `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json` until all three unproven requirements are satisfied. Do not call providers, generate, promote, deploy, or activate assets from this hold record.
+Do not create or merge `authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json` until both remaining requirements are satisfied. Do not call providers, generate, promote, deploy, or activate assets from this hold record.
