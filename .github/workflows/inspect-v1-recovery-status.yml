@@ -24,6 +24,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RECOVERY_MERGE_SHA: b14033af13b6cdbde9a22fdb216fd2f34588e117
           AUTHORIZED_MARKER_SHA: e7a748d0840d5912a1870cf7adacd90cd8db9bcb
+          EXECUTE_JOB_ID: '87259765039'
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/v1-recovery-inspection"
@@ -37,6 +38,9 @@ jobs:
           }
 
           api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/v1-aaa-spatial-pack-marker-recovery.yml/runs?per_page=100" > "$out/runs.json"
+          api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/jobs/$EXECUTE_JOB_ID/logs" > "$out/execute.log"
+          grep -Ein -C 14 'error|failed|failure|preflight|OPENAI_API_KEY|provider|model|endpoint|credit|billing|budget|generate|skipped' "$out/execute.log" \
+            > "$out/execute-diagnostic-excerpts.log" || true
 
           OUT_DIR="$out" node - <<'NODE'
           const fs = require('node:fs')
@@ -46,19 +50,6 @@ jobs:
           const relevant = runs.filter(run => run.head_sha === process.env.RECOVERY_MERGE_SHA || run.head_sha === process.env.AUTHORIZED_MARKER_SHA)
           fs.writeFileSync(path.join(out, 'relevant-runs.json'), JSON.stringify(relevant, null, 2) + '\n')
           fs.writeFileSync(path.join(out, 'run-ids.txt'), relevant.map(run => run.id).join('\n') + (relevant.length ? '\n' : ''))
-          console.log(JSON.stringify({ totalRuns: runs.length, relevantRuns: relevant.map(run => ({
-            id: run.id,
-            event: run.event,
-            headSha: run.head_sha,
-            headBranch: run.head_branch,
-            status: run.status,
-            conclusion: run.conclusion,
-            runNumber: run.run_number,
-            runAttempt: run.run_attempt,
-            createdAt: run.created_at,
-            updatedAt: run.updated_at,
-            htmlUrl: run.html_url,
-          })) }, null, 2))
           NODE
 
           : > "$out/jobs.ndjson"
@@ -85,8 +76,10 @@ jobs:
           const jobs = parseLines('jobs.ndjson')
           const artifacts = parseLines('artifacts.ndjson')
           const executeJobs = jobs.filter(job => job.name === 'execute')
+          const log = fs.readFileSync(path.join(out, 'execute.log'), 'utf8')
+          const providerGenerationStepStarted = /Generate all 53 V1 Spatial outputs[\s\S]*?##\[group\]Run python image_asset_generator\/forge_v1_spatial_pack_run\.py/.test(log)
           const summary = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             inspectedAt: new Date().toISOString(),
             repository: process.env.GITHUB_REPOSITORY,
             authorizedMarkerSha: process.env.AUTHORIZED_MARKER_SHA,
@@ -99,10 +92,12 @@ jobs:
             executeJobs,
             anyExecuteStarted: executeJobs.some(job => job.startedAt),
             anyExecuteSucceeded: executeJobs.some(job => job.conclusion === 'success'),
+            providerGenerationStepStarted,
           }
           fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
           console.log(JSON.stringify(summary, null, 2))
           NODE
+          cat "$out/execute-diagnostic-excerpts.log"
           echo "out=$out" >> "$GITHUB_OUTPUT"
 
       - name: Upload V1 recovery inspection receipt
