@@ -1,9 +1,8 @@
 name: One-Time V1 Integrity Lifecycle Repair
 
 on:
-  push:
-    branches:
-      - fix/v1-mobile-deep-space-contract-20260715
+  pull_request:
+    branches: [main]
     paths:
       - .github/workflows/one-time-v1-integrity-lifecycle-repair.yml
 
@@ -16,28 +15,34 @@ concurrency:
 
 jobs:
   repair:
-    if: github.actor == github.repository_owner && github.run_attempt == 1
+    if: >-
+      github.actor == github.repository_owner &&
+      github.run_attempt == 1 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'fix/v1-mobile-deep-space-contract-20260715'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      TARGET_BRANCH: fix/v1-mobile-deep-space-contract-20260715
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.HEAD_SHA }}
           fetch-depth: 2
           persist-credentials: true
           show-progress: false
 
       - name: Repair exact marker lifecycle block and self-delete
         shell: bash
-        env:
-          TARGET_BRANCH: fix/v1-mobile-deep-space-contract-20260715
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = "refs/heads/$TARGET_BRANCH"
+          test "$GITHUB_EVENT_NAME" = 'pull_request'
+          test "$GITHUB_HEAD_REF" = "$TARGET_BRANCH"
           test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
           test "$GITHUB_RUN_ATTEMPT" = '1'
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
 
           python3 - <<'PY'
