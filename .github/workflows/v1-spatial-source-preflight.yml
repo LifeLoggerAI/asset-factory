@@ -1,0 +1,113 @@
+name: V1 Spatial Source Preflight
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v1-spatial-source-preflight.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_catalog.json
+      - image_asset_generator/check_canonical_version_contract.py
+      - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/forge_versioned.py
+      - image_asset_generator/spatial_prompt_overrides.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/v1-spatial-source-preflight.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_catalog.json
+      - image_asset_generator/check_canonical_version_contract.py
+      - image_asset_generator/forge_v1_spatial_pack_run.py
+      - image_asset_generator/forge_versioned.py
+      - image_asset_generator/spatial_prompt_overrides.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v1-spatial-source-preflight-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONPYCACHEPREFIX: /tmp/urai-v1-source-preflight-${{ github.run_id }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Prove exact clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Verify canonical catalog, Python source, and per-prompt contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            image_asset_generator/canonical_release_manifests.py \
+            image_asset_generator/check_canonical_version_contract.py \
+            image_asset_generator/forge_v1_spatial_pack_run.py \
+            image_asset_generator/forge_versioned.py
+          python image_asset_generator/check_canonical_version_contract.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          prompts = json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())
+          assert len(prompts) == 10
+          for name in ('life_map_galaxy_main', 'life_map_galaxy_mobile'):
+              prompt = prompts[name]['prompt'].lower()
+              for required in ('deep outer space', 'no ground', 'no orb', 'no avatar'):
+                  assert required in prompt, (name, required)
+          assert 'selecting and zooming' in prompts['focus_memory_chamber_main']['prompt'].lower()
+          assert 'moving through an opened memory star' in prompts['replay_memory_film_main']['prompt'].lower()
+          PY
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Write no-spend source receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/preflight
+          cat > artifacts/preflight/v1-spatial-source-preflight.json <<JSON
+          {
+            "schemaVersion": "1.0.0",
+            "repository": "$GITHUB_REPOSITORY",
+            "sourceSha": "$TARGET_SHA",
+            "runId": "$GITHUB_RUN_ID",
+            "canonicalVersionCounts": {"v1": 53, "v2": 80, "v3": 14, "v4": 39, "v5": 27},
+            "promptOverridesChecked": 10,
+            "providerEnvironmentEntered": false,
+            "providerSecretRead": false,
+            "providerCallAttempted": false,
+            "generationAttempted": false,
+            "spendAuthorized": false,
+            "promotionAttempted": false,
+            "deploymentAttempted": false
+          }
+          JSON
+
+      - name: Upload source preflight receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v1-spatial-source-preflight-${{ env.TARGET_SHA }}-${{ github.run_id }}
+          path: artifacts/preflight/v1-spatial-source-preflight.json
+          if-no-files-found: error
+          retention-days: 90
