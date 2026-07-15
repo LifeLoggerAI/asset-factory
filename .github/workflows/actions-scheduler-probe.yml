@@ -1,0 +1,51 @@
+name: Actions Scheduler Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/actions-scheduler-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actions-scheduler-probe-20260715
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record scheduler metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/probe
+          cat > artifacts/probe/actions-scheduler-probe.json <<JSON
+          {
+            "repository": "${GITHUB_REPOSITORY}",
+            "eventName": "${GITHUB_EVENT_NAME}",
+            "ref": "${GITHUB_REF}",
+            "sha": "${GITHUB_SHA}",
+            "runId": "${GITHUB_RUN_ID}",
+            "runAttempt": "${GITHUB_RUN_ATTEMPT}",
+            "actor": "${GITHUB_ACTOR}",
+            "providerCallsAuthorized": false,
+            "paidEnvironmentUsed": false,
+            "secretsRead": false,
+            "promotion": false,
+            "deployment": false
+          }
+          JSON
+          cat artifacts/probe/actions-scheduler-probe.json
+
+      - name: Upload scheduler probe receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: actions-scheduler-probe-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: error
+          path: artifacts/probe/actions-scheduler-probe.json
