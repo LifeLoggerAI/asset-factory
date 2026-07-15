@@ -131,9 +131,10 @@ jobs:
           evidence="$RUNNER_TEMP/v1-provider-preflight-diagnostic"
           test "$(cat "$evidence/source-contract-exit.txt")" = '0'
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
-          receipt = json.loads(Path("${RUNNER_TEMP}/v1-provider-preflight-diagnostic/authority.json").read_text())
+          receipt_path = Path(os.environ['RUNNER_TEMP']) / 'v1-provider-preflight-diagnostic' / 'authority.json'
+          receipt = json.loads(receipt_path.read_text())
           if receipt['providerKeyConfigured'] is not True:
               raise SystemExit('OPENAI_API_KEY is not configured in paid-asset-generation; no provider call was attempted')
           if receipt['providerCallAttempted'] or receipt['generationAttempted'] or receipt['spendAuthorized']:
