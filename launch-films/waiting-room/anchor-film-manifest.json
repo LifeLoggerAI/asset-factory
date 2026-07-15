@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "urai-waiting-room-no-spend-canon-1",
+  "campaignId": "urai-waiting-room-14-day",
+  "recordedAt": "2026-07-15",
+  "status": "planning-not-approved",
+  "assetFactoryAuthority": "f24628088c6d7645ae429d0200f7ab63d312554c",
+  "certifiedSpatialEvidence": {
+    "repository": "LifeLoggerAI/urai-spatial",
+    "appRoot": "urai-tier1",
+    "sha": "e2850a8b9dbd2fd11ee0197505da278322916aa0",
+    "protectedRun": 29428539402,
+    "publicOrigin": "https://urai.app"
+  },
+  "providerCallsAuthorized": false,
+  "maximumProviderCalls": 0,
+  "maximumSpendUsd": 0,
+  "promotionAuthorized": false,
+  "publicationAuthorized": false,
+  "evidenceClasses": [
+    "LIVE_VERIFIED",
+    "WORKING_DEMO",
+    "PROTOTYPE",
+    "VISION"
+  ],
+  "globalDeliverables": {
+    "aspectRatios": ["16:9", "9:16", "1:1"],
+    "captionFormats": ["vtt", "srt"],
+    "accessibleVariants": ["silent-caption", "audio-described", "reduced-motion"],
+    "socialCutsSeconds": [6, 15, 30, 60],
+    "mobileSafeAreaRequired": true,
+    "shotLevelEvidenceBindingRequired": true,
+    "desktopAndMobileCaptureRequiredForEveryRoute": true
+  },
+  "anchorFilms": [
+    {
+      "day": 0,
+      "filmId": "day-00-the-door",
+      "title": "The Door",
+      "state": "storyboard-only",
+      "dominantEvidenceClass": "LIVE_VERIFIED",
+      "centralLine": "Do not imagine the future. Step inside the part that is already here.",
+      "requiredCaptures": [
+        "/home",
+        "/ground",
+        "/life-map",
+        "/focus?memoryId=quiet-reset",
+        "/replay?memoryId=quiet-reset&manifestId=replay-recovery-thread",
+        "/mirror",
+        "/passport",
+        "/status",
+        "release fingerprint and protected-run receipt"
+      ],
+      "prohibitedImplications": [
+        "real personal memory persistence",
+        "medical outcome",
+        "certified XR hardware",
+        "active private workforce provider"
+      ]
+    },
+    {
+      "day": 1,
+      "filmId": "day-01-memory-became-a-movie",
+      "title": "The Memory Became a Movie",
+      "state": "outline-only",
+      "dominantEvidenceClass": "WORKING_DEMO",
+      "requiredDisclosure": "Sample reconstruction; not a claim of stored personal memory or literal historical footage."
+    },
+    {
+      "day": 2,
+      "filmId": "day-02-this-is-live",
+      "title": "This Is Live",
+      "state": "outline-only",
+      "dominantEvidenceClass": "LIVE_VERIFIED",
+      "requiredDisclosure": "Live public Spatial sample-data experience; broader service ecosystem remains uncertified."
+    },
+    {
+      "day": 7,
+      "filmId": "day-07-ask-me-first",
+      "title": "Ask Me First",
+      "state": "vision-outline-only",
+      "dominantEvidenceClass": "VISION",
+      "requiredDisclosure": "Consent and privacy service concepts are not represented as live protected-cloud operation."
+    },
+    {
+      "day": 8,
+      "filmId": "day-08-step-inside",
+      "title": "Step Inside",
+      "state": "vision-outline-only",
+      "dominantEvidenceClass": "VISION",
+      "requiredDisclosure": "AR, VR and XR scenes are future-pathway visualization unless tied to separate certified device evidence."
+    },
+    {
+      "day": 14,
+      "filmId": "day-14-the-world-opens",
+      "title": "The World Opens",
+      "state": "outline-only",
+      "dominantEvidenceClass": "PROTOTYPE",
+      "requiredDisclosure": "Do not imply global scale, persistent services, language completeness or operational support without current evidence."
+    }
+  ],
+  "approvalGates": [
+    "creative",
+    "product-truth",
+    "privacy",
+    "claims",
+    "accessibility",
+    "rights",
+    "spend-if-applicable",
+    "final-publish"
+  ]
+}
