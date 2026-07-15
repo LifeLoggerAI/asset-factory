@@ -22,6 +22,9 @@ The failed paid run stopped before generation. Provider calls, output generation
 - Change only the mobile Life Map wording from `deep-space` to `deep outer space` without changing its visual intent.
 - Add a permanent source-only workflow that checks the canonical version contract and every required phrase independently for both desktop and mobile prompts.
 - Keep provider secrets, paid environment entry, generation, and promotion outside the source verification workflow.
+- Preserve the historical authorization marker byte-for-byte on unrelated pull requests.
+- Remove `.github/workflows/v1-aaa-spatial-pack-marker-recovery.yml`, which duplicated the paid execution path, exposed `workflow_dispatch`, and remained bound to the historical authorization SHA.
+- Retain `.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml` as the sole paid workflow, triggered only by a protected-main change to the canonical authorization marker.
 
 ## Remaining authority
 
