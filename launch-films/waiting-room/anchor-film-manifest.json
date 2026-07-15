@@ -28,7 +28,8 @@
     "accessibleVariants": ["silent-caption", "audio-described", "reduced-motion"],
     "socialCutsSeconds": [6, 15, 30, 60],
     "mobileSafeAreaRequired": true,
-    "shotLevelEvidenceBindingRequired": true
+    "shotLevelEvidenceBindingRequired": true,
+    "desktopAndMobileCaptureRequiredForEveryRoute": true
   },
   "anchorFilms": [
     {
@@ -39,9 +40,9 @@
       "dominantEvidenceClass": "LIVE_VERIFIED",
       "centralLine": "Do not imagine the future. Step inside the part that is already here.",
       "requiredCaptures": [
-        "/home desktop and mobile",
-        "/ground desktop and mobile",
-        "/life-map desktop and mobile",
+        "/home",
+        "/ground",
+        "/life-map",
         "/focus?memoryId=quiet-reset",
         "/replay?memoryId=quiet-reset&manifestId=replay-recovery-thread",
         "/mirror",
