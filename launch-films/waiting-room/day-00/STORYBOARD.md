@@ -15,7 +15,7 @@ Primary evidence class: `LIVE_VERIFIED`
 | 5 | 8s | Ascent into `/life-map` | LIVE_VERIFIED | Real route capture; stars are sample memories, not personal persistence proof. |
 | 6 | 8s | A star opens `/focus?memoryId=quiet-reset` | WORKING_DEMO | Visible sample/reconstruction disclosure. |
 | 7 | 8s | Replay enters the reconstructed memory | WORKING_DEMO | Do not imply literal recovered footage or stored personal history. |
-| 8 | 8s | Mirror and Passport | LIVE_VERIFIED | Identity/ownership framing must remain claim-safe and privacy-first. |
+| 8 | 8s | Mirror, Passport and a brief Status truth card | LIVE_VERIFIED | Identity/ownership framing remains claim-safe; `/status` must show the broader ecosystem is not fully certified. |
 | 9 | 7s | Return to the doorway; title and URL | LIVE_VERIFIED | End card: `URAI Spatial — sample-data public experience` and `urai.app`. |
 
 ## Spoken copy draft
