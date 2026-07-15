@@ -61,7 +61,11 @@ jobs:
           test "$(git rev-parse HEAD)" = "$expected"
           test -z "$(git status --porcelain --untracked-files=all)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            test ! -e "$marker"
+            base='${{ github.event.pull_request.base.sha }}'
+            test -n "$base"
+            git fetch --no-tags --depth=1 origin "$base"
+            test -f "$marker"
+            git diff --exit-code --no-renames "$base" "$expected" -- "$marker"
           else
             parent="$(git rev-parse "$GITHUB_SHA^1")"
             if git diff --name-only --no-renames "$parent" "$GITHUB_SHA" | grep -Fxq "$marker"; then
