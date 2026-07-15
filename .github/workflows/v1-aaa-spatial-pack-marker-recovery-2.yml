@@ -1,0 +1,271 @@
+name: One-Time V1 AAA Spatial Pack Marker Recovery 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/v1-aaa-spatial-pack-marker-recovery-2.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-time-v1-aaa-spatial-pack-marker-20260711
+  cancel-in-progress: false
+
+env:
+  AUTHORIZED_MARKER_SHA: 2c89caae2ed84521934c4ef8896058e5c7aaf77a
+
+jobs:
+  authorize:
+    if: github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: macos-latest
+    timeout-minutes: 10
+    outputs:
+      target_sha: ${{ steps.validate.outputs.target_sha }}
+      provider: ${{ steps.validate.outputs.provider }}
+      endpoint: ${{ steps.validate.outputs.endpoint }}
+      opaque_model: ${{ steps.validate.outputs.opaque_model }}
+      alpha_model: ${{ steps.validate.outputs.alpha_model }}
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.AUTHORIZED_MARKER_SHA }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Validate immutable owner authorization
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker=authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$AUTHORIZED_MARKER_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          python3 scripts/validate_v1_marker_commit.py \
+            --commit "$AUTHORIZED_MARKER_SHA" \
+            --marker "$marker" \
+            --github-output "$GITHUB_OUTPUT"
+          echo "target_sha=$AUTHORIZED_MARKER_SHA" >> "$GITHUB_OUTPUT"
+
+  historical-preflight:
+    needs: authorize
+    runs-on: macos-latest
+    timeout-minutes: 30
+    outputs:
+      safe_to_execute: ${{ steps.inspect.outputs.safe_to_execute }}
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/urai-v1-preflight-pycache-${{ github.run_id }}
+    steps:
+      - name: Checkout exact authorized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.authorize.outputs.target_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Verify redirect, extraction, marker, and history controls
+        run: |
+          python3 -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/test-github-artifact-download.py \
+            scripts/test-v1-safe-resume-preflight.py \
+            scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/test-v1-safe-resume-v3-marker.py \
+            scripts/validate_v1_marker_commit.py \
+            scripts/test-v1-marker-commit.py
+          python3 scripts/test-github-artifact-download.py
+          python3 scripts/test-v1-safe-resume-preflight.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
+
+      - name: Inspect all historical attempts and artifacts before spending
+        id: inspect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/v1_safe_resume_preflight.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --marker-sha bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5 \
+            --marker-sha de27f2f36aa1ca73d504e5dffed99161078fb0c8 \
+            --marker-sha 4dc05a67746e189054609e405ca3801683ab5445 \
+            --marker-sha 0cf837d585d3d1c1d8e171938037098c72230c22 \
+            --output artifacts/preflight/v1-safe-resume-3-historical-inspection.json
+
+      - name: Upload historical inspection receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-v1-safe-resume-3-preflight-${{ github.run_id }}
+          retention-days: 365
+          if-no-files-found: error
+          path: artifacts/preflight/*.json
+
+  execute:
+    needs: [authorize, historical-preflight]
+    if: needs.historical-preflight.outputs.safe_to_execute == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 360
+    environment: paid-asset-generation
+    permissions:
+      actions: read
+      contents: read
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/urai-v1-execute-pycache-${{ github.run_id }}
+      URAI_VERSION: v1
+      ASSET_RENDERER_PROVIDER: ${{ needs.authorize.outputs.provider }}
+      ASSET_RENDERER_ENDPOINT: ${{ needs.authorize.outputs.endpoint }}
+      ASSET_RENDERER_MODEL: ${{ needs.authorize.outputs.opaque_model }}
+      ASSET_RENDERER_ALPHA_MODEL: ${{ needs.authorize.outputs.alpha_model }}
+      ASSET_RENDERER_MODE: provider
+      ASSET_RENDERER_MAX_ATTEMPTS: '1'
+      ASSET_FORGE_REQUIRE_PROVIDER: '1'
+      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+      ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
+      ASSET_FORGE_MAX_ROUNDS: '1'
+      ASSET_FORGE_MAX_PROVIDER_CALLS: '47'
+      ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'
+      ASSET_FORGE_MAX_COST_USD: '47.00'
+      ASSET_FORGE_RUN_ID: ${{ github.run_id }}-v1-aaa-spatial-safe-resume-3
+      ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/paid-request-state.json
+    steps:
+      - name: Checkout exact authorized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.authorize.outputs.target_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Verify immutable source, provider identity, and hard limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ needs.authorize.outputs.target_sha }}'
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$ASSET_RENDERER_PROVIDER" = 'openai'
+          test "$ASSET_RENDERER_ENDPOINT" = 'https://api.openai.com/v1/images/generations'
+          test "$ASSET_RENDERER_MODEL" = 'gpt-image-2'
+          test "$ASSET_RENDERER_ALPHA_MODEL" = 'gpt-image-1.5'
+          test "$ASSET_FORGE_MAX_PROVIDER_CALLS" = '47'
+          test "$ASSET_FORGE_MAX_UNIT_COST_USD" = '1.00'
+          test "$ASSET_FORGE_MAX_COST_USD" = '47.00'
+          test "$ASSET_RENDERER_MAX_ATTEMPTS" = '1'
+          test -z "${URAI_WHEEL_GITHUB_TOKEN:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          test -z "${ASSET_RENDERER_AUTH_HEADER:-}"
+          test -z "${ASSET_RENDERER_AUTH_SCHEME:-}"
+
+      - name: Re-run credential-isolation and marker proof
+        run: |
+          python3 scripts/test-github-artifact-download.py
+          python3 scripts/test-v1-safe-resume-v3-marker.py
+          python3 scripts/test-v1-marker-commit.py
+
+      - name: Download and safely extract proven provider-backed Home seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          seed_zip="$RUNNER_TEMP/urai-v1-home-seed.zip"
+          seed_dir="$RUNNER_TEMP/urai-v1-home-seed"
+          mkdir -p "$seed_dir"
+          python3 scripts/github_artifact_download.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --artifact-id 8250466400 \
+            --output "$seed_zip" \
+            --extract-basename home-threshold-main_1600.png \
+            --extract-directory "$seed_dir" \
+            --max-extracted-bytes 67108864
+          PYTHONPATH=scripts python3 - "$seed_zip" "$seed_dir" <<'PY'
+          import sys
+          from github_artifact_download import extract_unique_member_by_basename
+          extract_unique_member_by_basename(
+              sys.argv[1],
+              'home-threshold-main_1600.png.render.json',
+              sys.argv[2],
+              max_bytes=1048576,
+          )
+          PY
+          test -f "$seed_dir/home-threshold-main_1600.png"
+          test -f "$seed_dir/home-threshold-main_1600.png.render.json"
+          rm -f "$seed_zip"
+          echo "ASSET_FORGE_SEED_DIR=$seed_dir" >> "$GITHUB_ENV"
+
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Preflight provider and Spatial contract
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          test "$ASSET_RENDERER_PROVIDER" = 'openai'
+          test "$ASSET_RENDERER_ENDPOINT" = 'https://api.openai.com/v1/images/generations'
+          test "$ASSET_RENDERER_MODEL" = 'gpt-image-2'
+          test "$ASSET_RENDERER_ALPHA_MODEL" = 'gpt-image-1.5'
+          python -m py_compile \
+            scripts/github_artifact_download.py \
+            scripts/v1_safe_resume_preflight.py \
+            scripts/validate_v1_safe_resume_v3_marker.py \
+            scripts/validate_v1_marker_commit.py \
+            image_asset_generator/forge_v1_spatial_pack_run.py
+          python image_asset_generator/check_canonical_version_contract.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          prompts = json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())
+          for name in ('life_map_galaxy_main', 'life_map_galaxy_mobile'):
+              prompt = prompts[name]['prompt'].lower()
+              for required in ('deep outer space', 'no ground', 'no orb', 'no avatar'):
+                  assert required in prompt, (name, required)
+          assert 'selecting and zooming' in prompts['focus_memory_chamber_main']['prompt'].lower()
+          assert 'moving through an opened memory star' in prompts['replay_memory_film_main']['prompt'].lower()
+          PY
+
+      - name: Generate all 53 V1 Spatial outputs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python image_asset_generator/forge_v1_spatial_pack_run.py
+
+      - name: Certify atomic Spatial handoff
+        run: python image_asset_generator/certify_version_handoff.py --version v1
+
+      - name: Upload complete forge and certification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-v1-aaa-spatial-pack-${{ github.run_id }}
+          retention-days: 365
+          if-no-files-found: warn
+          compression-level: 6
+          path: |
+            artifacts/budget/*.json
+            artifacts/preflight/*.json
+            image_asset_generator/manifests/generated/*.json
+            image_asset_generator/quality_report*.json
+            image_asset_generator/upgrade_feedback*.json
+            image_asset_generator/forge_receipt*.json
+            image_asset_generator/dropin_receipt*.json
+            image_asset_generator/assets/**
+            image_asset_generator/preview.html
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/spatial_handoff/**
