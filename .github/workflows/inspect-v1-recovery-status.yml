@@ -1,0 +1,115 @@
+name: Inspect V1 recovery status
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-v1-recovery-status.yml'
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  deployments: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Inspect exact recovery workflow history without spending
+        id: inspect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_MERGE_SHA: b14033af13b6cdbde9a22fdb216fd2f34588e117
+          AUTHORIZED_MARKER_SHA: e7a748d0840d5912a1870cf7adacd90cd8db9bcb
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/v1-recovery-inspection"
+          mkdir -p "$out"
+          api() {
+            curl --fail --silent --show-error \
+              --header 'Accept: application/vnd.github+json' \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              "$1"
+          }
+
+          api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/v1-aaa-spatial-pack-marker-recovery.yml/runs?per_page=100" > "$out/runs.json"
+
+          OUT_DIR="$out" node - <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const out = process.env.OUT_DIR
+          const runs = JSON.parse(fs.readFileSync(path.join(out, 'runs.json'), 'utf8')).workflow_runs || []
+          const relevant = runs.filter(run => run.head_sha === process.env.RECOVERY_MERGE_SHA || run.head_sha === process.env.AUTHORIZED_MARKER_SHA)
+          fs.writeFileSync(path.join(out, 'relevant-runs.json'), JSON.stringify(relevant, null, 2) + '\n')
+          fs.writeFileSync(path.join(out, 'run-ids.txt'), relevant.map(run => run.id).join('\n') + (relevant.length ? '\n' : ''))
+          console.log(JSON.stringify({ totalRuns: runs.length, relevantRuns: relevant.map(run => ({
+            id: run.id,
+            event: run.event,
+            headSha: run.head_sha,
+            headBranch: run.head_branch,
+            status: run.status,
+            conclusion: run.conclusion,
+            runNumber: run.run_number,
+            runAttempt: run.run_attempt,
+            createdAt: run.created_at,
+            updatedAt: run.updated_at,
+            htmlUrl: run.html_url,
+          })) }, null, 2))
+          NODE
+
+          : > "$out/jobs.ndjson"
+          : > "$out/artifacts.ndjson"
+          while IFS= read -r run_id; do
+            test -n "$run_id" || continue
+            api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?filter=all&per_page=100" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const p=JSON.parse(s);for(const j of p.jobs||[]) console.log(JSON.stringify({runId:j.run_id,id:j.id,name:j.name,status:j.status,conclusion:j.conclusion,startedAt:j.started_at,completedAt:j.completed_at,steps:(j.steps||[]).map(x=>({name:x.name,status:x.status,conclusion:x.conclusion}))}))})' \
+              >> "$out/jobs.ndjson"
+            api "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const p=JSON.parse(s);for(const a of p.artifacts||[]) console.log(JSON.stringify({runId:a.workflow_run&&a.workflow_run.id,id:a.id,name:a.name,sizeInBytes:a.size_in_bytes,expired:a.expired,createdAt:a.created_at,expiresAt:a.expires_at,digest:a.digest}))})' \
+              >> "$out/artifacts.ndjson"
+          done < "$out/run-ids.txt"
+
+          OUT_DIR="$out" node - <<'NODE'
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const out = process.env.OUT_DIR
+          const parseLines = name => {
+            const text = fs.readFileSync(path.join(out, name), 'utf8').trim()
+            return text ? text.split('\n').map(line => JSON.parse(line)) : []
+          }
+          const runs = JSON.parse(fs.readFileSync(path.join(out, 'relevant-runs.json'), 'utf8'))
+          const jobs = parseLines('jobs.ndjson')
+          const artifacts = parseLines('artifacts.ndjson')
+          const executeJobs = jobs.filter(job => job.name === 'execute')
+          const summary = {
+            schemaVersion: 1,
+            inspectedAt: new Date().toISOString(),
+            repository: process.env.GITHUB_REPOSITORY,
+            authorizedMarkerSha: process.env.AUTHORIZED_MARKER_SHA,
+            recoveryMergeSha: process.env.RECOVERY_MERGE_SHA,
+            providerCallTriggeredByInspector: false,
+            paidEnvironmentUsedByInspector: false,
+            relevantRuns: runs.map(run => ({ id: run.id, event: run.event, headSha: run.head_sha, status: run.status, conclusion: run.conclusion, runAttempt: run.run_attempt, createdAt: run.created_at, updatedAt: run.updated_at, htmlUrl: run.html_url })),
+            jobs,
+            artifacts,
+            executeJobs,
+            anyExecuteStarted: executeJobs.some(job => job.startedAt),
+            anyExecuteSucceeded: executeJobs.some(job => job.conclusion === 'success'),
+          }
+          fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+          console.log(JSON.stringify(summary, null, 2))
+          NODE
+          echo "out=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Upload V1 recovery inspection receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v1-recovery-inspection-${{ github.event.pull_request.head.sha }}
+          path: ${{ steps.inspect.outputs.out }}
+          if-no-files-found: error
+          retention-days: 30
