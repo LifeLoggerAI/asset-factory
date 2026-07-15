@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.1.0",
+  "confirm": "AUTHORIZE_URAI_V1_AAA_SPATIAL_PACK_SAFE_RESUME_3",
+  "expectedParentSha": "ae48396d8917eaf6404d2deee12d63066d918f20",
+  "historicalMarkerShas": [
+    "bdf2cd003bf16ed621cdcdc63312c75ce5e5d5e5",
+    "de27f2f36aa1ca73d504e5dffed99161078fb0c8",
+    "4dc05a67746e189054609e405ca3801683ab5445",
+    "0cf837d585d3d1c1d8e171938037098c72230c22"
+  ],
+  "provider": "openai",
+  "endpoint": "https://api.openai.com/v1/images/generations",
+  "opaqueModel": "gpt-image-2",
+  "alphaModel": "gpt-image-1.5",
+  "maxNewProviderCalls": 47,
+  "maxUnitCostUsd": "1.00",
+  "maxTotalCostUsd": "47.00",
+  "canonicalOutputs": 53,
+  "reuseProvenOutputs": 1,
+  "derivedProviderOutputs": 5,
+  "promote": false,
+  "executionNonce": "URAI-V1-AAA-SPATIAL-20260715-SAFE-RESUME-3-EXPLICIT-START-ONE-TIME"
+}
