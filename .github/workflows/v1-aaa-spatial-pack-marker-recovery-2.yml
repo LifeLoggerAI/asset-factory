@@ -269,3 +269,5 @@ jobs:
             image_asset_generator/preview.html
             image_asset_generator/asset_pack.zip
             image_asset_generator/spatial_handoff/**
+
+# Owner-authorized capped generation trigger: 2026-07-23
