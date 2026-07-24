@@ -1,0 +1,32 @@
+# FINITE TIME Farm-to-Lake scratch narration v2
+# Timing-only synthetic read. Not final narration. Not approved for release.
+ft-fl-001|Before there was water, there was land.
+ft-fl-002|My mom and dad ran a dairy farm.
+ft-fl-003|I was too young to see how many hands held that world together.
+ft-fl-004|When the ground iced over, the cows still had to be milked.
+ft-fl-005|My mom trusted one cow enough to take hold of her tail.
+ft-fl-006|The cow climbed, Mom slid, and they made it up together.
+ft-fl-007|The weather fed the hay, and the hay fed the cattle.
+ft-fl-008|The cattle fed the work. Everything needed attention.
+ft-fl-009|I did not know the word system. I was living inside one.
+ft-fl-010|My mom believed the house could always make room for one more person.
+ft-fl-011|We all got sick around that time.
+ft-fl-012|Then a firework bounced under the porch like the world’s cheapest guided missile.
+ft-fl-013|Our cat could not stop on the hallway floor.
+ft-fl-014|The old television did not help.
+ft-fl-015|My brother had a skeleton mask that scared the hell out of me. Dad burned it.
+ft-fl-016|Then there was the family computer.
+ft-fl-017|Before Quake, Mom and I explored a strange digital world together.
+ft-fl-018|She was beside me at one of the first digital doors I opened.
+ft-fl-019|When my brother turned sixteen, he drove me to junior high in his red truck.
+ft-fl-020|Sometimes breakfast came with a game piece that felt like a winning ticket.
+ft-fl-021|For a few minutes, anything seemed possible.
+ft-fl-022|After Marine boot camp, he came home bigger and stronger.
+ft-fl-023|Then I found a dead snake in my shoe.
+ft-fl-024|I tried to beat his ass. I could not. I damn sure tried.
+ft-fl-025|Eventually the dairy buildings disappeared. The land stayed.
+ft-fl-026|Somewhere inside those years, the land opened into water.
+ft-fl-027|Lake O’ the Pines.
+ft-fl-028|We had a low white ski boat with blue along the side.
+ft-fl-029|My dad looked back. I held the rope.
+ft-fl-030|Before I knew how fast life could change, I knew what it felt like to be pulled forward by somebody I trusted.

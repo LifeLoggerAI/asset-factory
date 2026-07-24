@@ -1,0 +1,148 @@
+name: FINITE TIME No-Spend Animatic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'film_foundry/finite_time/**'
+      - 'docs/finite-time/**'
+      - 'package.json'
+      - '.github/workflows/finite-time-no-spend-animatic.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'film_foundry/finite_time/**'
+      - 'docs/finite-time/**'
+      - 'package.json'
+      - '.github/workflows/finite-time-no-spend-animatic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finite-time-animatic-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  TARGET_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  ASSET_RENDERER_MODE: offline
+  ASSET_FORGE_REQUIRE_PROVIDER: '0'
+  ASSET_FACTORY_FORCE_LOCAL: 'true'
+  ASSET_FACTORY_MEDIA_PROVIDER: local-proof
+
+jobs:
+  deterministic-animatic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - name: Prove exact clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.1'
+
+      - name: Install deterministic local media tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg librsvg2-bin espeak-ng imagemagick
+          ffmpeg -version | head -n 1
+          rsvg-convert --version
+          espeak-ng --version | head -n 1
+          montage -version | head -n 1
+
+      - name: Reject provider and secret surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ASSET_RENDERER_MODE" = offline
+          test "$ASSET_FORGE_REQUIRE_PROVIDER" = 0
+          test "$ASSET_FACTORY_MEDIA_PROVIDER" = local-proof
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${REPLICATE_API_TOKEN:-}"
+          test -z "${ELEVENLABS_API_KEY:-}"
+          test -z "${RUNWAY_API_KEY:-}"
+
+      - name: Generate audited v1 and storyboard v2
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run finite-time:proof | tee finite-time-animatic.log
+
+      - name: Verify exact no-spend receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const v1 = JSON.parse(fs.readFileSync('film_foundry/finite_time/dist/farm-to-lake/receipt.json', 'utf8'));
+          const v2 = JSON.parse(fs.readFileSync('film_foundry/finite_time/dist/farm-to-lake-storyboard-v2/receipt.json', 'utf8'));
+          for (const receipt of [v1, v2]) {
+            if (receipt.providerCallsExecuted !== 0) throw new Error('provider calls were executed');
+            if (receipt.spendUsd !== 0) throw new Error('spend was recorded');
+            if (receipt.finalRenderingAuthorized !== false) throw new Error('final rendering was authorized');
+            if (!receipt.mp4Generated) throw new Error('MP4 animatic was not generated');
+            if (receipt.shotCount !== 30 || receipt.sceneCount !== 10 || receipt.durationSeconds !== 180) throw new Error('chapter shape mismatch');
+          }
+          if (v2.storyboardVersion !== 2 || !v2.sceneSpecificBoards || !v2.scratchNarrationGenerated || !v2.contactSheetGenerated) {
+            throw new Error('storyboard v2 evidence is incomplete');
+          }
+          NODE
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 film_foundry/finite_time/dist/farm-to-lake/farm-to-lake-animatic.mp4 | tee finite-time-v1-duration.txt
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 film_foundry/finite_time/dist/farm-to-lake-storyboard-v2/farm-to-lake-storyboard-animatic-v2.mp4 | tee finite-time-v2-duration.txt
+
+      - name: Write exact-head workflow authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          for target in film_foundry/finite_time/dist/farm-to-lake film_foundry/finite_time/dist/farm-to-lake-storyboard-v2; do
+            cat > "$target/workflow-authority.env" <<EOF
+          repository=$GITHUB_REPOSITORY
+          exact_head=$TARGET_SHA
+          checked_out=$(git rev-parse HEAD)
+          workflow_run_id=$GITHUB_RUN_ID
+          credentialed=false
+          provider_calls=0
+          spend_usd=0
+          final_rendering_authorized=false
+          EOF
+            cp finite-time-animatic.log "$target/"
+          done
+          cp finite-time-v1-duration.txt film_foundry/finite_time/dist/farm-to-lake/
+          cp finite-time-v2-duration.txt film_foundry/finite_time/dist/farm-to-lake-storyboard-v2/
+
+      - name: Upload complete v1 and v2 animatic evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: finite-time-farm-to-lake-v1-v2-${{ env.TARGET_SHA }}-${{ github.run_id }}
+          path: |
+            film_foundry/finite_time/dist/farm-to-lake
+            film_foundry/finite_time/dist/farm-to-lake-storyboard-v2
+          if-no-files-found: error
+          retention-days: 365
+
+      - name: Restore exact source and prove no mutation
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git reset --hard "$TARGET_SHA"
+          git clean -ffd
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"

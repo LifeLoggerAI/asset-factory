@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "finite-time-edit-plan-v2",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "sourceArtifactSha256": "sha256:62eacd15d530364ebf200d09db351ea17bda80e825f88b7f69b94a533f23d713",
+  "status": "candidate-not-approved",
+  "renderMode": "deterministic-local-proof",
+  "providerSpendAuthorized": false,
+  "finalRenderingAuthorized": false,
+  "targetDurationSeconds": 180,
+  "shotDurations": {
+    "ft-fl-001": 8,
+    "ft-fl-002": 6,
+    "ft-fl-003": 6,
+    "ft-fl-004": 5,
+    "ft-fl-005": 4,
+    "ft-fl-006": 6,
+    "ft-fl-007": 5,
+    "ft-fl-008": 5,
+    "ft-fl-009": 7,
+    "ft-fl-010": 6,
+    "ft-fl-011": 5,
+    "ft-fl-012": 5,
+    "ft-fl-013": 4,
+    "ft-fl-014": 4,
+    "ft-fl-015": 6,
+    "ft-fl-016": 6,
+    "ft-fl-017": 8,
+    "ft-fl-018": 6,
+    "ft-fl-019": 5,
+    "ft-fl-020": 6,
+    "ft-fl-021": 7,
+    "ft-fl-022": 5,
+    "ft-fl-023": 5,
+    "ft-fl-024": 7,
+    "ft-fl-025": 9,
+    "ft-fl-026": 7,
+    "ft-fl-027": 8,
+    "ft-fl-028": 5,
+    "ft-fl-029": 5,
+    "ft-fl-030": 9
+  },
+  "blockingCorrections": [
+    {
+      "shots": ["ft-fl-001", "ft-fl-002", "ft-fl-003"],
+      "requiredChange": "Replace generic cards with geographic storyboard compositions establishing farmhouse, pond, driveway, pasture, dairy footprint and child viewpoint."
+    },
+    {
+      "shots": ["ft-fl-004", "ft-fl-005", "ft-fl-006"],
+      "requiredChange": "Storyboard body mechanics, slope direction, cow movement and arrival into warm milking-bay light."
+    },
+    {
+      "shots": ["ft-fl-010", "ft-fl-011", "ft-fl-012"],
+      "requiredChange": "Present traveler as an anonymous dignified composite; do not assert medical causation; direct comedy toward family chaos, not homelessness."
+    },
+    {
+      "shots": ["ft-fl-013", "ft-fl-014", "ft-fl-015"],
+      "requiredChange": "Use distinct cat and skeleton-mask boards; establish fear and parental resolution without carrying cat imagery into the mask shot."
+    },
+    {
+      "shots": ["ft-fl-016", "ft-fl-017", "ft-fl-018"],
+      "requiredChange": "Create wholly original digital-world imagery; no copied Myst or Quake screens, logos, music, characters or interface."
+    },
+    {
+      "shots": ["ft-fl-019", "ft-fl-020", "ft-fl-021"],
+      "requiredChange": "Use generic red period truck, breakfast packaging and game piece; test brother/child scale and school screen direction."
+    },
+    {
+      "shots": ["ft-fl-022", "ft-fl-023", "ft-fl-024"],
+      "requiredChange": "Storyboard bedroom-to-living-room geography, three sleeping bags, shoe discovery, brother scale and comic release."
+    },
+    {
+      "shots": ["ft-fl-025", "ft-fl-026", "ft-fl-027"],
+      "requiredChange": "Execute the present-day absence and grass-to-water sound/visual bridge; retain silence before the lake reveal."
+    },
+    {
+      "shots": ["ft-fl-028", "ft-fl-029", "ft-fl-030"],
+      "requiredChange": "Use a generic period ski boat until brand clearance; test eye line, rope tension, water start, body mechanics, spray, speed and trust."
+    }
+  ],
+  "approvalRequirements": [
+    "founder-scope-approval",
+    "v2-storyboard-animatic-approval",
+    "likeness-treatment-approval",
+    "rights-and-consent-approval",
+    "narration-checksum-approval",
+    "narrator-performance-approval",
+    "score-direction-approval",
+    "privacy-retention-approval",
+    "provider-model-call-budget-approval",
+    "final-render-authorization"
+  ]
+}
