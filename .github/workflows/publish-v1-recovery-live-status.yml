@@ -1,0 +1,39 @@
+name: Publish V1 Recovery Live Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v1-recovery-live-status.yml
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  publish:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Publish immediate run state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: edfdf99fa3269e3d056416383e1befc1f97f7a01
+          TARGET_WORKFLOW: one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?per_page=100" > "$RUNNER_TEMP/runs.json"
+          jq -c --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last // empty' "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/run.json"
+          if [[ ! -s "$RUNNER_TEMP/run.json" ]]; then
+            body="V1 receptionist recovery live status: no run currently visible for immutable authorization $TARGET_SHA. No second marker has been created."
+          else
+            id=$(jq -r '.id' "$RUNNER_TEMP/run.json")
+            status=$(jq -r '.status' "$RUNNER_TEMP/run.json")
+            conclusion=$(jq -r '.conclusion // "pending"' "$RUNNER_TEMP/run.json")
+            url=$(jq -r '.html_url' "$RUNNER_TEMP/run.json")
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json"
+            jobs=$(jq -r '[.jobs[] | "\(.name)=\(.status)/\(.conclusion // "pending")"] | join(", ")' "$RUNNER_TEMP/jobs.json")
+            body="V1 receptionist recovery live status: run ${id} (${url}), status ${status}, conclusion ${conclusion}; jobs: ${jobs}. This publisher is read-only and performs no provider call or spend."
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/204/comments" -f body="$body"
