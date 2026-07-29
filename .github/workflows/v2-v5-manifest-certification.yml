@@ -1,0 +1,80 @@
+name: V2-V5 Manifest Certification
+
+on:
+  push:
+    branches: [program/v2-v5-manifest-certification-20260729]
+    paths:
+      - .github/workflows/v2-v5-manifest-certification.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_contract.py
+      - image_asset_generator/canonical_version_catalog.json
+      - image_asset_generator/check_canonical_version_contract.py
+  pull_request:
+    paths:
+      - .github/workflows/v2-v5-manifest-certification.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_contract.py
+      - image_asset_generator/canonical_version_catalog.json
+      - image_asset_generator/check_canonical_version_contract.py
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Build and validate canonical V1-V5 manifests
+        working-directory: image_asset_generator
+        run: python check_canonical_version_contract.py
+      - name: Emit immutable V2-V5 manifest receipt
+        working-directory: image_asset_generator
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import canonical_release_manifests
+          expected = {'v2': 80, 'v3': 14, 'v4': 39, 'v5': 27}
+          versions, all_names, total = {}, set(), 0
+          for version, count in expected.items():
+              path = canonical_release_manifests.build(version)
+              raw = path.read_bytes()
+              entries = json.loads(raw)
+              assert len(entries) == count, (version, len(entries), count)
+              names = [entry['name'] for entry in entries]
+              paths = [entry['canonical_path'] for entry in entries]
+              assert len(names) == len(set(names)), version
+              assert len(paths) == len(set(paths)), version
+              overlap = sorted(all_names.intersection(names))
+              assert not overlap, (version, overlap)
+              all_names.update(names)
+              total += count
+              versions[version] = {
+                  'count': count,
+                  'manifest': str(path.relative_to(Path.cwd())),
+                  'sha256': hashlib.sha256(raw).hexdigest(),
+                  'namesSha256': hashlib.sha256('\n'.join(sorted(names)).encode()).hexdigest(),
+                  'pathsSha256': hashlib.sha256('\n'.join(sorted(paths)).encode()).hexdigest(),
+              }
+          assert total == 160
+          receipt = {'schemaVersion':'1.0.0','generatedAt':datetime.now(timezone.utc).isoformat(),'status':'passed','providerCalls':0,'spendUsd':'0.00','versions':versions,'totalOutputs':total}
+          out = Path('../artifacts/manifests/v2-v5-manifest-certification.json')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(receipt, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(receipt, indent=2, sort_keys=True))
+          PY
+      - name: Upload V2-V5 manifest receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v2-v5-manifest-certification-${{ github.sha }}
+          retention-days: 90
+          if-no-files-found: error
+          path: artifacts/manifests/v2-v5-manifest-certification.json
