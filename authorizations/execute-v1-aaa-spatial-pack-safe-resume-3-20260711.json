@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "confirm": "AUTHORIZE_URAI_V1_RECEPTIONIST_MISSING_ONLY_RECOVERY",
+  "expectedParentSha": "4646a2842e2ade930bd46c958005a3c0b8b0db0d",
+  "provider": "openai",
+  "endpoint": "https://api.openai.com/v1/images/generations",
+  "alphaModel": "gpt-image-1.5",
+  "targetAsset": "avatar_receptionist",
+  "retainedArtifactId": 8741010314,
+  "retainedArtifactDigest": "sha256:10318639cd60051d612a4277a639a2bd9fd55d64fda3e17b1a7d42452d9e24ff",
+  "retainedAcceptedOutputs": 52,
+  "canonicalOutputs": 53,
+  "maxNewProviderCalls": 1,
+  "maxUnitCostUsd": "1.00",
+  "maxTotalCostUsd": "1.00",
+  "promote": false,
+  "executionNonce": "URAI-V1-RECEPTIONIST-RECOVERY-20260729-ONE-TIME"
+}
