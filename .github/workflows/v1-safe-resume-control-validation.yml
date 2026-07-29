@@ -73,7 +73,7 @@ jobs:
           from pathlib import Path
           workflow=Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
           executor=Path('image_asset_generator/recover_v1_receptionist.py').read_text()
-          for value in ('8741010314','accepted=52','avatar_receptionist',"ASSET_FORGE_MAX_PROVIDER_CALLS: '1'","ASSET_FORGE_MAX_COST_USD: '1.00'"):
+          for value in ('8741010314','"accepted":52','avatar_receptionist',"ASSET_FORGE_MAX_PROVIDER_CALLS: '1'","ASSET_FORGE_MAX_COST_USD: '1.00'"):
               assert value in workflow, value
           for value in ('snapshot_accepted','assert_accepted_unchanged',"generation.get('outputRequests') != 1","ledger.get('providerCallsExecuted') != 1"):
               assert value in executor, value
