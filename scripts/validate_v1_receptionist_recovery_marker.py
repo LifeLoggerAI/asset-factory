@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-MARKER_PATH = Path('authorizations/execute-v1-receptionist-recovery-20260729.json')
+MARKER_PATH = Path('authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json')
 PROVIDER = 'openai'
 ENDPOINT = 'https://api.openai.com/v1/images/generations'
 ALPHA_MODEL = 'gpt-image-1.5'
