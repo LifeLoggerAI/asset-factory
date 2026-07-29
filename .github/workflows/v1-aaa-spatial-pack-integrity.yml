@@ -70,7 +70,8 @@ jobs:
           ]
           for value in required_workflow:
               assert value in workflow, value
-          assert workflow.count('OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}') == 1
+          secret_expr = '$' + '{{ secrets.'
+          assert workflow.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 1
           for forbidden in ('git push', 'merge_pull_request', 'enable_auto_merge', 'repository: LifeLoggerAI/urai-spatial', 'firebase deploy'):
               assert forbidden not in workflow, forbidden
           for value in (
