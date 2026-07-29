@@ -1,0 +1,97 @@
+name: V1 Alpha Score Recovery Proof
+
+on:
+  push:
+    branches: [fix/v1-alpha-aware-recovery-20260729]
+    paths:
+      - image_asset_generator/score_v1_assets.py
+      - image_asset_generator/test_score_v1_alpha_metrics.py
+      - .github/workflows/v1-alpha-score-recovery-proof.yml
+  pull_request:
+    paths:
+      - image_asset_generator/score_v1_assets.py
+      - image_asset_generator/test_score_v1_alpha_metrics.py
+      - .github/workflows/v1-alpha-score-recovery-proof.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prove:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Install image dependencies
+        run: python -m pip install Pillow pytest
+      - name: Run alpha metric regressions
+        working-directory: image_asset_generator
+        run: pytest -q test_score_v1_alpha_metrics.py
+      - name: Download retained paid V1 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/8741010314/zip > "$RUNNER_TEMP/v1-paid.zip"
+          mkdir -p "$RUNNER_TEMP/v1-paid"
+          unzip -q "$RUNNER_TEMP/v1-paid.zip" -d "$RUNNER_TEMP/v1-paid"
+      - name: Re-score immutable provider-backed pack without secret access
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/v1-paid/image_asset_generator"
+          cp image_asset_generator/score_v1_assets.py "$root/score_v1_assets.py"
+          cp "$root/manifests/generated/v1.manifest.json" "$root/manifest.json"
+          cd "$root"
+          python - <<'PY'
+          import json
+          import score_v1_assets as scorer
+          entries = json.load(open('manifest.json'))
+          records = [scorer.score(entry, True) for entry in entries]
+          by_name = {record['name']: record for record in records}
+          hashes = [(record['name'], record.get('metrics', {}).get('perceptualHash')) for record in records]
+          for index, (name_a, hash_a) in enumerate(hashes):
+              if not hash_a:
+                  continue
+              for name_b, hash_b in hashes[index + 1:]:
+                  if not hash_b:
+                      continue
+                  same_category = by_name[name_a].get('category') == by_name[name_b].get('category')
+                  if scorer.hamming(hash_a, hash_b) <= (5 if same_category else 8):
+                      for name, other in ((name_a, name_b), (name_b, name_a)):
+                          issue = f'composition near-duplicates {other}'
+                          if issue not in by_name[name]['issues']:
+                              by_name[name]['issues'].append(issue)
+                              by_name[name]['status'] = 'failed'
+          failed = [record for record in records if record['status'] != 'passed']
+          report = {
+              'schemaVersion': '2.0.0',
+              'status': 'failed' if failed else 'passed',
+              'requireProvider': True,
+              'passed': len(records) - len(failed),
+              'failed': len(failed),
+              'assets': records,
+          }
+          json.dump(report, open('quality_report.json', 'w'), indent=2)
+          json.dump(scorer.feedback(records), open('upgrade_feedback.json', 'w'), indent=2)
+          failed_names = [item['name'] for item in failed]
+          assert report['passed'] == 52, report
+          assert report['failed'] == 1, report
+          assert failed_names == ['avatar_receptionist'], failed_names
+          print('PROVEN passed=52 failed=1 retry=avatar_receptionist providerMetadataRequired=true')
+          PY
+      - name: Upload no-spend recovery proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v1-alpha-score-recovery-${{ github.sha }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/v1-paid/image_asset_generator/quality_report.json
+            ${{ runner.temp }}/v1-paid/image_asset_generator/upgrade_feedback.json
