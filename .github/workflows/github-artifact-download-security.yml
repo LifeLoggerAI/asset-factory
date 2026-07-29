@@ -56,7 +56,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           text=Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
-          assert text.count('OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}') == 1
+          secret_expr='$' + '{{ secrets.'
+          expected='OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}'
+          assert text.count(expected) == 1
           assert 'environment: paid-asset-generation' in text
           assert 'permissions:\n      actions: read\n      contents: read' in text
           assert 'persist-credentials: false' in text
@@ -86,6 +88,8 @@ jobs:
           assert 'OPENAI_API_KEY' not in preflight
           assert 'paid-asset-generation' not in preflight
           execute=text.split('  execute:',1)[1]
-          assert 'OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}' in execute
+          secret_expr='$' + '{{ secrets.'
+          expected='OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}'
+          assert expected in execute
           assert 'environment: paid-asset-generation' in execute
           PY
