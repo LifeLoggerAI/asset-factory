@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AUTHORIZED_MARKER_SHA: 2c89caae2ed84521934c4ef8896058e5c7aaf77a
+  AUTHORIZED_MARKER_SHA: 33145546fd46711a68c5e83ba99a322841d583d9
 
 jobs:
   authorize:
@@ -270,4 +270,4 @@ jobs:
             image_asset_generator/asset_pack.zip
             image_asset_generator/spatial_handoff/**
 
-# Owner-authorized capped generation trigger: 2026-07-23
+# Owner-authorized capped generation trigger: 2026-07-29
