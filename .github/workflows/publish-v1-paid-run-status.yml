@@ -17,77 +17,70 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TARGET_WORKFLOW: v1-aaa-spatial-pack-marker-recovery-2.yml
-  TARGET_HEAD_SHA: a5d629e37db62738b7817b46e787cef662a5ab40
-  TARGET_ISSUE: '201'
+  TARGET_WORKFLOW: one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+  TARGET_HEAD_SHA: edfdf99fa3269e3d056416383e1befc1f97f7a01
+  TARGET_ISSUE: '204'
 
 jobs:
   publish:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 100
     steps:
-      - name: Inspect push-triggered paid workflow and publish status
+      - name: Inspect push-triggered paid workflow and publish terminal status
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          run_json="$RUNNER_TEMP/v1-paid-run.json"
+          : > "$run_json"
 
-          gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?per_page=100" \
-            > "$RUNNER_TEMP/v1-paid-runs.json"
+          for attempt in $(seq 1 180); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?per_page=100" > "$RUNNER_TEMP/v1-paid-runs.json"
+            jq -c --arg sha "$TARGET_HEAD_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last // empty' "$RUNNER_TEMP/v1-paid-runs.json" > "$run_json"
+            if [[ -s "$run_json" ]]; then
+              status="$(jq -r '.status' "$run_json")"
+              if [[ "$status" == completed ]]; then
+                break
+              fi
+            fi
+            sleep 30
+          done
 
-          jq -c --arg sha "$TARGET_HEAD_SHA" \
-            '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last // empty' \
-            "$RUNNER_TEMP/v1-paid-runs.json" \
-            > "$RUNNER_TEMP/v1-paid-run.json"
-
-          if [[ ! -s "$RUNNER_TEMP/v1-paid-run.json" ]]; then
+          if [[ ! -s "$run_json" ]]; then
             cat > "$RUNNER_TEMP/comment.md" <<EOF
-          ## V1 paid-generation status — no matching run found
+          ## V1 receptionist recovery status — no matching run found
 
           - Expected workflow: \`${TARGET_WORKFLOW}\`
-          - Expected trigger SHA: \`${TARGET_HEAD_SHA}\`
-          - Matching push-triggered run: **none found**
+          - Expected immutable authorization SHA: \`${TARGET_HEAD_SHA}\`
+          - Matching push-triggered run: **none found after polling**
           - Provider call, spend, generation, promotion, deployment, or secret read by this publisher: **none**
 
-          The immutable authorization and workflow wiring exist, but GitHub has not exposed a run for the expected trigger SHA. Do not create another paid marker or infer execution success from this receipt.
+          Do not create another paid marker or infer execution success from this receipt.
           EOF
           else
-            run_id="$(jq -r '.id' "$RUNNER_TEMP/v1-paid-run.json")"
-            run_number="$(jq -r '.run_number' "$RUNNER_TEMP/v1-paid-run.json")"
-            run_attempt="$(jq -r '.run_attempt' "$RUNNER_TEMP/v1-paid-run.json")"
-            event="$(jq -r '.event' "$RUNNER_TEMP/v1-paid-run.json")"
-            status="$(jq -r '.status' "$RUNNER_TEMP/v1-paid-run.json")"
-            conclusion="$(jq -r '.conclusion // "pending"' "$RUNNER_TEMP/v1-paid-run.json")"
-            created_at="$(jq -r '.created_at' "$RUNNER_TEMP/v1-paid-run.json")"
-            updated_at="$(jq -r '.updated_at' "$RUNNER_TEMP/v1-paid-run.json")"
-            html_url="$(jq -r '.html_url' "$RUNNER_TEMP/v1-paid-run.json")"
+            run_id="$(jq -r '.id' "$run_json")"
+            run_number="$(jq -r '.run_number' "$run_json")"
+            run_attempt="$(jq -r '.run_attempt' "$run_json")"
+            event="$(jq -r '.event' "$run_json")"
+            status="$(jq -r '.status' "$run_json")"
+            conclusion="$(jq -r '.conclusion // "pending"' "$run_json")"
+            created_at="$(jq -r '.created_at' "$run_json")"
+            updated_at="$(jq -r '.updated_at' "$run_json")"
+            html_url="$(jq -r '.html_url' "$run_json")"
 
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
-              > "$RUNNER_TEMP/v1-paid-jobs.json"
-            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
-              > "$RUNNER_TEMP/v1-paid-artifacts.json"
-
-            jq -r '.jobs[] | "- `\(.id)` **\(.name)** — `\(.status)` / `\(.conclusion // "pending")`"' \
-              "$RUNNER_TEMP/v1-paid-jobs.json" \
-              > "$RUNNER_TEMP/jobs.md"
-            jq -r '.artifacts[] | "- `\(.id)` **\(.name)** — expired `\(.expired)`, bytes `\(.size_in_bytes)`, digest `\(.digest // "unavailable")`"' \
-              "$RUNNER_TEMP/v1-paid-artifacts.json" \
-              > "$RUNNER_TEMP/artifacts.md"
-
-            if [[ ! -s "$RUNNER_TEMP/jobs.md" ]]; then
-              printf '%s\n' '- No jobs reported yet.' > "$RUNNER_TEMP/jobs.md"
-            fi
-            if [[ ! -s "$RUNNER_TEMP/artifacts.md" ]]; then
-              printf '%s\n' '- No retained artifacts reported yet.' > "$RUNNER_TEMP/artifacts.md"
-            fi
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > "$RUNNER_TEMP/v1-paid-jobs.json"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" > "$RUNNER_TEMP/v1-paid-artifacts.json"
+            jq -r '.jobs[] | "- `\(.id)` **\(.name)** — `\(.status)` / `\(.conclusion // "pending")`"' "$RUNNER_TEMP/v1-paid-jobs.json" > "$RUNNER_TEMP/jobs.md"
+            jq -r '.artifacts[] | "- `\(.id)` **\(.name)** — expired `\(.expired)`, bytes `\(.size_in_bytes)`, digest `\(.digest // "unavailable")`"' "$RUNNER_TEMP/v1-paid-artifacts.json" > "$RUNNER_TEMP/artifacts.md"
+            [[ -s "$RUNNER_TEMP/jobs.md" ]] || printf '%s\n' '- No jobs reported.' > "$RUNNER_TEMP/jobs.md"
+            [[ -s "$RUNNER_TEMP/artifacts.md" ]] || printf '%s\n' '- No retained artifacts reported.' > "$RUNNER_TEMP/artifacts.md"
 
             cat > "$RUNNER_TEMP/comment.md" <<EOF
-          ## V1 paid-generation live status
+          ## V1 receptionist recovery terminal status
 
           - Workflow: \`${TARGET_WORKFLOW}\`
-          - Trigger SHA: \`${TARGET_HEAD_SHA}\`
+          - Immutable authorization SHA: \`${TARGET_HEAD_SHA}\`
           - Run: [\`${run_id}\`](${html_url}) — number \`${run_number}\`, attempt \`${run_attempt}\`
           - Event: \`${event}\`
           - Status: **${status}**
@@ -105,7 +98,4 @@ jobs:
           EOF
           fi
 
-          gh api \
-            --method POST \
-            "repos/${GITHUB_REPOSITORY}/issues/${TARGET_ISSUE}/comments" \
-            -f body="$(cat "$RUNNER_TEMP/comment.md")"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_ISSUE}/comments" -f body="$(cat "$RUNNER_TEMP/comment.md")"
