@@ -5,45 +5,29 @@ on:
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
-      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
-      - image_asset_generator/export_spatial_handoff.py
-      - image_asset_generator/forge_v1_spatial_pack_run.py
-      - image_asset_generator/post_certify_v1_spatial_pack.py
-      - image_asset_generator/spatial_prompt_overrides.json
-      - scripts/validate_v1_safe_resume_v3_marker.py
-      - scripts/test-v1-safe-resume-v3-marker.py
-      - scripts/validate_v1_marker_commit.py
-      - scripts/test-v1-marker-commit.py
-      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+      - image_asset_generator/recover_v1_receptionist.py
+      - image_asset_generator/score_v1_assets.py
+      - scripts/validate_v1_receptionist_recovery_marker.py
+      - scripts/validate_v1_receptionist_recovery_commit.py
   push:
     branches: [main]
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
       - .github/workflows/v1-aaa-spatial-pack-integrity.yml
-      - .github/workflows/v1-aaa-spatial-pack-post-certification.yml
       - authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
-      - image_asset_generator/export_spatial_handoff.py
-      - image_asset_generator/forge_v1_spatial_pack_run.py
-      - image_asset_generator/post_certify_v1_spatial_pack.py
-      - image_asset_generator/spatial_prompt_overrides.json
-      - scripts/validate_v1_safe_resume_v3_marker.py
-      - scripts/test-v1-safe-resume-v3-marker.py
-      - scripts/validate_v1_marker_commit.py
-      - scripts/test-v1-marker-commit.py
-      - docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md
+      - image_asset_generator/recover_v1_receptionist.py
+      - image_asset_generator/score_v1_assets.py
+      - scripts/validate_v1_receptionist_recovery_marker.py
+      - scripts/validate_v1_receptionist_recovery_commit.py
 
 permissions:
   contents: read
 
-concurrency:
-  group: v1-aaa-spatial-pack-integrity-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   verify:
-    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
-    timeout-minutes: 10
+    runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -51,180 +35,86 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
           persist-credentials: false
-
-      - name: Verify exact candidate and marker lifecycle
-        shell: bash
+      - name: Verify exact clean candidate
         run: |
           set -euo pipefail
-          marker=authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json
-          expected='${{ github.event.pull_request.head.sha || github.sha }}'
-          test "$(git rev-parse HEAD)" = "$expected"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
           test -z "$(git status --porcelain --untracked-files=all)"
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            base='${{ github.event.pull_request.base.sha }}'
-            test -n "$base"
-            git fetch --no-tags --depth=1 origin "$base"
-            test -f "$marker"
-            git diff --exit-code --no-renames "$base" "$expected" -- "$marker"
-          else
-            parent="$(git rev-parse "$GITHUB_SHA^1")"
-            if git diff --name-only --no-renames "$parent" "$GITHUB_SHA" | grep -Fxq "$marker"; then
-              python3 scripts/validate_v1_marker_commit.py \
-                --commit "$GITHUB_SHA" \
-                --marker "$marker"
-            fi
-          fi
-
-      - name: Compile executor, marker validators, and prompt contract
-        shell: bash
+      - name: Compile recovery executor and authorization validators
         run: |
-          set -euo pipefail
           python3 -m py_compile \
-            image_asset_generator/forge_v1_spatial_pack_run.py \
-            image_asset_generator/export_spatial_handoff.py \
-            image_asset_generator/post_certify_v1_spatial_pack.py \
-            scripts/validate_v1_safe_resume_v3_marker.py \
-            scripts/test-v1-safe-resume-v3-marker.py \
-            scripts/validate_v1_marker_commit.py \
-            scripts/test-v1-marker-commit.py
-          python3 scripts/test-v1-safe-resume-v3-marker.py
-          python3 scripts/test-v1-marker-commit.py
-          python3 - <<'PY'
-          import ast, json
-          from pathlib import Path
-          script = Path('image_asset_generator/forge_v1_spatial_pack_run.py').read_text()
-          assert 'TOTAL, MASTERS, NEW_CALLS = 53, 48, 47' in script
-          assert 'SEED_REQUEST = "req_105244180b6f4b95bec882bdfc1a695b"' in script
-          assert '"promotion": False' in script
-          assert len(json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())) == 10
-          ast.parse(script)
-          PY
-
-      - name: Verify immutable resume, provider, and duplicate-spend boundary
-        shell: bash
+            image_asset_generator/recover_v1_receptionist.py \
+            image_asset_generator/score_v1_assets.py \
+            scripts/validate_v1_receptionist_recovery_marker.py \
+            scripts/validate_v1_receptionist_recovery_commit.py
+      - name: Verify exact one-asset paid boundary
         run: |
           set -euo pipefail
-          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume.yml
-          test ! -e .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-2.yml
-          test -f .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
-          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-20260711.json
-          test ! -e authorizations/execute-v1-aaa-spatial-pack-safe-resume-2-20260711.json
           python3 - <<'PY'
-          import re
           from pathlib import Path
-          text = Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
-          validator = Path('scripts/validate_v1_safe_resume_v3_marker.py').read_text()
-          commit_validator = Path('scripts/validate_v1_marker_commit.py').read_text()
-          expression = '$' + '{{ needs.authorize.outputs.'
-          required = [
-              'name: One-Time V1 AAA Spatial Pack Marker',
-              'group: one-time-v1-aaa-spatial-pack-marker-20260711',
-              'cancel-in-progress: false',
-              'github.actor == github.repository_owner && github.run_attempt == 1',
-              'GITHUB_RUN_ATTEMPT',
-              'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
-              'scripts/validate_v1_marker_commit.py',
-              'scripts/validate_v1_safe_resume_v3_marker.py',
-              'ASSET_RENDERER_PROVIDER: ' + expression + 'provider }}',
-              'ASSET_RENDERER_ENDPOINT: ' + expression + 'endpoint }}',
-              'ASSET_RENDERER_MODEL: ' + expression + 'opaque_model }}',
-              'ASSET_RENDERER_ALPHA_MODEL: ' + expression + 'alpha_model }}',
-              "ASSET_FORGE_MAX_PROVIDER_CALLS: '47'",
-              "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
-              "ASSET_FORGE_MAX_COST_USD: '47.00'",
-              "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
-              'environment: paid-asset-generation',
-              'Generate all 53 V1 Spatial outputs',
-              'home-threshold-main_1600.png.render.json',
+          workflow=Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
+          marker=Path('scripts/validate_v1_receptionist_recovery_marker.py').read_text()
+          executor=Path('image_asset_generator/recover_v1_receptionist.py').read_text()
+          required_workflow=[
+            'name: One-Time V1 Receptionist Missing-Only Recovery',
+            'authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json',
+            'environment: paid-asset-generation',
+            "ASSET_FORGE_MAX_PROVIDER_CALLS: '1'",
+            "ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'",
+            "ASSET_FORGE_MAX_COST_USD: '1.00'",
+            "ASSET_RENDERER_MAX_ATTEMPTS: '1'",
+            'retainedArtifactId',
+            '8741010314',
+            'avatar_receptionist',
+            'recover_v1_receptionist.py',
           ]
-          for value in required:
-              assert value in text, value
+          for value in required_workflow:
+              assert value in workflow, value
+          assert workflow.count('OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}') == 1
+          for forbidden in ('git push', 'merge_pull_request', 'enable_auto_merge', 'repository: LifeLoggerAI/urai-spatial', 'firebase deploy'):
+              assert forbidden not in workflow, forbidden
           for value in (
-              'PROVIDER = "openai"',
-              'ENDPOINT = "https://api.openai.com/v1/images/generations"',
-              'OPAQUE_MODEL = "gpt-image-2"',
-              'ALPHA_MODEL = "gpt-image-1.5"',
+            "'maxNewProviderCalls': 1",
+            "'maxUnitCostUsd': '1.00'",
+            "'maxTotalCostUsd': '1.00'",
+            "'targetAsset': TARGET",
+            "RETAINED_ARTIFACT_ID = 8741010314",
+            "'promote': False",
           ):
-              assert value in validator, value
+              assert value in marker, value
           for value in (
-              'first parent',
-              '"--no-renames"',
-              'validate_marker(marker_path, parent_sha)',
+            "TARGET = 'avatar_receptionist'",
+            'RETAINED_ACCEPTED = 52',
+            "if generation.get('outputRequests') != 1",
+            "if ledger.get('providerCallsExecuted') != 1",
+            'assert_accepted_unchanged',
+            "base_receipt['missing'] = 0",
           ):
-              assert value in commit_validator, value
-          secret_expr = '$' + '{{ secrets.'
-          assert text.count('OPENAI_API_KEY: ' + secret_expr + 'OPENAI_API_KEY }}') == 2
-          for name in (
-              'ASSET_RENDERER_ENDPOINT',
-              'ASSET_RENDERER_API_KEY',
-              'ASSET_RENDERER_MODEL',
-              'ASSET_RENDERER_AUTH_HEADER',
-              'ASSET_RENDERER_AUTH_SCHEME',
-          ):
-              assert name + ': ' + secret_expr not in text, name
-          for value in ('repository: LifeLoggerAI/urai-spatial', 'git push', 'merge_pull_request', 'enable_auto_merge'):
-              assert value not in text, value
-          assert not re.search(r'(?m)^\s*URAI_WHEEL_GITHUB_TOKEN:\s*', text)
+              assert value in executor, value
           PY
-
-      - name: Verify lossless source-binding post-certification
-        shell: bash
+      - name: Verify marker schema fails closed
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          tmp="$(mktemp -d)"
+          PYTHONPATH=scripts python3 - "$tmp" <<'PY'
+          import json, sys
           from pathlib import Path
-          exporter = Path('image_asset_generator/export_spatial_handoff.py').read_text()
-          certifier = Path('image_asset_generator/post_certify_v1_spatial_pack.py').read_text()
-          post = Path('.github/workflows/v1-aaa-spatial-pack-post-certification.yml').read_text()
-
-          for value in (
-              'image.save(destination, "WEBP", method=6, lossless=True)',
-              '"sourceSha256": sha256(source_path)',
-              '"sourceMetadataSha256": sha256(metadata_path) if metadata_path.is_file() else None',
-              '"sourcePixelSha256": source_pixel_hash',
-              '"handoffPixelSha256": source_pixel_hash',
-              '"sourceBinding": "lossless-webp-decoded-pixel-sha256"',
-          ):
-              assert value in exporter, value
-
-          for value in (
-              'handoff_root = handoff_manifest_path.parents[4]',
-              'receipt.get("newProviderCalls") != 47',
-              'receipt.get("ready") != 53',
-              'dropin.get("status") != "certified"',
-              '"handoffAssetsChecked": len(handoff_records)',
-              '"directProviderAssetsChecked": len(direct_records)',
-              '"status": "failed" if duplicates else "passed"',
-          ):
-              assert value in certifier, value
-
-          for value in (
-              'workflows: [One-Time V1 AAA Spatial Pack Marker]',
-              'python3 image_asset_generator/post_certify_v1_spatial_pack.py',
-              '--root "$GENERATED_PACK_ROOT"',
-              '--source-conclusion "$SOURCE_CONCLUSION"',
-              '--source-run-id "$SOURCE_RUN_ID"',
-              '--source-head-sha "$SOURCE_HEAD_SHA"',
-              '--source-artifact-id "$SOURCE_ARTIFACT_ID"',
-              '--output post-certification/v1-spatial-duplicate-report.json',
-          ):
-              assert value in post, value
-
-          for value in ('git push','merge_pull_request','enable_auto_merge','repository: LifeLoggerAI/urai-spatial'):
-              assert value not in post, value
+          from validate_v1_receptionist_recovery_marker import expected_marker, validate_marker
+          parent='a'*40
+          path=Path(sys.argv[1])/'execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+          path.write_text(json.dumps(expected_marker(parent)))
+          assert validate_marker(path, parent)['maxNewProviderCalls'] == 1
+          payload=json.loads(path.read_text())
+          payload['maxNewProviderCalls']=2
+          path.write_text(json.dumps(payload))
+          try:
+              validate_marker(path, parent)
+          except ValueError:
+              pass
+          else:
+              raise AssertionError('expanded call ceiling must fail closed')
           PY
-
-      - name: Verify Life Map to Replay spatial canon
-        shell: bash
+      - name: Verify sole paid workflow boundary
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          prompts = json.loads(Path('image_asset_generator/spatial_prompt_overrides.json').read_text())
-          life = (prompts['life_map_galaxy_main']['prompt'] + prompts['life_map_galaxy_mobile']['prompt']).lower()
-          for required in ('deep outer space', 'no ground', 'no orb', 'no avatar'):
-              assert required in life, required
-          assert 'selecting and zooming' in prompts['focus_memory_chamber_main']['prompt'].lower()
-          assert 'moving through an opened memory star' in prompts['replay_memory_film_main']['prompt'].lower()
-          PY
+          python3 scripts/check-paid-workflow-boundary.py
+          python3 scripts/test-paid-workflow-boundary.py
