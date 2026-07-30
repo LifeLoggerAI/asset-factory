@@ -1,0 +1,30 @@
+{
+  "deploymentAuthorized": false,
+  "locatedAt": "2026-07-30T13:40:21.027045+00:00",
+  "matchingRunCount": 1,
+  "promotionAuthorized": false,
+  "providerCallsExecutedByLocator": 0,
+  "providerSpendUsdByLocator": "0.00",
+  "repository": "LifeLoggerAI/asset-factory",
+  "runs": [
+    {
+      "artifactsUrl": "https://api.github.com/repos/LifeLoggerAI/asset-factory/actions/runs/30543824770/artifacts",
+      "conclusion": null,
+      "createdAt": "2026-07-30T12:44:33Z",
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "c388b1ce3d6fc27ef30599eb6535605bff202fb7",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30543824770",
+      "id": 30543824770,
+      "jobsUrl": "https://api.github.com/repos/LifeLoggerAI/asset-factory/actions/runs/30543824770/jobs",
+      "name": "One-Time V2-V5 Exact Paid Asset Generation",
+      "runAttempt": 1,
+      "runNumber": 1,
+      "status": "in_progress",
+      "updatedAt": "2026-07-30T12:45:01Z"
+    }
+  ],
+  "schemaVersion": "1.0.0",
+  "targetHeadSha": "c388b1ce3d6fc27ef30599eb6535605bff202fb7",
+  "targetWorkflow": "one-time-v2-v5-exact-paid-generation.yml"
+}
