@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 import argparse
 import base64
 import hashlib
@@ -14,6 +15,7 @@ OUT = BASE / 'artifacts/reconciliation/v3-v5'
 EXPECTED = {'v3': 14, 'v4': 39, 'v5': 27}
 SPATIAL_REPO = 'LifeLoggerAI/urai-spatial'
 AAA_MANIFEST = 'urai-tier1/public/assets/urai-aaa-full-pack/manifest.json'
+CONTRACT_VALIDATOR = GEN / 'check_canonical_version_contract.py'
 DRIVE_EVIDENCE = [
     {
         'id': '1KetSmEfTEBWb4o_PazOVp5GFD6DfcZxFdEn_TgarRR0',
@@ -27,26 +29,45 @@ DRIVE_EVIDENCE = [
 STOP = {'v3', 'v4', 'v5', 'asset', 'visual', 'state', 'main', 'production', 'final', 'ui'}
 
 
+def run_contract_validator() -> None:
+    if not CONTRACT_VALIDATOR.is_file():
+        raise FileNotFoundError(f'checked-in contract validator is missing: {CONTRACT_VALIDATOR}')
+    subprocess.run(['python', CONTRACT_VALIDATOR.name], cwd=GEN, check=True)
+
+
 def gh_json(endpoint: str) -> dict:
     run = subprocess.run(['gh', 'api', endpoint], text=True, capture_output=True)
     if run.returncode:
-        raise RuntimeError(run.stderr.strip()[-1000:])
+        detail = '\n'.join(part for part in (run.stdout.strip(), run.stderr.strip()) if part)
+        raise RuntimeError(detail[-1000:] or f'gh api failed for {endpoint}')
     return json.loads(run.stdout)
 
 
+def is_not_found_response(run: subprocess.CompletedProcess[str]) -> bool:
+    detail = '\n'.join(part for part in (run.stdout.strip(), run.stderr.strip()) if part)
+    if re.search(r'(?i)(?:http\s*)?404|status["\s:]+404|not found', detail):
+        return True
+    try:
+        payload = json.loads(run.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    return payload.get('status') == 404 or payload.get('message') == 'Not Found'
+
+
 def api_exists(repo_path: str, ref: str) -> tuple[bool, dict]:
-    run = subprocess.run(
-        ['gh', 'api', f'repos/{SPATIAL_REPO}/contents/{repo_path}?ref={ref}'],
-        text=True,
-        capture_output=True,
-    )
+    endpoint = f'repos/{SPATIAL_REPO}/contents/{repo_path}?ref={ref}'
+    run = subprocess.run(['gh', 'api', endpoint], text=True, capture_output=True)
     if run.returncode:
-        return False, {'lookupError': run.stderr.strip()[-500:]}
+        if is_not_found_response(run):
+            return False, {'lookupStatus': 'not-found'}
+        detail = '\n'.join(part for part in (run.stdout.strip(), run.stderr.strip()) if part)
+        raise RuntimeError(f'GitHub lookup failed for {repo_path}: {detail[-1000:]}')
     payload = json.loads(run.stdout)
     return True, {
         'blobSha': payload.get('sha'),
         'size': payload.get('size'),
         'downloadUrl': payload.get('download_url'),
+        'lookupStatus': 'present',
     }
 
 
@@ -83,7 +104,7 @@ def main() -> int:
     parser.add_argument('--spatial-ref', default='main')
     args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['python', 'canonical_version_contract.py'], cwd=GEN, check=True)
+    run_contract_validator()
 
     encoded = gh_json(f'repos/{SPATIAL_REPO}/contents/{AAA_MANIFEST}?ref={args.spatial_ref}')
     aaa = json.loads(base64.b64decode(encoded['content']).decode('utf-8'))
@@ -124,7 +145,7 @@ def main() -> int:
             })
 
         receipt = {
-            'schemaVersion': '1.1.0',
+            'schemaVersion': '1.2.0',
             'version': version,
             'expected': count,
             'present': sum(record['present'] for record in records),
@@ -169,7 +190,7 @@ def main() -> int:
         total += count
 
     summary = {
-        'schemaVersion': '1.1.0',
+        'schemaVersion': '1.2.0',
         'expected': total,
         'providerCalls': 0,
         'spendUsd': '0.00',
