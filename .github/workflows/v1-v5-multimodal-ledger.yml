@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/run-v1-v5-multimodal-ledger-ci.py
       - .github/workflows/v1-v5-multimodal-ledger.yml
       - image_asset_generator/canonical_release_manifests.py
       - image_asset_generator/canonical_version_contract.py
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/run-v1-v5-multimodal-ledger-ci.py
       - .github/workflows/v1-v5-multimodal-ledger.yml
       - image_asset_generator/canonical_release_manifests.py
       - image_asset_generator/canonical_version_contract.py
@@ -48,7 +50,7 @@ jobs:
           set -euo pipefail
           python image_asset_generator/check_canonical_version_contract.py
           cp image_asset_generator/manifests/generated/v2.manifest.json image_asset_generator/manifests/generated/v2-canonical.manifest.json
-          python scripts/build-v1-v5-multimodal-ledger.py
+          python scripts/run-v1-v5-multimodal-ledger-ci.py
       - name: Prove zero-spend and closed generation boundary
         run: |
           set -euo pipefail
