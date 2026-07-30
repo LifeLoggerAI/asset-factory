@@ -9,13 +9,20 @@ on:
       - manifests/v2-certified-repair-manifest-20260730.json.gz.b64
       - scripts/generate_v2_certified_replacements.py
       - .github/workflows/one-time-v2-certified-repair-20260730.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - authorizations/execute-v2-certified-repair-20260730.json
+      - manifests/v2-certified-repair-manifest-20260730.json.gz.b64
+      - scripts/generate_v2_certified_replacements.py
+      - .github/workflows/one-time-v2-certified-repair-20260730.yml
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: one-time-v2-certified-repair-20260730
+  group: one-time-v2-certified-repair-20260730-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
@@ -59,7 +66,7 @@ jobs:
 
   generate:
     needs: authorize
-    if: needs.authorize.outputs.safe == 'true'
+    if: needs.authorize.outputs.safe == 'true' && github.event_name != 'pull_request'
     environment: paid-asset-generation
     runs-on: ubuntu-latest
     timeout-minutes: 180
