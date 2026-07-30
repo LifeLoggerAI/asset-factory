@@ -124,7 +124,7 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         alpha = bool(entry.get("alpha"))
         image = raw_image.convert("RGBA" if alpha else "RGB")
         source_pixel_hash = pixel_sha256(image)
-        image.save(destination, "WEBP", method=6, lossless=True)
+        image.save(destination, "WEBP", method=6, lossless=True, exact=alpha)
 
     with Image.open(destination) as handoff_image:
         handoff_image.load()
@@ -155,7 +155,7 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         "sha256": sha256(destination),
         "bytes": destination.stat().st_size,
         "handoffPixelSha256": source_pixel_hash,
-        "encoding": {"format": "WEBP", "lossless": True, "method": 6},
+        "encoding": {"format": "WEBP", "lossless": True, "method": 6, "exact": alpha},
         "promptVersion": entry.get("prompt_version", "v1"),
         "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown",
         "claimGate": entry.get("claim_gate"),
