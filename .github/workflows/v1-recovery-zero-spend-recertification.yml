@@ -1,0 +1,111 @@
+name: V1 Recovery Zero-Spend Recertification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - image_asset_generator/recertify_v1_recovery_artifact.py
+      - image_asset_generator/export_spatial_handoff.py
+      - .github/workflows/v1-recovery-zero-spend-recertification.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: v1-recovery-zero-spend-recertification-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Certify retained 53-asset V1 recovery pack
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+      - name: Download immutable recovery and original retained artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/recovery" "$RUNNER_TEMP/original"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/8742902079" > "$RUNNER_TEMP/recovery-metadata.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/8741010314" > "$RUNNER_TEMP/original-metadata.json"
+          python - "$RUNNER_TEMP/recovery-metadata.json" "$RUNNER_TEMP/original-metadata.json" <<'PY'
+          import json, sys
+          recovery=json.load(open(sys.argv[1]))
+          original=json.load(open(sys.argv[2]))
+          assert recovery['id'] == 8742902079 and recovery['expired'] is False
+          assert recovery.get('digest') == 'sha256:d42a4549fd5ebd90a761ced87a72d6765de6bb56403055af5c9cec8bda6ed731'
+          assert original['id'] == 8741010314 and original['expired'] is False
+          assert original.get('digest') == 'sha256:10318639cd60051d612a4277a639a2bd9fd55d64fda3e17b1a7d42452d9e24ff'
+          PY
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/8742902079/zip" > "$RUNNER_TEMP/recovery.zip"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/8741010314/zip" > "$RUNNER_TEMP/original.zip"
+          unzip -q "$RUNNER_TEMP/recovery.zip" -d "$RUNNER_TEMP/recovery"
+          unzip -q "$RUNNER_TEMP/original.zip" -d "$RUNNER_TEMP/original"
+      - name: Run zero-provider-call V1 recertification
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          test -z "${ASSET_RENDERER_AUTH_HEADER:-}"
+          python image_asset_generator/recertify_v1_recovery_artifact.py \
+            --recovery-root "$RUNNER_TEMP/recovery/image_asset_generator" \
+            --original-root "$RUNNER_TEMP/original/image_asset_generator" \
+            --budget-ledger "$RUNNER_TEMP/recovery/artifacts/budget/v1-receptionist-paid-request-state.json" \
+            --recovery-artifact-id 8742902079 \
+            --original-artifact-id 8741010314
+      - name: Verify no provider execution or deployment authority
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt=json.loads(Path('image_asset_generator/v1_recertification_receipt.json').read_text())
+          assert receipt['status'] == 'passed'
+          assert receipt['ready'] == 53
+          assert receipt['missing'] == 0
+          assert receipt['rejected'] == 0
+          assert receipt['providerCallsDuringRecertification'] == 0
+          assert receipt['promotionAuthorized'] is False
+          assert receipt['deploymentAuthorized'] is False
+          PY
+      - name: Upload complete V1 recertification evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-v1-zero-spend-recertification-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 6
+          path: |
+            image_asset_generator/quality_report.json
+            image_asset_generator/upgrade_feedback.json
+            image_asset_generator/v1_sha256_inventory.json
+            image_asset_generator/v1_recertification_receipt.json
+            image_asset_generator/v1_recertification_provenance.json
+            image_asset_generator/manifests/generated/v1.manifest.json
+            image_asset_generator/contact_sheet_v1_receptionist_recovery.png
+            image_asset_generator/preview.html
+            image_asset_generator/asset_pack.zip
+            image_asset_generator/spatial_handoff/**
+            image_asset_generator/handoff_certification/**
+            image_asset_generator/assets/**
