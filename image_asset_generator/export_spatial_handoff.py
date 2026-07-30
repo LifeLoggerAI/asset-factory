@@ -124,7 +124,10 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         alpha = bool(entry.get("alpha"))
         image = raw_image.convert("RGBA" if alpha else "RGB")
         source_pixel_hash = pixel_sha256(image)
-        image.save(destination, "WEBP", method=6, lossless=True)
+        save_options: Dict[str, Any] = {"method": 6, "lossless": True}
+        if alpha:
+            save_options["exact"] = True
+        image.save(destination, "WEBP", **save_options)
 
     with Image.open(destination) as handoff_image:
         handoff_image.load()
@@ -155,7 +158,7 @@ def export_entry(entry: Dict[str, Any], canonical_path: str) -> Dict[str, Any]:
         "sha256": sha256(destination),
         "bytes": destination.stat().st_size,
         "handoffPixelSha256": source_pixel_hash,
-        "encoding": {"format": "WEBP", "lossless": True, "method": 6},
+        "encoding": {"format": "WEBP", "lossless": True, "method": 6, "exactAlpha": alpha},
         "promptVersion": entry.get("prompt_version", "v1"),
         "renderer": metadata.get("renderer") or entry.get("renderer") or "unknown",
         "claimGate": entry.get("claim_gate"),
@@ -180,9 +183,7 @@ def main() -> None:
     asset_prefix = str(config.get("assetPrefix", "")).rstrip("/") + "/"
 
     if expected < 1 or len(CANONICAL_PATHS) != expected:
-        raise ValueError(
-            f"{version}: canonical handoff map must contain exactly {expected} assets; found {len(CANONICAL_PATHS)}"
-        )
+        raise ValueError(f"{version}: canonical handoff map must contain exactly {expected} assets; found {len(CANONICAL_PATHS)}")
     if len(by_name) != expected:
         raise ValueError(f"{version}: active manifest must contain exactly {expected} unique names")
 
@@ -197,10 +198,7 @@ def main() -> None:
     assets = []
     for name, canonical_path in CANONICAL_PATHS.items():
         entry = by_name.get(name)
-        if not entry:
-            assets.append({"name": name, "status": "unmanifested", "canonicalPath": canonical_path})
-        else:
-            assets.append(export_entry(entry, canonical_path))
+        assets.append(export_entry(entry, canonical_path) if entry else {"name": name, "status": "unmanifested", "canonicalPath": canonical_path})
 
     ready = [asset for asset in assets if asset["status"] == "ready"]
     missing = [asset for asset in assets if asset["status"] != "ready"]
@@ -225,9 +223,9 @@ def main() -> None:
     }
     manifest_dir = HANDOFF_DIR / "assets" / "urai" / "final" / "manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(handoff, indent=2) + "\n"
     generic_out = manifest_dir / "asset-factory-spatial-handoff.json"
     version_out = manifest_dir / f"{version}-asset-factory-spatial-handoff.json"
-    payload = json.dumps(handoff, indent=2) + "\n"
     generic_out.write_text(payload, encoding="utf-8")
     version_out.write_text(payload, encoding="utf-8")
 
