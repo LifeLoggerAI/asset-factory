@@ -44,7 +44,11 @@ jobs:
       - name: Build cross-repository multimodal ledger
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/build-v1-v5-multimodal-ledger.py
+        run: |
+          set -euo pipefail
+          python image_asset_generator/check_canonical_version_contract.py
+          cp image_asset_generator/manifests/generated/v2.manifest.json image_asset_generator/manifests/generated/v2-canonical.manifest.json
+          python scripts/build-v1-v5-multimodal-ledger.py
       - name: Prove zero-spend and closed generation boundary
         run: |
           set -euo pipefail
