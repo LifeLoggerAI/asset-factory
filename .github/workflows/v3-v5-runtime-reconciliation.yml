@@ -1,0 +1,75 @@
+name: V3-V5 Runtime Reconciliation
+
+on:
+  pull_request:
+    paths:
+      - scripts/reconcile-v3-v5-runtime-assets.py
+      - scripts/test-reconcile-v3-v5-runtime-assets.py
+      - .github/workflows/v3-v5-runtime-reconciliation.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/check_canonical_version_contract.py
+      - image_asset_generator/build_version_manifests.py
+      - image_asset_generator/manifests/**
+  push:
+    branches: [main]
+    paths:
+      - scripts/reconcile-v3-v5-runtime-assets.py
+      - scripts/test-reconcile-v3-v5-runtime-assets.py
+      - .github/workflows/v3-v5-runtime-reconciliation.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/check_canonical_version_contract.py
+      - image_asset_generator/build_version_manifests.py
+      - image_asset_generator/manifests/**
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Run reconciliation regression tests
+        run: python scripts/test-reconcile-v3-v5-runtime-assets.py
+      - name: Reconcile every canonical V3 V4 and V5 path
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/reconcile-v3-v5-runtime-assets.py --spatial-ref main
+      - name: Prove zero-provider and no deployment authority
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('artifacts/reconciliation/v3-v5/v3-v5-runtime-reconciliation-summary.json').read_text())
+          assert p['expected']==80
+          assert p['providerCalls']==0
+          assert p['spendUsd']=='0.00'
+          assert set(p['versions'])=={'v3','v4','v5'}
+          PY
+      - name: Upload immutable reconciliation receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v3-v5-runtime-reconciliation-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: artifacts/reconciliation/v3-v5/**
