@@ -1,0 +1,142 @@
+name: One-Time V2-V5 Exact Paid Asset Generation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-v2-v5-exact-paid-20260730.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-time-v2-v5-exact-paid-generation-20260730
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.run_attempt == 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: v2
+            expected_targets: '71'
+            max_calls: '141'
+            max_cost: '141.00'
+          - version: v3
+            expected_targets: '14'
+            max_calls: '28'
+            max_cost: '28.00'
+          - version: v4
+            expected_targets: '39'
+            max_calls: '78'
+            max_cost: '78.00'
+          - version: v5
+            expected_targets: '27'
+            max_calls: '53'
+            max_cost: '53.00'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: paid-asset-generation
+    env:
+      AUTHORIZATION_MARKER: authorizations/execute-v2-v5-exact-paid-20260730.json
+      OUTPUT_ROOT: artifacts/exact-paid/${{ matrix.version }}
+      ASSET_RENDERER_PROVIDER: openai
+      ASSET_RENDERER_ENDPOINT: https://api.openai.com/v1/images/generations
+      ASSET_RENDERER_MODEL: gpt-image-2
+      ASSET_RENDERER_ALPHA_MODEL: gpt-image-1.5
+      ASSET_RENDERER_MODE: provider
+      ASSET_RENDERER_MAX_ATTEMPTS: '1'
+      ASSET_FORGE_REQUIRE_PROVIDER: '1'
+      ASSET_QUALITY_REQUIRE_PROVIDER: '1'
+      ASSET_FORGE_PAID_RUN_AUTHORIZED: '1'
+      ASSET_FORGE_MAX_PROVIDER_CALLS: ${{ matrix.max_calls }}
+      ASSET_FORGE_MAX_UNIT_COST_USD: '1.00'
+      ASSET_FORGE_MAX_COST_USD: ${{ matrix.max_cost }}
+      ASSET_FORGE_MAX_ROUNDS: '1'
+      ASSET_FORGE_RUN_ID: ${{ github.run_id }}-${{ matrix.version }}-exact-paid
+      ASSET_FORGE_BUDGET_STATE_PATH: ${{ github.workspace }}/artifacts/budget/${{ matrix.version }}-paid-request-state.json
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove exact clean one-marker trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          test "$changed" = "$AUTHORIZATION_MARKER"
+          test -z "${URAI_WHEEL_GITHUB_TOKEN:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          test -z "${ASSET_RENDERER_AUTH_HEADER:-}"
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install pinned generator dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+
+      - name: Validate canonical V1-V5 contract
+        run: python image_asset_generator/check_canonical_version_contract.py
+
+      - name: Compile exact paid generator
+        run: python -m py_compile scripts/generate_exact_version_assets.py
+
+      - name: Generate exact authorized ${{ matrix.version }} assets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          python scripts/generate_exact_version_assets.py \
+            --version '${{ matrix.version }}' \
+            --authorization "$AUTHORIZATION_MARKER" \
+            --output-root "$OUTPUT_ROOT" \
+            --max-attempts-per-asset 2
+
+      - name: Prove bounded result and no promotion authority
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - '${{ matrix.version }}' '${{ matrix.expected_targets }}' "$OUTPUT_ROOT" <<'PY'
+          import json, pathlib, sys
+          version, expected, root = sys.argv[1], int(sys.argv[2]), pathlib.Path(sys.argv[3])
+          receipt = root / f'{version}-generation-receipt.json'
+          if not receipt.is_file():
+              raise SystemExit(f'missing generation receipt: {receipt}')
+          payload = json.loads(receipt.read_text())
+          assert payload.get('version') == version, payload
+          assert payload.get('promotionAuthorized') is False, payload
+          assert payload.get('deploymentAuthorized') is False, payload
+          if payload.get('status') == 'passed':
+              assert payload.get('generated') == expected, payload
+              assert payload.get('failed') == 0, payload
+          print(json.dumps({key: payload.get(key) for key in ('version','status','generated','passed','failed','providerCallsExecuted','reservedEstimatedCostUsd')}, sort_keys=True))
+          PY
+
+      - name: Upload immutable exact generation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-${{ matrix.version }}-exact-paid-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          compression-level: 6
+          path: |
+            artifacts/budget/${{ matrix.version }}-paid-request-state.json
+            artifacts/exact-paid/${{ matrix.version }}/**
+            image_asset_generator/manifests/generated/${{ matrix.version }}-canonical.manifest.json
