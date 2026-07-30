@@ -63,11 +63,21 @@ jobs:
           assert payload['providerCalls']==0
           assert payload['spendUsd']=='0.00'
           assert payload['generationAuthorized'] is False
+          assert payload['canonicalSlotCount'] == 279
           assert payload['countsByVersion']['v1'] >= 53
           assert payload['countsByVersion']['v2'] == 80
-          assert payload['countsByVersion']['v3'] >= 87
           assert payload['countsByVersion']['v4'] == 39
           assert payload['countsByVersion']['v5'] == 27
+          v3_unique = payload['countsByVersion']['v3']
+          v3_overlaps = sum(
+              1
+              for slot in payload['canonicalSlots']
+              for declaration in slot.get('additionalDeclarations', [])
+              if declaration.get('version') == 'v3'
+          )
+          assert v3_unique == 68
+          assert v3_overlaps == 33
+          assert v3_unique + v3_overlaps == 101
           PY
       - name: Upload immutable multimodal receipts
         if: always()
