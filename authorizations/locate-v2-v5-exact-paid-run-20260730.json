@@ -1,0 +1,9 @@
+{
+  "authorizationId": "URAI-AF-LOCATE-V2-V5-EXACT-PAID-RUN-20260730-001",
+  "targetWorkflow": "one-time-v2-v5-exact-paid-generation.yml",
+  "targetHeadSha": "c388b1ce3d6fc27ef30599eb6535605bff202fb7",
+  "providerCallsAuthorized": 0,
+  "providerSpendAuthorizedUsd": "0.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false
+}
