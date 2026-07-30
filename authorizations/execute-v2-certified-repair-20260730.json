@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "sourceCertification": {
+    "repository": "LifeLoggerAI/urai-spatial",
+    "pullRequest": 978,
+    "runId": 30514598186,
+    "jobId": 90781521099,
+    "artifactId": 8748582399
+  },
+  "execution": {
+    "branch": "repair/v2-certified-gaps-20260730",
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "quality": "medium",
+    "replacementAssets": 71,
+    "preservedAssets": 9,
+    "maxAttemptsPerAsset": 2,
+    "maxProviderCalls": 142,
+    "maxSpendUsd": "20.00",
+    "missingOrFailedOnly": true,
+    "promotionAuthorized": false,
+    "deploymentAuthorized": false,
+    "evidenceRetentionDays": 90
+  }
+}
