@@ -1,0 +1,125 @@
+name: One-Time Locate V2-V5 Exact Paid Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/locate-v2-v5-exact-paid-run-20260730.json
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: one-time-locate-v2-v5-exact-paid-run-20260730
+  cancel-in-progress: false
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_HEAD_SHA: c388b1ce3d6fc27ef30599eb6535605bff202fb7
+      TARGET_WORKFLOW: one-time-v2-v5-exact-paid-generation.yml
+      RECEIPT_PATH: docs/release-evidence/URAI-AF-20260730-EXACT-PAID-RUN-LOCATOR.json
+    steps:
+      - name: Locate exact paid workflow run and publish receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          API_URL: ${{ github.api_url }}
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['REPOSITORY']
+          api = os.environ['API_URL'].rstrip('/')
+          workflow = urllib.parse.quote(os.environ['TARGET_WORKFLOW'], safe='')
+          target_sha = os.environ['TARGET_HEAD_SHA']
+          receipt_path = os.environ['RECEIPT_PATH']
+
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'urai-asset-factory-run-locator',
+          }
+
+          def request_json(method, url, payload=None):
+              data = None if payload is None else json.dumps(payload).encode('utf-8')
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.loads(response.read().decode('utf-8'))
+
+          runs_url = (
+              f'{api}/repos/{repo}/actions/workflows/{workflow}/runs'
+              f'?event=push&head_sha={target_sha}&per_page=20'
+          )
+          runs_payload = request_json('GET', runs_url)
+          runs = []
+          for run in runs_payload.get('workflow_runs', []):
+              runs.append({
+                  'id': run.get('id'),
+                  'runNumber': run.get('run_number'),
+                  'runAttempt': run.get('run_attempt'),
+                  'name': run.get('name'),
+                  'event': run.get('event'),
+                  'status': run.get('status'),
+                  'conclusion': run.get('conclusion'),
+                  'headSha': run.get('head_sha'),
+                  'headBranch': run.get('head_branch'),
+                  'createdAt': run.get('created_at'),
+                  'updatedAt': run.get('updated_at'),
+                  'htmlUrl': run.get('html_url'),
+                  'jobsUrl': run.get('jobs_url'),
+                  'artifactsUrl': run.get('artifacts_url'),
+              })
+
+          receipt = {
+              'schemaVersion': '1.0.0',
+              'locatedAt': datetime.now(timezone.utc).isoformat(),
+              'repository': repo,
+              'targetWorkflow': os.environ['TARGET_WORKFLOW'],
+              'targetHeadSha': target_sha,
+              'matchingRunCount': len(runs),
+              'runs': runs,
+              'providerCallsExecutedByLocator': 0,
+              'providerSpendUsdByLocator': '0.00',
+              'promotionAuthorized': False,
+              'deploymentAuthorized': False,
+          }
+          content = json.dumps(receipt, indent=2, sort_keys=True) + '\n'
+
+          contents_url = f'{api}/repos/{repo}/contents/{urllib.parse.quote(receipt_path, safe="/")}'
+          existing_sha = None
+          try:
+              existing = request_json('GET', contents_url + '?ref=main')
+              existing_sha = existing.get('sha')
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+
+          body = {
+              'message': 'evidence: locate exact V2-V5 paid workflow run',
+              'content': base64.b64encode(content.encode('utf-8')).decode('ascii'),
+              'branch': 'main',
+          }
+          if existing_sha:
+              body['sha'] = existing_sha
+          result = request_json('PUT', contents_url, body)
+          print(json.dumps({
+              'receiptPath': receipt_path,
+              'matchingRunCount': len(runs),
+              'runIds': [run['id'] for run in runs],
+              'receiptCommitSha': result.get('commit', {}).get('sha'),
+          }, sort_keys=True))
+          if not runs:
+              raise SystemExit('no exact paid workflow run found for authorization head')
+          PY
