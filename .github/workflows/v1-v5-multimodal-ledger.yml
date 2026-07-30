@@ -1,0 +1,89 @@
+name: V1-V5 Multimodal Estate Ledger
+
+on:
+  pull_request:
+    paths:
+      - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/run-v1-v5-multimodal-ledger-ci.py
+      - .github/workflows/v1-v5-multimodal-ledger.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_contract.py
+      - image_asset_generator/manifests/**
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/run-v1-v5-multimodal-ledger-ci.py
+      - .github/workflows/v1-v5-multimodal-ledger.yml
+      - image_asset_generator/canonical_release_manifests.py
+      - image_asset_generator/canonical_version_contract.py
+      - image_asset_generator/manifests/**
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Build cross-repository multimodal ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python image_asset_generator/check_canonical_version_contract.py
+          cp image_asset_generator/manifests/generated/v2.manifest.json image_asset_generator/manifests/generated/v2-canonical.manifest.json
+          python scripts/run-v1-v5-multimodal-ledger-ci.py
+      - name: Prove zero-spend and closed generation boundary
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path('artifacts/multimodal/v1-v5-multimodal-ledger.json').read_text())
+          assert payload['providerCalls']==0
+          assert payload['spendUsd']=='0.00'
+          assert payload['generationAuthorized'] is False
+          assert payload['canonicalSlotCount'] == 279
+          assert payload['countsByVersion']['v1'] >= 53
+          assert payload['countsByVersion']['v2'] == 80
+          assert payload['countsByVersion']['v4'] == 39
+          assert payload['countsByVersion']['v5'] == 27
+          v3_unique = payload['countsByVersion']['v3']
+          v3_overlaps = sum(
+              1
+              for slot in payload['canonicalSlots']
+              for declaration in slot.get('additionalDeclarations', [])
+              if declaration.get('version') == 'v3'
+          )
+          assert v3_unique == 68
+          assert v3_overlaps == 33
+          assert v3_unique + v3_overlaps == 101
+          PY
+      - name: Upload immutable multimodal receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v1-v5-multimodal-ledger-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: artifacts/multimodal/**
