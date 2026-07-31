@@ -136,6 +136,7 @@ jobs:
           if-no-files-found: warn
           compression-level: 6
           path: |
+            authorizations/execute-v4-exact-five-recovery-20260730.json
             artifacts/budget/v4-five-recovery-paid-request-state.json
             artifacts/exact-paid/v4-recovery/**
             image_asset_generator/manifests/generated/v4-canonical.manifest.json
