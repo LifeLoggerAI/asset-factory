@@ -11,6 +11,7 @@
   "execution": {
     "branch": "repair/v2-certified-gaps-20260730",
     "provider": "openai",
+    "model": "gpt-image-2",
     "modelPolicy": {
       "opaque": "gpt-image-2",
       "alphaRequired": "gpt-image-1",
@@ -20,6 +21,7 @@
     "replacementAssets": 71,
     "preservedAssets": 9,
     "maxAttemptsPerAsset": 2,
+    "maxProviderCalls": 142,
     "priorRejectedProviderRequests": 1,
     "maxAdditionalProviderCalls": 141,
     "maxAggregateProviderCalls": 142,
