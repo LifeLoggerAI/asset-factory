@@ -1,0 +1,24 @@
+{
+  "alphaModel": "gpt-image-1.5",
+  "authorizedAt": "2026-07-31T03:05:00Z",
+  "deploymentAuthorized": false,
+  "endpoint": "https://api.openai.com/v1/images/generations",
+  "maxCostUsd": "10.00",
+  "maxProviderCalls": 10,
+  "notes": "Recover only the five exact V4 failures from run 30543824770. Preserve the 34 passing V4 assets and every passing V1, V2, V3, and V5 asset.",
+  "opaqueModel": "gpt-image-2",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "promotionAuthorized": false,
+  "provider": "openai",
+  "schemaVersion": "1.0.0",
+  "sourceArtifactDigest": "sha256:b99e5e7d653cbf4a02d41504387cc59ee1c3a8f7dea45f5825d75664e910daa9",
+  "sourceArtifactId": 8763242401,
+  "sourceRunId": 30543824770,
+  "targetNames": [
+    "v4_comfort_recenter_marker",
+    "v4_comfort_teleport_marker",
+    "v4_mobile_android_adaptive_icon",
+    "v4_mobile_ios_app_icon",
+    "v4_mobile_pwa_icon_set"
+  ]
+}
