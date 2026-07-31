@@ -1,0 +1,60 @@
+name: Locate Marker V2-V5 Promotion Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/locate-marker-v2-v5-promotion-20260731.json
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  locate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_WORKFLOW: one-time-promote-recovered-v2-v5-assets.yml
+      TARGET_HEAD_SHA: f782cd1fd9dc39d85f97b6db767a5b99eb425f5a
+      RECEIPT_PATH: docs/release-evidence/URAI-AF-20260731-MARKER-V2-V5-PROMOTION-RUN.json
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Locate exact marker promotion run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/release-evidence
+          for attempt in $(seq 1 60); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=push&head_sha=${TARGET_HEAD_SHA}&per_page=10" > "$RUNNER_TEMP/runs.json"
+            count="$(jq '[.workflow_runs[] | select(.head_sha == env.TARGET_HEAD_SHA)] | length' "$RUNNER_TEMP/runs.json")"
+            if test "$count" = 1; then break; fi
+            test "$count" = 0
+            sleep 10
+          done
+          run_id="$(jq -r '.workflow_runs[] | select(.head_sha == env.TARGET_HEAD_SHA) | .id // empty' "$RUNNER_TEMP/runs.json")"
+          test -n "$run_id"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > "$RUNNER_TEMP/run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json"
+          python - "$RUNNER_TEMP/run.json" "$RUNNER_TEMP/jobs.json" "$RECEIPT_PATH" <<'PY'
+          import json,pathlib,sys
+          run=json.load(open(sys.argv[1])); jobs=json.load(open(sys.argv[2])).get('jobs',[])
+          receipt={'schemaVersion':'1.0.0','programAuthority':'LifeLoggerAI/asset-factory#206','runId':run['id'],'runAttempt':run['run_attempt'],'status':run['status'],'conclusion':run['conclusion'],'headSha':run['head_sha'],'event':run['event'],'htmlUrl':run['html_url'],'jobs':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j['conclusion'],'htmlUrl':j['html_url']} for j in jobs],'providerCallsExecutedByLocator':0,'spendUsdByLocator':'0.00','promotionAuthorized':True,'deploymentAuthorized':False}
+          pathlib.Path(sys.argv[3]).write_text(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print(json.dumps({'runId':run['id'],'status':run['status'],'conclusion':run['conclusion']},sort_keys=True))
+          PY
+      - name: Commit locator receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$RECEIPT_PATH"
+          git diff --cached --quiet && exit 0
+          git commit -m 'evidence: locate marker V2-V5 promotion run'
+          git push origin HEAD:main
