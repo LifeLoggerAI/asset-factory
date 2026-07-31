@@ -1,0 +1,27 @@
+{
+  "conclusion": "failure",
+  "createdAt": "2026-07-31T13:35:40Z",
+  "deploymentAuthorized": false,
+  "event": "push",
+  "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30635083558",
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30635083558/job/91170513808",
+      "id": 91170513808,
+      "name": "patch",
+      "status": "completed"
+    }
+  ],
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "providerCallsExecutedByLocator": 0,
+  "runAttempt": 1,
+  "runId": 30635083558,
+  "schemaVersion": "1.0.0",
+  "spendUsdByLocator": "0.00",
+  "status": "completed",
+  "targetHeadSha": "be46758a379f6e214f82e331af930ebd1db52a0e",
+  "updatedAt": "2026-07-31T13:36:45Z",
+  "workflow": "Patch Recovered Promotion Staging",
+  "workflowFile": "patch-recovered-promotion-staging.yml"
+}
