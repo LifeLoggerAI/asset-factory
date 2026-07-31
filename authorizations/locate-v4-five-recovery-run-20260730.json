@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "targetHeadSha": "8a1d42fe026219673c6ac4501ed13a1feaa99849",
+  "targetWorkflow": "one-time-v4-exact-five-recovery.yml",
+  "providerCallsAuthorized": 0,
+  "providerSpendAuthorizedUsd": "0.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false
+}
