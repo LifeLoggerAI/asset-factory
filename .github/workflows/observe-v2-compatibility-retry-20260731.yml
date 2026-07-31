@@ -1,0 +1,61 @@
+name: Observe V2 Compatibility Retry
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [repair/v2-certified-gaps-20260730]
+    paths:
+      - .github/workflows/observe-v2-compatibility-retry-20260731.yml
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TARGET_SHA: 2fcb52247f6a9e650bc6fae9118687bb08b29421
+      TARGET_WORKFLOW: activate-v2-certified-repair-retry-20260731.yml
+      OBSERVABILITY_ISSUE: '217'
+    steps:
+      - name: Locate compatibility retry and publish exact status
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$(gh api --paginate "/repos/${REPO}/actions/workflows/${TARGET_WORKFLOW}/runs?branch=repair%2Fv2-certified-gaps-20260730&event=push&per_page=100")"
+          run="$(printf '%s' "$runs" | jq -c --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last // empty')"
+          if [ -z "$run" ]; then
+            body="V2 compatibility retry observer: no exact run found for \`${TARGET_SHA}\`. Provider calls, spend, and outputs remain unproven. No paid execution was triggered by this observer."
+            gh api --method POST "/repos/${REPO}/issues/${OBSERVABILITY_ISSUE}/comments" -f body="$body"
+            exit 0
+          fi
+          run_id="$(printf '%s' "$run" | jq -r '.id')"
+          status="$(printf '%s' "$run" | jq -r '.status')"
+          conclusion="$(printf '%s' "$run" | jq -r '.conclusion // "pending"')"
+          jobs="$(gh api --paginate "/repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100")"
+          artifacts="$(gh api --paginate "/repos/${REPO}/actions/runs/${run_id}/artifacts?per_page=100")"
+          jobs_summary="$(printf '%s' "$jobs" | jq -r '[.jobs[] | "- job `\(.id)` `\(.name)`: status=`\(.status)`, conclusion=`\(.conclusion // "pending")`"] | if length == 0 then "- no jobs exposed" else join("\n") end')"
+          artifacts_summary="$(printf '%s' "$artifacts" | jq -r '[.artifacts[] | "- artifact `\(.id)` `\(.name)`: expired=`\(.expired)`, digest=`\(.digest // "unavailable")`, expires=`\(.expires_at)`"] | if length == 0 then "- no artifacts exposed" else join("\n") end')"
+          body=$(cat <<EOF
+          V2 compatibility retry observer checkpoint
+
+          - retry activation SHA: \`${TARGET_SHA}\`
+          - workflow run: \`${run_id}\`
+          - status: \`${status}\`
+          - conclusion: \`${conclusion}\`
+
+          Jobs:
+          ${jobs_summary}
+
+          Artifacts:
+          ${artifacts_summary}
+
+          This observer had no provider secret and did not trigger or rerun paid execution.
+          EOF
+          )
+          gh api --method POST "/repos/${REPO}/issues/${OBSERVABILITY_ISSUE}/comments" -f body="$body"
