@@ -1,0 +1,42 @@
+name: Locate Before the Rest of the World Repair Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/locate-before-rest-world-repair-run.yml
+
+permissions:
+  actions: read
+  issues: write
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Locate exact repair run and report to issue 221
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head_sha = 'b367d0be88cb2224e88dd5e62960746f459ec99c';
+            const workflow_id = 'one-time-before-rest-world-repair.yml';
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo, workflow_id, head_sha, event: 'push', per_page: 100
+            });
+            const exact = runs.find(run => run.head_sha === head_sha);
+            let body = `## Repair run locator\n\n- Authorization SHA: \`${head_sha}\`\n- Workflow: \`${workflow_id}\`\n`;
+            if (!exact) {
+              body += '- Exact push-triggered run found: **NO**\n- No rerun or additional spend was authorized.\n';
+            } else {
+              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: exact.id, per_page: 100 });
+              body += `- Exact push-triggered run found: **YES**\n- Run ID: \`${exact.id}\`\n- Run number: \`${exact.run_number}\`\n- Status: **${exact.status}**\n- Conclusion: **${exact.conclusion || 'not complete'}**\n- Run URL: ${exact.html_url}\n- Artifacts:\n`;
+              if (!artifacts.data.artifacts.length) body += '  - none currently listed\n';
+              for (const artifact of artifacts.data.artifacts) {
+                body += `  - \`${artifact.name}\` — ID \`${artifact.id}\`, expired=${artifact.expired}, digest=${artifact.digest || 'unavailable'}\n`;
+              }
+              body += '\nProvider calls and spend are evidenced only by the retained repair receipt and budget ledger.\n';
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: 221, body });
