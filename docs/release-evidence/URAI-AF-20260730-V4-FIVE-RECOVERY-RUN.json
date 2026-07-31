@@ -1,6 +1,6 @@
 {
   "deploymentAuthorized": false,
-  "locatedAt": "2026-07-31T03:07:48.130626+00:00",
+  "locatedAt": "2026-07-31T13:15:46.637019+00:00",
   "matchingRunCount": 1,
   "promotionAuthorized": false,
   "providerCallsExecutedByLocator": 0,
@@ -8,15 +8,15 @@
   "runs": [
     {
       "conclusion": null,
-      "createdAt": "2026-07-31T03:07:16Z",
-      "headSha": "8a1d42fe026219673c6ac4501ed13a1feaa99849",
-      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30600757472",
-      "id": 30600757472,
-      "status": "queued",
-      "updatedAt": "2026-07-31T03:07:16Z"
+      "createdAt": "2026-07-31T12:57:21Z",
+      "headSha": "c9fb0d87192eaea42a379493e06125b09f57c476",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30632551711",
+      "id": 30632551711,
+      "status": "in_progress",
+      "updatedAt": "2026-07-31T13:04:58Z"
     }
   ],
   "schemaVersion": "1.0.0",
-  "targetHeadSha": "8a1d42fe026219673c6ac4501ed13a1feaa99849",
+  "targetHeadSha": "c9fb0d87192eaea42a379493e06125b09f57c476",
   "targetWorkflow": "one-time-v4-exact-five-recovery.yml"
 }
