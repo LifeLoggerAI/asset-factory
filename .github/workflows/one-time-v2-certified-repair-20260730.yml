@@ -5,6 +5,7 @@ on:
     branches: [repair/v2-certified-gaps-20260730]
     paths:
       - authorizations/execute-v2-certified-repair-20260730.json
+      - authorizations/activate-v2-certified-repair-20260730.json
       - manifests/v2-certified-repair-manifest-20260730.json.gz.b64
       - scripts/generate_v2_certified_replacements.py
       - .github/workflows/one-time-v2-certified-repair-20260730.yml
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - authorizations/execute-v2-certified-repair-20260730.json
+      - authorizations/activate-v2-certified-repair-20260730.json
       - manifests/v2-certified-repair-manifest-20260730.json.gz.b64
       - scripts/generate_v2_certified_replacements.py
       - .github/workflows/one-time-v2-certified-repair-20260730.yml
@@ -83,7 +85,19 @@ jobs:
           assert execution['deploymentAuthorized'] is False
           assert execution['activationRequired'] is True
           assert execution['activationMarker'] == str(activation_path)
-          assert not activation_path.exists(), 'paid activation marker must not be present in the preparation PR'
+
+          activation_present = activation_path.exists()
+          activation_sha256 = None
+          if activation_present:
+              activation = json.loads(activation_path.read_text())
+              assert activation['programAuthority'] == authority['programAuthority']
+              assert activation['executionNonce'] == 'v2-71-certified-repair-20260730-r1'
+              assert activation['requested'] is True
+              assert activation['promotionAuthorized'] is False
+              assert activation['deploymentAuthorized'] is False
+              assert activation['maxProviderCalls'] == 142
+              assert activation['maxSpendUsd'] == '20.00'
+              activation_sha256 = hashlib.sha256(activation_path.read_bytes()).hexdigest()
 
           assert len(replacements) == 71
           assert len(preserved) == 9
@@ -101,6 +115,9 @@ jobs:
               'manifestSha256': hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
               'generatorSha256': hashlib.sha256(generator_path.read_bytes()).hexdigest(),
           }
+          if activation_sha256:
+              hashes['activationSha256'] = activation_sha256
+
           Path('artifacts/v2-certified-repair-validation').mkdir(parents=True, exist_ok=True)
           Path('artifacts/v2-certified-repair-validation/receipt.json').write_text(json.dumps({
               'status': 'passed',
@@ -110,9 +127,10 @@ jobs:
               'providerCalls': 0,
               'spendUsd': '0.00',
               'activationRequired': True,
+              'activationPresent': activation_present,
               **hashes,
           }, indent=2, sort_keys=True) + '\n')
-          print('V2_FAILED_ONLY_PREPARATION_VALID')
+          print('V2_FAILED_ONLY_AUTHORITY_VALID')
           PY
       - name: Compile generator without provider access
         run: |
