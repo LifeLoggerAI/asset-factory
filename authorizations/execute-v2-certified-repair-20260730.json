@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "programAuthority": "LifeLoggerAI/asset-factory#206",
   "sourceCertification": {
     "repository": "LifeLoggerAI/urai-spatial",
@@ -19,6 +19,8 @@
     "maxProviderCalls": 142,
     "maxSpendUsd": "20.00",
     "missingOrFailedOnly": true,
+    "activationRequired": true,
+    "activationMarker": "authorizations/activate-v2-certified-repair-20260730.json",
     "promotionAuthorized": false,
     "deploymentAuthorized": false,
     "evidenceRetentionDays": 90
