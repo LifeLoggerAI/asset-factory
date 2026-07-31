@@ -1,0 +1,104 @@
+name: Activate V2 Certified Repair Compatibility Retry
+
+on:
+  push:
+    branches: [repair/v2-certified-gaps-20260730]
+    paths:
+      - authorizations/activate-v2-certified-repair-retry-20260731.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: activate-v2-certified-repair-retry-20260731
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    if: github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    outputs:
+      safe: ${{ steps.check.outputs.safe }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - id: check
+        name: Validate exact compatibility retry authority
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import base64, gzip, json
+          from pathlib import Path
+          encoded = Path('manifests/v2-certified-repair-manifest-20260730.json.gz.b64').read_text().strip()
+          Path('manifests/v2-certified-repair-manifest-20260730.json').write_bytes(gzip.decompress(base64.b64decode(encoded)))
+          a = json.loads(Path('authorizations/execute-v2-certified-repair-20260730.json').read_text())
+          r = json.loads(Path('authorizations/activate-v2-certified-repair-retry-20260731.json').read_text())
+          m = json.loads(Path('manifests/v2-certified-repair-manifest-20260730.json').read_text())
+          e = a['execution']
+          assert a['programAuthority'] == 'LifeLoggerAI/asset-factory#206'
+          assert e['modelPolicy'] == {'opaque': 'gpt-image-2', 'alphaRequired': 'gpt-image-1', 'reason': 'OpenAI rejected gpt-image-2 background=transparent before image generation in run 30629189918 job 91151803605'}
+          assert e['priorRejectedProviderRequests'] == 1
+          assert e['maxAdditionalProviderCalls'] == 141
+          assert e['maxAggregateProviderCalls'] == 142
+          assert e['maxSpendUsd'] == '20.00'
+          assert e['promotionAuthorized'] is False and e['deploymentAuthorized'] is False
+          assert len(m['replacements']) == 71 and len(m['preserve']) == 9
+          assert r['executionNonce'] == 'v2-71-certified-repair-20260731-r2'
+          assert r['supersedesFailedRun'] == 30629189918
+          assert r['maxAdditionalProviderCalls'] == 141
+          assert r['maxAggregateProviderCalls'] == 142
+          assert r['maxSpendUsd'] == '20.00'
+          assert r['promotionAuthorized'] is False and r['deploymentAuthorized'] is False
+          print('V2_COMPATIBILITY_RETRY_AUTHORIZED')
+          PY
+          echo 'safe=true' >> "$GITHUB_OUTPUT"
+
+  generate:
+    needs: authorize
+    if: needs.authorize.outputs.safe == 'true'
+    environment: paid-asset-generation
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Restore exact certified repair manifest
+        run: |
+          python - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          encoded = Path('manifests/v2-certified-repair-manifest-20260730.json.gz.b64').read_text().strip()
+          Path('manifests/v2-certified-repair-manifest-20260730.json').write_bytes(gzip.decompress(base64.b64decode(encoded)))
+          PY
+      - name: Verify protected provider boundary
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+      - name: Install deterministic image dependency
+        run: python -m pip install 'Pillow>=10,<12'
+      - name: Generate and validate bounded compatibility retry
+        run: python scripts/generate_v2_certified_replacements_retry.py
+      - name: Upload complete compatibility retry evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v2-certified-repair-compatibility-retry-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 6
+          path: artifacts/v2-certified-repair/**
