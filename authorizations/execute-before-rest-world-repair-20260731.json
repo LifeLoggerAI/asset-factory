@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#59",
+  "projectId": "before-the-rest-of-the-world",
+  "provider": "openai",
+  "manifestPath": "manifests/film/before-rest-world-repair.manifest.json",
+  "sourceRunId": 30651885148,
+  "sourceArtifactId": 8802305031,
+  "authorizedAt": "2026-07-31T19:36:00Z",
+  "purpose": "Repair only the two rejected proof-of-look frames while preserving the other eight generated frames unchanged.",
+  "maximumProviderCalls": 2,
+  "maximumReservedCostUsd": "2.00",
+  "fullProgramBudgetCeilingUsd": "50.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "fullFilmCompletionAuthorized": false,
+  "notes": [
+    "No rerun of the original ten-shot tranche is authorized.",
+    "Only giant_story_memory_recreation_v2 and agi_asi_human_reality_boundary_v2 may be generated.",
+    "A retained repair receipt and contact sheet are required before animatic assembly."
+  ]
+}
