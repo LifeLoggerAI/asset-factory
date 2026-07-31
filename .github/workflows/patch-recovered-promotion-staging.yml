@@ -1,0 +1,40 @@
+name: Patch Recovered Promotion Staging
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/patch-recovered-promotion-staging-20260731.json
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Replace version-directory staging with canonical tree staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=.github/workflows/one-time-promote-recovered-v2-v5-assets.yml
+          old="git add urai-tier1/public/assets/urai/v2 urai-tier1/public/assets/urai/v3 urai-tier1/public/assets/urai/v4 urai-tier1/public/assets/urai/v5 docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-PROMOTION.json"
+          new="git add urai-tier1/public/assets/urai docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-PROMOTION.json"
+          test "$(grep -Fxc "          $old" "$file")" = 1
+          python - "$file" "$old" "$new" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1]); old=sys.argv[2]; new=sys.argv[3]
+          text=path.read_text(); assert text.count(old)==1
+          path.write_text(text.replace(old,new))
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$file"
+          git commit -m 'fix: stage canonical recovered asset tree'
+          git push origin HEAD:main
