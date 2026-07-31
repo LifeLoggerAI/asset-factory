@@ -1,0 +1,237 @@
+name: One-Time Promote Exact V2 Assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/promote-exact-v2-assets-20260731.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-time-promote-exact-v2-assets-20260731
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: paid-asset-generation
+    env:
+      SOURCE_RUN_ID: '30543824770'
+      SOURCE_HEAD_SHA: c388b1ce3d6fc27ef30599eb6535605bff202fb7
+      V2_ARTIFACT_ID: '8763143473'
+      V2_ARTIFACT_DIGEST: 8b9da5b188d76f55c2cf371fad99b4e7e9ff11d61481f915857fa3182e57578e
+      V2_RECEIPT_SHA256: 0dc033b75a879fa9ce1dcb7fac072ee37740ebeebf0484811bf5c10cd38a9e71
+      V2_TARGET_NAMES_SHA256: 04276788e32e0937c7778949c8f1682832bbd573bdae3169f4cbeeebc2d84798
+      SPATIAL_REPOSITORY: LifeLoggerAI/urai-spatial
+      CERTIFIER_BRANCH: certify/v2-runtime-estate-20260729
+      EXPECTED_CERTIFIER_SHA: f4f78d094bb485767a1e72061a12f59f2750a6fe
+      GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout exact promotion authorization
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove bounded zero-spend promotion authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${ASSET_RENDERER_API_KEY:-}"
+          test -z "${ASSET_RENDERER_AUTH_HEADER:-}"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('authorizations/promote-exact-v2-assets-20260731.json')
+          authority = json.loads(path.read_text())
+          assert authority['schemaVersion'] == '1.0.0'
+          assert authority['programAuthority'] == 'LifeLoggerAI/asset-factory#206'
+          assert authority['sourceRunId'] == 30543824770
+          assert authority['sourceHeadSha'] == os.environ['SOURCE_HEAD_SHA']
+          assert authority['artifactId'] == 8763143473
+          assert authority['artifactDigest'] == 'sha256:' + os.environ['V2_ARTIFACT_DIGEST']
+          assert authority['receiptSha256'] == os.environ['V2_RECEIPT_SHA256']
+          assert authority['targetNamesSha256'] == os.environ['V2_TARGET_NAMES_SHA256']
+          assert authority['generatedReplacements'] == 71
+          assert authority['preservedTechnicalPasses'] == 9
+          assert authority['providerCallsExecutedPreviously'] == 71
+          assert authority['reservedEstimatedCostUsdPreviously'] == '71.00'
+          assert authority['providerCallsAuthorizedByPromotion'] == 0
+          assert authority['spendAuthorizedByPromotionUsd'] == '0.00'
+          assert authority['promotionAuthorized'] is True
+          assert authority['deploymentAuthorized'] is False
+          assert authority['consumerRepository'] == 'LifeLoggerAI/urai-spatial'
+          assert authority['consumerBranch'] == 'certify/v2-runtime-estate-20260729'
+          assert authority['expectedConsumerHeadSha'] == os.environ['EXPECTED_CERTIFIER_SHA']
+          assert len(authority['preservedCanonicalNames']) == 9
+          assert len(set(authority['preservedCanonicalNames'])) == 9
+          print(json.dumps({
+              'authorizationSha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+              'generatedReplacements': 71,
+              'preservedTechnicalPasses': 9,
+              'providerCallsAuthorizedByPromotion': 0,
+              'spendAuthorizedByPromotionUsd': '0.00',
+          }, sort_keys=True))
+          PY
+
+      - name: Download immutable exact V2 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/v2-promotion"
+          mkdir -p "$root/source"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${V2_ARTIFACT_ID}/zip" > "$root/v2.zip"
+          actual="$(sha256sum "$root/v2.zip" | awk '{print $1}')"
+          test "$actual" = "$V2_ARTIFACT_DIGEST"
+          unzip -q "$root/v2.zip" -d "$root/source"
+          echo "PROMOTION_ROOT=$root" >> "$GITHUB_ENV"
+
+      - name: Validate exact 71-asset receipt and runtime payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "$PROMOTION_ROOT" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          receipts = list((root / 'source').rglob('v2-generation-receipt.json'))
+          assert len(receipts) == 1, receipts
+          receipt = receipts[0]
+          payload = json.loads(receipt.read_text())
+          claimed = payload.pop('receiptSha256')
+          canonical = (json.dumps(payload, indent=2, sort_keys=True) + '\n').encode()
+          assert claimed == '0dc033b75a879fa9ce1dcb7fac072ee37740ebeebf0484811bf5c10cd38a9e71'
+          assert hashlib.sha256(canonical).hexdigest() == claimed
+          assert payload['status'] == 'passed'
+          assert payload['expectedTargets'] == 71
+          assert payload['generated'] == 71
+          assert payload['passed'] == 71
+          assert payload['failed'] == 0
+          assert payload['failedNames'] == []
+          assert payload['exactDuplicateGroups'] == []
+          assert payload['provider'] == 'openai'
+          assert payload['providerCallsExecuted'] == 71
+          assert payload['reservedEstimatedCostUsd'] == '71.00'
+          assert payload['authorizationSha256'] == 'a249b73c36a9b50c8b3e5e796b650bf10f4eaadf9a907a69d1736f0e9deb7554'
+          assert payload['targetNamesSha256'] == '04276788e32e0937c7778949c8f1682832bbd573bdae3169f4cbeeebc2d84798'
+          assert payload['promotionAuthorized'] is False
+          assert payload['deploymentAuthorized'] is False
+          preserved = {
+              'v2_archivist_protected',
+              'v2_logistics_helper_working',
+              'v2_mirror_guide_mobile',
+              'v2_operator_warning',
+              'v2_privacy_steward_protecting',
+              'v2_relationship_liaison_blocked',
+              'v2_schedule_steward_approval',
+              'v2_trust_steward_mobile',
+              'v2_wellness_guide_complete',
+          }
+          assert set(payload['preservedCanonicalNames']) == preserved
+          assets = payload['assets']
+          assert len(assets) == 71
+          assert len({record['name'] for record in assets}) == 71
+          runtime = receipt.parent / 'runtime'
+          files = sorted(runtime.rglob('*.webp'))
+          assert len(files) == 71, len(files)
+          for record in assets:
+              assert record['status'] == 'passed', record
+              path = receipt.parent / record['runtimeFile']
+              assert path.is_file(), path
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == record['technical']['sha256'], record['name']
+
+          promotion = {
+              'schemaVersion': '1.0.0',
+              'programAuthority': 'LifeLoggerAI/asset-factory#206',
+              'sourceRunId': 30543824770,
+              'sourceHeadSha': 'c388b1ce3d6fc27ef30599eb6535605bff202fb7',
+              'artifactId': 8763143473,
+              'artifactDigest': 'sha256:8b9da5b188d76f55c2cf371fad99b4e7e9ff11d61481f915857fa3182e57578e',
+              'receiptSha256': claimed,
+              'targetNamesSha256': payload['targetNamesSha256'],
+              'generatedReplacements': 71,
+              'preservedTechnicalPasses': 9,
+              'providerCallsExecutedPreviously': 71,
+              'reservedEstimatedCostUsdPreviously': '71.00',
+              'providerCallsExecutedByPromotion': 0,
+              'spendUsdByPromotion': '0.00',
+              'promotionAuthorized': True,
+              'deploymentAuthorized': False,
+          }
+          (root / 'promotion-v2-source-receipt.json').write_text(
+              json.dumps(promotion, indent=2, sort_keys=True) + '\n'
+          )
+          (root / 'runtime-path.txt').write_text(str(runtime) + '\n')
+          print(json.dumps(promotion, sort_keys=True))
+          PY
+
+      - name: Checkout exact Spatial V2 certification branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: ${{ env.CERTIFIER_BRANCH }}
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+          fetch-depth: 0
+
+      - name: Install only the exact V2 replacements
+        working-directory: spatial
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CERTIFIER_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          runtime="$(cat "$PROMOTION_ROOT/runtime-path.txt")"
+          test -d "$runtime/assets/urai/v2"
+          test "$(find "$runtime/assets/urai/v2" -type f -name '*.webp' | wc -l | tr -d ' ')" = '71'
+          rsync -a "$runtime/" urai-tier1/public/
+          mkdir -p docs/release-evidence
+          cp "$PROMOTION_ROOT/promotion-v2-source-receipt.json" docs/release-evidence/URAI-SPATIAL-20260731-V2-EXACT-PAID-PROMOTION.json
+
+      - name: Run focused independent V2 certification
+        working-directory: spatial
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install Pillow==11.3.0 imagehash
+          python scripts/test-certify-v2-runtime-assets.py
+          python scripts/certify-v2-runtime-assets.py
+
+      - name: Commit exact V2 integration to the existing PR branch
+        id: publish
+        working-directory: spatial
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'URAI Production Wheel'
+          git config user.email 'urai-wheel@users.noreply.github.com'
+          git add urai-tier1/public/assets/urai/v2 docs/release-evidence/URAI-SPATIAL-20260731-V2-EXACT-PAID-PROMOTION.json
+          git diff --cached --quiet && { echo 'No V2 promotion changes found' >&2; exit 1; }
+          git commit -m 'Promote exact provider-backed V2 replacements'
+          head_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:${CERTIFIER_BRANCH}"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable zero-spend promotion receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v2-exact-paid-promotion-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/v2-promotion/promotion-v2-source-receipt.json
