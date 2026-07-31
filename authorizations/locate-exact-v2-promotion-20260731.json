@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "requested": true,
+  "targetWorkflow": "one-time-promote-exact-v2-assets.yml",
+  "targetHeadSha": "0df443a66b33c36915bd9902c675eeed84b013eb",
+  "providerCallsAuthorized": 0,
+  "spendAuthorizedUsd": "0.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false
+}
