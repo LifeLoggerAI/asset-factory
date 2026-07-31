@@ -26,6 +26,27 @@ def source_for(entry: Dict[str, Any]) -> Path | None:
     return max(candidates, key=lambda value: value[0])[1] if candidates else None
 
 
+def canonical_minimum_edge(entry: Dict[str, Any], *, alpha: bool) -> int:
+    """Return the minimum longest edge required by the asset's own contract.
+
+    Older V1 manifests did not always declare a canonical source size, so those
+    entries retain the historical transparent/scene defaults. Newer versioned
+    manifests declare exactly which source size is required; scoring must honor
+    that contract instead of imposing the V1 scene-wide 1200 px floor.
+    """
+    declared: list[int] = []
+    for value in entry.get("sizes", []):
+        try:
+            size = int(value)
+        except (TypeError, ValueError):
+            continue
+        if size > 0:
+            declared.append(size)
+    if declared:
+        return max(declared)
+    return 512 if alpha else 1200
+
+
 def render_metadata(path: Path) -> Dict[str, Any]:
     metadata_path = path.with_suffix(path.suffix + ".render.json")
     if not metadata_path.exists():
@@ -111,6 +132,7 @@ def score(entry: Dict[str, Any], require_provider: bool) -> Dict[str, Any]:
     image = Image.open(path)
     image.load()
     alpha = bool(entry.get("alpha"))
+    minimum_edge = canonical_minimum_edge(entry, alpha=alpha)
     surface, coverage = analysis_surface(image, alpha)
     sample = surface.resize((256, 256), Image.Resampling.LANCZOS)
     extrema = sample.getextrema()
@@ -126,8 +148,10 @@ def score(entry: Dict[str, Any], require_provider: bool) -> Dict[str, Any]:
     metadata = render_metadata(path)
     renderer = metadata.get("renderer") or entry.get("renderer") or "unknown"
     issues: List[str] = []
+    if max(image.size) < minimum_edge:
+        kind = "transparent asset" if alpha else "scene"
+        issues.append(f"{kind} longest edge below canonical {minimum_edge}px")
     if alpha:
-        if max(image.size) < 512: issues.append("transparent asset longest edge below 512px")
         if file_bytes < 20_000: issues.append("transparent asset suspiciously small")
         if coverage < 0.025: issues.append("almost no visible subject")
         if stddev < 18: issues.append("visible subject tonal variation too flat")
@@ -135,7 +159,6 @@ def score(entry: Dict[str, Any], require_provider: bool) -> Dict[str, Any]:
         if visual_entropy < 4.4: issues.append("visible subject lacks production detail")
         if detail < 0.022: issues.append("visible subject edge detail too low")
     else:
-        if max(image.size) < 1200: issues.append("scene longest edge below 1200px")
         if file_bytes < 120_000: issues.append("scene suspiciously small")
         if stddev < 24: issues.append("scene tonal variation too flat")
         if color_range < 130: issues.append("scene dynamic range too narrow")
@@ -148,6 +171,7 @@ def score(entry: Dict[str, Any], require_provider: bool) -> Dict[str, Any]:
         "status": "passed" if not issues else "failed", "issues": issues,
         "path": str(path.relative_to(BASE_DIR)),
         "metrics": {"width": image.width, "height": image.height, "bytes": file_bytes,
+                    "canonicalMinimumEdge": minimum_edge,
                     "alphaCoverage": round(coverage, 5), "stddev": round(stddev, 3),
                     "range": round(color_range, 3), "entropy": round(visual_entropy, 3),
                     "edgeDensity": round(detail, 5), "renderer": renderer,
