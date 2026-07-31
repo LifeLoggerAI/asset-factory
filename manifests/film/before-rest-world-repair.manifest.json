@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#59",
+  "projectId": "before-the-rest-of-the-world",
+  "sourceRunId": 30651885148,
+  "sourceArtifactId": 8802305031,
+  "provider": "openai",
+  "model": "gpt-image-2",
+  "targetLongEdge": 1536,
+  "maximumProviderCalls": 2,
+  "maximumReservedCostUsd": "2.00",
+  "preserveUnchanged": [
+    "opening_vanderbilt_green_porsche",
+    "family_ballpark_father_son",
+    "ground_private_ai_workforce",
+    "receipts_to_global_human_layer",
+    "foundation_building_transformation",
+    "mark_lit_seat_doug_empty_seat",
+    "passive_context_story_assembly",
+    "vanderbilt_tennessee_stinger"
+  ],
+  "repairs": [
+    {
+      "name": "giant_story_memory_recreation_v2",
+      "replaces": "giant_story_memory_recreation",
+      "category": "cinematic_recreation",
+      "aspect_ratio": "16:9",
+      "alpha": false,
+      "quality": "high",
+      "reason": "The first proof frame risked reading as a recognizable celebrity likeness instead of family folklore.",
+      "prompt": "Abstract cinematic family-memory reconstruction in a dim late-1980s arena service corridor. Show only an enormous human shadow cast across a concrete wall and the silhouette of a much smaller adult reacting with surprised humor. Never show the giant figure's face, body details, hair, clothing, or any recognizable professional wrestler likeness. Warm tungsten lights, soft dreamlike edges, playful family-story tone rather than menace, premium 35mm documentary texture, no logos, no readable text, no archival-photo framing."
+    },
+    {
+      "name": "agi_asi_human_reality_boundary_v2",
+      "replaces": "agi_asi_human_reality_boundary",
+      "category": "system_visualization",
+      "aspect_ratio": "16:9",
+      "alpha": false,
+      "quality": "high",
+      "reason": "The first proof frame read as confrontation and containment rather than calm governed access.",
+      "prompt": "Luminous, humane cinematic visualization of increasingly powerful artificial intelligence cooperating with a real human life through governed access. A calm adult figure stands in a warm private world surrounded by separate translucent layers representing memory, identity, relationships, consent, uncertainty, accessibility and ownership. Beyond the world, elegant abstract systems for language, science, code, media and robotics offer streams of light toward clearly visible permission gates. A small living orb routes only approved streams inward while unapproved streams remain peacefully outside. No cages, threats, armies, dystopia, surveillance imagery, text or logos. Premium scientific documentary realism with restrained black, warm gold and natural human light."
+    }
+  ],
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "fullFilmCompletionAuthorized": false
+}
