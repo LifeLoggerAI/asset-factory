@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "originalGenerationRunId": 30543824770,
+  "recoveryRunId": 30632551711,
+  "recoveryArtifactId": 8794550750,
+  "recoveryArtifactDigest": "sha256:0b60fcc2f57c9e09f940bfde30ff857dbdf2030d9c805c84cbd2e3dc19d01a48",
+  "totalGenerated": 151,
+  "totalPassed": 151,
+  "totalFailed": 0,
+  "providerCallsAuthorized": 0,
+  "providerSpendAuthorizedUsd": "0.00",
+  "promotionAuthorized": true,
+  "deploymentAuthorized": false
+}
