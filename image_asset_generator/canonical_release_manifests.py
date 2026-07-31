@@ -12,6 +12,15 @@ MANIFESTS = BASE / "manifests"
 GENERATED = MANIFESTS / "generated"
 CATALOG_PATH = BASE / "canonical_version_catalog.json"
 
+V4_SCENE_MIN_EDGE = 1200
+V4_RECOVERY_TARGETS = {
+    "v4_comfort_recenter_marker",
+    "v4_comfort_teleport_marker",
+    "v4_mobile_android_adaptive_icon",
+    "v4_mobile_ios_app_icon",
+    "v4_mobile_pwa_icon_set",
+}
+
 
 def required_text(mapping: dict[str, Any], key: str, context: str) -> str:
     value = mapping.get(key)
@@ -81,6 +90,22 @@ def remap(
         entry["prompt_version"] = "v3"
         output.append(entry)
     return output
+
+
+def normalize_v4(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    found: set[str] = set()
+    for source in entries:
+        entry = dict(source)
+        name = str(entry.get("name", ""))
+        if name in V4_RECOVERY_TARGETS:
+            entry["sizes"] = [V4_SCENE_MIN_EDGE]
+            found.add(name)
+        normalized.append(entry)
+    missing = sorted(V4_RECOVERY_TARGETS - found)
+    if missing:
+        raise ValueError(f"v4 recovery targets missing from canonical manifest: {missing}")
+    return normalized
 
 
 def normalize_v5_operations(
@@ -178,7 +203,9 @@ def build(version: str) -> Path:
             prefix,
         )
     if version == "v4":
-        entries = remap(build_version_manifests._v3_manifest(), "v3", "v4", False)
+        entries = normalize_v4(
+            remap(build_version_manifests._v3_manifest(), "v3", "v4", False)
+        )
         return write(version, configured_name, entries, expected, prefix)
     if version == "v5":
         operations = normalize_v5_operations(

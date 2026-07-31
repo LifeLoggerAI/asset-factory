@@ -18,8 +18,7 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_sha == '8a1d42fe026219673c6ac4501ed13a1feaa99849'
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: paid-asset-generation
@@ -30,13 +29,15 @@ jobs:
       CERTIFIER_BRANCH: certify/v2-runtime-estate-20260729
       GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
     steps:
-      - name: Prove exact recovery authority and promotion credential
+      - name: Prove recovery identity and promotion credential
         shell: bash
         run: |
           set -euo pipefail
           test '${{ github.event.workflow_run.name }}' = 'One-Time V4 Exact Five Recovery'
           test '${{ github.event.workflow_run.conclusion }}' = 'success'
-          test '${{ github.event.workflow_run.head_sha }}' = '8a1d42fe026219673c6ac4501ed13a1feaa99849'
+          test '${{ github.event.workflow_run.event }}' = 'push'
+          test '${{ github.event.workflow_run.head_branch }}' = 'main'
+          test -n '${{ github.event.workflow_run.head_sha }}'
           test -n "$GH_TOKEN"
 
       - name: Download exact V2 V3 V5 and recovered V4 artifacts
@@ -67,6 +68,38 @@ jobs:
           download_artifact LifeLoggerAI/asset-factory "$recovery_id" v4
           echo "PROMOTION_ROOT=$root" >> "$GITHUB_ENV"
           echo "RECOVERY_ARTIFACT_ID=$recovery_id" >> "$GITHUB_ENV"
+
+      - name: Validate exact recovery authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "$PROMOTION_ROOT/v4" '${{ github.event.workflow_run.head_sha }}' <<'PY'
+          import hashlib,json,pathlib,sys
+          root=pathlib.Path(sys.argv[1]); head_sha=sys.argv[2]
+          markers=list(root.rglob('execute-v4-exact-five-recovery-20260730.json'))
+          receipts=list(root.rglob('v4-generation-receipt.json'))
+          assert len(markers)==1,markers
+          assert len(receipts)==1,receipts
+          marker=json.loads(markers[0].read_text())
+          receipt=json.loads(receipts[0].read_text())
+          assert marker['schemaVersion']=='1.0.0',marker
+          assert marker['programAuthority']=='LifeLoggerAI/asset-factory#206',marker
+          assert marker['sourceRunId']==30543824770,marker
+          assert marker['sourceArtifactId']==8763242401,marker
+          assert marker['targetNames']==[
+            'v4_comfort_recenter_marker',
+            'v4_comfort_teleport_marker',
+            'v4_mobile_android_adaptive_icon',
+            'v4_mobile_ios_app_icon',
+            'v4_mobile_pwa_icon_set',
+          ],marker
+          assert marker['maxProviderCalls']==10 and str(marker['maxCostUsd'])=='10.00',marker
+          assert marker['promotionAuthorized'] is False and marker['deploymentAuthorized'] is False,marker
+          marker_sha=hashlib.sha256(markers[0].read_bytes()).hexdigest()
+          assert receipt['authorizationSha256']==marker_sha,(receipt['authorizationSha256'],marker_sha)
+          assert receipt['status']=='passed' and receipt['passed']==39 and receipt['failed']==0,receipt
+          print(json.dumps({'recoveryHeadSha':head_sha,'authorizationSha256':marker_sha,'status':receipt['status']},sort_keys=True))
+          PY
 
       - name: Validate complete 151-asset evidence set
         shell: bash
