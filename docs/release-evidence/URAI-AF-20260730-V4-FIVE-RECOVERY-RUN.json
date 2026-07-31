@@ -1,0 +1,22 @@
+{
+  "deploymentAuthorized": false,
+  "locatedAt": "2026-07-31T03:07:48.130626+00:00",
+  "matchingRunCount": 1,
+  "promotionAuthorized": false,
+  "providerCallsExecutedByLocator": 0,
+  "providerSpendUsdByLocator": "0.00",
+  "runs": [
+    {
+      "conclusion": null,
+      "createdAt": "2026-07-31T03:07:16Z",
+      "headSha": "8a1d42fe026219673c6ac4501ed13a1feaa99849",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30600757472",
+      "id": 30600757472,
+      "status": "queued",
+      "updatedAt": "2026-07-31T03:07:16Z"
+    }
+  ],
+  "schemaVersion": "1.0.0",
+  "targetHeadSha": "8a1d42fe026219673c6ac4501ed13a1feaa99849",
+  "targetWorkflow": "one-time-v4-exact-five-recovery.yml"
+}
