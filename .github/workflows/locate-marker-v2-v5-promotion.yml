@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_WORKFLOW: one-time-promote-recovered-v2-v5-assets.yml
-      TARGET_HEAD_SHA: f782cd1fd9dc39d85f97b6db767a5b99eb425f5a
+      TARGET_HEAD_SHA: c98cb81e90b3de6859c4173ed89d737a68a12107
       RECEIPT_PATH: docs/release-evidence/URAI-AF-20260731-MARKER-V2-V5-PROMOTION-RUN.json
       GH_TOKEN: ${{ github.token }}
     steps:
