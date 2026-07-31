@@ -2,42 +2,57 @@ name: V4 Canonical Geometry Recertification
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - image_asset_generator/score_v1_assets.py
       - scripts/recertify_v4_canonical_geometry.py
       - tests/test_score_canonical_dimensions.py
       - .github/workflows/v4-canonical-geometry-recertification.yml
-  push:
-    branches: [main]
-    paths:
-      - image_asset_generator/score_v1_assets.py
-      - scripts/recertify_v4_canonical_geometry.py
-      - tests/test_score_canonical_dimensions.py
-      - .github/workflows/v4-canonical-geometry-recertification.yml
-  workflow_dispatch:
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: v4-canonical-geometry-recertification-${{ github.ref }}
+  group: v4-canonical-geometry-recertification-pr-219
   cancel-in-progress: false
 
 jobs:
   recertify:
+    if: github.event.pull_request.number == 219
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       SOURCE_ARTIFACT_ID: '8763242401'
+      SOURCE_ARTIFACT_NAME: urai-v4-exact-paid-30543824770
       SOURCE_ARTIFACT_DIGEST: sha256:b99e5e7d653cbf4a02d41504387cc59ee1c3a8f7dea45f5825d75664e910daa9
+      SOURCE_ARTIFACT_EXPIRES_AT: '2026-10-28T12:44:33Z'
+      SOURCE_RUN_ID: '30543824770'
+      SOURCE_HEAD_SHA: c388b1ce3d6fc27ef30599eb6535605bff202fb7
       OUTPUT_ROOT: artifacts/exact-paid/v4-canonical-recertification
     steps:
+      - name: Prove one-time PR authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = pull_request
+          test '${{ github.event.pull_request.number }}' = '219'
+          test '${{ github.event.pull_request.head.ref }}' = 'agent/v4-canonical-geometry-recertification'
+          test '${{ github.event.pull_request.base.ref }}' = 'main'
+
       - name: Checkout exact head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Prove exact checked-out head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -58,14 +73,22 @@ jobs:
           set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}" > "$RUNNER_TEMP/v4-artifact.json"
           python - "$RUNNER_TEMP/v4-artifact.json" <<'PY'
-          import json,os,sys
-          payload=json.load(open(sys.argv[1]))
-          assert payload['id']==int(os.environ['SOURCE_ARTIFACT_ID']),payload
-          assert payload['name']=='urai-v4-exact-paid-30543824770',payload
-          assert payload['expired'] is False,payload
-          assert payload.get('digest')==os.environ['SOURCE_ARTIFACT_DIGEST'],payload
-          assert payload.get('workflow_run',{}).get('id')==30543824770,payload
-          assert payload.get('workflow_run',{}).get('head_sha')=='c388b1ce3d6fc27ef30599eb6535605bff202fb7',payload
+          import datetime
+          import json
+          import os
+          import sys
+
+          payload = json.load(open(sys.argv[1]))
+          assert payload['id'] == int(os.environ['SOURCE_ARTIFACT_ID']), payload
+          assert payload['name'] == os.environ['SOURCE_ARTIFACT_NAME'], payload
+          assert payload['expired'] is False, payload
+          assert payload.get('expires_at') == os.environ['SOURCE_ARTIFACT_EXPIRES_AT'], payload
+          assert payload.get('digest') == os.environ['SOURCE_ARTIFACT_DIGEST'], payload
+          assert payload.get('workflow_run', {}).get('id') == int(os.environ['SOURCE_RUN_ID']), payload
+          assert payload.get('workflow_run', {}).get('head_sha') == os.environ['SOURCE_HEAD_SHA'], payload
+          now = datetime.datetime.now(datetime.timezone.utc)
+          expires = datetime.datetime.fromisoformat(os.environ['SOURCE_ARTIFACT_EXPIRES_AT'].replace('Z', '+00:00'))
+          assert now < expires, {'now': now.isoformat(), 'expires': expires.isoformat()}
           PY
           gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip" > "$RUNNER_TEMP/v4-original.zip"
           mkdir -p "$RUNNER_TEMP/v4-original"
@@ -90,21 +113,23 @@ jobs:
         run: |
           set -euo pipefail
           python - "$OUTPUT_ROOT/v4-generation-receipt.json" <<'PY'
-          import json,sys
-          payload=json.load(open(sys.argv[1]))
-          assert payload['status']=='passed',payload
-          assert payload['generated']==39 and payload['passed']==39 and payload['failed']==0,payload
-          assert payload['failedNames']==[],payload
-          assert payload['runtimeDecodedForScoring']==['v4_comfort_teleport_marker'],payload
-          assert payload['providerCallsExecutedThisRecertification']==0,payload
-          assert payload['reservedEstimatedCostUsdThisRecertification']=='0.00',payload
-          assert payload['providerCallsExecuted']==44,payload
-          assert payload['reservedEstimatedCostUsd']=='44.00',payload
-          assert payload['exactDuplicateGroups']==[],payload
-          assert payload['promotionAuthorized'] is False,payload
-          assert payload['deploymentAuthorized'] is False,payload
-          assert len(payload['assets'])==39,payload
-          print(json.dumps({key:payload[key] for key in ('status','generated','passed','failed','runtimeDecodedForScoring','providerCallsExecutedThisRecertification','reservedEstimatedCostUsdThisRecertification','receiptSha256')},sort_keys=True))
+          import json
+          import sys
+
+          payload = json.load(open(sys.argv[1]))
+          assert payload['status'] == 'passed', payload
+          assert payload['generated'] == 39 and payload['passed'] == 39 and payload['failed'] == 0, payload
+          assert payload['failedNames'] == [], payload
+          assert payload['runtimeDecodedForScoring'] == ['v4_comfort_teleport_marker'], payload
+          assert payload['providerCallsExecutedThisRecertification'] == 0, payload
+          assert payload['reservedEstimatedCostUsdThisRecertification'] == '0.00', payload
+          assert payload['providerCallsExecuted'] == 44, payload
+          assert payload['reservedEstimatedCostUsd'] == '44.00', payload
+          assert payload['exactDuplicateGroups'] == [], payload
+          assert payload['promotionAuthorized'] is False, payload
+          assert payload['deploymentAuthorized'] is False, payload
+          assert len(payload['assets']) == 39, payload
+          print(json.dumps({key: payload[key] for key in ('status', 'generated', 'passed', 'failed', 'runtimeDecodedForScoring', 'providerCallsExecutedThisRecertification', 'reservedEstimatedCostUsdThisRecertification', 'receiptSha256')}, sort_keys=True))
           PY
 
       - name: Upload immutable V4 recertification evidence
