@@ -1,0 +1,30 @@
+{
+  "conclusion": "failure",
+  "createdAt": "2026-07-31T13:21:43Z",
+  "deploymentAuthorized": false,
+  "event": "workflow_run",
+  "headBranch": "main",
+  "headSha": "0e6b7ab7ddf42d388300f0a7f8b35bfee32d22d7",
+  "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30634137191",
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30634137191/job/91167357547",
+      "id": 91167357547,
+      "name": "promote",
+      "status": "completed"
+    }
+  ],
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "promotionAuthorized": true,
+  "providerCallsExecutedByLocator": 0,
+  "runAttempt": 1,
+  "runId": 30634137191,
+  "schemaVersion": "1.0.0",
+  "sourceRecoveryRunId": 30632551711,
+  "spendUsdByLocator": "0.00",
+  "status": "completed",
+  "updatedAt": "2026-07-31T13:24:39Z",
+  "workflow": "One-Time Promote Recovered Exact V2-V5 Assets",
+  "workflowFile": "one-time-promote-recovered-v2-v5-assets.yml"
+}
