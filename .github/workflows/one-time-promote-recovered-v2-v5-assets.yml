@@ -26,7 +26,7 @@ jobs:
       ORIGINAL_RUN_ID: '30543824770'
       RECOVERY_RUN_ID: ${{ github.event.workflow_run.id }}
       SPATIAL_REPOSITORY: LifeLoggerAI/urai-spatial
-      CERTIFIER_BRANCH: certify/v2-runtime-estate-20260729
+      CERTIFIER_BRANCH: main
       GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
     steps:
       - name: Prove recovery identity and promotion credential
@@ -135,7 +135,7 @@ jobs:
           print(json.dumps(summary,sort_keys=True))
           PY
 
-      - name: Checkout exact Spatial certification branch
+      - name: Checkout current Spatial main with certified verifier
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: LifeLoggerAI/urai-spatial
@@ -152,7 +152,7 @@ jobs:
           set -euo pipefail
           certifier_sha="$(git rev-parse HEAD)"
           main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          git merge-base --is-ancestor "$main_sha" "$certifier_sha"
+          test "$main_sha" = "$certifier_sha"
           test -z "$(git status --porcelain --untracked-files=all)"
           for version in v2 v3 v4 v5; do
             receipt="$(find "$PROMOTION_ROOT/$version" -name "$version-generation-receipt.json" -print -quit)"
@@ -212,10 +212,10 @@ jobs:
           Original generation run: \`30543824770\`
           V4 recovery run: \`${RECOVERY_RUN_ID}\`
           Spatial main at branch creation: \`${MAIN_SHA}\`
-          Corrected V2 certifier base: \`${CERTIFIER_SHA}\`
+          Current certified Spatial base: \`${CERTIFIER_SHA}\`
           Promotion head: \`${HEAD_SHA}\`
 
-          This PR includes the corrected V2 certification changes and supersedes proof-only PR #978 after successful merge. Deployment remains separate and protected.
+          This PR includes the corrected V2 certification changes already present on current main. Deployment remains separate and protected.
           EOF
           )"
           gh api "repos/${SPATIAL_REPOSITORY}/pulls" -X POST -f title='Promote exact provider-backed V2-V5 assets' -f head="$BRANCH" -f base=main -f body="$body"
