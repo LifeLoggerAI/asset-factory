@@ -1,0 +1,24 @@
+{
+  "conclusion": "failure",
+  "deploymentAuthorized": false,
+  "event": "push",
+  "headSha": "f782cd1fd9dc39d85f97b6db767a5b99eb425f5a",
+  "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30634893846",
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30634893846/job/91169873942",
+      "id": 91169873942,
+      "name": "promote",
+      "status": "completed"
+    }
+  ],
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "promotionAuthorized": true,
+  "providerCallsExecutedByLocator": 0,
+  "runAttempt": 1,
+  "runId": 30634893846,
+  "schemaVersion": "1.0.0",
+  "spendUsdByLocator": "0.00",
+  "status": "completed"
+}
