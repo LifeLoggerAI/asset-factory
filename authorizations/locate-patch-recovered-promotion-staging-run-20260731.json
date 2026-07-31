@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "targetWorkflow": "patch-recovered-promotion-staging.yml",
+  "targetHeadSha": "be46758a379f6e214f82e331af930ebd1db52a0e",
+  "providerCallsAuthorized": 0,
+  "providerSpendAuthorizedUsd": "0.00",
+  "deploymentAuthorized": false
+}
