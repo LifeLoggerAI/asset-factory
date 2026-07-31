@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   locate:
-    if: github.actor == github.repository_owner && github.run_attempt == 1
+    if: github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -41,7 +41,7 @@ jobs:
             gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_run&per_page=20" > artifacts/recovered-promotion-locator/runs.json
             count="$(python - <<'PY'
           import json,os
-          from datetime import datetime,timezone
+          from datetime import datetime
           payload=json.load(open('artifacts/recovered-promotion-locator/runs.json'))
           cutoff=datetime.fromisoformat(os.environ['SOURCE_COMPLETED_AT'].replace('Z','+00:00'))
           runs=[]
