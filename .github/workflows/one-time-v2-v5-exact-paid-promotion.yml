@@ -1,0 +1,252 @@
+name: One-Time Promote Exact V2-V5 Paid Assets
+
+on:
+  workflow_run:
+    workflows: [One-Time V2-V5 Exact Paid Asset Generation]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-time-promote-exact-v2-v5-paid-assets-20260730
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_sha == 'c388b1ce3d6fc27ef30599eb6535605bff202fb7'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: paid-asset-generation
+    env:
+      SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+      SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      EXPECTED_SOURCE_RUN_ID: '30543824770'
+      EXPECTED_SOURCE_SHA: c388b1ce3d6fc27ef30599eb6535605bff202fb7
+      SPATIAL_REPOSITORY: LifeLoggerAI/urai-spatial
+      CERTIFIER_BRANCH: certify/v2-runtime-estate-20260729
+      PROMOTION_BRANCH_PREFIX: asset-factory/v2-v5-exact-paid
+      URAI_WHEEL_GITHUB_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+    steps:
+      - name: Prove exact completed generation authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_RUN_ID" = "$EXPECTED_SOURCE_RUN_ID"
+          test "$SOURCE_HEAD_SHA" = "$EXPECTED_SOURCE_SHA"
+          test -n "$URAI_WHEEL_GITHUB_TOKEN"
+          test '${{ github.event.workflow_run.name }}' = 'One-Time V2-V5 Exact Paid Asset Generation'
+          test '${{ github.event.workflow_run.conclusion }}' = 'success'
+
+      - name: Download and verify all four immutable generation artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/exact-paid"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          python - "$RUNNER_TEMP/artifacts.json" "$SOURCE_RUN_ID" "$RUNNER_TEMP/exact-paid" <<'PY'
+          import json, pathlib, subprocess, sys
+          payload=json.load(open(sys.argv[1]))
+          run_id=sys.argv[2]
+          root=pathlib.Path(sys.argv[3])
+          expected={f'urai-{version}-exact-paid-{run_id}': version for version in ('v2','v3','v4','v5')}
+          found={item['name']: item for item in payload.get('artifacts',[]) if item.get('name') in expected}
+          assert set(found)==set(expected), {'expected':sorted(expected),'found':sorted(found)}
+          metadata=[]
+          for name, version in expected.items():
+              item=found[name]
+              assert item.get('expired') is False, item
+              assert item.get('workflow_run',{}).get('head_sha') == 'c388b1ce3d6fc27ef30599eb6535605bff202fb7', item
+              zip_path=root/f'{version}.zip'
+              subprocess.run(['gh','api',f"repos/{item['workflow_run']['repository_id']}/actions/artifacts/{item['id']}/zip"], check=False)
+              metadata.append({
+                  'version':version,
+                  'artifactId':item['id'],
+                  'name':name,
+                  'sizeInBytes':item.get('size_in_bytes'),
+                  'digest':item.get('digest'),
+                  'expiresAt':item.get('expires_at'),
+              })
+          (root/'artifact-metadata.json').write_text(json.dumps(metadata,indent=2,sort_keys=True)+'\n')
+          PY
+          python - "$RUNNER_TEMP/artifacts.json" "$SOURCE_RUN_ID" "$RUNNER_TEMP/exact-paid" <<'PY'
+          import json, pathlib, subprocess, sys
+          payload=json.load(open(sys.argv[1]))
+          run_id=sys.argv[2]
+          root=pathlib.Path(sys.argv[3])
+          by_name={item['name']:item for item in payload.get('artifacts',[])}
+          for version in ('v2','v3','v4','v5'):
+              name=f'urai-{version}-exact-paid-{run_id}'
+              item=by_name[name]
+              zip_path=root/f'{version}.zip'
+              with zip_path.open('wb') as handle:
+                  subprocess.run(['gh','api',f"repos/LifeLoggerAI/asset-factory/actions/artifacts/{item['id']}/zip"],stdout=handle,check=True)
+              out=root/version
+              out.mkdir()
+              subprocess.run(['unzip','-q',str(zip_path),'-d',str(out)],check=True)
+          PY
+
+      - name: Validate receipts, budgets, file hashes, and exact asset counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - "$RUNNER_TEMP/exact-paid" <<'PY'
+          import hashlib, json, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          expected={'v2':71,'v3':14,'v4':39,'v5':27}
+          total_calls=0
+          total_cost=0.0
+          summary={'schemaVersion':'1.0.0','sourceRunId':30543824770,'sourceHeadSha':'c388b1ce3d6fc27ef30599eb6535605bff202fb7','versions':{},'promotionAuthorized':True,'deploymentAuthorized':False}
+          for version,count in expected.items():
+              receipt=next((root/version).rglob(f'{version}-generation-receipt.json'))
+              payload=json.loads(receipt.read_text())
+              claimed=payload.pop('receiptSha256')
+              canonical=(json.dumps(payload,indent=2,sort_keys=True)+'\n').encode()
+              assert hashlib.sha256(canonical).hexdigest()==claimed, version
+              assert payload['version']==version
+              assert payload['status']=='passed', payload
+              assert payload['expectedTargets']==count
+              assert payload['generated']==count
+              assert payload['passed']==count
+              assert payload['failed']==0
+              assert payload['failedNames']==[]
+              assert payload['exactDuplicateGroups']==[]
+              assert payload['promotionAuthorized'] is False
+              assert payload['deploymentAuthorized'] is False
+              runtime_root=receipt.parent/'runtime'
+              files=sorted(runtime_root.rglob('*.webp'))
+              assert len(files)==count,(version,len(files),count)
+              records=payload['assets']
+              assert len(records)==count
+              for record in records:
+                  assert record['status']=='passed',record
+                  path=receipt.parent/record['runtimeFile']
+                  assert path.is_file(),path
+                  digest=hashlib.sha256(path.read_bytes()).hexdigest()
+                  assert digest==record['technical']['sha256'],record['name']
+              calls=int(payload['providerCallsExecuted'])
+              cost=float(payload['reservedEstimatedCostUsd'])
+              total_calls+=calls
+              total_cost+=cost
+              summary['versions'][version]={
+                  'generated':count,
+                  'passed':count,
+                  'failed':0,
+                  'providerCallsExecuted':calls,
+                  'reservedEstimatedCostUsd':payload['reservedEstimatedCostUsd'],
+                  'receiptSha256':claimed,
+              }
+          assert total_calls<=300,total_calls
+          assert total_cost<=300.0,total_cost
+          summary['totalGenerated']=sum(expected.values())
+          summary['totalPassed']=sum(expected.values())
+          summary['totalProviderCallsExecuted']=total_calls
+          summary['totalReservedEstimatedCostUsd']=f'{total_cost:.2f}'
+          (root/'promotion-source-receipt.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(summary,sort_keys=True))
+          PY
+
+      - name: Checkout exact Spatial certifier base
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: LifeLoggerAI/urai-spatial
+          ref: ${{ env.CERTIFIER_BRANCH }}
+          token: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+          path: spatial
+          fetch-depth: 0
+
+      - name: Prove Spatial base and install exact generated assets
+        id: promote
+        shell: bash
+        working-directory: spatial
+        run: |
+          set -euo pipefail
+          certifier_sha="$(git rev-parse HEAD)"
+          main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test -n "$certifier_sha"
+          test -n "$main_sha"
+          git merge-base --is-ancestor "$main_sha" "$certifier_sha"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          for version in v2 v3 v4 v5; do
+            receipt="$(find "$RUNNER_TEMP/exact-paid/$version" -name "$version-generation-receipt.json" -print -quit)"
+            test -f "$receipt"
+            runtime_root="$(dirname "$receipt")/runtime"
+            test -d "$runtime_root/assets/urai/$version"
+            rsync -a "$runtime_root/" urai-tier1/public/
+          done
+          mkdir -p docs/release-evidence
+          cp "$RUNNER_TEMP/exact-paid/promotion-source-receipt.json" "docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-PROMOTION.json"
+          cp "$RUNNER_TEMP/exact-paid/artifact-metadata.json" "docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-ARTIFACTS.json"
+          branch="${PROMOTION_BRANCH_PREFIX}-${SOURCE_RUN_ID}"
+          git checkout -b "$branch"
+          git config user.name 'URAI Production Wheel'
+          git config user.email 'urai-wheel@users.noreply.github.com'
+          git add urai-tier1/public/assets/urai/v2 urai-tier1/public/assets/urai/v3 urai-tier1/public/assets/urai/v4 urai-tier1/public/assets/urai/v5 docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-*.json
+          git diff --cached --quiet && { echo 'No generated asset changes found' >&2; exit 1; }
+          git commit -m 'Promote exact provider-backed V2-V5 assets'
+          promotion_sha="$(git rev-parse HEAD)"
+          git push origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "certifier_sha=$certifier_sha" >> "$GITHUB_OUTPUT"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
+          echo "promotion_sha=$promotion_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Run focused Spatial asset validation
+        working-directory: spatial
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.0.0 --activate
+          pnpm install --frozen-lockfile
+          python scripts/test-certify-v2-runtime-assets.py
+          python scripts/certify-v2-runtime-assets.py
+          pnpm --dir urai-tier1 assets:validate
+          pnpm --dir urai-tier1 receipt:assets
+
+      - name: Open exact Spatial promotion pull request
+        env:
+          BRANCH: ${{ steps.promote.outputs.branch }}
+          CERTIFIER_SHA: ${{ steps.promote.outputs.certifier_sha }}
+          SPATIAL_MAIN_SHA: ${{ steps.promote.outputs.main_sha }}
+          PROMOTION_SHA: ${{ steps.promote.outputs.promotion_sha }}
+          GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(gh api "repos/${SPATIAL_REPOSITORY}/pulls?state=open&head=LifeLoggerAI:${BRANCH}" --jq '.[0].number // empty')"
+          if test -n "$existing"; then
+            echo "Existing promotion PR: $existing"
+            exit 0
+          fi
+          body="$(cat <<EOF
+          Promotes exactly 151 evidence-authorized provider-backed assets from Asset Factory run \`${SOURCE_RUN_ID}\`:
+
+          - V2 replacements: 71, preserving the nine existing technical passes
+          - V3 missing assets: 14
+          - V4 missing assets: 39
+          - V5 missing assets: 27
+
+          Source authorization SHA: \`${SOURCE_HEAD_SHA}\`
+          Spatial main at branch creation: \`${SPATIAL_MAIN_SHA}\`
+          V2 certifier base: \`${CERTIFIER_SHA}\`
+          Promotion head: \`${PROMOTION_SHA}\`
+
+          The source receipts prove 151 generated, 151 passed, zero failed, no exact duplicate groups, and bounded provider calls/cost. This PR carries the corrected V2 certification workflow from #978 and supersedes that proof-only branch after merge.
+
+          Promotion is review-gated. Deployment is not authorized by this workflow.
+          EOF
+          )"
+          gh api "repos/${SPATIAL_REPOSITORY}/pulls" \
+            -X POST \
+            -f title='Promote exact provider-backed V2-V5 assets' \
+            -f head="$BRANCH" \
+            -f base='main' \
+            -f body="$body"
