@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "executionNonce": "v2-71-certified-repair-20260730-r1",
+  "requested": true,
+  "activationCommitExpected": "commit-containing-this-marker",
+  "provider": "openai",
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "replacementAssets": 71,
+  "preservedAssets": 9,
+  "maxAttemptsPerAsset": 2,
+  "maxProviderCalls": 142,
+  "maxSpendUsd": "20.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false
+}
