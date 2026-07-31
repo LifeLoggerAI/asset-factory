@@ -4,6 +4,10 @@ on:
   workflow_run:
     workflows: [One-Time V4 Exact Five Recovery]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-recovered-v2-v5-promotion-20260731.json
 
 permissions:
   actions: read
@@ -16,29 +20,47 @@ concurrency:
 jobs:
   promote:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_attempt == 1)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: paid-asset-generation
     env:
       ORIGINAL_RUN_ID: '30543824770'
-      RECOVERY_RUN_ID: ${{ github.event.workflow_run.id }}
+      RECOVERY_RUN_ID: ${{ github.event.workflow_run.id || '30632551711' }}
+      RECOVERY_HEAD_SHA: ${{ github.event.workflow_run.head_sha || 'c9fb0d87192eaea42a379493e06125b09f57c476' }}
+      PROMOTION_MARKER: authorizations/execute-recovered-v2-v5-promotion-20260731.json
       SPATIAL_REPOSITORY: LifeLoggerAI/urai-spatial
       CERTIFIER_BRANCH: main
       GH_TOKEN: ${{ secrets.URAI_WHEEL_GITHUB_TOKEN }}
     steps:
-      - name: Prove recovery identity and promotion credential
+      - name: Prove exact promotion authority and credential
         shell: bash
         run: |
           set -euo pipefail
-          test '${{ github.event.workflow_run.name }}' = 'One-Time V4 Exact Five Recovery'
-          test '${{ github.event.workflow_run.conclusion }}' = 'success'
-          test '${{ github.event.workflow_run.event }}' = 'push'
-          test '${{ github.event.workflow_run.head_branch }}' = 'main'
-          test -n '${{ github.event.workflow_run.head_sha }}'
           test -n "$GH_TOKEN"
+          test "$RECOVERY_RUN_ID" = '30632551711'
+          test "$RECOVERY_HEAD_SHA" = 'c9fb0d87192eaea42a379493e06125b09f57c476'
+          if test "$GITHUB_EVENT_NAME" = push; then
+            test "$GITHUB_REF" = refs/heads/main
+            test "$GITHUB_RUN_ATTEMPT" = '1'
+            git init -q .trigger-proof
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" > "$RUNNER_TEMP/trigger-commit.json"
+            python - "$RUNNER_TEMP/trigger-commit.json" "$PROMOTION_MARKER" <<'PY'
+          import json,sys
+          payload=json.load(open(sys.argv[1])); marker=sys.argv[2]
+          files=[item['filename'] for item in payload.get('files',[])]
+          assert files==[marker],files
+          PY
+          else
+            test '${{ github.event.workflow_run.name }}' = 'One-Time V4 Exact Five Recovery'
+            test '${{ github.event.workflow_run.conclusion }}' = 'success'
+            test '${{ github.event.workflow_run.event }}' = 'push'
+            test '${{ github.event.workflow_run.head_branch }}' = 'main'
+          fi
 
       - name: Download exact V2 V3 V5 and recovered V4 artifacts
         shell: bash
@@ -62,6 +84,8 @@ jobs:
           name=f'urai-v4-exact-five-recovery-{run}'
           matches=[a for a in payload.get('artifacts',[]) if a.get('name')==name and not a.get('expired')]
           assert len(matches)==1,(name,matches)
+          assert matches[0].get('id')==8794550750,matches[0]
+          assert matches[0].get('digest')=='sha256:0b60fcc2f57c9e09f940bfde30ff857dbdf2030d9c805c84cbd2e3dc19d01a48',matches[0]
           print(matches[0]['id'])
           PY
           )"
@@ -73,7 +97,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - "$PROMOTION_ROOT/v4" '${{ github.event.workflow_run.head_sha }}' <<'PY'
+          python - "$PROMOTION_ROOT/v4" "$RECOVERY_HEAD_SHA" <<'PY'
           import hashlib,json,pathlib,sys
           root=pathlib.Path(sys.argv[1]); head_sha=sys.argv[2]
           markers=list(root.rglob('execute-v4-exact-five-recovery-20260730.json'))
@@ -128,8 +152,8 @@ jobs:
                   calls=int(payload['providerCallsExecuted']); cost=float(payload['reservedEstimatedCostUsd'])
               total_calls+=calls; total_cost+=cost
               summary['versions'][version]={'generated':count,'passed':count,'failed':0,'providerCallsExecuted':calls,'reservedEstimatedCostUsd':f'{cost:.2f}','receiptSha256':claimed}
-          assert total_calls<=166,total_calls
-          assert total_cost<=166.0,total_cost
+          assert total_calls==161,total_calls
+          assert total_cost==161.0,total_cost
           summary['totalGenerated']=151; summary['totalPassed']=151; summary['totalFailed']=0; summary['totalProviderCallsExecuted']=total_calls; summary['totalReservedEstimatedCostUsd']=f'{total_cost:.2f}'
           (root/'promotion-source-receipt.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
           print(json.dumps(summary,sort_keys=True))
