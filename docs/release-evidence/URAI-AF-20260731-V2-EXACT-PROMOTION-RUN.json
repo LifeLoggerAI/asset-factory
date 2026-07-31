@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "digest": "sha256:7642eaa7d14367dcfb3bb5c4394dd4df39cb994b51e7566a75ddab18c000b8dc",
+      "expired": false,
+      "id": 8792980583,
+      "name": "v2-exact-paid-promotion-30630080166",
+      "sizeInBytes": 634
+    }
+  ],
+  "conclusion": "success",
+  "deploymentAuthorized": false,
+  "headSha": "0df443a66b33c36915bd9902c675eeed84b013eb",
+  "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30630080166",
+  "jobs": [
+    {
+      "conclusion": "success",
+      "htmlUrl": "https://github.com/LifeLoggerAI/asset-factory/actions/runs/30630080166/job/91154139957",
+      "id": 91154139957,
+      "name": "promote",
+      "status": "completed"
+    }
+  ],
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "promotionAuthorized": true,
+  "providerCallsExecutedByLocator": 0,
+  "runAttempt": 1,
+  "runId": 30630080166,
+  "schemaVersion": "1.0.0",
+  "spendUsdByLocator": "0.00",
+  "status": "completed",
+  "workflow": "One-Time Promote Exact V2 Assets",
+  "workflowFile": "one-time-promote-exact-v2-assets.yml"
+}
