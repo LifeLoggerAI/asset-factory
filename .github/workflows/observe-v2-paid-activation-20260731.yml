@@ -1,0 +1,75 @@
+name: Observe V2 Paid Activation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [repair/v2-certified-gaps-20260730]
+    paths:
+      - .github/workflows/observe-v2-paid-activation-20260731.yml
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TARGET_SHA: a184ff95bae7b7173eeb56f1321cdcc4b5696d34
+      TARGET_WORKFLOW: activate-v2-certified-repair-20260730.yml
+      OBSERVABILITY_ISSUE: '217'
+    steps:
+      - name: Locate exact activation run and publish evidence status
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$(gh api --paginate "/repos/${REPO}/actions/workflows/${TARGET_WORKFLOW}/runs?branch=repair%2Fv2-certified-gaps-20260730&event=push&per_page=100")"
+          run="$(printf '%s' "$runs" | jq -c --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha == $sha)] | sort_by(.created_at) | last // empty')"
+          if [ -z "$run" ]; then
+            body=$(cat <<EOF
+          V2 paid activation observer checkpoint
+
+          - activation SHA: \`${TARGET_SHA}\`
+          - workflow: \`${TARGET_WORKFLOW}\`
+          - exact push-triggered run: not found through the Actions API
+          - provider calls, spend, outputs, and artifacts: unproven
+          - duplicate activation performed: no
+
+          This is an observational result only. No provider secret was available to this observer.
+          EOF
+          )
+            gh api --method POST "/repos/${REPO}/issues/${OBSERVABILITY_ISSUE}/comments" -f body="$body"
+            exit 0
+          fi
+
+          run_id="$(printf '%s' "$run" | jq -r '.id')"
+          status="$(printf '%s' "$run" | jq -r '.status')"
+          conclusion="$(printf '%s' "$run" | jq -r '.conclusion // "pending"')"
+          attempt="$(printf '%s' "$run" | jq -r '.run_attempt')"
+          jobs="$(gh api --paginate "/repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100")"
+          artifacts="$(gh api --paginate "/repos/${REPO}/actions/runs/${run_id}/artifacts?per_page=100")"
+          jobs_summary="$(printf '%s' "$jobs" | jq -r '[.jobs[] | "- job `\(.id)` `\(.name)`: status=`\(.status)`, conclusion=`\(.conclusion // "pending")`"] | if length == 0 then "- no jobs exposed" else join("\n") end')"
+          artifacts_summary="$(printf '%s' "$artifacts" | jq -r '[.artifacts[] | "- artifact `\(.id)` `\(.name)`: expired=`\(.expired)`, digest=`\(.digest // "unavailable")`, expires=`\(.expires_at)`"] | if length == 0 then "- no artifacts exposed" else join("\n") end')"
+          body=$(cat <<EOF
+          V2 paid activation observer checkpoint
+
+          - activation SHA: \`${TARGET_SHA}\`
+          - workflow run: \`${run_id}\`
+          - attempt: \`${attempt}\`
+          - status: \`${status}\`
+          - conclusion: \`${conclusion}\`
+
+          Jobs:
+          ${jobs_summary}
+
+          Artifacts:
+          ${artifacts_summary}
+
+          The observer had Actions-read and Issues-write permission only. It had no provider secret and did not trigger or rerun paid execution.
+          EOF
+          )
+          gh api --method POST "/repos/${REPO}/issues/${OBSERVABILITY_ISSUE}/comments" -f body="$body"
