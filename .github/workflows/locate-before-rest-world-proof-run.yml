@@ -1,0 +1,74 @@
+name: Locate Before the Rest of the World Proof Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/locate-before-rest-world-proof-run.yml
+
+permissions:
+  actions: read
+  issues: write
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Locate exact paid proof run and report to issue 221
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const workflow_id = 'one-time-before-rest-world-proof.yml';
+            const authorizationSha = '2c5efd02596df9bf1e343a604f5659117fcc0132';
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner,
+              repo,
+              workflow_id,
+              branch: 'main',
+              per_page: 100
+            });
+            const matches = runs.filter(run => run.head_sha === authorizationSha && run.event === 'push');
+            let body;
+            if (matches.length === 0) {
+              body = [
+                '## Paid proof run locator',
+                '',
+                `- Authorization SHA: \`${authorizationSha}\``,
+                `- Workflow: \`${workflow_id}\``,
+                '- Exact push-triggered run found: **NO**',
+                '- Provider calls evidenced: **NO**',
+                '- Additional spend authorized: **NO**',
+                '',
+                'The authorization commit exists, but no exact workflow run was registered for it. Do not retrigger paid generation until the workflow-trigger defect is repaired under a new bounded authority.'
+              ].join('\n');
+            } else {
+              matches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const run = matches[0];
+              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: run.id, per_page: 100 });
+              const artifactLines = artifacts.data.artifacts.length
+                ? artifacts.data.artifacts.map(a => `  - ${a.name}: id \`${a.id}\`, expired=${a.expired}`).join('\n')
+                : '  - none currently listed';
+              body = [
+                '## Paid proof run locator',
+                '',
+                `- Authorization SHA: \`${authorizationSha}\``,
+                `- Workflow: \`${workflow_id}\``,
+                '- Exact push-triggered run found: **YES**',
+                `- Run ID: \`${run.id}\``,
+                `- Run number: \`${run.run_number}\``,
+                `- Status: **${run.status}**`,
+                `- Conclusion: **${run.conclusion || 'not complete'}**`,
+                `- Created: ${run.created_at}`,
+                `- Updated: ${run.updated_at}`,
+                `- Run URL: ${run.html_url}`,
+                '- Artifacts:',
+                artifactLines,
+                '',
+                'Provider calls and spend are not claimed from run metadata alone. They are evidenced only by the retained budget state and generation receipt inside the artifact.'
+              ].join('\n');
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: 221, body });
