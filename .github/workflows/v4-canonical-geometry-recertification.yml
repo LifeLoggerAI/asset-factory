@@ -95,6 +95,7 @@ jobs:
           assert payload['status']=='passed',payload
           assert payload['generated']==39 and payload['passed']==39 and payload['failed']==0,payload
           assert payload['failedNames']==[],payload
+          assert payload['runtimeDecodedForScoring']==['v4_comfort_teleport_marker'],payload
           assert payload['providerCallsExecutedThisRecertification']==0,payload
           assert payload['reservedEstimatedCostUsdThisRecertification']=='0.00',payload
           assert payload['providerCallsExecuted']==44,payload
@@ -103,7 +104,7 @@ jobs:
           assert payload['promotionAuthorized'] is False,payload
           assert payload['deploymentAuthorized'] is False,payload
           assert len(payload['assets'])==39,payload
-          print(json.dumps({key:payload[key] for key in ('status','generated','passed','failed','providerCallsExecutedThisRecertification','reservedEstimatedCostUsdThisRecertification','receiptSha256')},sort_keys=True))
+          print(json.dumps({key:payload[key] for key in ('status','generated','passed','failed','runtimeDecodedForScoring','providerCallsExecutedThisRecertification','reservedEstimatedCostUsdThisRecertification','receiptSha256')},sort_keys=True))
           PY
 
       - name: Upload immutable V4 recertification evidence
