@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/asset-factory#206",
+  "executionNonce": "v2-71-certified-repair-20260731-r2",
+  "requested": true,
+  "supersedesFailedRun": 30629189918,
+  "priorRejectedProviderRequests": 1,
+  "modelPolicy": {
+    "opaque": "gpt-image-2",
+    "alphaRequired": "gpt-image-1"
+  },
+  "replacementAssets": 71,
+  "preservedAssets": 9,
+  "maxAdditionalProviderCalls": 141,
+  "maxAggregateProviderCalls": 142,
+  "maxSpendUsd": "20.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false
+}
