@@ -189,7 +189,7 @@ jobs:
           git checkout -b "$branch"
           git config user.name 'URAI Production Wheel'
           git config user.email 'urai-wheel@users.noreply.github.com'
-          git add urai-tier1/public/assets/urai/v2 urai-tier1/public/assets/urai/v3 urai-tier1/public/assets/urai/v4 urai-tier1/public/assets/urai/v5 docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-PROMOTION.json
+          git add urai-tier1/public/assets/urai docs/release-evidence/URAI-SPATIAL-20260730-V2-V5-EXACT-PAID-PROMOTION.json
           git diff --cached --quiet && { echo 'No promotion changes found' >&2; exit 1; }
           git commit -m 'Promote exact provider-backed V2-V5 assets'
           head_sha="$(git rev-parse HEAD)"
