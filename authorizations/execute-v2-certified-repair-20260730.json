@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "programAuthority": "LifeLoggerAI/asset-factory#206",
   "sourceCertification": {
     "repository": "LifeLoggerAI/urai-spatial",
@@ -11,16 +11,23 @@
   "execution": {
     "branch": "repair/v2-certified-gaps-20260730",
     "provider": "openai",
-    "model": "gpt-image-2",
+    "modelPolicy": {
+      "opaque": "gpt-image-2",
+      "alphaRequired": "gpt-image-1",
+      "reason": "OpenAI rejected gpt-image-2 background=transparent before image generation in run 30629189918 job 91151803605"
+    },
     "quality": "medium",
     "replacementAssets": 71,
     "preservedAssets": 9,
     "maxAttemptsPerAsset": 2,
-    "maxProviderCalls": 142,
+    "priorRejectedProviderRequests": 1,
+    "maxAdditionalProviderCalls": 141,
+    "maxAggregateProviderCalls": 142,
     "maxSpendUsd": "20.00",
     "missingOrFailedOnly": true,
     "activationRequired": true,
     "activationMarker": "authorizations/activate-v2-certified-repair-20260730.json",
+    "retryActivationMarker": "authorizations/activate-v2-certified-repair-retry-20260731.json",
     "promotionAuthorized": false,
     "deploymentAuthorized": false,
     "evidenceRetentionDays": 90
