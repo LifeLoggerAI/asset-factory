@@ -1,0 +1,131 @@
+name: Locate Recovered V2-V5 Promotion Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/locate-recovered-v2-v5-promotion-20260731.json
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: locate-recovered-v2-v5-promotion-20260731
+  cancel-in-progress: false
+
+jobs:
+  locate:
+    if: github.actor == github.repository_owner && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_WORKFLOW: one-time-promote-recovered-v2-v5-assets.yml
+      SOURCE_RECOVERY_RUN_ID: '30632551711'
+      SOURCE_COMPLETED_AT: '2026-07-31T13:21:38Z'
+      RECEIPT_PATH: docs/release-evidence/URAI-AF-20260731-RECOVERED-V2-V5-PROMOTION-RUN.json
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact locator marker
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Locate exact workflow-run promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/recovered-promotion-locator docs/release-evidence
+          for attempt in $(seq 1 60); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_run&per_page=20" > artifacts/recovered-promotion-locator/runs.json
+            count="$(python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          payload=json.load(open('artifacts/recovered-promotion-locator/runs.json'))
+          cutoff=datetime.fromisoformat(os.environ['SOURCE_COMPLETED_AT'].replace('Z','+00:00'))
+          runs=[]
+          for run in payload.get('workflow_runs',[]):
+              created=datetime.fromisoformat(run['created_at'].replace('Z','+00:00'))
+              if created >= cutoff and run.get('event')=='workflow_run':
+                  runs.append(run)
+          print(len(runs))
+          PY
+          )"
+            if [ "$count" = '1' ]; then
+              break
+            fi
+            if [ "$count" -gt 1 ]; then
+              echo "Expected one recovered promotion run, found $count" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          python - <<'PY'
+          import json,os
+          from datetime import datetime
+          payload=json.load(open('artifacts/recovered-promotion-locator/runs.json'))
+          cutoff=datetime.fromisoformat(os.environ['SOURCE_COMPLETED_AT'].replace('Z','+00:00'))
+          runs=[]
+          for run in payload.get('workflow_runs',[]):
+              created=datetime.fromisoformat(run['created_at'].replace('Z','+00:00'))
+              if created >= cutoff and run.get('event')=='workflow_run':
+                  runs.append(run)
+          assert len(runs)==1,runs
+          open('artifacts/recovered-promotion-locator/run-id.txt','w').write(str(runs[0]['id']))
+          PY
+          run_id="$(cat artifacts/recovered-promotion-locator/run-id.txt)"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > artifacts/recovered-promotion-locator/run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > artifacts/recovered-promotion-locator/jobs.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          run=json.loads(Path('artifacts/recovered-promotion-locator/run.json').read_text())
+          jobs=json.loads(Path('artifacts/recovered-promotion-locator/jobs.json').read_text()).get('jobs',[])
+          receipt={
+            'schemaVersion':'1.0.0',
+            'programAuthority':'LifeLoggerAI/asset-factory#206',
+            'workflow':'One-Time Promote Recovered Exact V2-V5 Assets',
+            'workflowFile':os.environ['TARGET_WORKFLOW'],
+            'sourceRecoveryRunId':int(os.environ['SOURCE_RECOVERY_RUN_ID']),
+            'runId':run['id'],
+            'runAttempt':run['run_attempt'],
+            'event':run['event'],
+            'headBranch':run['head_branch'],
+            'headSha':run['head_sha'],
+            'status':run['status'],
+            'conclusion':run['conclusion'],
+            'createdAt':run['created_at'],
+            'updatedAt':run['updated_at'],
+            'htmlUrl':run['html_url'],
+            'jobs':[{'id':j['id'],'name':j['name'],'status':j['status'],'conclusion':j['conclusion'],'htmlUrl':j['html_url']} for j in jobs],
+            'providerCallsExecutedByLocator':0,
+            'spendUsdByLocator':'0.00',
+            'promotionAuthorized':True,
+            'deploymentAuthorized':False,
+          }
+          Path(os.environ['RECEIPT_PATH']).write_text(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+          print(json.dumps({'runId':run['id'],'status':run['status'],'conclusion':run['conclusion']},sort_keys=True))
+          PY
+
+      - name: Commit recovered promotion locator receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$RECEIPT_PATH"
+          git diff --cached --quiet && exit 0
+          git commit -m 'evidence: locate recovered V2-V5 promotion run'
+          git push origin HEAD:main
+
+      - name: Upload locator evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: recovered-v2-v5-promotion-locator-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          path: |
+            artifacts/recovered-promotion-locator/**
+            docs/release-evidence/URAI-AF-20260731-RECOVERED-V2-V5-PROMOTION-RUN.json
