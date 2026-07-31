@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#59",
+  "projectId": "before-the-rest-of-the-world",
+  "provider": "openai",
+  "manifestPath": "manifests/film/before-rest-world-proof.manifest.json",
+  "authorizedAt": "2026-07-31T17:39:00Z",
+  "purpose": "Generate the exact ten-shot private AAA proof-of-look tranche for Before the Rest of the World.",
+  "maximumProviderCalls": 10,
+  "maximumReservedCostUsd": "10.00",
+  "fullProgramBudgetCeilingUsd": "50.00",
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "fullFilmCompletionAuthorized": false,
+  "notes": [
+    "This marker authorizes only the ten manifest-bound hero frames.",
+    "Actual UrAi product footage must come from the real screening build.",
+    "No rerun, second purchase, or expanded shot set is authorized by this marker.",
+    "A retained generation receipt and contact sheet are required before any next tranche."
+  ]
+}
