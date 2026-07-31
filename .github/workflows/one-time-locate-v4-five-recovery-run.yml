@@ -1,0 +1,52 @@
+name: One-Time Locate V4 Five Recovery Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/locate-v4-five-recovery-run-20260730.json
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_HEAD_SHA: 8a1d42fe026219673c6ac4501ed13a1feaa99849
+      TARGET_WORKFLOW: one-time-v4-exact-five-recovery.yml
+      RECEIPT_PATH: docs/release-evidence/URAI-AF-20260730-V4-FIVE-RECOVERY-RUN.json
+    steps:
+      - name: Locate exact recovery run and publish receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          API_URL: ${{ github.api_url }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64, json, os, urllib.error, urllib.parse, urllib.request
+          from datetime import datetime, timezone
+          token=os.environ['GH_TOKEN']; repo=os.environ['REPOSITORY']; api=os.environ['API_URL'].rstrip('/')
+          workflow=urllib.parse.quote(os.environ['TARGET_WORKFLOW'],safe=''); target=os.environ['TARGET_HEAD_SHA']; path=os.environ['RECEIPT_PATH']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'urai-v4-recovery-locator'}
+          def req(method,url,payload=None):
+              data=None if payload is None else json.dumps(payload).encode()
+              with urllib.request.urlopen(urllib.request.Request(url,data=data,headers=headers,method=method),timeout=30) as response:
+                  return json.loads(response.read().decode())
+          payload=req('GET',f'{api}/repos/{repo}/actions/workflows/{workflow}/runs?event=push&head_sha={target}&per_page=20')
+          runs=[{'id':r.get('id'),'status':r.get('status'),'conclusion':r.get('conclusion'),'headSha':r.get('head_sha'),'htmlUrl':r.get('html_url'),'createdAt':r.get('created_at'),'updatedAt':r.get('updated_at')} for r in payload.get('workflow_runs',[])]
+          receipt={'schemaVersion':'1.0.0','locatedAt':datetime.now(timezone.utc).isoformat(),'targetHeadSha':target,'targetWorkflow':os.environ['TARGET_WORKFLOW'],'matchingRunCount':len(runs),'runs':runs,'providerCallsExecutedByLocator':0,'providerSpendUsdByLocator':'0.00','promotionAuthorized':False,'deploymentAuthorized':False}
+          content=(json.dumps(receipt,indent=2,sort_keys=True)+'\n').encode(); url=f'{api}/repos/{repo}/contents/{urllib.parse.quote(path,safe="/")}'
+          sha=None
+          try: sha=req('GET',url+'?ref=main').get('sha')
+          except urllib.error.HTTPError as error:
+              if error.code!=404: raise
+          body={'message':'evidence: locate exact V4 recovery run','content':base64.b64encode(content).decode(),'branch':'main'}
+          if sha: body['sha']=sha
+          result=req('PUT',url,body)
+          print(json.dumps({'runIds':[r['id'] for r in runs],'receiptCommitSha':result.get('commit',{}).get('sha')},sort_keys=True))
+          if not runs: raise SystemExit('no exact recovery run found')
+          PY
