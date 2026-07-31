@@ -29,6 +29,7 @@ sys.path.insert(0, str(GEN))
 
 import canonical_release_manifests  # noqa: E402
 import generate_exact_version_assets as generator  # noqa: E402
+import provider_renderer  # noqa: E402
 import score_v1_assets  # noqa: E402
 
 SOURCE_RUN_ID = 30543824770
@@ -84,10 +85,18 @@ def last_successful_attempt(record: dict[str, Any]) -> dict[str, Any]:
     return attempts[-1]
 
 
-def validate_provider_metadata(metadata_path: Path, entry: dict[str, Any], retained_record: dict[str, Any], size: int) -> None:
+def canonical_dimensions(entry: dict[str, Any], size: int) -> tuple[int, int]:
+    width, height = provider_renderer.target_dimensions(entry, size)
+    if width < 1 or height < 1 or max(width, height) != size:
+        raise SystemExit(f"canonical target geometry invalid: {entry.get('name')}: {(width, height)}")
+    return width, height
+
+
+def validate_provider_metadata(metadata_path: Path, entry: dict[str, Any], retained_record: dict[str, Any], size: int) -> tuple[int, int]:
     payload = load_json(metadata_path)
     metadata = payload.get("metadata", {})
     attempt = last_successful_attempt(retained_record)
+    expected_width, expected_height = canonical_dimensions(entry, size)
     if payload.get("name") != entry.get("name") or payload.get("renderer") != "provider":
         raise SystemExit(f"retained provider metadata identity drift: {entry.get('name')}")
     if metadata.get("provider") != "openai":
@@ -96,8 +105,13 @@ def validate_provider_metadata(metadata_path: Path, entry: dict[str, Any], retai
         raise SystemExit(f"retained provider request binding drift: {entry.get('name')}")
     if metadata.get("provider_model") != attempt.get("providerModel"):
         raise SystemExit(f"retained provider model binding drift: {entry.get('name')}")
-    if metadata.get("target_width") != size or metadata.get("target_height") != size:
-        raise SystemExit(f"retained provider target geometry drift: {entry.get('name')}")
+    if metadata.get("target_width") != expected_width or metadata.get("target_height") != expected_height:
+        raise SystemExit(
+            f"retained provider target geometry drift: {entry.get('name')}: "
+            f"expected {(expected_width, expected_height)}, "
+            f"found {(metadata.get('target_width'), metadata.get('target_height'))}"
+        )
+    return expected_width, expected_height
 
 
 def materialize_scoring_source(*, entry: dict[str, Any], retained_record: dict[str, Any], retained_receipt_path: Path, forge_source: Path, size: int) -> dict[str, Any]:
@@ -105,7 +119,7 @@ def materialize_scoring_source(*, entry: dict[str, Any], retained_record: dict[s
     source_meta = source.with_suffix(source.suffix + ".render.json")
     if not source_meta.is_file():
         raise SystemExit(f"retained provider metadata missing: {entry['name']}")
-    validate_provider_metadata(source_meta, entry, retained_record, size)
+    expected_width, expected_height = validate_provider_metadata(source_meta, entry, retained_record, size)
 
     forge_source.parent.mkdir(parents=True, exist_ok=True)
     fallback_used = False
@@ -115,6 +129,10 @@ def materialize_scoring_source(*, entry: dict[str, Any], retained_record: dict[s
         retained_source_sha256 = sha256_file(source)
         if retained_source_sha256 != last_successful_attempt(retained_record).get("sourceSha256"):
             raise SystemExit(f"retained provider source hash drift: {entry['name']}")
+        with Image.open(source) as image:
+            image.load()
+            if image.size != (expected_width, expected_height):
+                raise SystemExit(f"retained provider PNG geometry drift: {entry['name']}")
         shutil.copy2(source, forge_source)
     else:
         if entry["name"] not in EXPECTED_RUNTIME_DECODE_FALLBACKS:
@@ -125,7 +143,7 @@ def materialize_scoring_source(*, entry: dict[str, Any], retained_record: dict[s
             raise SystemExit(f"retained runtime fallback identity drift: {entry['name']}")
         with Image.open(retained_runtime) as image:
             image.load()
-            if image.size != (size, size):
+            if image.size != (expected_width, expected_height):
                 raise SystemExit(f"retained runtime fallback geometry drift: {entry['name']}")
             converted = image.convert("RGBA" if bool(entry.get("alpha")) else "RGB")
             converted.save(forge_source, format="PNG", optimize=True)
@@ -140,6 +158,8 @@ def materialize_scoring_source(*, entry: dict[str, Any], retained_record: dict[s
         "retainedProviderPngPresent": not fallback_used,
         "retainedProviderPngSha256": retained_source_sha256,
         "scoringPngSha256": sha256_file(forge_source),
+        "canonicalWidth": expected_width,
+        "canonicalHeight": expected_height,
     }
 
 
