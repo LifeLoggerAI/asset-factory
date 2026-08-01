@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#61",
+  "executionAuthority": "LifeLoggerAI/asset-factory#226",
+  "projectId": "before-the-rest-of-the-world-full-master-t1",
+  "manifestPath": "manifests/film/before-rest-world-full-master-t1.manifest.json",
+  "provider": "openai",
+  "maximumProviderCalls": 12,
+  "maximumReservedCostUsd": "15.00",
+  "automaticRetryAuthorized": false,
+  "remixAuthorized": false,
+  "promotionAuthorized": false,
+  "deliveryAuthorized": false,
+  "deploymentAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "privateReviewAuthorized": true,
+  "authorizedAt": "2026-08-01T18:05:00Z",
+  "authorityNote": "User directed continued execution of the full-length finished private film through the URAI system of systems. This authorization is limited to the first twelve continuous-motion source clips for sequences S01 through S03 and does not authorize narration, inclusion in the master, delivery, or public release."
+}
