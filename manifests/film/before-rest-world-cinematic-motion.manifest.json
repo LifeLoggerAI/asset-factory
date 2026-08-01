@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#59",
+  "executionAuthority": "LifeLoggerAI/asset-factory#224",
+  "projectId": "before-the-rest-of-the-world-cinematic-motion",
+  "provider": "openai",
+  "videoModel": "sora-2",
+  "videoSize": "1280x720",
+  "secondsPerShot": "12",
+  "voiceModel": "gpt-4o-mini-tts",
+  "voice": "cedar",
+  "privateReviewOnly": true,
+  "publicReleaseAuthorized": false,
+  "shots": [
+    {
+      "id": "01_green_sports_car_opening",
+      "prompt": "Premium prestige-documentary cinema, continuous real motion, 16:9. Early morning in an affluent Southern university neighborhood in the late 1980s or early 1990s. A deep green vintage European sports car glides beneath mature trees, reflections moving across polished bodywork. Camera begins inches above wet pavement, tracks beside the wheels, then cranes toward an elegant academic skyline without showing any logos, school names, trademarks, readable plates, or identifiable people. Restrained confidence, natural film grain, atmospheric haze, physically believable motion, sophisticated lighting, no text, no interface, no slideshow, no freeze frames. Original cinematic ambience and subtle engine sound are welcome. This is a fictional cinematic recreation, not archival footage."
+    },
+    {
+      "id": "02_father_son_ballpark_memory",
+      "prompt": "Prestige cinematic memory recreation, continuous natural motion, 16:9. An adult father and his young son seen only from behind and in non-identifiable profile walk through a classic American baseball concourse at golden hour. Crowd motion, stadium lights warming up, paper tickets in hand, vendors and distant field activity, camera slowly arcs around them and follows as the father places a hand on the son's shoulder. Emotionally restrained, intimate, expensive production design, realistic human movement, no recognizable faces, no team logos, no trademarks, no text, no archival claim, no slideshow, no still-image pan. Fictional recreation with rich location ambience."
+    },
+    {
+      "id": "03_private_ai_workforce",
+      "prompt": "Cinematic science-fiction realism, continuous complex motion, 16:9. Descend through a vast dark subterranean architecture into a private AI workforce operating as a governed council. Hundreds of luminous nonhuman agents move through transparent chambers, exchanging structured light, provenance threads, consent locks, and evidence packets. The camera flies through the system in one elegant continuous shot, revealing orchestration at enormous scale without humanoid robots, brand marks, readable claims, fake application screens, or generic neon cyberpunk. Premium restrained visual language, volumetric light, physically coherent space, technical credibility, deep bass ambience and intricate machine sound, no text, no slideshow."
+    },
+    {
+      "id": "04_passive_context_to_memory",
+      "prompt": "Prestige cinematic visualization, continuous transformation, 16:9. Begin inside an ordinary lived moment: rain on a car window, footsteps, a quiet kitchen light, a phone placed face down, a distant laugh, changing location and time signals. Without showing private readable data, those subtle contextual traces flow like particles into a living three-dimensional memory constellation. Camera travels with the signals as they assemble places, relationships, emotional color, and a cinematic replay chamber. Human, intimate, technically sophisticated, photoreal environmental motion, no fake UI, no floating dashboards, no text, no slideshow, no frozen images. Original atmospheric sound should evolve from real life into orchestral wonder."
+    },
+    {
+      "id": "05_receipts_to_global_layer",
+      "prompt": "Epic but credible prestige documentary science-fiction, continuous camera movement, 16:9. Start on a single cryptographic evidence receipt with abstract unreadable marks, then pull backward through branching verified artifacts, governed systems, privacy boundaries, and spatial worlds until they form a luminous human-reality layer surrounding Earth at night. The globe rotates naturally, cities pulse subtly, many languages and lives are suggested without readable text or flags. The scale should feel astonishing but engineered, not magical propaganda. Premium cinema, restrained color, realistic orbital photography, powerful orchestral and low-frequency sound, no logos, no claims on screen, no slideshow, no still pan."
+    },
+    {
+      "id": "06_invitation_seats_finale",
+      "prompt": "Prestige dramatic finale, continuous real motion, 16:9. A vast dark circular chamber slowly illuminates. One chair carries a subtle warm pool of light representing Mark as the trusted bridge; beside it, an empty chair gradually receives light as an invitation for Doug, not an appointment or title. Beyond the seats, a monumental living spatial world awakens: memory constellations, private architecture, global light, and a calm orb in motion. Camera circles the chairs, then flies past them into the enormous world and finally cuts toward black. No faces, no names, no logos, no readable text, no corporate titles, no slideshow, no still-image zoom. Emotion: this exists with or without any one person, but you are being invited to see it before most people do. Original cinematic score rises and resolves with one unanswered note."
+    }
+  ],
+  "narration": "Doug, this is not a pitch built around one person. And it is not another application dressed up with artificial intelligence. What you are seeing is the beginning of a private human world: memory, place, relationships, consent, evidence, and intelligence designed as one governed system. It can take the quiet signals of a life and turn them into something a person can enter, understand, protect, and eventually replay. Behind the experience is an operating structure: production systems, spatial systems, privacy boundaries, accessibility, provenance, and exact receipts. The ambition is global, but the premise is personal. A human life should not be scattered across companies that know pieces of it. It should belong to the person who lived it. Mark is not the reason this matters. He is the reason you are seeing it before most people do. This first look is intentionally incomplete. The next conversation is where the scale becomes difficult to ignore."
+}
