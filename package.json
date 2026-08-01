@@ -31,7 +31,7 @@
     "check:release-evidence": "node scripts/check-release-evidence.mjs",
     "check:release-evidence:latest": "node scripts/check-latest-release-evidence.mjs",
     "check:deploy-workflow": "node scripts/check-deploy-workflow.mjs",
-    "check:paid-workflow-boundary": "python3 scripts/check-paid-workflow-boundary.py && python3 scripts/test-paid-workflow-boundary.py",
+    "check:paid-workflow-boundary": "python3 scripts/check-paid-workflow-boundary-current.py && python3 scripts/test-paid-workflow-boundary.py && python3 scripts/test-paid-workflow-current-authorities.py",
     "check:smoke-readonly-boundary": "node scripts/test-smoke-readonly-boundary.mjs",
     "image:install": "python -m pip install -r image_asset_generator/requirements.txt",
     "image:manifest": "python image_asset_generator/validate_manifest.py",
