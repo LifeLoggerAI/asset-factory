@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthority": "LifeLoggerAI/urai-studio#61",
+  "executionAuthority": "LifeLoggerAI/asset-factory#226",
+  "projectId": "before-the-rest-of-the-world-full-master-t1",
+  "provider": "openai",
+  "videoModel": "sora-2",
+  "videoSize": "1280x720",
+  "secondsPerShot": "12",
+  "shots": [
+    {
+      "id": "t1-s01-dawn-road",
+      "classification": "practical-style-plate",
+      "sequence": "S01",
+      "prompt": "Premium cinematic prestige-documentary opening at dawn on a quiet American road near a university town, low mist, subtle amber-blue sky, restrained realism, slow stabilized forward camera movement, empty road, mature visual composition, natural atmospheric motion, no logos, no readable signs, no text, no trademarks, no people looking at camera, 24 fps filmic motion, physically believable light and lens behavior."
+    },
+    {
+      "id": "t1-s01-green-car-tracking",
+      "classification": "cinematic-recreation",
+      "sequence": "S01",
+      "prompt": "A vintage dark-green European-style sports coupe from an unspecified era driving smoothly along a tree-lined university road at dawn, elegant low side tracking shot, restrained prestige-documentary realism, reflections moving naturally across paint and glass, no manufacturer badge, no license plate text, no university logos, no recognizable person, cinematic depth, physically credible suspension and wheel motion, no dialogue, no title text."
+    },
+    {
+      "id": "t1-s01-mechanical-detail",
+      "classification": "practical-style-plate",
+      "sequence": "S01",
+      "prompt": "Macro cinematic mechanical detail montage of an unbranded vintage sports car in motion: analog gauge needle, polished gear mechanism, steering wheel stitching, wheel rotation and road vibration, warm dawn light crossing metal and leather, precise engineered movement, premium documentary cinematography, shallow depth of field, no logos, no text, no hands identifiable, no impossible mechanics, restrained and credible."
+    },
+    {
+      "id": "t1-s01-empty-theater",
+      "classification": "practical-style-plate",
+      "sequence": "S01",
+      "prompt": "Inside an elegant empty private screening theater, camera glides slowly down the center aisle toward a completely dark screen, faint architectural practical lights, rich acoustic materials, then the screen wakes with a soft white glow that illuminates empty seats, premium cinematic realism, no logos, no text on screen, no people, no dramatic explosion, controlled and emotionally restrained."
+    },
+    {
+      "id": "t1-s02-ordinary-day",
+      "classification": "cinematic-recreation",
+      "sequence": "S02",
+      "prompt": "A poetic but realistic continuous shot through fragments of an ordinary adult life: kitchen light turning on before sunrise, a figure crossing a hallway, highway reflections through a windshield, a phone resting after a call ends, intimate documentary observation, no recognizable face, no text, no brands, subtle melancholy, natural human movement, physically believable transitions created through camera movement and match cuts rather than slideshow panels."
+    },
+    {
+      "id": "t1-s02-unopened-photo",
+      "classification": "cinematic-recreation",
+      "sequence": "S02",
+      "prompt": "Close cinematic shot of an old printed photograph resting inside a drawer that is opened briefly and then gently closed without the image becoming identifiable, dust moving in a thin beam of light, emotionally restrained, prestige documentary style, natural hand movement without a recognizable person, no readable writing, no logos, no melodrama, continuous motion."
+    },
+    {
+      "id": "t1-s02-location-message-fade",
+      "classification": "concept-visualization",
+      "sequence": "S02",
+      "prompt": "Abstract cinematic visualization of a human location marker and a conversation history losing continuity: a real city-at-night aerial transforms into subtle floating points and faint message-like light traces that gradually separate and disappear, no readable interface, no actual app UI, no text, no logos, premium science-fiction documentary realism, smooth continuous spatial camera movement, elegant and credible rather than flashy."
+    },
+    {
+      "id": "t1-s02-fragmented-panes",
+      "classification": "concept-visualization",
+      "sequence": "S02",
+      "prompt": "Multiple living fragments of one ordinary life exist as translucent cinematic windows in a dark physical space—road, kitchen, voice waveform, photograph, doorway, weather, relationship silhouettes—each contains real motion, then the windows slowly drift apart and become impossible to see together, premium restrained science-fiction realism, no readable UI, no text, no logos, strong depth and parallax, not a slideshow."
+    },
+    {
+      "id": "t1-s03-fragments-turn-center",
+      "classification": "concept-visualization",
+      "sequence": "S03",
+      "prompt": "The separated moving fragments of one human life stop drifting and slowly rotate toward a dark central space as subtle threads of light connect them, elegant continuous camera orbit, premium prestige-documentary science-fiction realism, physically coherent depth, reflections and volumetric atmosphere, no interface panels, no readable text, no logos, no magical explosion, emotionally controlled world-formation beginning."
+    },
+    {
+      "id": "t1-s03-private-world-formation",
+      "classification": "concept-visualization",
+      "sequence": "S03",
+      "prompt": "A private inhabitable world forms around one anonymous human presence: grounded terrain, calm architecture, distant memory places, atmosphere, pathways and a luminous central sphere integrated into the environment, camera moves from wide exterior into the world in one continuous cinematic shot, premium realistic science fiction, not an app dashboard, no UI text, no logos, no identifiable face, coherent perspective and lighting."
+    },
+    {
+      "id": "t1-s03-connected-reality",
+      "classification": "concept-visualization",
+      "sequence": "S03",
+      "prompt": "Cinematic system-of-systems visualization inside one coherent private world: a sanctuary realm, a luminous companion sphere, a vast constellation-like memory space, a focused memory chamber, a cinematic replay threshold, and an ordered infrastructure realm connected by real spatial paths, camera travels continuously through them without showing fake software UI, premium restrained realism, no labels, no text, no logos."
+    },
+    {
+      "id": "t1-s03-system-reveal",
+      "classification": "concept-visualization",
+      "sequence": "S03",
+      "prompt": "Final reveal of a vast but intimate private human-centered reality system, one person represented only as a distant non-identifiable silhouette at the center while memory, context, rights, relationships, accessibility and governed intelligence exist as distinct physical environments around them, slow cinematic pullback, premium documentary science-fiction realism, no centralized surveillance imagery, no text, no logos, no fake product interface."
+    }
+  ]
+}
