@@ -43,8 +43,14 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             base='${{ github.event.pull_request.base.sha }}'
+            marker='authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
             git fetch --no-tags --depth=1 origin "$base"
-            git diff --name-status --no-renames "$base" HEAD -- authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json | grep -Fx 'D	authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+            marker_change="$(git diff --name-status --no-renames "$base" HEAD -- "$marker")"
+            if [ -n "$marker_change" ]; then
+              test "$marker_change" = "D	$marker"
+            else
+              git diff --quiet "$base" HEAD -- "$marker"
+            fi
           fi
       - name: Compile recovery controls
         run: |
