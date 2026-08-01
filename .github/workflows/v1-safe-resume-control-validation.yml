@@ -79,10 +79,9 @@ jobs:
               assert value in executor, value
           assert "ASSET_FORGE_SKIP_EXISTING_OUTPUTS'] = '0'" in executor
           PY
-      - name: Verify sole paid workflow and no deployment authority
+      - name: Verify current paid workflow authorities and no deployment authority
         run: |
-          python3 scripts/check-paid-workflow-boundary.py
-          python3 scripts/test-paid-workflow-boundary.py
+          npm run check:paid-workflow-boundary
           python3 - <<'PY'
           from pathlib import Path
           text=Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
