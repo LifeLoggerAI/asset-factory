@@ -4,22 +4,38 @@ on:
   pull_request:
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/one-time-before-rest-world-cinematic-motion.yml
+      - .github/workflows/one-time-before-rest-world-full-master-t1.yml
+      - authorizations/execute-before-rest-world-cinematic-motion-20260801.json
+      - authorizations/execute-before-rest-world-full-master-t1-20260801.json
       - .github/workflows/canonical-version-forge.yml
       - .github/workflows/v1-checkpoint-finalize.yml
       - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
+      - scripts/check-paid-workflow-boundary-current.py
+      - scripts/test-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-current-authorities.py
+      - package.json
   push:
     branches: [main]
     paths:
       - .github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml
+      - .github/workflows/one-time-before-rest-world-cinematic-motion.yml
+      - .github/workflows/one-time-before-rest-world-full-master-t1.yml
+      - authorizations/execute-before-rest-world-cinematic-motion-20260801.json
+      - authorizations/execute-before-rest-world-full-master-t1-20260801.json
       - .github/workflows/canonical-version-forge.yml
       - .github/workflows/v1-checkpoint-finalize.yml
       - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
+      - scripts/check-paid-workflow-boundary-current.py
+      - scripts/test-paid-workflow-boundary.py
+      - scripts/test-paid-workflow-current-authorities.py
+      - package.json
   workflow_dispatch:
 
 permissions:
@@ -49,10 +65,10 @@ jobs:
           test "$(git rev-parse HEAD)" = "$expected"
           test -z "$(git status --porcelain --untracked-files=all)"
 
-      - name: Verify pinned sole paid workflow
+      - name: Verify pinned paid workflow authorities
         run: |
           python3 scripts/check-critical-workflow-pins.py
-          python3 scripts/check-paid-workflow-boundary.py
+          npm run check:paid-workflow-boundary
 
       - name: Final clean-tree proof
         run: test -z "$(git status --porcelain --untracked-files=all)"
