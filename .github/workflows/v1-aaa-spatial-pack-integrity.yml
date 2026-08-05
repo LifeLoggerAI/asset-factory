@@ -115,7 +115,5 @@ jobs:
           else:
               raise AssertionError('expanded call ceiling must fail closed')
           PY
-      - name: Verify sole paid workflow boundary
-        run: |
-          python3 scripts/check-paid-workflow-boundary.py
-          python3 scripts/test-paid-workflow-boundary.py
+      - name: Verify current paid workflow boundary
+        run: npm run check:paid-workflow-boundary

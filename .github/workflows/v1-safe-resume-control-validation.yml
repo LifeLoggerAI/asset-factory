@@ -43,8 +43,14 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             base='${{ github.event.pull_request.base.sha }}'
+            marker='authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
             git fetch --no-tags --depth=1 origin "$base"
-            git diff --name-status --no-renames "$base" HEAD -- authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json | grep -Fx 'D	authorizations/execute-v1-aaa-spatial-pack-safe-resume-3-20260711.json'
+            marker_change="$(git diff --name-status --no-renames "$base" HEAD -- "$marker")"
+            if [ -n "$marker_change" ]; then
+              test "$marker_change" = "D	$marker"
+            else
+              git diff --quiet "$base" HEAD -- "$marker"
+            fi
           fi
       - name: Compile recovery controls
         run: |
@@ -79,10 +85,9 @@ jobs:
               assert value in executor, value
           assert "ASSET_FORGE_SKIP_EXISTING_OUTPUTS'] = '0'" in executor
           PY
-      - name: Verify sole paid workflow and no deployment authority
+      - name: Verify current paid workflow authorities and no deployment authority
         run: |
-          python3 scripts/check-paid-workflow-boundary.py
-          python3 scripts/test-paid-workflow-boundary.py
+          npm run check:paid-workflow-boundary
           python3 - <<'PY'
           from pathlib import Path
           text=Path('.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml').read_text()
