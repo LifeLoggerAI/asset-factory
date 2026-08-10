@@ -1,0 +1,9 @@
+# Asset Factory App Hosting runtime configuration.
+# Secret values live in Google Cloud Secret Manager and must never be committed.
+# Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER and modality model IDs
+# are explicitly selected for an authorized provider-backed generation run.
+env:
+  - variable: REPLICATE_API_TOKEN
+    secret: REPLICATE_API_TOKEN
+    availability:
+      - RUNTIME
