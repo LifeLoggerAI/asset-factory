@@ -3,6 +3,8 @@
 Status: operator handoff for the one remaining Google Cloud control-plane step.
 
 Repository: `LifeLoggerAI/asset-factory`
+Repository numeric ID: `1150887894`
+Repository owner numeric ID: `215797546`
 Google Cloud / Firebase project: `urai-4dc1d`
 App Hosting backend: `assetfactory-studio`
 Region: `us-central1`
@@ -20,8 +22,6 @@ GCP_DEPLOY_SERVICE_ACCOUNT
 
 ## Recommended resource names
 
-These names are intentionally dedicated to Asset Factory so trust and revocation remain isolated:
-
 ```text
 Workload Identity Pool ID: urai-github
 Provider ID: asset-factory-github
@@ -35,27 +35,29 @@ If an approved organization-wide GitHub Workload Identity Pool already exists, r
 
 Do not create, download, restore, or upload a service-account JSON key for this workflow.
 
-GitHub OIDC trust must be restricted to the intended organization/repository. Google recommends attribute conditions for GitHub issuers because the issuer is shared across organizations.
+GitHub uses a shared OIDC issuer across organizations, so the provider must have an attribute condition. Prefer immutable GitHub numeric IDs over reusable organization/repository names.
 
-Minimum recommended mappings:
+Required mappings:
 
 ```text
 google.subject=assertion.sub
 attribute.repository=assertion.repository
+attribute.repository_id=assertion.repository_id
 attribute.repository_owner=assertion.repository_owner
+attribute.repository_owner_id=assertion.repository_owner_id
 ```
 
 Recommended provider condition:
 
 ```text
-assertion.repository_owner == 'LifeLoggerAI' && assertion.repository == 'LifeLoggerAI/asset-factory'
+assertion.repository_owner_id == '215797546' && assertion.repository_id == '1150887894'
 ```
 
-For an even tighter boundary, also require the intended main branch or protected environment if compatible with the current workflow claims.
+The numeric IDs above were read directly from the connected GitHub repository metadata for `LifeLoggerAI/asset-factory` on 2026-08-11. Optionally add a `ref` or protected-environment condition if compatible with the workflow's intended triggers.
 
 ## Bootstrap commands
 
-Run these commands only from a Google Cloud administrator session authorized for project `urai-4dc1d`. Replace `PROJECT_NUMBER` after resolving it from Google Cloud.
+Run these commands only from a Google Cloud administrator session authorized for project `urai-4dc1d`.
 
 ```bash
 gcloud config set project urai-4dc1d
@@ -63,8 +65,6 @@ PROJECT_NUMBER="$(gcloud projects describe urai-4dc1d --format='value(projectNum
 ```
 
 ### 1. Create or reuse the GitHub Workload Identity Pool
-
-Check first:
 
 ```bash
 gcloud iam workload-identity-pools describe urai-github \
@@ -83,8 +83,6 @@ gcloud iam workload-identity-pools create urai-github \
 
 ### 2. Create or verify the Asset Factory GitHub provider
 
-Check first:
-
 ```bash
 gcloud iam workload-identity-pools providers describe asset-factory-github \
   --project=urai-4dc1d \
@@ -100,14 +98,12 @@ gcloud iam workload-identity-pools providers create-oidc asset-factory-github \
   --location=global \
   --workload-identity-pool=urai-github \
   --display-name='Asset Factory GitHub Actions' \
-  --issuer-uri='https://token.actions.githubusercontent.com' \
-  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner' \
-  --attribute-condition="assertion.repository_owner == 'LifeLoggerAI' && assertion.repository == 'LifeLoggerAI/asset-factory'"
+  --issuer-uri='https://token.actions.githubusercontent.com/' \
+  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner=assertion.repository_owner,attribute.repository_owner_id=assertion.repository_owner_id' \
+  --attribute-condition="assertion.repository_owner_id == '215797546' && assertion.repository_id == '1150887894'"
 ```
 
 ### 3. Create or verify the least-privilege service account
-
-Check first:
 
 ```bash
 gcloud iam service-accounts describe \
@@ -125,14 +121,14 @@ gcloud iam service-accounts create asset-factory-deploy \
 
 Do not create a key for this service account.
 
-### 4. Allow only this GitHub repository identity to impersonate the service account
+### 4. Allow only the immutable Asset Factory repository identity to impersonate the service account
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding \
   asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com \
   --project=urai-4dc1d \
   --role='roles/iam.workloadIdentityUser' \
-  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/urai-github/attribute.repository/LifeLoggerAI/asset-factory"
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/urai-github/attribute.repository_id/1150887894"
 ```
 
 ### 5. Grant only the permissions required by the existing verification lane
@@ -154,14 +150,12 @@ Do not guess or add broad Owner/Editor roles merely to make the smoke pass.
 
 ## Values to return to GitHub
 
-After the provider and service account are verified, resolve the provider's full resource name:
-
 ```bash
 GCP_WIF_PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/urai-github/providers/asset-factory-github"
 GCP_DEPLOY_SERVICE_ACCOUNT='asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
 ```
 
-Configure those exact **non-secret** values in the protected GitHub environment used by `LifeLoggerAI/asset-factory`:
+Configure those exact non-secret values in the protected GitHub environment used by `LifeLoggerAI/asset-factory`:
 
 ```text
 Environment: asset-factory-production
@@ -172,9 +166,11 @@ Variable: GCP_DEPLOY_SERVICE_ACCOUNT
 Value: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
 ```
 
+The provider value must contain the numeric Google Cloud project number and the full `/providers/asset-factory-github` suffix, not merely the pool name.
+
 ## Verification sequence
 
-After the two variables exist:
+After IAM changes, allow for propagation before treating an immediate authentication failure as definitive.
 
 1. Re-run the failed Replicate App Hosting verification workflow.
 2. Confirm GitHub OIDC exchanges successfully and the active Google identity is the dedicated Asset Factory service account.
