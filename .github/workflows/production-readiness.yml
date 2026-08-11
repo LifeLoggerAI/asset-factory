@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
@@ -115,19 +116,29 @@ jobs:
       inputs.confirm == 'DEPLOY_ASSET_FACTORY'
     environment: asset-factory-production
     env:
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
       ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
-      - name: Require Firebase service account
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON == ''
+      - name: Require WIF deployment identity
+        shell: bash
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
         run: |
-          echo "FIREBASE_SERVICE_ACCOUNT secret is not configured."
-          echo "Add it in GitHub repo Settings -> Secrets and variables -> Actions before production deploy."
-          exit 1
+          set -euo pipefail
+          test -n "$WIF_PROVIDER" || { echo "GCP_WIF_PROVIDER is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
+          test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "GCP_DEPLOY_SERVICE_ACCOUNT is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
+
+      - name: Authenticate to Google Cloud with WIF
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: urai-4dc1d
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
 
       - name: Checkout exact main candidate
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/checkout@v4
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
@@ -135,7 +146,6 @@ jobs:
           persist-credentials: false
 
       - name: Verify exact clean main identity
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -146,51 +156,32 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Setup Node
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Firebase CLI
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: npm install -g firebase-tools
 
       - name: Install dependencies
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: |
           npm install
           npm --prefix functions install
           npm --prefix life-map-pipeline/functions install
 
       - name: Build
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         run: npm run build
 
-      - name: Write service account
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          umask 077
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
-
       - name: Deploy
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
       - name: Read-only smoke production finalization endpoints
-        if: env.FIREBASE_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
           npm run smoke:production-finalization
-
-      - name: Remove service-account file
-        if: always()
-        shell: bash
-        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
