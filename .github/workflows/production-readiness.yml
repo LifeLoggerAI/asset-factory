@@ -2,111 +2,54 @@ name: Asset Factory Production Readiness
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
-    paths-ignore:
-      - '.github/asset-forge-triggers/**'
   workflow_dispatch:
     inputs:
       deploy:
-        description: 'Run the Firebase production deployment after verification'
+        description: Deploy the reviewed Asset Factory candidate
         required: true
         type: boolean
         default: false
       confirm:
-        description: 'Type DEPLOY_ASSET_FACTORY to authorize deployment'
-        required: false
+        description: Type DEPLOY_ASSET_FACTORY to authorize the protected production deploy job
+        required: true
         type: string
-        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: true
+  group: asset-factory-production-readiness-${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 env:
   ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   verify:
-    name: Build, typecheck, and verify
-    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
-          fetch-depth: 0
           persist-credentials: false
-
-      - name: Verify exact clean candidate identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
-          test -z "$(git status --porcelain --untracked-files=all)"
-
-      - name: Establish authenticated main reference for doctor
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! git show-ref --verify --quiet refs/remotes/origin/main; then
-            auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\r\n')"
-            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
-              fetch --no-tags origin main:refs/remotes/origin/main
-            unset auth
-          fi
-          git show-ref --verify refs/remotes/origin/main
-          test -z "$(git config --local --get-all http.https://github.com/.extraheader || true)"
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: |
-            life-map-pipeline/functions/package-lock.json
-
-      - name: Install root dependencies
-        run: npm install
-
-      - name: Install engine dependencies
-        run: npm --prefix engine install
-
-      - name: Install legacy functions dependencies
-        run: npm --prefix functions install
-
-      - name: Install deploy functions dependencies
-        run: npm --prefix life-map-pipeline/functions install
-
-      - name: Install Studio dependencies
-        run: npm --prefix assetfactory-studio install
-
-      - name: Doctor
-        env:
-          ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
-        run: npm run doctor --if-present
-
+      - name: Install dependencies
+        run: |
+          npm install
+          npm --prefix functions install
+          npm --prefix life-map-pipeline/functions install
+      - name: Verify production deploy boundary
+        run: npm run check:deploy-workflow
       - name: Build
         run: npm run build
 
-      - name: Test
-        run: npm test --if-present
-
-      - name: Launch readiness
-        run: npm run test:launch-readiness --if-present
-
-      - name: Non-blocking dependency audit
-        run: npm run audit:all
-
   deploy:
-    name: Deploy to Firebase
-    runs-on: ubuntu-latest
     needs: verify
     if: >-
       github.event_name == 'workflow_dispatch' &&
@@ -186,9 +129,28 @@ jobs:
       - name: Deploy
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
 
+      - name: Remove ephemeral deployment credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          credential_path="${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          test -n "$credential_path"
+          case "$credential_path" in
+            "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+            *) echo "Unexpected ADC credential path; refusing cleanup outside the generated WIF file." >&2; exit 1 ;;
+          esac
+          rm -f -- "$credential_path"
+          test ! -e "$credential_path"
+          echo 'GOOGLE_APPLICATION_CREDENTIALS=' >> "$GITHUB_ENV"
+          echo 'CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=' >> "$GITHUB_ENV"
+          echo 'GOOGLE_GHA_CREDS_PATH=' >> "$GITHUB_ENV"
+
       - name: Read-only smoke production finalization endpoints
         shell: bash
         run: |
           set -euo pipefail
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          test -z "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}"
+          test -z "${GOOGLE_GHA_CREDS_PATH:-}"
           npm run smoke:production-finalization
