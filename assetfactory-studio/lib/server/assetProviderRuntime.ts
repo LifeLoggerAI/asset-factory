@@ -392,7 +392,7 @@ async function renderProvider(
 ): Promise<ProviderRenderResult | null> {
   if (provider === 'openai') return renderOpenAi(input, definition);
   if (provider === 'elevenlabs' && definition.canonicalType === 'audio') return renderElevenLabs(input);
-  if (provider === 'stability' && definition.canonicalType === 'graphic') return renderStability(input, definition);
+  if (provider === 'stability' && definition.canonicalType === 'graphic') return renderStability(input);
   if (provider === 'replicate') return renderReplicate(input, definition);
   if (provider === 'fal') return renderFal(input, definition);
   return null;
