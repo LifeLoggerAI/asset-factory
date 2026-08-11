@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
   }
 
   const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const replicateCredentialVisible = providers.adapters.some(
+    (provider) => provider.name === 'replicate' && provider.configured
+  );
+  const replicateModel3dConfigured = configured('ASSET_FACTORY_MODEL3D_MODEL');
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
@@ -79,6 +83,8 @@ export async function GET(req: NextRequest) {
       versioningWorkflow: true,
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       providerBackedRendering: providerConfigured,
+      replicateCredentialVisible,
+      replicateModel3dConfigured,
     },
     workflows: {
       generate: true,
