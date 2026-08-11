@@ -111,13 +111,23 @@ function exactRunCommands(step) {
   const lines = step.split('\n');
   const runLine = lines.findIndex((line) => /^        run:\s*\|\s*$/.test(line));
   if (runLine < 0) return null;
-  const commands = [];
+
+  const blockLines = [];
   for (let index = runLine + 1; index < lines.length; index += 1) {
     const line = lines[index];
     if (/^        \S/.test(line)) break;
-    if (/^          \S/.test(line)) commands.push(line.slice(10));
+    if (line.trim() && (line.match(/^\s*/)?.[0].length ?? 0) <= 8) break;
+    blockLines.push(line);
   }
-  return commands;
+
+  const nonBlank = blockLines.filter((line) => line.trim());
+  if (!nonBlank.length) return [];
+  const minIndent = Math.min(...nonBlank.map((line) => line.match(/^\s*/)?.[0].length ?? 0));
+  if (minIndent <= 8) fail('run block scalar is not indented beneath the step key');
+
+  return blockLines
+    .map((line) => line.trim() ? line.slice(minIndent) : '')
+    .filter((line) => line !== '');
 }
 
 const deploySteps = parseSteps(productionDeploySection);
