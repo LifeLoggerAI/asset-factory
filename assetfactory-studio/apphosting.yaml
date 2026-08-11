@@ -1,9 +1,22 @@
 # Asset Factory App Hosting runtime configuration.
 # Secret values live in Google Cloud Secret Manager and must never be committed.
-# Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER and modality model IDs
-# are explicitly selected for an authorized provider-backed generation run.
+# Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER is explicitly selected
+# for an authorized provider-backed generation run.
 env:
   - variable: REPLICATE_API_TOKEN
     secret: REPLICATE_API_TOKEN
+    availability:
+      - RUNTIME
+
+  # Frozen first model3d candidate for bounded Replicate smoke and review.
+  # This is a model/version identifier only; it does not activate provider spend.
+  - variable: ASSET_FACTORY_MODEL3D_MODEL
+    value: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
+    availability:
+      - RUNTIME
+
+  # Allow enough time for production-quality 3D predictions to complete.
+  - variable: ASSET_FACTORY_PROVIDER_TIMEOUT_MS
+    value: "300000"
     availability:
       - RUNTIME
