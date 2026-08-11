@@ -58,7 +58,9 @@ const canonicalProductionRequired = [
   'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}', 'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
   'create_credentials_file: true', 'export_environment_variables: true', 'Verify ephemeral deployment credential',
   'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"',
-  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage'
+  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
+  'Remove ephemeral deployment credential', "echo 'GOOGLE_APPLICATION_CREDENTIALS=' >> \"$GITHUB_ENV\"",
+  "echo 'CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=' >> \"$GITHUB_ENV\"", "echo 'GOOGLE_GHA_CREDS_PATH=' >> \"$GITHUB_ENV\""
 ];
 for (const phrase of canonicalProductionRequired) if (!productionReadiness.includes(phrase)) fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
 
@@ -90,14 +92,54 @@ const buildIndex = productionDeploySection.indexOf('\n      - name: Build\n');
 const authIndex = productionDeploySection.indexOf('Authenticate to Google Cloud with WIF');
 const credentialCheckIndex = productionDeploySection.indexOf('Verify ephemeral deployment credential');
 const deployIndex = productionDeploySection.indexOf('\n      - name: Deploy\n');
-if ([checkoutIndex, cleanIdentityIndex, firebaseCliIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
-if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < firebaseCliIndex && firebaseCliIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex)) {
-  fail('WIF credentials must be created only after clean-tree verification, Firebase CLI/dependency installation, and build, immediately before deploy');
+const cleanupIndex = productionDeploySection.indexOf('\n      - name: Remove ephemeral deployment credential\n');
+const smokeIndex = productionDeploySection.indexOf('\n      - name: Read-only smoke production finalization endpoints\n');
+if ([checkoutIndex, cleanIdentityIndex, firebaseCliIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex, cleanupIndex, smokeIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
+if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < firebaseCliIndex && firebaseCliIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex && deployIndex < cleanupIndex && cleanupIndex < smokeIndex)) {
+  fail('WIF credentials must be created only after clean-tree verification/install/build, used for deploy, then removed before smoke');
 }
-const credentialWindow = productionDeploySection.slice(authIndex, deployIndex);
-const credentialWindowSteps = credentialWindow.match(/\n      - /g) ?? [];
-if (credentialWindowSteps.length !== 1 || !credentialWindow.includes('\n      - name: Verify ephemeral deployment credential\n')) {
-  fail('no step, named or unnamed, other than the ephemeral credential check may run between WIF authentication and deploy');
+
+function topLevelSteps(section) {
+  const lines = section.split('\n');
+  const steps = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/^      -(?:\s|$)/.test(lines[index])) continue;
+    const start = index;
+    index += 1;
+    while (index < lines.length && !/^      -(?:\s|$)/.test(lines[index])) index += 1;
+    steps.push(lines.slice(start, index).join('\n'));
+    index -= 1;
+  }
+  return steps;
+}
+
+const deploySteps = topLevelSteps(productionDeploySection);
+const authStepIndex = deploySteps.findIndex((step) => step.includes('Authenticate to Google Cloud with WIF'));
+const deployStepIndex = deploySteps.findIndex((step) => step.includes('- name: Deploy'));
+const cleanupStepIndex = deploySteps.findIndex((step) => step.includes('- name: Remove ephemeral deployment credential'));
+const smokeStepIndex = deploySteps.findIndex((step) => step.includes('- name: Read-only smoke production finalization endpoints'));
+if ([authStepIndex, deployStepIndex, cleanupStepIndex, smokeStepIndex].some((index) => index < 0)) fail('cannot structurally identify credential-lifetime steps');
+const betweenAuthAndDeploy = deploySteps.slice(authStepIndex + 1, deployStepIndex);
+if (betweenAuthAndDeploy.length !== 1 || !betweenAuthAndDeploy[0].includes('- name: Verify ephemeral deployment credential')) {
+  fail('the exact credential check must be the only executable step between WIF authentication and deploy');
+}
+const credentialCheckStep = betweenAuthAndDeploy[0];
+for (const requiredLine of ['set -euo pipefail', 'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"', 'test -f "$GOOGLE_APPLICATION_CREDENTIALS"']) {
+  if (!credentialCheckStep.includes(requiredLine)) fail(`ephemeral credential check missing ${JSON.stringify(requiredLine)}`);
+}
+const credentialCommands = credentialCheckStep.split('\n').filter((line) => /^          \S/.test(line)).map((line) => line.trim());
+const allowedCredentialCommands = new Set(['set -euo pipefail', 'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"', 'test -f "$GOOGLE_APPLICATION_CREDENTIALS"']);
+if (credentialCommands.some((line) => !allowedCredentialCommands.has(line))) fail('ephemeral credential check contains an unexpected executable command');
+if (cleanupStepIndex !== deployStepIndex + 1 || smokeStepIndex !== cleanupStepIndex + 1) {
+  fail('credential cleanup must run immediately after deploy and immediately before read-only smoke');
+}
+const cleanupStep = deploySteps[cleanupStepIndex];
+for (const requiredLine of ['rm -f -- "$credential_path"', "echo 'GOOGLE_APPLICATION_CREDENTIALS=' >> \"$GITHUB_ENV\"", "echo 'CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=' >> \"$GITHUB_ENV\"", "echo 'GOOGLE_GHA_CREDS_PATH=' >> \"$GITHUB_ENV\""]) {
+  if (!cleanupStep.includes(requiredLine)) fail(`credential cleanup missing ${JSON.stringify(requiredLine)}`);
+}
+const smokeStep = deploySteps[smokeStepIndex];
+for (const requiredLine of ['test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"', 'test -z "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}"', 'test -z "${GOOGLE_GHA_CREDS_PATH:-}"']) {
+  if (!smokeStep.includes(requiredLine)) fail(`read-only smoke does not prove deploy identity removal: ${JSON.stringify(requiredLine)}`);
 }
 if (productionDeploySection.includes('Smoke production finalization endpoints')) fail('canonical production deploy retains the mutation-capable smoke step name');
 
