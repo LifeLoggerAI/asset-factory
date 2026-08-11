@@ -95,9 +95,9 @@ if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < firebaseCliInde
   fail('WIF credentials must be created only after clean-tree verification, Firebase CLI/dependency installation, and build, immediately before deploy');
 }
 const credentialWindow = productionDeploySection.slice(authIndex, deployIndex);
-const credentialWindowSteps = credentialWindow.match(/\n      - name:/g) ?? [];
-if (credentialWindowSteps.length !== 1 || !credentialWindow.includes('Verify ephemeral deployment credential')) {
-  fail('no executable step other than the ephemeral credential check may run between WIF authentication and deploy');
+const credentialWindowSteps = credentialWindow.match(/\n      - /g) ?? [];
+if (credentialWindowSteps.length !== 1 || !credentialWindow.includes('\n      - name: Verify ephemeral deployment credential\n')) {
+  fail('no step, named or unnamed, other than the ephemeral credential check may run between WIF authentication and deploy');
 }
 if (productionDeploySection.includes('Smoke production finalization endpoints')) fail('canonical production deploy retains the mutation-capable smoke step name');
 
