@@ -84,14 +84,20 @@ if (!productionDeploySection.includes('Authenticate to Google Cloud with WIF')) 
 
 const checkoutIndex = productionDeploySection.indexOf('Checkout exact main candidate');
 const cleanIdentityIndex = productionDeploySection.indexOf('Verify exact clean main identity');
+const firebaseCliIndex = productionDeploySection.indexOf('Install Firebase CLI');
 const installIndex = productionDeploySection.indexOf('Install dependencies');
 const buildIndex = productionDeploySection.indexOf('\n      - name: Build\n');
 const authIndex = productionDeploySection.indexOf('Authenticate to Google Cloud with WIF');
 const credentialCheckIndex = productionDeploySection.indexOf('Verify ephemeral deployment credential');
 const deployIndex = productionDeploySection.indexOf('\n      - name: Deploy\n');
-if ([checkoutIndex, cleanIdentityIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
-if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex)) {
-  fail('WIF credentials must be created only after clean-tree verification, dependency installation, and build, immediately before deploy');
+if ([checkoutIndex, cleanIdentityIndex, firebaseCliIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
+if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < firebaseCliIndex && firebaseCliIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex)) {
+  fail('WIF credentials must be created only after clean-tree verification, Firebase CLI/dependency installation, and build, immediately before deploy');
+}
+const credentialWindow = productionDeploySection.slice(authIndex, deployIndex);
+const credentialWindowSteps = credentialWindow.match(/\n      - name:/g) ?? [];
+if (credentialWindowSteps.length !== 1 || !credentialWindow.includes('Verify ephemeral deployment credential')) {
+  fail('no executable step other than the ephemeral credential check may run between WIF authentication and deploy');
 }
 if (productionDeploySection.includes('Smoke production finalization endpoints')) fail('canonical production deploy retains the mutation-capable smoke step name');
 
