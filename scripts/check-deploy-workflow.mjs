@@ -56,7 +56,8 @@ const canonicalProductionRequired = [
   'environment: asset-factory-production', 'Require WIF deployment identity', 'GCP_WIF_PROVIDER', 'GCP_DEPLOY_SERVICE_ACCOUNT',
   'Authenticate to Google Cloud with WIF', 'google-github-actions/auth@v2',
   'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}', 'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
-  'create_credentials_file: true', 'export_environment_variables: true', 'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"',
+  'create_credentials_file: true', 'export_environment_variables: true', 'Verify ephemeral deployment credential',
+  'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"',
   'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage'
 ];
 for (const phrase of canonicalProductionRequired) if (!productionReadiness.includes(phrase)) fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
@@ -82,8 +83,16 @@ if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = tr
 if (!productionDeploySection.includes('Authenticate to Google Cloud with WIF')) fail('canonical production deploy lacks WIF authentication');
 
 const checkoutIndex = productionDeploySection.indexOf('Checkout exact main candidate');
+const cleanIdentityIndex = productionDeploySection.indexOf('Verify exact clean main identity');
+const installIndex = productionDeploySection.indexOf('Install dependencies');
+const buildIndex = productionDeploySection.indexOf('\n      - name: Build\n');
 const authIndex = productionDeploySection.indexOf('Authenticate to Google Cloud with WIF');
-if (checkoutIndex < 0 || authIndex < 0 || checkoutIndex > authIndex) fail('checkout must occur before WIF authentication so generated ADC credentials survive');
+const credentialCheckIndex = productionDeploySection.indexOf('Verify ephemeral deployment credential');
+const deployIndex = productionDeploySection.indexOf('\n      - name: Deploy\n');
+if ([checkoutIndex, cleanIdentityIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
+if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex)) {
+  fail('WIF credentials must be created only after clean-tree verification, dependency installation, and build, immediately before deploy');
+}
 if (productionDeploySection.includes('Smoke production finalization endpoints')) fail('canonical production deploy retains the mutation-capable smoke step name');
 
 console.log('PASS deploy workflow static checks');
