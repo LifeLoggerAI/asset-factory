@@ -99,20 +99,45 @@ for (const phrase of smokeForbidden) {
 const canonicalProductionRequired = [
   'name: Asset Factory Production Readiness',
   'workflow_dispatch:',
+  'id-token: write',
   'deploy:',
   'confirm:',
   "inputs.deploy == true",
   "inputs.confirm == 'DEPLOY_ASSET_FACTORY'",
   "github.ref == 'refs/heads/main'",
   'environment: asset-factory-production',
-  'FIREBASE_SERVICE_ACCOUNT',
-  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
-  'Remove service-account file'
+  'Require WIF deployment identity',
+  'GCP_WIF_PROVIDER',
+  'GCP_DEPLOY_SERVICE_ACCOUNT',
+  'Authenticate to Google Cloud with WIF',
+  'google-github-actions/auth@v2',
+  'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}',
+  'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
+  'create_credentials_file: true',
+  'export_environment_variables: true',
+  'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"',
+  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage'
 ];
 
 for (const phrase of canonicalProductionRequired) {
   if (!productionReadiness.includes(phrase)) {
     fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
+  }
+}
+
+const productionForbidden = [
+  'FIREBASE_SERVICE_ACCOUNT',
+  'FIREBASE_SERVICE_ACCOUNT_JSON',
+  'FIREBASE_TOKEN',
+  'credentials_json',
+  '--token',
+  'firebase-service-account.json',
+  'Write service account',
+  'Remove service-account file'
+];
+for (const phrase of productionForbidden) {
+  if (productionReadiness.includes(phrase)) {
+    fail(`canonical production deploy workflow contains forbidden long-lived auth path: ${JSON.stringify(phrase)}`);
   }
 }
 
@@ -138,6 +163,9 @@ if (!productionDeploySection.includes('Read-only smoke production finalization e
 }
 if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = true')) {
   fail('canonical production deploy does not assert read-only mode before smoke');
+}
+if (!productionDeploySection.includes('Authenticate to Google Cloud with WIF')) {
+  fail('canonical production deploy lacks WIF authentication');
 }
 if (productionDeploySection.includes('Smoke production finalization endpoints')) {
   fail('canonical production deploy retains the mutation-capable smoke step name');
