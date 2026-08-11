@@ -101,6 +101,14 @@ function board(shot,index) {
   return b.join('');
 }
 
+function writeWav(file,seconds,sample) {
+  const rate=48000, samples=Math.floor(rate*seconds), bytes=samples*4, buffer=Buffer.alloc(44+bytes); buffer.write('RIFF',0);buffer.writeUInt32LE(36+bytes,4);buffer.write('WAVE',8);buffer.write('fmt ',12);buffer.writeUInt32LE(16,16);buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(2,22);buffer.writeUInt32LE(rate,24);buffer.writeUInt32LE(rate*4,28);buffer.writeUInt16LE(4,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(bytes,40);
+  let offset=44; for(let i=0;i<samples;i++){const [l,r]=sample(i/rate,i);buffer.writeInt16LE(Math.max(-32768,Math.min(32767,Math.round(l))),offset);buffer.writeInt16LE(Math.max(-32768,Math.min(32767,Math.round(r))),offset+2);offset+=4;} writeFileSync(file,buffer);
+}
+const starts=[];let total=0;for(const shot of shots){starts.push(total);total+=shot.durationSeconds;}
+const locate=(t)=>{for(let i=shots.length-1;i>=0;i--)if(t>=starts[i])return{shot:shots[i],index:i,local:t-starts[i]};return{shot:shots[0],index:0,local:t};};
+const noise=(i,seed)=>{let v=(i+seed*2654435761)>>>0;v^=v<<13;v^=v>>>17;v^=v<<5;return((v>>>0)/0xffffffff)*2-1;};
+const ambience=(t,i)=>{const{shot,index,local}=locate(t);const seed=parseInt(hash(shot.sceneId).slice(0,8),16)>>>0;const fade=Math.max(0,Math.min(1,local/.35,(shot.durationSeconds-local)/.35));let value=Math.sin(2*Math.PI*(44+seed%55)*t)*140+noise(i,seed)*130;if(/farm|cow/.test(shot.sceneId))value+=Math.sin(2*Math.PI*2.1*t)*180;if(/digital/.test(shot.sceneId))value+=Math.sin(2*Math.PI*220*t)*120;if(/school/.test(shot.sceneId))value+=Math.sin(2*Math.PI*62*t)*170;if(/lake|ski/.test(shot.sceneId))value+=noise(i,seed+7)*260+Math.sin(2*Math.PI*.55*t)*200;if(local>1.1&&local<1.12)value+=650*Math.sin(2*Math.PI*120*local);value*=fade;return[value*(.94+(index%3)*.02),value];};
 function svg(shot,index,start){return `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${P.paper}"/><rect x="50" y="50" width="1820" height="980" rx="28" fill="${P.panel}" stroke="${P.ink}" stroke-width="8"/>${board(shot,index)}${text(100,100,'STORYBOARD ANIMATIC V2',24,P.ink,'start',700)}${text(100,145,`${shot.id} · ${shot.title} · ${shot.durationSeconds}s · ${start}s`,22,P.gray,'start',600)}${text(100,960,shot.scratchNarration,25,P.ink,'start',600)}${text(100,1005,'SCRATCH NARRATION · TIMING ONLY · no provider · $0 spend · final rendering not authorized',20,P.red,'start',700)}</svg>`;}
 
 rmSync(out,{recursive:true,force:true});mkdirSync(join(out,'frames-svg'),{recursive:true});mkdirSync(join(out,'frames-png'),{recursive:true});mkdirSync(join(out,'narration-segments'),{recursive:true});
