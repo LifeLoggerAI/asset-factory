@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "createdDate": "2026-08-11",
+  "classification": "private-confidential",
+  "purpose": "Film-source pointer index for real-life and family reference assets. Drive holds originals; GitHub holds orchestration/provenance pointers only.",
+  "driveAuthority": {
+    "archiveFolderId": "1kOpI488J9Shh-kBySKinvGiliRCfgeTS",
+    "terryLabeledFamilyFolderId": "1OJxBJ6yGPWb_Rf1Y2Dw6XdkxZ4F3pBuO",
+    "jackIdentityUnconfirmedFolderId": "1e52-qfcBjRsdn-ZauUWTX9NIIVA2A3na",
+    "fullSourceIndexFileId": "1fqC2OeDD86-L696cDTkXf9VTmFVEztJ-",
+    "terryContactSheetFileId": "1A2ycBjebzvbodT-PlQDR9nKS1i4ImfoN",
+    "jackContactSheetFileId": "1FhpPV7NwdnwvimqPg-EnwSpMWdeHN7nV"
+  },
+  "truthAndSafetyRules": [
+    "Email subject/sender labels are provenance metadata, not facial identification.",
+    "Do not identify a person from appearance alone.",
+    "Jack More pics identities remain unconfirmed until explicitly verified by the owner/source.",
+    "Portrait use remains approval-gated.",
+    "Generated URAI art is never archival evidence.",
+    "Government ID, legal, medical, VA, account and recovery documents are excluded from the film archive.",
+    "Preserve original filenames and distinguish cinematic recreation from archival media."
+  ],
+  "gmailProvenance": {
+    "wayneAndSallyBoat": "https://mail.google.com/mail/#all/19ff17261214e085",
+    "familyWatchGraduationHomeDog": "https://mail.google.com/mail/#all/19ff1725d8a45540",
+    "unlabeledVrHeadsetImage": "https://mail.google.com/mail/#all/19ff171f87474454",
+    "sallyLakeImage": "https://mail.google.com/mail/#all/19ff171f1f8651cd",
+    "uncleKurtImage": "https://mail.google.com/mail/#all/19ff171dc9c51468",
+    "tractorImage": "https://mail.google.com/mail/#all/19ff171c9ccbd6c7",
+    "unreviewedMov": "https://mail.google.com/mail/#all/19ff158c270614c7",
+    "jackMorePics": "https://mail.google.com/mail/#all/19ebd189514d2890"
+  },
+  "assetGroups": [
+    {
+      "name": "Terry-labeled family originals",
+      "countCopiedToDrive": 11,
+      "filenames": ["IMG_0316.JPG","IMG_4716.jpeg","Tractor_w_Wayne_-_2.JPG","IMG_1258.JPG","IMG_0524.jpg","IMG_0322.jpeg","IMG_0320.jpeg","8395631925024449840.JPG","266431956057884175.JPG","IMG_0191.PNG","IMG_0905.jpeg"],
+      "uses": ["family reconstruction","lake/boat","Sally dog reference","tractor/rural scene","Texas A&M graduation","family heirloom watch","home production design","VR/headset staging"],
+      "notes": "Use sender labels only where present; several human identities remain ambiguous or unconfirmed."
+    },
+    {
+      "name": "Jack More pics - identity unconfirmed",
+      "countCopiedToDrive": 10,
+      "filenames": ["IMG_0498.jpeg","IMG_4767.jpeg","IMG_1395.JPG","IMG_1883.jpg","IMG_0875.jpeg","IMG_4276.jpeg","IMG_1673.JPG","IMG_0972.JPG","IMG_AB7CEDC1-BF07-42E4-A239-B311D3E1C6F9.JPEG","IMG_5801.jpg"],
+      "uses": ["era/wardrobe","outdoor/waterfront","fishing/boat","tropical/parrot","formal portrait","social gathering","rocky landscape","tattoo detail","aviation"],
+      "notes": "Do not label any person as Adam or another named individual without explicit source confirmation."
+    }
+  ],
+  "unreviewedVideo": {
+    "filename": "IMG_0520.MOV",
+    "sizeBytes": 7425247,
+    "status": "Gmail connector reports unsupported video payload; content not reviewed or copied; retain Gmail provenance pointer only."
+  }
+}
