@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "finite-time-final-render-authorization-v1",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "sourceCommit": "",
+  "sourceManifestSha256": "",
+  "approvals": {
+    "animatic": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "likeness": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "rightsAndConsent": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "narration": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "narratorVoice": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "scoreDirection": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" },
+    "privacyRetention": { "artifactId": "", "artifactSha256": "", "approver": "", "approvedAt": "", "authenticatedReference": "", "status": "not-approved" }
+  },
+  "providers": [],
+  "perShotCeilingUsd": 0,
+  "absoluteProjectCeilingUsd": 0,
+  "authorizedBy": "",
+  "authorizedAt": "",
+  "authorizationReference": "",
+  "finalRenderingAuthorized": false
+}
