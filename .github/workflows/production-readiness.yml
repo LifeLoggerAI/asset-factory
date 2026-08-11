@@ -138,15 +138,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Authenticate to Google Cloud with WIF
-        uses: google-github-actions/auth@v2
-        with:
-          project_id: urai-4dc1d
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-          create_credentials_file: true
-          export_environment_variables: true
-
       - name: Verify exact clean main identity
         shell: bash
         run: |
@@ -158,8 +149,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
-          test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"
-          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -177,6 +166,22 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Authenticate to Google Cloud with WIF
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: urai-4dc1d
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Verify ephemeral deployment credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Deploy
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
