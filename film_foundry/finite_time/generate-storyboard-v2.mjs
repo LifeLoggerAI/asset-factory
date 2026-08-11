@@ -15,7 +15,7 @@ const edit = JSON.parse(readFileSync(editPath, 'utf8'));
 const fail = (message) => { throw new Error(`FINITE TIME storyboard v2: ${message}`); };
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]);
-const available = (command) => spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0;
+const available = (command) => spawnSync(command, [command === 'ffmpeg' ? '-version' : '--version'], { stdio: 'ignore' }).status === 0;
 const wrap = (value, width = 54, max = 4) => {
   const lines = []; let line = '';
   for (const word of String(value).split(/\s+/)) {
@@ -79,44 +79,32 @@ function board(shot,index) {
     if(phase===2)b.push(path('M 800 680 Q 710 520 820 410 Q 910 520 1000 390 Q 1110 520 1030 680 Z','#d36b3e',P.red,8),circle(930,410,120,P.panel),circle(890,390,18,P.ink,P.ink),circle(970,390,18,P.ink,P.ink),person(520,610,.75),text(930,760,'MASK BURNED — FEAR RESOLVED',26));
   } else if (scene==='scene-digital-door') {
     if(phase===0)b.push(rect(760,260,560,370,'#4a5360',P.ink,9,20),rect(820,310,440,250,'#9fc5c5'),person(560,650,.65),person(1450,650,.75),arrow(690,500,890,430,'SHARED ATTENTION'));
-    if(phase===1)b.push(rect(300,220,1320,520,'#dae6df',P.ink,9,20),circle(680,470,140,'none',P.blue),path('M 940 650 L 1050 350 L 1200 650 Z'),circle(1370,420,95,'none',P.gold),waves(620,2),text(960,285,'ORIGINAL DIGITAL WORLD — NO COPIED ART',24,P.red));
-    if(phase===2)b.push(rect(760,260,560,370,'#4a5360',P.ink,9,20),circle(850,400,58,P.panel),circle(1210,400,58,P.panel),path('M 890 440 Q 1030 520 1170 440','none',P.blue,8),text(1040,690,'SHARED DISCOVERY',28));
-  } else if (scene==='scene-school-mornings') {
-    if(phase===0)b.push(house(420,420,.65),truck(1200,540,1),arrow(1600,430,1050,500,'DOLLY IN'),text(1200,760,'GENERIC RED SHORT-BED TRUCK',25,P.red));
-    if(phase===1)b.push(truck(960,580,1.15),person(780,430,.5),person(1110,430,.65),rect(860,430,120,90,'#d7c7a5'),circle(1040,470,34,P.gold),text(960,250,'BREAKFAST + GENERIC GAME PIECE',28));
-    if(phase===2)b.push(rect(300,260,540,370,P.panel),text(570,360,'SCHOOL',42),person(650,650,.6),truck(1370,560,.8),arrow(1280,540,1720,540,'TRUCK EXITS FRAME'));
-  } else if (scene==='scene-snake-shoe') {
-    if(phase===0)b.push(rect(250,240,1400,470,P.panel),person(450,600,.55),ellipse(820,570,170,65,'#b8c7d0'),ellipse(1120,570,170,65,'#b8c7d0'),ellipse(1420,570,170,65,'#b8c7d0'),text(1120,320,'THREE “SLEEPING” COUSINS',28));
-    if(phase===1)b.push(person(640,620,.8),path('M 780 610 Q 900 470 1030 600 Q 1140 710 1260 540','none',P.ink,13),rect(730,640,180,90,P.panel),arrow(720,470,920,570,'REVEAL'),text(1030,380,'DEAD SNAKE IN SHOE',28,P.red));
-    if(phase===2)b.push(person(720,610,.68),person(1120,560,1),line(780,480,1040,480,P.ink,8),person(1450,650,.5),person(1580,650,.5),text(1120,280,'BROTHER HOLDS HIM AT ARM’S LENGTH',26),arrow(580,650,850,560,'CHILD CHARGES'));
+    if(phase===1)b.push(rect(300,220,1320,520,'#dae6df',P.ink,9,20),circle(680,470,140,'none',P.blue),path('M 940 650 L 1050 350 L 1200 650 Z'),circle(1370,420,95,'none',P.gold),waves(620,2),text(950,180,'STRANGE DIGITAL WORLD',30));
+    if(phase===2)b.push(rect(700,210,600,520,'#394350',P.ink,10,20),rect(840,290,320,330,'#c8d9d4',P.gold,8),person(500,660,.65),person(1500,660,.65),arrow(980,720,980,480,'DIGITAL DOOR'));
+  } else if (scene==='scene-red-truck') {
+    if(phase===0)b.push(truck(1020,520,1.15),person(520,620,.65),arrow(330,710,860,600,'MORNING RIDE'),text(1150,300,'RED TRUCK',34,P.red));
+    if(phase===1)b.push(rect(300,260,1300,390,'#f5f0df',P.ink,7),circle(760,480,100,'#fff',P.gold),text(760,488,'WIN?',30,P.gold),person(1200,610,.65),text(950,210,'BREAKFAST GAME PIECE',28));
+    if(phase===2)b.push(person(790,620,.8),person(1140,600,1.0),arrow(820,400,1120,440,'AFTER BOOT CAMP'),text(960,250,'BIGGER · STRONGER',30));
+  } else if (scene==='scene-snake-and-fight') {
+    if(phase===0)b.push(rect(650,330,650,260,P.panel),ellipse(900,500,80,25,'none',P.green,10),path('M 820 500 q 80 -90 160 0 q -80 90 -160 0','none',P.green,10),person(430,640,.65),text(970,300,'SHOE',28));
+    if(phase===1)b.push(person(750,650,.82,'reach'),person(1180,620,1.02),arrow(820,550,1070,520,'CHARGE'),text(980,240,'I TRIED',36,P.red));
+    if(phase===2)b.push(person(730,650,.78,'slide'),person(1220,610,1.02),path('M 820 620 Q 950 500 1080 590','none',P.red,14),text(980,280,'COULD NOT. TRIED ANYWAY.',28));
   } else if (scene==='scene-land-to-water') {
-    if(phase===0)b.push(path('M 80 700 Q 500 560 900 700 T 1800 700','#a9b994',P.green,8),rect(420,420,250,150,'none',P.gray,6,8),rect(1180,400,300,180,'none',P.gray,6,8),text(950,320,'PRESENT DAY — BUILDINGS GONE',30),text(950,790,'HOLD IN WIND. NO MUSIC.',25,P.red));
-    if(phase===1)b.push(path('M 80 730 Q 450 550 820 730','none',P.green,13),waves(590,4),text(960,335,'MATCH DISSOLVE',24,P.red),arrow(650,500,1250,500,'GRASS → WATER'));
-    if(phase===2)b.push(waves(520,5),circle(1480,260,90,'#efd27a',P.gold),path('M 80 520 Q 430 350 760 520 T 1440 520 T 1840 520','#77916f',P.green,8),text(960,240,'LAKE O’ THE PINES',44,P.blue),arrow(1670,700,1180,450,'CRANE REVEAL'));
-  } else if (scene==='scene-ski-nautique') {
-    if(phase===0)b.push(waves(650,3),boat(1040,520,1.15),line(230,700,650,550,P.ink,14),text(1040,290,'GENERIC PERIOD SKI BOAT',28),arrow(250,350,900,460,'PUSH FROM DOCK'));
-    if(phase===1)b.push(boat(1280,430,.75),person(600,700,.65),line(650,560,1050,470,P.red,9),path('M 480 760 Q 600 670 720 760','none',P.water,12),text(830,470,'ROPE TENSION',24,P.red),arrow(520,410,1220,370,'DRIVER LOOKS BACK'));
-    if(phase===2)b.push(waves(700,3),boat(1450,400,.65),person(720,580,.6),line(780,480,1210,420,P.red,8),path('M 580 680 Q 720 520 860 680','none',P.water,16),arrow(500,400,1160,400,'TRACK ACROSS WATER'),text(950,260,'BODY UP · KNEES SOFT · TRUST',30,P.blue));
+    if(phase===0)b.push(rect(250,350,380,250,P.panel),rect(720,350,380,250,P.panel),rect(1190,350,380,250,P.panel),path('M 180 700 C 650 650 1200 700 1740 610','none',P.gray,12),text(910,270,'BUILDINGS DISAPPEAR',30));
+    if(phase===1)b.push(path('M 100 680 Q 450 560 760 680 T 1420 680 T 1850 650','none',P.gray,14),path('M 100 730 Q 450 610 760 730 T 1420 730 T 1850 700','none',P.water,18),arrow(300,400,1550,700,'MATCH DISSOLVE: LAND → WATER'));
+    if(phase===2)b.push(waves(500,5),text(960,350,"LAKE O’ THE PINES",48,P.blue),arrow(420,760,1500,560,'OPEN HORIZON'));
+  } else if (scene==='scene-ski-boat') {
+    if(phase===0)b.push(waves(650,4),boat(960,520,1.05),text(960,300,'LOW WHITE SKI BOAT · BLUE STRIPE',30,P.blue));
+    if(phase===1)b.push(waves(660,3),boat(1220,500,.78),person(500,650,.75),path('M 560 560 Q 850 480 1100 520','none',P.gold,9),arrow(520,500,1120,470,'ROPE TENSION'));
+    if(phase===2)b.push(waves(700,2),person(870,620,.8),path('M 910 520 Q 1250 440 1650 500','none',P.gold,10),circle(1550,360,120,'#fff6d2',P.gold,6),arrow(960,420,1510,390,'DAD LOOKS BACK'));
   }
   return b.join('');
 }
 
-function svg(shot,index,start) {
-  const renderLines=(values,x,y,size,gap,color=P.ink,anchor='start',weight=500)=>values.map((v,i)=>text(x,y+i*gap,v,size,color,anchor,weight)).join('');
-  return `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${P.paper}"/><rect x="42" y="38" width="1836" height="1004" rx="18" fill="${P.panel}" stroke="${P.ink}" stroke-width="8"/><rect x="70" y="85" width="1780" height="700" rx="12" fill="#fdfbf6" stroke="${P.ink}" stroke-width="5"/>${board(shot,index)}<rect x="70" y="810" width="1780" height="200" rx="12" fill="#e6e0d5" stroke="${P.ink}" stroke-width="5"/>${renderLines(wrap(shot.title,34,2),120,850,34,40,P.ink,'start',700)}${renderLines(wrap(shot.visual,62,3),120,930,23,29,P.gray)}${renderLines(wrap(shot.scratchNarration,72,3),980,865,30,37,P.blue,'start',700)}<text x="1810" y="845" fill="${P.red}" font-family="Arial" font-size="24" font-weight="700" text-anchor="end">SCRATCH NARRATION · TIMING ONLY</text><text x="1810" y="885" fill="${P.ink}" font-family="Arial" font-size="22" text-anchor="end">${shot.id} · ${String(index+1).padStart(2,'0')} / 30</text><text x="1810" y="920" fill="${P.ink}" font-family="Arial" font-size="22" text-anchor="end">${start.toFixed(1)}s → ${(start+shot.durationSeconds).toFixed(1)}s · hold ${shot.durationSeconds}s</text><text x="1810" y="960" fill="${P.red}" font-family="Arial" font-size="20" text-anchor="end">no provider · $0 spend · final rendering not authorized</text><text x="96" y="70" fill="${P.ink}" font-family="Arial" font-size="22" font-weight="700">FINITE TIME · FARM TO LAKE · STORYBOARD ANIMATIC V2</text></svg>`;
-}
-
-function writeWav(file,seconds,sample) {
-  const rate=48000, samples=Math.floor(rate*seconds), bytes=samples*4, buffer=Buffer.alloc(44+bytes); buffer.write('RIFF',0);buffer.writeUInt32LE(36+bytes,4);buffer.write('WAVE',8);buffer.write('fmt ',12);buffer.writeUInt32LE(16,16);buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(2,22);buffer.writeUInt32LE(rate,24);buffer.writeUInt32LE(rate*4,28);buffer.writeUInt16LE(4,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(bytes,40);
-  let offset=44; for(let i=0;i<samples;i++){const [l,r]=sample(i/rate,i);buffer.writeInt16LE(Math.max(-32768,Math.min(32767,Math.round(l))),offset);buffer.writeInt16LE(Math.max(-32768,Math.min(32767,Math.round(r))),offset+2);offset+=4;} writeFileSync(file,buffer);
-}
-const starts=[];let total=0;for(const shot of shots){starts.push(total);total+=shot.durationSeconds;}
-const locate=(t)=>{for(let i=shots.length-1;i>=0;i--)if(t>=starts[i])return{shot:shots[i],index:i,local:t-starts[i]};return{shot:shots[0],index:0,local:t};};
-const noise=(i,seed)=>{let v=(i+seed*2654435761)>>>0;v^=v<<13;v^=v>>>17;v^=v<<5;return((v>>>0)/0xffffffff)*2-1;};
-const ambience=(t,i)=>{const{shot,index,local}=locate(t);const seed=parseInt(hash(shot.sceneId).slice(0,8),16)>>>0;const fade=Math.max(0,Math.min(1,local/.35,(shot.durationSeconds-local)/.35));let value=Math.sin(2*Math.PI*(44+seed%55)*t)*140+noise(i,seed)*130;if(/farm|cow/.test(shot.sceneId))value+=Math.sin(2*Math.PI*2.1*t)*180;if(/digital/.test(shot.sceneId))value+=Math.sin(2*Math.PI*220*t)*120;if(/school/.test(shot.sceneId))value+=Math.sin(2*Math.PI*62*t)*170;if(/lake|ski/.test(shot.sceneId))value+=noise(i,seed+7)*260+Math.sin(2*Math.PI*.55*t)*200;if(local>1.1&&local<1.12)value+=650*Math.sin(2*Math.PI*120*local);value*=fade;return[value*(.94+(index%3)*.02),value];};
+function svg(shot,index,start){return `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${P.paper}"/><rect x="50" y="50" width="1820" height="980" rx="28" fill="${P.panel}" stroke="${P.ink}" stroke-width="8"/>${board(shot,index)}${text(100,100,'STORYBOARD ANIMATIC V2',24,P.ink,'start',700)}${text(100,145,`${shot.id} · ${shot.title} · ${shot.durationSeconds}s · ${start}s`,22,P.gray,'start',600)}${text(100,960,shot.scratchNarration,25,P.ink,'start',600)}${text(100,1005,'SCRATCH NARRATION · TIMING ONLY · no provider · $0 spend · final rendering not authorized',20,P.red,'start',700)}</svg>`;}
 
 rmSync(out,{recursive:true,force:true});mkdirSync(join(out,'frames-svg'),{recursive:true});mkdirSync(join(out,'frames-png'),{recursive:true});mkdirSync(join(out,'narration-segments'),{recursive:true});
-const concat=[],captions=[],descriptions=[],haptics=[],timeline=[];let cursor=0;
+let cursor=0;const concat=['ffconcat version 1.0'];const captions=[];const descriptions=[];const haptics=[];const timeline=[];
 for(const[index,shot]of shots.entries()){const svgName=`${shot.id}.svg`,pngName=`${shot.id}.png`,svgPath=join(out,'frames-svg',svgName),pngPath=join(out,'frames-png',pngName);writeFileSync(svgPath,svg(shot,index,cursor));if(available('rsvg-convert'))execFileSync('rsvg-convert',['-w','1920','-h','1080','-o',pngPath,svgPath]);else writeFileSync(pngPath,readFileSync(svgPath));concat.push(`file '${join('frames-png',pngName).replaceAll("'","'\\''")}'`,`duration ${shot.durationSeconds}`);captions.push(`${index+1}\n${timecode(cursor)} --> ${timecode(cursor+shot.durationSeconds)}\n${shot.scratchNarration}\n`);descriptions.push(`${index+1}\n${timecode(cursor)} --> ${timecode(cursor+shot.durationSeconds)}\n${shot.audioDescription}\n`);for(const cue of shot.haptics)haptics.push({shotId:shot.id,atSeconds:cursor+cue.atSeconds,pattern:cue.pattern,intensity:cue.intensity});timeline.push({...shot,startSeconds:cursor,endSeconds:cursor+shot.durationSeconds,boardSvg:`frames-svg/${svgName}`,boardPng:`frames-png/${pngName}`});cursor+=shot.durationSeconds;}
 concat.push(`file '${join('frames-png',`${shots.at(-1).id}.png`)}'`);writeFileSync(join(out,'frames.ffconcat'),`ffconcat version 1.0\n${concat.join('\n')}\n`);writeFileSync(join(out,'captions.srt'),captions.join('\n'));writeFileSync(join(out,'audio-description.srt'),descriptions.join('\n'));writeFileSync(join(out,'haptics.json'),`${JSON.stringify({schemaVersion:'finite-time-haptics-v2',cues:haptics},null,2)}\n`);writeFileSync(join(out,'timeline.json'),`${JSON.stringify({schemaVersion:'finite-time-storyboard-timeline-v2',projectId:source.projectId,chapterId:source.chapterId,sourceManifestSha256:`sha256:${hash(readFileSync(sourcePath))}`,sourceEditPlanSha256:`sha256:${hash(readFileSync(editPath))}`,narrationSha256:`sha256:${hash(readFileSync(narrationPath))}`,renderMode:'deterministic-local-proof',providerSpendAuthorized:false,finalRenderingAuthorized:false,targetDurationSeconds:180,shots:timeline},null,2)}\n`);
 writeWav(join(out,'temporary-ambience-foley.wav'),duration,ambience);
