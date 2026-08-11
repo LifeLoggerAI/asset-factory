@@ -327,10 +327,14 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
 
   let current = prediction;
   const getUrl = stringValue((prediction.urls as JsonRecord | undefined)?.get);
-  for (let attempt = 0; attempt < 60 && getUrl; attempt += 1) {
+  const deadline = Date.now() + providerTimeoutMs();
+  while (getUrl) {
     const status = stringValue(current.status);
     if (status === 'succeeded') break;
     if (status === 'failed' || status === 'canceled') throw new Error(`Replicate prediction ${status}`);
+    if (Date.now() >= deadline) {
+      throw new Error(`Replicate prediction timed out after ${providerTimeoutMs()}ms`);
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
     current = await getJson(getUrl, { authorization: `Bearer ${apiKey}` });
   }
