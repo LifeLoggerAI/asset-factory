@@ -12,135 +12,93 @@ function fail(message) {
 }
 
 for (const requiredPath of [smokeWorkflowPath, productionReadinessPath]) {
-  if (!fs.existsSync(requiredPath)) {
-    fail(`missing ${path.relative(root, requiredPath)}`);
-  }
+  if (!fs.existsSync(requiredPath)) fail(`missing ${path.relative(root, requiredPath)}`);
 }
 
 const smokeWorkflow = fs.readFileSync(smokeWorkflowPath, 'utf8');
 const productionReadiness = fs.readFileSync(productionReadinessPath, 'utf8');
 
 const smokeRequired = [
-  'name: Verify Deployed Asset Factory',
-  'workflow_dispatch:',
+  'name: Verify Deployed Asset Factory', 'workflow_dispatch:',
   'description: Existing deployed target to verify',
   "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
-  'Checkout exact dispatch commit',
-  'ref: ${{ github.sha }}',
-  'persist-credentials: false',
-  'Verify exact clean dispatch identity and smoke-only boundary',
-  "ASSET_FACTORY_SMOKE_READONLY: 'true'",
-  'Deploy workflow boundary gate',
-  'https://staging.uraiassetfactory.com',
-  'https://urai-4dc1d.web.app',
-  'prod-smoke',
-  'prod-smoke-denied',
-  'smoke-tenant-a',
-  'smoke-tenant-b',
-  'npm run smoke:website',
-  'Authenticated read-only smoke',
-  'npm run smoke:staging',
-  'npm run smoke:prod',
-  'test "$ASSET_FACTORY_SMOKE_READONLY" = true',
-  'Deployment performed: false',
-  'Production deploy workflow: Asset Factory Production Readiness',
-  'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
-  'Read-only smoke enforced globally: true',
-  'Authenticated read-only smoke requested:',
-  'Firebase mutation allowed: false',
-  'Upload smoke evidence',
-  'actions/upload-artifact@v4',
+  'Checkout exact dispatch commit', 'ref: ${{ github.sha }}', 'persist-credentials: false',
+  'Verify exact clean dispatch identity and smoke-only boundary', "ASSET_FACTORY_SMOKE_READONLY: 'true'",
+  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com', 'https://urai-4dc1d.web.app',
+  'prod-smoke', 'prod-smoke-denied', 'smoke-tenant-a', 'smoke-tenant-b', 'npm run smoke:website',
+  'Authenticated read-only smoke', 'npm run smoke:staging', 'npm run smoke:prod',
+  'test "$ASSET_FACTORY_SMOKE_READONLY" = true', 'Deployment performed: false',
+  'Production deploy workflow: Asset Factory Production Readiness', 'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
+  'Read-only smoke enforced globally: true', 'Authenticated read-only smoke requested:', 'Firebase mutation allowed: false',
+  'Upload smoke evidence', 'actions/upload-artifact@v4',
   'This artifact verifies an existing deployment. It performs no Firebase deployment',
   'Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
   'Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md',
   'Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md'
 ];
+for (const phrase of smokeRequired) if (!smokeWorkflow.includes(phrase)) fail(`smoke-only workflow missing ${JSON.stringify(phrase)}`);
 
-for (const phrase of smokeRequired) {
-  if (!smokeWorkflow.includes(phrase)) {
-    fail(`smoke-only workflow missing ${JSON.stringify(phrase)}`);
-  }
-}
-
-const readonlyAssertions = smokeWorkflow.match(
-  /test "\$ASSET_FACTORY_SMOKE_READONLY" = true/g,
-) ?? [];
-if (readonlyAssertions.length < 2) {
-  fail('smoke-only workflow must assert read-only mode before dispatch validation and authenticated smoke');
-}
+const readonlyAssertions = smokeWorkflow.match(/test "\$ASSET_FACTORY_SMOKE_READONLY" = true/g) ?? [];
+if (readonlyAssertions.length < 2) fail('smoke-only workflow must assert read-only mode before dispatch validation and authenticated smoke');
 
 const smokeForbidden = [
-  'deploy:',
-  'confirm:',
-  'FIREBASE_TOKEN',
-  'FIREBASE_SERVICE_ACCOUNT',
-  'firebase deploy',
-  'npm run deploy:',
-  'Install Firebase CLI',
-  'Use Java 21 for Firebase CLI',
-  'DEPLOY_ASSET_FACTORY_STAGING',
-  'Deploy Firebase Studio',
-  'Deployment or smoke target',
-  'Run the staging Firebase Studio deploy',
-  'Deploy allowed by this workflow',
-  'Staging deploy command',
-  'fully production ready',
-  'system of systems complete',
-  'This artifact is final completion-lock evidence',
-  'update the completion lock after this workflow passes'
+  'deploy:', 'confirm:', 'FIREBASE_TOKEN', 'FIREBASE_SERVICE_ACCOUNT', 'firebase deploy', 'npm run deploy:',
+  'Install Firebase CLI', 'Use Java 21 for Firebase CLI', 'DEPLOY_ASSET_FACTORY_STAGING', 'Deploy Firebase Studio',
+  'Deployment or smoke target', 'Run the staging Firebase Studio deploy', 'Deploy allowed by this workflow',
+  'Staging deploy command', 'fully production ready', 'system of systems complete',
+  'This artifact is final completion-lock evidence', 'update the completion lock after this workflow passes'
 ];
-
-for (const phrase of smokeForbidden) {
-  if (smokeWorkflow.includes(phrase)) {
-    fail(`smoke-only workflow contains forbidden deployment capability: ${JSON.stringify(phrase)}`);
-  }
-}
+for (const phrase of smokeForbidden) if (smokeWorkflow.includes(phrase)) fail(`smoke-only workflow contains forbidden deployment capability: ${JSON.stringify(phrase)}`);
 
 const canonicalProductionRequired = [
-  'name: Asset Factory Production Readiness',
-  'workflow_dispatch:',
-  'deploy:',
-  'confirm:',
-  "inputs.deploy == true",
-  "inputs.confirm == 'DEPLOY_ASSET_FACTORY'",
-  "github.ref == 'refs/heads/main'",
-  'environment: asset-factory-production',
-  'FIREBASE_SERVICE_ACCOUNT',
-  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
-  'Remove service-account file'
+  'name: Asset Factory Production Readiness', 'workflow_dispatch:', 'deploy:', 'confirm:',
+  "inputs.deploy == true", "inputs.confirm == 'DEPLOY_ASSET_FACTORY'", "github.ref == 'refs/heads/main'",
+  'environment: asset-factory-production', 'Require WIF deployment identity', 'GCP_WIF_PROVIDER', 'GCP_DEPLOY_SERVICE_ACCOUNT',
+  'Authenticate to Google Cloud with WIF', 'google-github-actions/auth@v2',
+  'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}', 'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
+  'create_credentials_file: true', 'export_environment_variables: true', 'Verify ephemeral deployment credential',
+  'test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"',
+  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage'
 ];
+for (const phrase of canonicalProductionRequired) if (!productionReadiness.includes(phrase)) fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
 
-for (const phrase of canonicalProductionRequired) {
-  if (!productionReadiness.includes(phrase)) {
-    fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
-  }
-}
+const productionForbidden = [
+  'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_SERVICE_ACCOUNT_JSON', 'FIREBASE_TOKEN', 'credentials_json', '--token',
+  'firebase-service-account.json', 'Write service account', 'Remove service-account file'
+];
+for (const phrase of productionForbidden) if (productionReadiness.includes(phrase)) fail(`canonical production deploy workflow contains forbidden long-lived auth path: ${JSON.stringify(phrase)}`);
 
-const productionDeploySection = productionReadiness
-  .split('\n  deploy:\n', 2)[1];
-if (!productionDeploySection) {
-  fail('canonical production deploy job is missing');
+const workflowPermissionSection = productionReadiness.split('\nconcurrency:', 1)[0];
+if (workflowPermissionSection.includes('id-token: write')) fail('workflow-level permissions must not grant OIDC token minting to verification jobs');
+
+const productionDeploySection = productionReadiness.split('\n  deploy:\n', 2)[1];
+if (!productionDeploySection) fail('canonical production deploy job is missing');
+if (!productionDeploySection.includes("github.event_name == 'workflow_dispatch'")) fail('canonical production deploy is not dispatch-only');
+if (!productionDeploySection.includes("inputs.confirm == 'DEPLOY_ASSET_FACTORY'")) fail('canonical production deploy lacks exact confirmation');
+if (!productionDeploySection.includes('environment: asset-factory-production')) fail('canonical production deploy lacks protected environment');
+if (!productionDeploySection.includes('permissions:\n      contents: read\n      id-token: write')) fail('canonical deploy job must scope OIDC permission to the deploy job');
+if (!productionDeploySection.includes("ASSET_FACTORY_SMOKE_READONLY: 'true'")) fail('canonical production deploy must force read-only post-deploy smoke');
+if (!productionDeploySection.includes('Read-only smoke production finalization endpoints')) fail('canonical production deploy lacks an explicitly read-only smoke step');
+if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = true')) fail('canonical production deploy does not assert read-only mode before smoke');
+if (!productionDeploySection.includes('Authenticate to Google Cloud with WIF')) fail('canonical production deploy lacks WIF authentication');
+
+const checkoutIndex = productionDeploySection.indexOf('Checkout exact main candidate');
+const cleanIdentityIndex = productionDeploySection.indexOf('Verify exact clean main identity');
+const firebaseCliIndex = productionDeploySection.indexOf('Install Firebase CLI');
+const installIndex = productionDeploySection.indexOf('Install dependencies');
+const buildIndex = productionDeploySection.indexOf('\n      - name: Build\n');
+const authIndex = productionDeploySection.indexOf('Authenticate to Google Cloud with WIF');
+const credentialCheckIndex = productionDeploySection.indexOf('Verify ephemeral deployment credential');
+const deployIndex = productionDeploySection.indexOf('\n      - name: Deploy\n');
+if ([checkoutIndex, cleanIdentityIndex, firebaseCliIndex, installIndex, buildIndex, authIndex, credentialCheckIndex, deployIndex].some((index) => index < 0)) fail('canonical production deploy is missing a required ordered security step');
+if (!(checkoutIndex < cleanIdentityIndex && cleanIdentityIndex < firebaseCliIndex && firebaseCliIndex < installIndex && installIndex < buildIndex && buildIndex < authIndex && authIndex < credentialCheckIndex && credentialCheckIndex < deployIndex)) {
+  fail('WIF credentials must be created only after clean-tree verification, Firebase CLI/dependency installation, and build, immediately before deploy');
 }
-if (!productionDeploySection.includes("github.event_name == 'workflow_dispatch'")) {
-  fail('canonical production deploy is not dispatch-only');
+const credentialWindow = productionDeploySection.slice(authIndex, deployIndex);
+const credentialWindowSteps = credentialWindow.match(/\n      - /g) ?? [];
+if (credentialWindowSteps.length !== 1 || !credentialWindow.includes('\n      - name: Verify ephemeral deployment credential\n')) {
+  fail('no step, named or unnamed, other than the ephemeral credential check may run between WIF authentication and deploy');
 }
-if (!productionDeploySection.includes("inputs.confirm == 'DEPLOY_ASSET_FACTORY'")) {
-  fail('canonical production deploy lacks exact confirmation');
-}
-if (!productionDeploySection.includes('environment: asset-factory-production')) {
-  fail('canonical production deploy lacks protected environment');
-}
-if (!productionDeploySection.includes("ASSET_FACTORY_SMOKE_READONLY: 'true'")) {
-  fail('canonical production deploy must force read-only post-deploy smoke');
-}
-if (!productionDeploySection.includes('Read-only smoke production finalization endpoints')) {
-  fail('canonical production deploy lacks an explicitly read-only smoke step');
-}
-if (!productionDeploySection.includes('test "$ASSET_FACTORY_SMOKE_READONLY" = true')) {
-  fail('canonical production deploy does not assert read-only mode before smoke');
-}
-if (productionDeploySection.includes('Smoke production finalization endpoints')) {
-  fail('canonical production deploy retains the mutation-capable smoke step name');
-}
+if (productionDeploySection.includes('Smoke production finalization endpoints')) fail('canonical production deploy retains the mutation-capable smoke step name');
 
 console.log('PASS deploy workflow static checks');
