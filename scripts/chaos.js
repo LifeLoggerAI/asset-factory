@@ -1,12 +1,24 @@
-
 const admin = require("firebase-admin");
 const { runOptimizer } = require("../controller/revenueOptimizer");
 
-// IMPORTANT: Path to your service account key
-const serviceAccount = require("../service-account.json"); 
+const PRODUCTION_PROJECT_ID = "urai-4dc1d";
+const projectId = process.env.URAI_CHAOS_TEST_PROJECT_ID;
+
+if (process.env.URAI_CHAOS_TEST_APPROVED !== "true") {
+  throw new Error("Refusing chaos test: URAI_CHAOS_TEST_APPROVED=true is required.");
+}
+
+if (!projectId) {
+  throw new Error("Refusing chaos test: URAI_CHAOS_TEST_PROJECT_ID is required.");
+}
+
+if (projectId === PRODUCTION_PROJECT_ID) {
+  throw new Error("Refusing chaos test against the production Firebase project.");
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.applicationDefault(),
+  projectId,
 });
 
 const db = admin.firestore();
@@ -19,10 +31,10 @@ const PROCESSING_TIMEOUT_MS = 60 * 1000; // 60 seconds to process
 // ---------------------
 
 async function runChaosTest() {
-    console.log("🔥 Starting Chaos Test...");
+    console.log("Starting controlled chaos test...");
 
     // 1. Ensure a valid test tenant exists with an active subscription
-    console.log(`[SETUP] Ensuring test tenant '${TEST_USER_ID}' exists and is active.`);
+    console.log(`[SETUP] Ensuring test tenant '${TEST_USER_ID}' exists and is active in ${projectId}.`);
     await db.collection("tenants").doc(TEST_USER_ID).set({
         stripeCustomerId: `cus_chaos_${Date.now()}`,
         subscriptionStatus: "active",
@@ -68,7 +80,6 @@ async function runChaosTest() {
     let verifiedFailures = 0;
     let assetMismatches = 0;
 
-    // Check successful jobs
     for (const jobId of expectedSuccess) {
         const jobDoc = await db.collection('jobs').doc(jobId).get();
         const assetQuery = await db.collection('assets').where('jobId', '==', jobId).get();
@@ -78,10 +89,9 @@ async function runChaosTest() {
         } else {
             console.error(`[FAIL] Verification failed for successful job: ${jobId}`);
         }
-        if(assetQuery.size !== 1) assetMismatches++;
+        if (assetQuery.size !== 1) assetMismatches++;
     }
 
-    // Check failed jobs
     for (const jobId of expectedFailures) {
         const jobDoc = await db.collection('jobs').doc(jobId).get();
         const deadJobDoc = await db.collection('dead_jobs').doc(jobId).get();
@@ -93,7 +103,6 @@ async function runChaosTest() {
         }
     }
 
-    // 5. Report Summary
     console.log("\n--- CHAOS TEST SUMMARY ---");
     console.log(`Total Jobs Injected: ${TOTAL_JOBS}`);
     console.log(`  - Expected to Succeed: ${expectedSuccess.length}`);
@@ -106,16 +115,17 @@ async function runChaosTest() {
     const isTestSuccessful = verifiedSuccess === expectedSuccess.length && verifiedFailures === expectedFailures.length;
 
     if (isTestSuccessful) {
-        console.log("\n✅ ✅ ✅  Chaos test PASSED. The system is resilient.  ✅ ✅ ✅");
+        console.log("Chaos test PASSED. The test system is resilient.");
     } else {
-        console.log("\n❌ ❌ ❌  Chaos test FAILED. System integrity compromised. ❌ ❌ ❌");
+        console.log("Chaos test FAILED. Test-system integrity requires investigation.");
     }
 
-    // 6. Run the Autonomous Revenue Optimizer
-    await runOptimizer(TEST_USER_ID, false); // Run in suggestion mode first
-    await runOptimizer(TEST_USER_ID, true); // Run in autonomous mode to take action
+    // Run optimizer only inside this explicitly approved nonproduction chaos test.
+    await runOptimizer(TEST_USER_ID, false);
+    await runOptimizer(TEST_USER_ID, true);
 }
 
 runChaosTest().catch(err => {
     console.error("An unexpected error occurred during the chaos test:", err);
+    process.exitCode = 1;
 });
