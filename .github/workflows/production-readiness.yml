@@ -22,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: asset-factory-production-readiness-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
@@ -115,6 +114,9 @@ jobs:
       inputs.deploy == true &&
       inputs.confirm == 'DEPLOY_ASSET_FACTORY'
     environment: asset-factory-production
+    permissions:
+      contents: read
+      id-token: write
     env:
       ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
       ASSET_FACTORY_SMOKE_READONLY: 'true'
@@ -129,6 +131,13 @@ jobs:
           test -n "$WIF_PROVIDER" || { echo "GCP_WIF_PROVIDER is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
           test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "GCP_DEPLOY_SERVICE_ACCOUNT is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
 
+      - name: Checkout exact main candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Authenticate to Google Cloud with WIF
         uses: google-github-actions/auth@v2
         with:
@@ -137,13 +146,6 @@ jobs:
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
           export_environment_variables: true
-
-      - name: Checkout exact main candidate
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
-          fetch-depth: 0
-          persist-credentials: false
 
       - name: Verify exact clean main identity
         shell: bash
