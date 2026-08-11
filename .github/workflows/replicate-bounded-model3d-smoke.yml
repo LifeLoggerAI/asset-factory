@@ -1,248 +1,41 @@
-name: Replicate Bounded Model3D Smoke
+name: Replicate Bounded Model3D Smoke — Quarantined
 
 on:
-  workflow_run:
-    workflows:
-      - Grant Replicate App Hosting Secret Access
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   contents: read
-  issues: read
 
 concurrency:
-  group: replicate-bounded-model3d-smoke
+  group: replicate-bounded-model3d-smoke-quarantined
   cancel-in-progress: false
 
 jobs:
-  smoke:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+  verify-quarantine:
     runs-on: ubuntu-latest
-    environment: asset-factory-production
-    outputs:
-      skipped: ${{ steps.preflight.outputs.skip }}
-      prediction_id: ${{ steps.run.outputs.prediction_id }}
-      asset_sha256: ${{ steps.run.outputs.asset_sha256 }}
-      asset_bytes: ${{ steps.run.outputs.asset_bytes }}
-    env:
-      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
     steps:
-      - name: Check one-time smoke marker
-        id: preflight
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          count="$(gh issue view 63 --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[].body | select(contains("REPLICATE_MODEL3D_SMOKE_COMPLETED="))] | length')"
-          if [ "$count" -gt 0 ]; then
-            echo "A completed Replicate model3d smoke is already recorded; refusing a second paid prediction."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Require protected Firebase service account
-        if: steps.preflight.outputs.skip != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
-            echo "FIREBASE_SERVICE_ACCOUNT is not configured in the protected GitHub environment."
-            exit 1
-          fi
-
-      - name: Setup Node
-        if: steps.preflight.outputs.skip != 'true'
-        uses: actions/setup-node@v4
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          node-version: '22'
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
 
-      - name: Install current Firebase CLI
-        if: steps.preflight.outputs.skip != 'true'
-        run: npm install -g firebase-tools
-
-      - name: Write temporary service account
-        if: steps.preflight.outputs.skip != 'true'
+      - name: Verify fail-closed provider-spend boundary
         shell: bash
         run: |
           set -euo pipefail
-          umask 077
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
-
-      - name: Load Replicate token from Secret Manager
-        if: steps.preflight.outputs.skip != 'true'
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-        shell: bash
-        run: |
-          set -euo pipefail
-          token="$(firebase apphosting:secrets:access REPLICATE_API_TOKEN --project urai-4dc1d --non-interactive 2>"$RUNNER_TEMP/secret-access.stderr")"
-          if [ -z "$token" ]; then
-            cat "$RUNNER_TEMP/secret-access.stderr" >&2 || true
-            echo "Secret Manager returned an empty Replicate token."
+          test "$GITHUB_EVENT_NAME" = 'workflow_dispatch'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          if grep -Eq 'FIREBASE_SERVICE_ACCOUNT|FIREBASE_PRIVATE_KEY|credentials_json|firebase-service-account\.json' .github/workflows/replicate-bounded-model3d-smoke.yml; then
+            echo 'Long-lived Google credential material is forbidden in the quarantined smoke workflow.' >&2
             exit 1
           fi
-          echo "::add-mask::$token"
-          printf 'REPLICATE_API_TOKEN=%s\n' "$token" >> "$GITHUB_ENV"
-          unset token
-
-      - name: Run exactly one Replicate model3d prediction
-        id: run
-        if: steps.preflight.outputs.skip != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          request="$RUNNER_TEMP/replicate-request.json"
-          current="$RUNNER_TEMP/replicate-current.json"
-          cat > "$request" <<EOF
-          {
-            "version": "${MODEL_VERSION#*:}",
-            "input": {
-              "prompt": "A single smooth river stone, rounded natural asymmetrical shape, clean watertight geometry, isolated object, no text, no base, no extra objects",
-              "enable_pbr": false,
-              "face_count": 40000,
-              "generate_type": "Geometry"
-            }
-          }
-          EOF
-
-          curl -fsS \
-            --max-time 30 \
-            -X POST \
-            -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$request" \
-            https://api.replicate.com/v1/predictions > "$current"
-
-          prediction_id="$(jq -r '.id // empty' "$current")"
-          get_url="$(jq -r '.urls.get // empty' "$current")"
-          cancel_url="$(jq -r '.urls.cancel // empty' "$current")"
-          if [ -z "$prediction_id" ] || [ -z "$get_url" ]; then
-            jq '{id, status, error}' "$current" >&2 || true
-            echo "Replicate did not return a prediction id/get URL."
+          if grep -Eq 'api\.replicate\.com/v1/predictions|REPLICATE_API_TOKEN' .github/workflows/replicate-bounded-model3d-smoke.yml; then
+            echo 'Paid Replicate execution is forbidden in the quarantined smoke workflow.' >&2
             exit 1
           fi
-
-          completed=false
-          for attempt in $(seq 1 60); do
-            status="$(jq -r '.status // empty' "$current")"
-            if [ "$status" = "succeeded" ]; then
-              completed=true
-              break
-            fi
-            if [ "$status" = "failed" ] || [ "$status" = "canceled" ]; then
-              jq '{id, status, error, metrics}' "$current" >&2 || true
-              echo "Replicate prediction ended with status $status."
-              exit 1
-            fi
-            sleep 5
-            curl -fsS --max-time 30 -H "Authorization: Bearer $REPLICATE_API_TOKEN" "$get_url" > "$current"
-          done
-
-          if [ "$completed" != true ]; then
-            if [ -n "$cancel_url" ]; then
-              curl -sS --max-time 30 -X POST -H "Authorization: Bearer $REPLICATE_API_TOKEN" "$cancel_url" >/dev/null || true
-            fi
-            echo "Replicate smoke timed out; the prediction was not retried."
-            exit 1
-          fi
-
-          output_url="$(jq -r '.output // empty' "$current")"
-          if [ -z "$output_url" ] || [[ "$output_url" != https://* ]]; then
-            jq '{id, status, output, error}' "$current" >&2 || true
-            echo "Replicate prediction did not return a valid HTTPS GLB URL."
-            exit 1
-          fi
-
-          asset="$RUNNER_TEMP/replicate-model3d-smoke.glb"
-          curl -fsSL --max-time 120 "$output_url" -o "$asset"
-          bytes="$(stat -c%s "$asset")"
-          if [ "$bytes" -le 0 ] || [ "$bytes" -gt 104857600 ]; then
-            echo "Unexpected GLB size: $bytes bytes."
-            exit 1
-          fi
-          magic="$(xxd -p -l 4 "$asset")"
-          if [ "$magic" != "676c5446" ]; then
-            echo "Downloaded output is not a binary glTF/GLB file."
-            exit 1
-          fi
-          sha="$(sha256sum "$asset" | awk '{print $1}')"
-
-          echo "prediction_id=$prediction_id" >> "$GITHUB_OUTPUT"
-          echo "asset_sha256=$sha" >> "$GITHUB_OUTPUT"
-          echo "asset_bytes=$bytes" >> "$GITHUB_OUTPUT"
-          jq '{id, status, metrics}' "$current"
-
-      - name: Remove temporary secrets and provider files
-        if: always()
-        shell: bash
-        run: |
-          rm -f "$RUNNER_TEMP/firebase-service-account.json"
-          rm -f "$RUNNER_TEMP/secret-access.stderr"
-          rm -f "$RUNNER_TEMP/replicate-request.json"
-          rm -f "$RUNNER_TEMP/replicate-current.json"
-          rm -f "$RUNNER_TEMP/replicate-model3d-smoke.glb"
-
-  report:
-    if: always()
-    needs: smoke
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - name: Report bounded smoke result
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RESULT: ${{ needs.smoke.result }}
-          SKIPPED: ${{ needs.smoke.outputs.skipped }}
-          PREDICTION_ID: ${{ needs.smoke.outputs.prediction_id }}
-          ASSET_SHA256: ${{ needs.smoke.outputs.asset_sha256 }}
-          ASSET_BYTES: ${{ needs.smoke.outputs.asset_bytes }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "$SKIPPED" = "true" ]; then
-            echo "Existing completed smoke marker found; no second paid prediction was run."
-            exit 0
-          fi
-          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          if [ "$RESULT" = "success" ] && [ -n "$PREDICTION_ID" ]; then
-            body=$(cat <<EOF
-          ## Replicate bounded model3d smoke — PASS
-
-          REPLICATE_MODEL3D_SMOKE_COMPLETED=$PREDICTION_ID
-
-          - Model: \`tencent/hunyuan-3d-3.1\`
-          - Pinned version: \`a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854\`
-          - Prediction ID: \`$PREDICTION_ID\`
-          - Output: valid GLB
-          - GLB bytes: \`$ASSET_BYTES\`
-          - GLB SHA-256: \`$ASSET_SHA256\`
-          - Paid predictions in this lane: **1**
-          - Automatic prediction retries: **0**
-          - Token value exposed: **no**
-          - Workflow: $run_url
-
-          This is the one-time provider connectivity smoke. The generated proof asset is temporary and was not promoted into URAI.
-          EOF
-            )
-          else
-            body=$(cat <<EOF
-          ## Replicate bounded model3d smoke — NOT VERIFIED
-
-          - Workflow result: \`$RESULT\`
-          - Automatic prediction retries: **0**
-          - Token value exposed: **no**
-          - Workflow: $run_url
-
-          No completion marker was written. Inspect the protected workflow before attempting any further paid prediction.
-          EOF
-            )
-          fi
-          gh issue comment 63 --repo "$GITHUB_REPOSITORY" --body "$body"
+          echo 'Replicate model3d paid smoke is intentionally quarantined.'
+          echo 'A future one-time provider smoke requires a separately reviewed, explicit, bounded workflow and must not use long-lived Google credentials.'
