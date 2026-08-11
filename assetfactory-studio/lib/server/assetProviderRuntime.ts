@@ -321,7 +321,7 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
 
   const prediction = await postJson(
     'https://api.replicate.com/v1/predictions',
-    { authorization: `Token ${apiKey}` },
+    { authorization: `Bearer ${apiKey}` },
     { version, input: { prompt: input.prompt } }
   );
 
@@ -332,7 +332,7 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     if (status === 'succeeded') break;
     if (status === 'failed' || status === 'canceled') throw new Error(`Replicate prediction ${status}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    current = await getJson(getUrl, { authorization: `Token ${apiKey}` });
+    current = await getJson(getUrl, { authorization: `Bearer ${apiKey}` });
   }
 
   const outputUrl = firstUrl(current.output);
