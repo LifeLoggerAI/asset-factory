@@ -168,27 +168,49 @@ jobs:
         run: npm run build
 
       - name: Authenticate to Google Cloud with WIF
+        id: google_auth
         uses: google-github-actions/auth@v2
         with:
           project_id: urai-4dc1d
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
-          export_environment_variables: true
+          export_environment_variables: false
 
       - name: Verify ephemeral deployment credential
         shell: bash
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
         run: |
           set -euo pipefail
           test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Deploy
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
         run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
+
+      - name: Remove ephemeral deployment credential
+        shell: bash
+        env:
+          CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}
+        run: |
+          set -euo pipefail
+          test -n "$CREDENTIAL_PATH"
+          case "$CREDENTIAL_PATH" in
+            "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+            *) echo "Unexpected ADC credential path; refusing cleanup outside the generated WIF file." >&2; exit 1 ;;
+          esac
+          rm -f -- "$CREDENTIAL_PATH"
+          test ! -e "$CREDENTIAL_PATH"
 
       - name: Read-only smoke production finalization endpoints
         shell: bash
         run: |
           set -euo pipefail
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
+          test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          test -z "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}"
+          test -z "${GOOGLE_GHA_CREDS_PATH:-}"
           npm run smoke:production-finalization
