@@ -54,7 +54,11 @@ export async function GET(req: NextRequest) {
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
-  const replicateModel3dConfigured = configured('ASSET_FACTORY_MODEL3D_MODEL');
+  const replicateGraphicsConfigured = configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
+  const replicateModel3dConfigured = configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL');
+  const replicateAudioConfigured = configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL');
+  const replicateSpeechConfigured = configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL');
+  const replicateRegistryConfigured = replicateGraphicsConfigured && replicateModel3dConfigured && replicateAudioConfigured && replicateSpeechConfigured;
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
@@ -84,7 +88,11 @@ export async function GET(req: NextRequest) {
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       providerBackedRendering: providerConfigured,
       replicateCredentialVisible,
+      replicateGraphicsConfigured,
       replicateModel3dConfigured,
+      replicateAudioConfigured,
+      replicateSpeechConfigured,
+      replicateRegistryConfigured,
     },
     workflows: {
       generate: true,
@@ -104,6 +112,7 @@ export async function GET(req: NextRequest) {
       productionAuthReady,
       durableQueueConfigured,
       providerConfigured,
+      replicateRegistryConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
       status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
