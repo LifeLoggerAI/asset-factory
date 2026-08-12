@@ -1,12 +1,26 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '@radix-ui/themes/styles.css';
 import './globals.css';
+import './production-polish.css';
 import { Theme } from '@radix-ui/themes';
 import AppShell from '../components/layout/AppShell';
 
 export const metadata: Metadata = {
-  title: 'Asset Factory Studio',
-  description: 'Deterministic AI Media Production Engine',
+  title: 'URAI Asset Factory — Production Studio',
+  description: 'Protected URAI production tooling for generating, reviewing, materializing, and publishing approved media assets.',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#07101a',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({
@@ -17,7 +31,7 @@ export default function RootLayout({
       <body
         style={{
           fontFamily:
-            'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial',
+            'ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
         }}
       >
         <Theme
