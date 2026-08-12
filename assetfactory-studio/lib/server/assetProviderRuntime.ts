@@ -11,6 +11,12 @@ type ProviderRenderResult = {
 
 type JsonRecord = Record<string, unknown>;
 
+type ReplicateModelSelection = {
+  model: string;
+  lane: 'graphic' | 'model3d' | 'audio' | 'speech';
+  legacyPredictionRoute: boolean;
+};
+
 const DEFAULT_PROVIDER_TIMEOUT_MS = 120_000;
 const DEFAULT_PROVIDER_MAX_BYTES = 100 * 1024 * 1024;
 
@@ -20,6 +26,10 @@ function stringValue(value: unknown, fallback = '') {
 
 function env(name: string) {
   return stringValue(process.env[name]);
+}
+
+function enabled(name: string) {
+  return process.env[name] === 'true';
 }
 
 function numberFromEnv(name: string, fallback: number) {
@@ -192,6 +202,7 @@ function extensionFromMime(mimeType: string, fallback: string) {
   if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
   if (mimeType.includes('mpeg')) return 'mp3';
   if (mimeType.includes('wav')) return 'wav';
+  if (mimeType.includes('flac')) return 'flac';
   if (mimeType.includes('gltf')) return 'gltf';
   if (mimeType.includes('glb')) return 'glb';
   return fallback;
@@ -310,19 +321,134 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
   };
 }
 
+function replicateLane(input: GenerateRequest, definition: AssetTypeDefinition): ReplicateModelSelection['lane'] {
+  if (definition.canonicalType === 'graphic') return 'graphic';
+  if (definition.canonicalType === 'model3d') return 'model3d';
+
+  const requestedMode = stringValue(input.metadata?.replicateAudioMode ?? input.metadata?.audioMode).toLowerCase();
+  const rawType = String(input.type ?? '').trim().toLowerCase();
+  if (
+    requestedMode === 'speech' ||
+    requestedMode === 'tts' ||
+    ['voice', 'speech', 'tts', 'narration', 'narrator'].includes(rawType)
+  ) {
+    return 'speech';
+  }
+  return 'audio';
+}
+
+function configuredReplicateModel(input: GenerateRequest, definition: AssetTypeDefinition): ReplicateModelSelection | null {
+  const lane = replicateLane(input, definition);
+  const requestOverride = stringValue(input.metadata?.replicateModel);
+  if (requestOverride) {
+    if (!enabled('ASSET_FACTORY_ALLOW_REPLICATE_MODEL_OVERRIDE')) {
+      throw new Error('replicateModel request override is disabled');
+    }
+    return { model: requestOverride, lane, legacyPredictionRoute: false };
+  }
+
+  const explicit = lane === 'graphic'
+    ? env('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL')
+    : lane === 'model3d'
+      ? env('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL')
+      : lane === 'speech'
+        ? env('ASSET_FACTORY_REPLICATE_SPEECH_MODEL')
+        : env('ASSET_FACTORY_REPLICATE_AUDIO_MODEL');
+
+  if (explicit) return { model: explicit, lane, legacyPredictionRoute: false };
+
+  const legacy = lane === 'graphic'
+    ? env('ASSET_FACTORY_GRAPHICS_MODEL')
+    : lane === 'model3d'
+      ? env('ASSET_FACTORY_MODEL3D_MODEL')
+      : env('ASSET_FACTORY_AUDIO_MODEL');
+
+  if (!legacy) return null;
+  return { model: legacy, lane, legacyPredictionRoute: true };
+}
+
+function replicateInput(input: GenerateRequest, selection: ReplicateModelSelection): JsonRecord {
+  const modelName = selection.model.split(':', 1)[0].toLowerCase();
+  let modelInput: JsonRecord;
+
+  if (selection.lane === 'speech' && modelName === 'minimax/speech-02-hd') {
+    modelInput = {
+      text: input.prompt,
+      voice_id: stringValue(input.metadata?.voiceId, env('ASSET_FACTORY_REPLICATE_SPEECH_VOICE') || 'Friendly_Person'),
+      emotion: stringValue(input.metadata?.emotion, 'auto'),
+      language_boost: stringValue(input.metadata?.languageBoost, 'English'),
+      english_normalization: input.metadata?.englishNormalization !== false,
+    };
+  } else if (selection.lane === 'graphic' && modelName === 'black-forest-labs/flux-schnell') {
+    modelInput = {
+      prompt: input.prompt,
+      num_outputs: 1,
+      aspect_ratio: input.aspectRatio || '1:1',
+      output_format: env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'webp',
+      output_quality: 80,
+    };
+  } else if (selection.lane === 'audio' && modelName === 'google/lyria-2') {
+    modelInput = { prompt: input.prompt };
+    const negativePrompt = stringValue(input.metadata?.negativePrompt);
+    if (negativePrompt) modelInput.negative_prompt = negativePrompt;
+  } else if (selection.lane === 'model3d' && modelName === 'tencent/hunyuan-3d-3.1') {
+    modelInput = {
+      prompt: input.prompt,
+      enable_pbr: input.metadata?.enablePbr === true,
+      face_count: 40000,
+      generate_type: input.metadata?.generateType === 'Normal' ? 'Normal' : 'Geometry',
+    };
+  } else {
+    modelInput = { prompt: input.prompt };
+  }
+
+  const extraInput = input.metadata?.replicateInput;
+  if (extraInput !== undefined) {
+    if (!enabled('ASSET_FACTORY_ALLOW_REPLICATE_INPUT_OVERRIDES')) {
+      throw new Error('replicateInput request overrides are disabled');
+    }
+    if (!extraInput || typeof extraInput !== 'object' || Array.isArray(extraInput)) {
+      throw new Error('replicateInput must be an object');
+    }
+    modelInput = { ...modelInput, ...(extraInput as JsonRecord) };
+  }
+
+  return modelInput;
+}
+
+function replicatePredictionRequest(selection: ReplicateModelSelection, input: JsonRecord) {
+  const colonIndex = selection.model.lastIndexOf(':');
+  if (selection.legacyPredictionRoute || colonIndex > 0) {
+    const version = colonIndex > 0 ? selection.model.slice(colonIndex + 1) : selection.model;
+    if (!version) throw new Error('Replicate version identifier is empty');
+    return {
+      url: 'https://api.replicate.com/v1/predictions',
+      body: { version, input },
+    };
+  }
+
+  const [owner, name, ...rest] = selection.model.split('/');
+  const safePart = /^[a-zA-Z0-9_.-]+$/;
+  if (!owner || !name || rest.length || !safePart.test(owner) || !safePart.test(name)) {
+    throw new Error(`Invalid Replicate official model identifier: ${selection.model}`);
+  }
+
+  return {
+    url: `https://api.replicate.com/v1/models/${owner}/${name}/predictions`,
+    body: { input },
+  };
+}
+
 async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
   const apiKey = env('REPLICATE_API_TOKEN');
-  const version = definition.canonicalType === 'model3d'
-    ? env('ASSET_FACTORY_MODEL3D_MODEL')
-    : definition.canonicalType === 'audio'
-      ? env('ASSET_FACTORY_AUDIO_MODEL')
-      : env('ASSET_FACTORY_GRAPHICS_MODEL');
-  if (!apiKey || !version) return null;
+  const selection = configuredReplicateModel(input, definition);
+  if (!apiKey || !selection) return null;
 
+  const request = replicatePredictionRequest(selection, replicateInput(input, selection));
   const prediction = await postJson(
-    'https://api.replicate.com/v1/predictions',
+    request.url,
     { authorization: `Bearer ${apiKey}` },
-    { version, input: { prompt: input.prompt } }
+    request.body
   );
 
   let current = prediction;
@@ -346,7 +472,12 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     assetBuffer: binary.buffer,
     assetMimeType: binary.mimeType,
     extension: extensionFromMime(binary.mimeType, definition.extension),
-    metadata: { provider: 'replicate', providerModel: version, predictionId: current.id },
+    metadata: {
+      provider: 'replicate',
+      providerModel: selection.model,
+      replicateLane: selection.lane,
+      predictionId: current.id,
+    },
   };
 }
 
