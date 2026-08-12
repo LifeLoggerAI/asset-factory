@@ -1,0 +1,42 @@
+:root {
+  --urai-factory-safe-top: max(1rem, env(safe-area-inset-top));
+  --urai-factory-safe-right: max(1rem, env(safe-area-inset-right));
+  --urai-factory-safe-bottom: max(1rem, env(safe-area-inset-bottom));
+  --urai-factory-safe-left: max(1rem, env(safe-area-inset-left));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(a, button, input, textarea, select, summary, [role="button"]):focus-visible {
+  outline: 2px solid rgba(199, 244, 255, 0.96);
+  outline-offset: 4px;
+}
+
+:where(button, [role="button"], input, select) {
+  min-height: 44px;
+}
+
+main,
+[data-radix-themes] {
+  padding-bottom: var(--urai-factory-safe-bottom);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
