@@ -1,11 +1,12 @@
 name: Replicate Bounded Model3D Smoke
 
 on:
-  workflow_run:
-    workflows:
-      - Grant Replicate App Hosting Secret Access
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      confirm_paid_smoke:
+        description: Type RUN_ONE_REPLICATE_MODEL3D_SMOKE to authorize exactly one paid Replicate prediction
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +16,14 @@ concurrency:
   group: replicate-bounded-model3d-smoke
   cancel-in-progress: false
 
+env:
+  PROJECT_ID: urai-4dc1d
+  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github/providers/asset-factory-github
+  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+  MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
+
 jobs:
   smoke:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     environment: asset-factory-production
     permissions:
@@ -31,9 +35,16 @@ jobs:
       prediction_id: ${{ steps.run.outputs.prediction_id }}
       asset_sha256: ${{ steps.run.outputs.asset_sha256 }}
       asset_bytes: ${{ steps.run.outputs.asset_bytes }}
-    env:
-      MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
     steps:
+      - name: Require exact paid-smoke authorization
+        shell: bash
+        env:
+          CONFIRM_PAID_SMOKE: ${{ inputs.confirm_paid_smoke }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main' || { echo '::error::Paid smoke may only run from main.'; exit 64; }
+          test "$CONFIRM_PAID_SMOKE" = 'RUN_ONE_REPLICATE_MODEL3D_SMOKE' || { echo '::error::Exact paid-smoke confirmation phrase was not supplied.'; exit 65; }
+
       - name: Check one-time smoke marker
         id: preflight
         env:
@@ -49,25 +60,23 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Require protected WIF identity
+      - name: Verify pinned WIF identity contract
         if: steps.preflight.outputs.skip != 'true'
-        env:
-          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
-          GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$GCP_WIF_PROVIDER"
-          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT"
+          test "$PROJECT_ID" = 'urai-4dc1d'
+          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github/providers/asset-factory-github'
+          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
 
       - name: Authenticate to Google Cloud with WIF
         id: google_auth
         if: steps.preflight.outputs.skip != 'true'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
-          project_id: urai-4dc1d
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
           export_environment_variables: false
 
@@ -90,7 +99,7 @@ jobs:
           set -euo pipefail
           test -n "$GOOGLE_APPLICATION_CREDENTIALS"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS"
-          token="$(firebase apphosting:secrets:access REPLICATE_API_TOKEN --project urai-4dc1d --non-interactive 2>"$RUNNER_TEMP/secret-access.stderr")"
+          token="$(firebase apphosting:secrets:access REPLICATE_API_TOKEN --project "$PROJECT_ID" --non-interactive 2>"$RUNNER_TEMP/secret-access.stderr")"
           if [ -z "$token" ]; then
             cat "$RUNNER_TEMP/secret-access.stderr" >&2 || true
             echo "Secret Manager returned an empty Replicate token."
