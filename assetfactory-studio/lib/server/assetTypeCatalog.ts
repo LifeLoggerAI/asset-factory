@@ -46,10 +46,10 @@ const definitions: AssetTypeDefinition[] = [
   {
     canonicalType: 'audio',
     family: 'audio',
-    aliases: ['audio', 'sound', 'sfx', 'music', 'voice', 'wav', 'mp3', 'ambience'],
+    aliases: ['audio', 'sound', 'sfx', 'music', 'voice', 'speech', 'tts', 'narration', 'narrator', 'wav', 'mp3', 'ambience'],
     rendererMode: 'audio-renderer',
     defaultFormat: 'wav',
-    formats: ['wav', 'json'],
+    formats: ['wav', 'mp3', 'flac', 'json'],
     mimeType: 'audio/wav',
     extension: 'wav',
     previewExtension: 'svg',

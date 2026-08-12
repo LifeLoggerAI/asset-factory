@@ -8,10 +8,41 @@ env:
     availability:
       - RUNTIME
 
-  # Frozen first model3d candidate for bounded Replicate smoke and review.
-  # This is a model/version identifier only; it does not activate provider spend.
-  - variable: ASSET_FACTORY_MODEL3D_MODEL
+  # Explicit Replicate model registry. These identifiers configure capability only;
+  # they do not activate provider spend while ASSET_FACTORY_MEDIA_PROVIDER remains local-proof.
+  - variable: ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL
+    value: black-forest-labs/flux-schnell
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REPLICATE_MODEL3D_MODEL
     value: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REPLICATE_AUDIO_MODEL
+    value: google/lyria-2
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REPLICATE_SPEECH_MODEL
+    value: minimax/speech-02-hd
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REPLICATE_SPEECH_VOICE
+    value: Friendly_Person
+    availability:
+      - RUNTIME
+
+  # Request-level model/input overrides stay fail-closed in production.
+  - variable: ASSET_FACTORY_ALLOW_REPLICATE_MODEL_OVERRIDE
+    value: "false"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ALLOW_REPLICATE_INPUT_OVERRIDES
+    value: "false"
     availability:
       - RUNTIME
 
