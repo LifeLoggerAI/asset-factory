@@ -47,17 +47,17 @@ const assetTypes: { value: AssetType; label: string; description: string }[] = [
   {
     value: 'graphic',
     label: 'Graphic',
-    description: 'SVG proof for images, icons, logos, textures, and visual assets.',
+    description: 'SVG output for images, icons, logos, textures, and visual assets.',
   },
   {
     value: 'model3d',
     label: '3D Model',
-    description: 'GLTF proof mesh for avatars, props, spaces, and model assets.',
+    description: 'GLTF output for avatars, props, spaces, and model assets.',
   },
   {
     value: 'audio',
     label: 'Sound',
-    description: 'WAV proof tone for SFX, voice, music, and ambience assets.',
+    description: 'WAV output for SFX, voice, music, and ambience assets.',
   },
   {
     value: 'bundle',
@@ -83,15 +83,15 @@ const inputStyle = {
 } as const;
 
 export default function StudioPage() {
-  const [tenantId, setTenantId] = useState('demo');
+  const [tenantId, setTenantId] = useState('');
   const [assetType, setAssetType] = useState<AssetType>('graphic');
-  const [prompt, setPrompt] = useState('A premium cinematic AI infrastructure dashboard with glowing asset pipelines.');
+  const [prompt, setPrompt] = useState('');
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
   const [durationSeconds, setDurationSeconds] = useState(2);
   const [jobs, setJobs] = useState<StudioJob[]>([]);
   const [assets, setAssets] = useState<Record<string, StudioAsset>>({});
-  const [status, setStatus] = useState('Ready to generate production-proof assets.');
+  const [status, setStatus] = useState('Choose a tenant and describe an asset to begin.');
   const [busy, setBusy] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -103,7 +103,7 @@ export default function StudioPage() {
 
   const requestHeaders = useMemo(
     () => ({
-      'x-tenant-id': tenantId.trim() || 'demo',
+      'x-tenant-id': tenantId.trim(),
     }),
     [tenantId]
   );
@@ -137,6 +137,12 @@ export default function StudioPage() {
   }, [requestHeaders]);
 
   const refreshAll = useCallback(async () => {
+    if (!tenantId.trim()) {
+      setJobs([]);
+      setAssets({});
+      return;
+    }
+
     setIsRefreshing(true);
 
     try {
@@ -146,7 +152,7 @@ export default function StudioPage() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refreshAssets, refreshJobs]);
+  }, [refreshAssets, refreshJobs, tenantId]);
 
   useEffect(() => {
     void refreshAll();
@@ -154,6 +160,11 @@ export default function StudioPage() {
 
   async function createJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!tenantId.trim()) {
+      setStatus('Enter a tenant ID before generating.');
+      return;
+    }
 
     if (!prompt.trim()) {
       setStatus('Enter a prompt before generating.');
@@ -166,7 +177,7 @@ export default function StudioPage() {
 
     try {
       const jobId = `studio-${assetType}-${uuidv4()}`;
-      const tenant = tenantId.trim() || 'demo';
+      const tenant = tenantId.trim();
 
       const body = {
         jobId,
@@ -270,7 +281,7 @@ export default function StudioPage() {
             Generate graphics, models, sounds, and bundles.
           </h1>
           <p style={{ color: '#cbd5e1', maxWidth: 780, lineHeight: 1.6 }}>
-            Queue, render, persist, review, and publish deterministic proof assets through the canonical generate → materialize → fetch → publish flow, backed by Firebase production storage or a safe local fallback.
+            Queue, render, persist, review, and publish assets through the generate → materialize → fetch → publish flow with governed production storage.
           </p>
         </section>
 
@@ -282,7 +293,7 @@ export default function StudioPage() {
               value={tenantId}
               onChange={(event) => setTenantId(event.target.value)}
               style={inputStyle}
-              placeholder="demo"
+              placeholder="Enter tenant ID"
             />
           </div>
 
@@ -367,7 +378,7 @@ export default function StudioPage() {
             </label>
           )}
 
-          <Button type="submit" disabled={busy || !prompt.trim()} variant="primary">
+          <Button type="submit" disabled={busy || !tenantId.trim() || !prompt.trim()} variant="primary">
             {busy ? 'Working...' : `Create ${selectedType.label} Job`}
           </Button>
         </form>
@@ -387,14 +398,14 @@ export default function StudioPage() {
                 Latest queued, materialized, and published assets.
               </p>
             </div>
-            <Button type="button" variant="secondary" onClick={() => void refreshAll()} disabled={busy || isRefreshing}>
+            <Button type="button" variant="secondary" onClick={() => void refreshAll()} disabled={busy || isRefreshing || !tenantId.trim()}>
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
 
           {jobs.length === 0 ? (
             <p style={{ color: '#9ca3af' }}>
-              No jobs yet. Create a graphic, 3D model, sound, or bundle to verify the pipeline end-to-end.
+              {tenantId.trim() ? 'No jobs yet. Create a graphic, 3D model, sound, or bundle.' : 'Enter a tenant ID to view job history.'}
             </p>
           ) : (
             <div style={{ display: 'grid', gap: '0.75rem', marginTop: '1rem' }}>
