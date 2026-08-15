@@ -13,6 +13,7 @@ const limits: Record<string, PolicyLimit> = {
   graphic: { maxPromptChars: 4000, maxWidth: 4096, maxHeight: 4096, allowedFormats: ['svg', 'png', 'webp', 'json'] },
   model3d: { maxPromptChars: 4000, maxWidth: 2048, maxHeight: 2048, allowedFormats: ['gltf', 'glb', 'json'] },
   audio: { maxPromptChars: 4000, maxDurationSeconds: 30, allowedFormats: ['wav', 'mp3', 'json'] },
+  video: { maxPromptChars: 4000, maxWidth: 4096, maxHeight: 4096, maxDurationSeconds: 20, allowedFormats: ['mp4', 'webm'] },
   bundle: { maxPromptChars: 4000, allowedFormats: ['json'] },
 };
 
@@ -29,6 +30,11 @@ function numberFromMetadata(metadata: Record<string, unknown> | undefined, key: 
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function positiveEnvNumber(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision {
   const definition = resolveAssetType(input.type);
   const canonicalType = definition.canonicalType;
@@ -36,28 +42,26 @@ export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision
   const promptLength = input.prompt.trim().length;
   const format = String(input.format ?? definition.defaultFormat).toLowerCase();
 
-  if (promptLength > limit.maxPromptChars) {
-    return { ok: false, error: `prompt exceeds ${limit.maxPromptChars} characters`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-  }
-
-  if (!limit.allowedFormats.includes(format)) {
-    return { ok: false, error: `format ${format} is not allowed for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-  }
-
-  if (limit.maxWidth && input.size?.width && input.size.width > limit.maxWidth) {
-    return { ok: false, error: `width exceeds ${limit.maxWidth} for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-  }
-
-  if (limit.maxHeight && input.size?.height && input.size.height > limit.maxHeight) {
-    return { ok: false, error: `height exceeds ${limit.maxHeight} for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-  }
+  if (promptLength > limit.maxPromptChars) return { ok: false, error: `prompt exceeds ${limit.maxPromptChars} characters`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
+  if (!limit.allowedFormats.includes(format)) return { ok: false, error: `format ${format} is not allowed for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
+  if (limit.maxWidth && input.size?.width && input.size.width > limit.maxWidth) return { ok: false, error: `width exceeds ${limit.maxWidth} for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
+  if (limit.maxHeight && input.size?.height && input.size.height > limit.maxHeight) return { ok: false, error: `height exceeds ${limit.maxHeight} for ${canonicalType}`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
 
   if (canonicalType === 'audio') {
     const durationSeconds = numberFromMetadata(input.metadata, 'durationSeconds', 2);
-    if (limit.maxDurationSeconds && durationSeconds > limit.maxDurationSeconds) {
-      return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for audio`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-    }
+    if (limit.maxDurationSeconds && durationSeconds > limit.maxDurationSeconds) return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for audio`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
     return { ok: true, canonicalType, estimatedUnits: Math.ceil(durationSeconds), estimatedCostCents: Math.ceil(durationSeconds) };
+  }
+
+  if (canonicalType === 'video') {
+    const durationSeconds = numberFromMetadata(input.metadata, 'durationSeconds', definition.defaultDurationSeconds ?? 4);
+    if (limit.maxDurationSeconds && durationSeconds > limit.maxDurationSeconds) return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for video`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
+    const width = input.size?.width ?? definition.defaultSize?.width ?? 1080;
+    const height = input.size?.height ?? definition.defaultSize?.height ?? 1920;
+    const resolutionFactor = Math.max(1, Math.ceil((width * height) / (1080 * 1920)));
+    const units = Math.max(1, Math.ceil(durationSeconds * resolutionFactor));
+    const centsPerSecond1080 = positiveEnvNumber('ASSET_FACTORY_VIDEO_ESTIMATED_COST_CENTS_PER_SECOND', 100);
+    return { ok: true, canonicalType, estimatedUnits: units, estimatedCostCents: Math.ceil(durationSeconds * resolutionFactor * centsPerSecond1080) };
   }
 
   if (canonicalType === 'graphic') {
@@ -67,9 +71,6 @@ export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision
     return { ok: true, canonicalType, estimatedUnits: megapixels, estimatedCostCents: megapixels * 2 };
   }
 
-  if (canonicalType === 'model3d') {
-    return { ok: true, canonicalType, estimatedUnits: 1, estimatedCostCents: 25 };
-  }
-
+  if (canonicalType === 'model3d') return { ok: true, canonicalType, estimatedUnits: 1, estimatedCostCents: 25 };
   return { ok: true, canonicalType, estimatedUnits: 1, estimatedCostCents: 1 };
 }
