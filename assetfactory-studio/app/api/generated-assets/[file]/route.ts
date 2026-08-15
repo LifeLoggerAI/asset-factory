@@ -13,6 +13,10 @@ const contentTypes: Record<string, string> = {
   mp3: 'audio/mpeg',
   png: 'image/png',
   webp: 'image/webp',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
 };
 
 function contentTypeFor(fileName: string) {
@@ -29,30 +33,15 @@ function asBodyInit(asset: Buffer | Uint8Array | string): BodyInit {
   return new Uint8Array(asset);
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ file: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ file: string }> }) {
   const { file } = await params;
-
-  if (!validateFileName(file)) {
-    return NextResponse.json({ error: 'invalid file' }, { status: 400 });
-  }
-
+  if (!validateFileName(file)) return NextResponse.json({ error: 'invalid file' }, { status: 400 });
   const assetRecord = await findAsset(jobIdFromFile(file)) as AssetFactoryAsset | null;
-  if (!assetRecord) {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
-  }
-
+  if (!assetRecord) return NextResponse.json({ error: 'not found' }, { status: 404 });
   const auth = authorizeAssetRequest(req, assetRecord.tenantId);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-
   const asset = await readGeneratedAsset(file);
-
-  if (!asset) {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
-  }
-
+  if (!asset) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return new NextResponse(asBodyInit(asset), {
     headers: {
       'content-type': contentTypeFor(file),
