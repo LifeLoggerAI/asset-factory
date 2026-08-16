@@ -1,6 +1,6 @@
 import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';
 
-export type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';
+export type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway';
 
 export type AssetProviderAdapter = {
   name: AssetProviderName;
@@ -17,6 +17,7 @@ const providerEnv: Record<Exclude<AssetProviderName, 'local-proof'>, string[]> =
   fal: ['FAL_KEY'],
   elevenlabs: ['ELEVENLABS_API_KEY'],
   stability: ['STABILITY_API_KEY'],
+  runway: ['RUNWAY_API_KEY'],
 };
 
 function missingEnv(required: string[]) {
@@ -25,7 +26,7 @@ function missingEnv(required: string[]) {
 
 export function configuredProviderName(): AssetProviderName {
   const value = String(process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof').toLowerCase();
-  if (['openai', 'replicate', 'fal', 'elevenlabs', 'stability'].includes(value)) {
+  if (['openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway'].includes(value)) {
     return value as AssetProviderName;
   }
   return 'local-proof';
@@ -35,10 +36,10 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
   return [
     {
       name: 'local-proof',
-      supportedTypes: ['graphic', 'model3d', 'audio', 'bundle'],
+      supportedTypes: ['graphic', 'model3d', 'audio', 'video', 'bundle'],
       configured: true,
       missingEnv: [],
-      notes: 'Deterministic local proof renderer. Safe for dev, CI, demos, and provider contract testing.',
+      notes: 'Deterministic local proof renderer. Video proof is manifest-only unless a provider is configured.',
     },
     {
       name: 'openai',
@@ -49,17 +50,17 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
     },
     {
       name: 'replicate',
-      supportedTypes: ['graphic', 'model3d', 'audio'],
+      supportedTypes: ['graphic', 'model3d', 'audio', 'video'],
       configured: missingEnv(providerEnv.replicate).length === 0,
       missingEnv: missingEnv(providerEnv.replicate),
-      notes: 'Live Replicate Predictions adapter with separate graphics, model3d, music/audio, and speech model lanes; request-level overrides are fail-closed by default.',
+      notes: 'Live Replicate adapter including governed text/image-to-video model lanes; request-level model overrides remain fail-closed by default.',
     },
     {
       name: 'fal',
-      supportedTypes: ['graphic', 'model3d', 'audio'],
+      supportedTypes: ['graphic', 'model3d', 'audio', 'video'],
       configured: missingEnv(providerEnv.fal).length === 0,
       missingEnv: missingEnv(providerEnv.fal),
-      notes: 'Provider adapter for low-latency media generation workflows.',
+      notes: 'Low-latency media adapter. Video support is exposed through the dedicated video runtime when a server-approved endpoint/model is configured.',
     },
     {
       name: 'elevenlabs',
@@ -74,6 +75,13 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
       configured: missingEnv(providerEnv.stability).length === 0,
       missingEnv: missingEnv(providerEnv.stability),
       notes: 'Provider adapter for image generation.',
+    },
+    {
+      name: 'runway',
+      supportedTypes: ['video'],
+      configured: missingEnv(providerEnv.runway).length === 0,
+      missingEnv: missingEnv(providerEnv.runway),
+      notes: 'Governed video provider slot. Runtime remains disabled unless a server-approved Runway endpoint contract is explicitly configured.',
     },
   ];
 }
