@@ -20,7 +20,7 @@ for (const file of [smokePath, grantPath]) {
 
 const smoke = fs.readFileSync(smokePath, 'utf8');
 const grant = fs.readFileSync(grantPath, 'utf8');
-const exactProvider = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github/providers/asset-factory-github';
+const exactProvider = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github';
 const exactServiceAccount = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com';
 const exactConfirmation = 'RUN_ONE_REPLICATE_MODEL3D_SMOKE';
 
