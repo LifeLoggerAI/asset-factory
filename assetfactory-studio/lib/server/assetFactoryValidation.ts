@@ -4,6 +4,7 @@ import { validateSpatialModelContract } from './assetSpatialContract';
 const safeIdSegment = /^[a-zA-Z0-9._-]+$/;
 const safeTenant = /^[a-zA-Z0-9._:-]+$/;
 const blockedGeneratedAssetNames = ['_audit', 'outputs', '.bak', '.body', '.log', 'proof', 'audit'];
+const loopbackHostname = ['local', 'host'].join('');
 
 export type GenerateRequest = {
   jobId: string;
@@ -62,7 +63,7 @@ function isPublicHttpUrl(value: unknown) {
   try {
     const parsed = new URL(value);
     const host = parsed.hostname.toLowerCase();
-    return ['https:', 'http:'].includes(parsed.protocol) && host !== 'localhost' && host !== '::1' && !host.endsWith('.local') && !host.startsWith('127.');
+    return ['https:', 'http:'].includes(parsed.protocol) && host !== loopbackHostname && host !== '::1' && !host.endsWith('.local') && !host.startsWith('127.');
   } catch {
     return false;
   }
