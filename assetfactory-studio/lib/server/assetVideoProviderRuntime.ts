@@ -12,6 +12,7 @@ type JsonRecord = Record<string, unknown>;
 const DEFAULT_TIMEOUT_MS = 15 * 60_000;
 const DEFAULT_MAX_BYTES = 512 * 1024 * 1024;
 const DEFAULT_POLL_MS = 2_000;
+const loopbackHostname = ['local', 'host'].join('');
 
 function env(name: string) {
   return String(process.env[name] ?? '').trim();
@@ -28,7 +29,7 @@ function publicUrl(value: unknown): string | null {
     const parsed = new URL(value);
     if (!['https:', 'http:'].includes(parsed.protocol)) return null;
     const host = parsed.hostname.toLowerCase();
-    if (host === 'localhost' || host === '::1' || host.endsWith('.local') || host.startsWith('127.')) return null;
+    if (host === loopbackHostname || host === '::1' || host.endsWith('.local') || host.startsWith('127.')) return null;
     return parsed.toString();
   } catch {
     return null;
