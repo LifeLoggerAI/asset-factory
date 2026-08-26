@@ -1,11 +1,11 @@
-export type AssetFamily = 'graphic' | 'model' | 'audio' | 'bundle';
-export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';
+export type AssetFamily = 'graphic' | 'model' | 'audio' | 'video' | 'bundle';
+export type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle';
 
 export type AssetTypeDefinition = {
   canonicalType: CanonicalAssetType;
   family: AssetFamily;
   aliases: string[];
-  rendererMode: 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'manifest-only';
+  rendererMode: 'svg-proof' | 'spatial-renderer' | 'audio-renderer' | 'video-renderer' | 'manifest-only';
   defaultFormat: string;
   formats: string[];
   mimeType: string;
@@ -14,6 +14,7 @@ export type AssetTypeDefinition = {
   defaultSize?: { width: number; height: number };
   defaultDurationSeconds?: number;
   defaultSampleRate?: number;
+  defaultFps?: number;
   targetModules: string[];
 };
 
@@ -56,6 +57,21 @@ const definitions: AssetTypeDefinition[] = [
     defaultDurationSeconds: 2,
     defaultSampleRate: 22050,
     targetModules: ['studio-preview', 'audio-player', 'sound-export'],
+  },
+  {
+    canonicalType: 'video',
+    family: 'video',
+    aliases: ['video', 'animation', 'motion', 'clip', 'shot', 'cinema', 'film', 'mp4', 'webm', 'image-to-video', 'text-to-video'],
+    rendererMode: 'video-renderer',
+    defaultFormat: 'mp4',
+    formats: ['mp4', 'webm', 'json'],
+    mimeType: 'video/mp4',
+    extension: 'mp4',
+    previewExtension: 'jpg',
+    defaultSize: { width: 1080, height: 1920 },
+    defaultDurationSeconds: 4,
+    defaultFps: 24,
+    targetModules: ['studio-preview', 'cinema-timeline', 'video-player', 'editorial-export'],
   },
   {
     canonicalType: 'bundle',
