@@ -45,9 +45,13 @@ for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
 }
 assertIncludes(catalog, "canonicalType: 'video'", 'video catalog definition');
 
+// Renderer-mode authority lives in the catalog. The renderer intentionally dispatches
+// non-video modes via definition.rendererMode rather than repeating mode string literals.
 for (const mode of ['svg-proof', 'spatial-renderer', 'audio-renderer', 'video-renderer', 'manifest-only']) {
-  assertIncludes(renderer, mode, `${mode} renderer branch`);
+  assertIncludes(catalog, mode, `${mode} renderer mode authority`);
 }
+assertIncludes(renderer, "rendererMode: 'video-renderer'", 'video renderer branch');
+assertIncludes(renderer, 'definition.rendererMode', 'catalog-driven renderer dispatch');
 
 for (const extension of ['svg', 'gltf', 'wav', 'mp4', 'webm', 'json']) {
   assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
