@@ -1,0 +1,69 @@
+name: Film 001 Provider Readiness Probe
+
+on:
+  push:
+    branches:
+      - film001-provider-readiness
+    paths:
+      - '.github/workflows/film001-provider-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: asset-factory-production
+    steps:
+      - name: Report governed readiness without exposing credentials
+        shell: bash
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}
+          RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
+          REPLICATE_VIDEO_MODEL_SECRET: ${{ secrets.ASSET_FACTORY_REPLICATE_VIDEO_MODEL }}
+          REPLICATE_VIDEO_MODEL_VAR: ${{ vars.ASSET_FACTORY_REPLICATE_VIDEO_MODEL }}
+          FAL_VIDEO_ENDPOINT_SECRET: ${{ secrets.ASSET_FACTORY_FAL_VIDEO_ENDPOINT }}
+          FAL_VIDEO_ENDPOINT_VAR: ${{ vars.ASSET_FACTORY_FAL_VIDEO_ENDPOINT }}
+          RUNWAY_VIDEO_ENDPOINT_SECRET: ${{ secrets.ASSET_FACTORY_RUNWAY_VIDEO_ENDPOINT }}
+          RUNWAY_VIDEO_ENDPOINT_VAR: ${{ vars.ASSET_FACTORY_RUNWAY_VIDEO_ENDPOINT }}
+          VIDEO_PROVIDER_SECRET: ${{ secrets.ASSET_FACTORY_VIDEO_PROVIDER }}
+          VIDEO_PROVIDER_VAR: ${{ vars.ASSET_FACTORY_VIDEO_PROVIDER }}
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          present() { if [ -n "${1:-}" ]; then printf 'true'; else printf 'false'; fi; }
+          provider="${VIDEO_PROVIDER_VAR:-${VIDEO_PROVIDER_SECRET:-}}"
+          replicate_model="${REPLICATE_VIDEO_MODEL_VAR:-${REPLICATE_VIDEO_MODEL_SECRET:-}}"
+          fal_endpoint="${FAL_VIDEO_ENDPOINT_VAR:-${FAL_VIDEO_ENDPOINT_SECRET:-}}"
+          runway_endpoint="${RUNWAY_VIDEO_ENDPOINT_VAR:-${RUNWAY_VIDEO_ENDPOINT_SECRET:-}}"
+          replicate_ready=false
+          fal_ready=false
+          runway_ready=false
+          [ -n "${REPLICATE_API_TOKEN:-}" ] && [ -n "$replicate_model" ] && replicate_ready=true
+          [ -n "${FAL_KEY:-}" ] && [ -n "$fal_endpoint" ] && fal_ready=true
+          [ -n "${RUNWAY_API_KEY:-}" ] && [ -n "$runway_endpoint" ] && runway_ready=true
+          configured_ready=false
+          case "$provider" in
+            replicate) configured_ready="$replicate_ready" ;;
+            fal) configured_ready="$fal_ready" ;;
+            runway) configured_ready="$runway_ready" ;;
+          esac
+          {
+            echo '# Film 001 production provider readiness'
+            echo
+            echo "- configured provider declared: $(present "$provider")"
+            echo "- replicate lane ready: $replicate_ready"
+            echo "- fal lane ready: $fal_ready"
+            echo "- runway lane ready: $runway_ready"
+            echo "- configured production lane ready: $configured_ready"
+            echo "- WIF provider configured: $(present "${WIF_PROVIDER:-}")"
+            echo "- deploy service account configured: $(present "${DEPLOY_SERVICE_ACCOUNT:-}")"
+            echo
+            echo 'No secret value is printed or persisted by this probe.'
+          } | tee "$GITHUB_STEP_SUMMARY"
+          if [ "$configured_ready" != true ]; then
+            echo 'No fully configured selected provider lane is available in asset-factory-production.' >&2
+            exit 42
+          fi
