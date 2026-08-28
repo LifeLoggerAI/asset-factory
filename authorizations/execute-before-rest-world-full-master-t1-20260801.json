@@ -15,5 +15,6 @@
   "publicReleaseAuthorized": false,
   "privateReviewAuthorized": true,
   "authorizedAt": "2026-08-01T18:05:00Z",
-  "authorityNote": "User directed continued execution of the full-length finished private film through the URAI system of systems. This authorization is limited to the first twelve continuous-motion source clips for sequences S01 through S03 and does not authorize narration, inclusion in the master, delivery, or public release."
+  "executionTriggeredAt": "2026-08-28T20:54:00Z",
+  "authorityNote": "User directed continued execution of the full-length finished private film through the URAI system of systems. This authorization is limited to the first twelve continuous-motion source clips for sequences S01 through S03 and does not authorize narration, inclusion in the master, delivery, or public release. The 2026-08-28 execution trigger preserves the original provider, call-count, spend, retry, remix, promotion, delivery, deployment, and public-release boundaries."
 }
