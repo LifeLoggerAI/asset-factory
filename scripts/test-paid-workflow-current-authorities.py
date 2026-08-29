@@ -15,11 +15,15 @@ module = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
+FILM_WORKFLOW = ".github/workflows/one-time-built-from-survival-hero-cinema.yml"
+FILM_MARKER = "authorizations/execute-built-from-survival-hero-cinema-20260829.json"
+
 EXPECTED_CURRENT = {
     ".github/workflows/one-time-before-rest-world-cinematic-motion.yml":
         "authorizations/execute-before-rest-world-cinematic-motion-20260801.json",
     ".github/workflows/one-time-before-rest-world-full-master-t1.yml":
         "authorizations/execute-before-rest-world-full-master-t1-20260801.json",
+    FILM_WORKFLOW: FILM_MARKER,
 }
 
 EXPECTED_ALL = {
@@ -68,6 +72,22 @@ def main() -> int:
     assert full_master["maximumProviderCalls"] == 12, full_master
     assert full_master["maximumReservedCostUsd"] == "15.00", full_master
     assert_disabled_controls(full_master, delivery_field=True)
+
+    # Support PR must register the future Film #001 paid authority while remaining no-spend.
+    assert not (ROOT / FILM_MARKER).exists(), "Film #001 execution marker must not exist on support PR"
+    film_text = (ROOT / FILM_WORKFLOW).read_text(encoding="utf-8")
+    for required in (
+        "environment: paid-asset-generation",
+        "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
+        "test \"$changed\" = \"$AUTHORIZATION_MARKER\"",
+        "test \"$GITHUB_RUN_ATTEMPT\" = '1'",
+        "assert receipt['providerCallsAuthorized'] == 5",
+        "assert receipt['maximumReservedCostUsd'] == '8.00'",
+        "assert receipt['automaticRetryAuthorized'] is False",
+        "assert receipt['publicReleaseAuthorized'] is False",
+        "assert receipt['editorialPromotionAuthorized'] is False",
+    ):
+        assert required in film_text, required
 
     errors = module.inspect(ROOT)
     assert errors == [], "\n".join(errors)
