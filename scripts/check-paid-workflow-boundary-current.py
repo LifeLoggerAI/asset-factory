@@ -2,8 +2,8 @@
 """Run the canonical paid-workflow checker with current exact marker authorities.
 
 The base checker intentionally remains a reusable parser and fail-closed scanner.
-This adapter records the two motion-film authorities added on 2026-08-01 without
-broadening provider access, triggers, retries, promotion, deployment, or release.
+This adapter records exact motion-film authorities without broadening provider
+access, triggers, retries, promotion, deployment, delivery, or release.
 """
 from __future__ import annotations
 
@@ -24,6 +24,8 @@ CURRENT_MARKER_WORKFLOWS = {
         "authorizations/execute-before-rest-world-cinematic-motion-20260801.json",
     Path(".github/workflows/one-time-before-rest-world-full-master-t1.yml"):
         "authorizations/execute-before-rest-world-full-master-t1-20260801.json",
+    Path(".github/workflows/one-time-built-from-survival-hero-cinema.yml"):
+        "authorizations/execute-built-from-survival-hero-cinema-20260829.json",
 }
 
 for workflow, marker in CURRENT_MARKER_WORKFLOWS.items():
