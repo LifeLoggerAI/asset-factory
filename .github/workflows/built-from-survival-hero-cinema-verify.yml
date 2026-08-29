@@ -41,9 +41,19 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path('manifests/film/built-from-survival-hero-cinema.manifest.json').read_text())
+          assert manifest['schemaVersion'] == '1.0.0'
           assert manifest['programAuthorityRepository'] == 'LifeLoggerAI/urai-studio'
           assert manifest['programAuthoritySha'] == '802f909ecad2bd000e4c8011a14bc3340fe88950'
+          assert manifest['projectId'] == 'urai-life-film-001-built-from-survival-hero-cinema'
+          assert manifest['provider'] == 'openai'
+          assert manifest['videoModel'] == 'sora-2'
+          assert manifest['videoSize'] == '1280x720'
+          assert manifest['secondsPerSourceClip'] == '12'
+          assert manifest['publicReleaseAuthorized'] is False
+          assert manifest['generatedImageryIsRecreation'] is True
           assert [s['id'] for s in manifest['shots']] == ['GEN-01','GEN-02','GEN-03','GEN-04','GEN-05']
+          assert all(s['classification'] in {'cinematic-recreation','concept-visualization'} for s in manifest['shots'])
+          assert all(len(s['prompt'].strip()) >= 180 for s in manifest['shots'])
           workflow = Path('.github/workflows/one-time-built-from-survival-hero-cinema.yml').read_text()
           resume = Path('scripts/resume_built_from_survival_hero_cinema.py').read_text()
           for required in [
@@ -63,6 +73,7 @@ jobs:
             "EXPECTED_GEN02_ID='video_6a9276ec7e488193a7501cd2ae2aeac40478f6bc6ff28d70'",
             'MAX_NEW_CREATE_CALLS=3',
             'MAX_LIFETIME_CREATE_CALLS=5',
+            "MAX_RESERVED_SPEND_USD='8.00'",
             'replacement generation is not authorized',
             "generationRetryAuthorized':False",
           ]: assert required in resume, required
