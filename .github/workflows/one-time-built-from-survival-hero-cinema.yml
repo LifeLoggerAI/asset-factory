@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - authorizations/execute-built-from-survival-hero-cinema-20260829.json
+      - authorizations/resume-built-from-survival-hero-cinema-20260829.json
 
 permissions:
   actions: read
@@ -21,9 +22,12 @@ jobs:
     timeout-minutes: 180
     environment: paid-asset-generation
     env:
-      AUTHORIZATION_MARKER: authorizations/execute-built-from-survival-hero-cinema-20260829.json
+      ORIGINAL_AUTHORIZATION_MARKER: authorizations/execute-built-from-survival-hero-cinema-20260829.json
+      RESUME_AUTHORIZATION_MARKER: authorizations/resume-built-from-survival-hero-cinema-20260829.json
       MANIFEST_PATH: manifests/film/built-from-survival-hero-cinema.manifest.json
       OUTPUT_ROOT: artifacts/film/built-from-survival-hero-cinema
+      PRIOR_RUN_ID: '33237442786'
+      PRIOR_ARTIFACT_NAME: built-from-survival-hero-cinema-33237442786
     steps:
       - name: Checkout exact authorization commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -32,7 +36,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Prove exact one-file trigger
+      - name: Prove exact one-file trigger and select mode
         shell: bash
         run: |
           set -euo pipefail
@@ -41,7 +45,16 @@ jobs:
           test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
-          test "$changed" = "$AUTHORIZATION_MARKER"
+          if test "$changed" = "$ORIGINAL_AUTHORIZATION_MARKER"; then
+            echo "AUTHORIZATION_MARKER=$ORIGINAL_AUTHORIZATION_MARKER" >> "$GITHUB_ENV"
+            echo "EXECUTION_MODE=fresh" >> "$GITHUB_ENV"
+          elif test "$changed" = "$RESUME_AUTHORIZATION_MARKER"; then
+            echo "AUTHORIZATION_MARKER=$RESUME_AUTHORIZATION_MARKER" >> "$GITHUB_ENV"
+            echo "EXECUTION_MODE=resume" >> "$GITHUB_ENV"
+          else
+            echo "Unexpected paid trigger path: $changed" >&2
+            exit 1
+          fi
           test -z "${OPENAI_API_KEY:-}"
 
       - name: Set up Python
@@ -52,10 +65,21 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Compile generator
-        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py
+      - name: Compile bounded generators
+        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py scripts/resume_built_from_survival_hero_cinema.py
 
-      - name: Generate exact five-shot private hero tranche
+      - name: Download immutable prior evidence for bounded resume
+        if: env.EXECUTION_MODE == 'resume'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p prior-run
+          gh run download "$PRIOR_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$PRIOR_ARTIFACT_NAME" --dir prior-run
+          test -f prior-run/artifacts/film/built-from-survival-hero-cinema/clips/GEN-01.mp4
+
+      - name: Generate original exact five-shot private hero tranche
+        if: env.EXECUTION_MODE == 'fresh'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -66,29 +90,48 @@ jobs:
             --authorization "$AUTHORIZATION_MARKER" \
             --output-root "$OUTPUT_ROOT"
 
+      - name: Resume without regenerating existing provider jobs
+        if: env.EXECUTION_MODE == 'resume'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          python scripts/resume_built_from_survival_hero_cinema.py \
+            --manifest "$MANIFEST_PATH" \
+            --authorization "$AUTHORIZATION_MARKER" \
+            --prior-root prior-run/artifacts/film/built-from-survival-hero-cinema \
+            --output-root "$OUTPUT_ROOT"
+
       - name: Verify bounded private result
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
           root = Path('artifacts/film/built-from-survival-hero-cinema')
           receipt = json.loads((root / 'hero-cinema-receipt.json').read_text())
           assert receipt['status'] == 'passed', receipt
-          assert receipt['providerCallsAuthorized'] == 5, receipt
-          assert receipt['providerCallsExecuted'] == 5, receipt
           assert receipt['maximumReservedCostUsd'] == '8.00', receipt
           assert receipt['automaticRetryAuthorized'] is False, receipt
           assert receipt['remixAuthorized'] is False, receipt
           assert receipt['publicReleaseAuthorized'] is False, receipt
           assert receipt['privateReviewAuthorized'] is True, receipt
           assert receipt['editorialPromotionAuthorized'] is False, receipt
+          if os.environ['EXECUTION_MODE'] == 'resume':
+              assert receipt['providerCreateCallsPreviouslyExecuted'] == 2, receipt
+              assert receipt['providerCreateCallsExecutedThisRun'] == 3, receipt
+              assert receipt['providerCreateCallsLifetime'] == 5, receipt
+              assert receipt['generationRetryAuthorized'] is False, receipt
+          else:
+              assert receipt['providerCallsAuthorized'] == 5, receipt
+              assert receipt['providerCallsExecuted'] == 5, receipt
           assert len(receipt['clips']) == 5, receipt
           assert len(list((root / 'clips').glob('GEN-*.mp4'))) == 5
           assert (root / 'hero-cinema-private-review-reel.mp4').is_file()
-          print(json.dumps({'status': receipt['status'], 'calls': receipt['providerCallsExecuted'], 'clips': len(receipt['clips'])}, sort_keys=True))
+          print(json.dumps({'status': receipt['status'], 'mode': os.environ['EXECUTION_MODE'], 'clips': len(receipt['clips'])}, sort_keys=True))
           PY
 
       - name: Upload immutable private hero evidence
@@ -103,3 +146,4 @@ jobs:
             artifacts/film/built-from-survival-hero-cinema/**
             manifests/film/built-from-survival-hero-cinema.manifest.json
             authorizations/execute-built-from-survival-hero-cinema-20260829.json
+            authorizations/resume-built-from-survival-hero-cinema-20260829.json
