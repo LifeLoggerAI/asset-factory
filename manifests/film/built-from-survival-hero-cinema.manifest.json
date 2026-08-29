@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0.0",
+  "programAuthorityRepository": "LifeLoggerAI/urai-studio",
+  "programAuthoritySha": "802f909ecad2bd000e4c8011a14bc3340fe88950",
+  "projectId": "urai-life-film-001-built-from-survival-hero-cinema",
+  "provider": "openai",
+  "videoModel": "sora-2",
+  "videoSize": "1280x720",
+  "secondsPerSourceClip": "12",
+  "editorialStatus": "private-source-plates-not-final-shots",
+  "generatedImageryIsRecreation": true,
+  "publicReleaseAuthorized": false,
+  "shots": [
+    {
+      "id": "GEN-01",
+      "name": "Memory Fragmentation",
+      "targetEditorialDurationSeconds": 15,
+      "classification": "concept-visualization",
+      "prompt": "Premium restrained cinematic visualization of one adult life as coherent moving memory fragments in a dark physical volume: an anonymous hallway, road reflections, a closed photo drawer, weather on glass, a distant workshop doorway and abstract voice-wave light. The fragments occupy real three-dimensional space with depth, parallax and natural motion, then slowly separate so the whole life becomes difficult to perceive at once. Prestige documentary science-fiction realism, physically believable lenses and atmosphere, no readable text, no logos, no fake app UI, no identifiable face, no surveillance imagery, no melodrama, no slideshow panels."
+    },
+    {
+      "id": "GEN-02",
+      "name": "Photograph To Place",
+      "targetEditorialDurationSeconds": 12,
+      "classification": "cinematic-recreation",
+      "prompt": "A cinematic recreation showing the idea that a private photograph can become an explorable remembered place without pretending the generated image is archive: begin close on an old unidentifiable printed photograph lying on a worktable, with no readable writing and no recognizable face; the camera pushes gently into the photograph as its flat light gains depth, weather, spatial sound implied by motion, and physically coherent architecture until the camera is standing inside a believable remembered environment. Natural continuous transformation, premium documentary realism, restrained emotion, no logos, no UI, no text, no impossible anatomy, clearly a conceptual recreation rather than historical evidence."
+    },
+    {
+      "id": "GEN-03",
+      "name": "Emotional Weather",
+      "targetEditorialDurationSeconds": 10,
+      "classification": "concept-visualization",
+      "prompt": "A grounded inhabitable memory environment where emotional context is expressed only through believable weather and light: a calm stone path and distant personal-place silhouettes move from cool overcast mist into a brief heavy rain band, then clear into soft warm late-day light while the same environment remains spatially continuous. Elegant slow camera movement, realistic volumetric atmosphere, wet surfaces and physically plausible reflections, no text, no labels, no fake dashboard, no fantasy explosion, no identifiable person, premium restrained cinematic realism that communicates emotional weather without claiming literal meteorology."
+    },
+    {
+      "id": "GEN-04",
+      "name": "Life To Cinema",
+      "targetEditorialDurationSeconds": 15,
+      "priority": 1,
+      "classification": "concept-visualization",
+      "prompt": "The central proof moment for a private life becoming cinema: begin inside a coherent human memory world with a distant anonymous figure, a sanctuary-like home space, memory paths, relationship lights and a constellation-like life map. The camera follows one moving memory through the world; spatial fragments align into a real cinematic composition and seamlessly become a widescreen film image playing in an intimate dark screening room. Continuous motivated camera move, prestige documentary science-fiction realism, no text, no logos, no fake product interface, no identifiable face, no surveillance imagery, no magical explosion, clearly communicate world-to-film transformation through visual grammar alone."
+    },
+    {
+      "id": "GEN-05",
+      "name": "The Life Line",
+      "targetEditorialDurationSeconds": 18,
+      "priority": 2,
+      "classification": "concept-visualization",
+      "prompt": "A final restrained cinematic life-line sequence: one thin living line of light travels through a realistic dark spatial world and touches distinct grounded moments without labels—an early photograph-like memory, a difficult night road, a garage workbench, a human relationship silhouette, a built technology space, a constellation of memories and finally a quiet horizon. Each touched moment briefly becomes dimensional and alive, then joins the same continuous line rather than becoming separate panels. Slow confident camera pullback reveals one coherent lifetime structure. Premium documentary realism, no readable text, no logos, no identifiable face, no fake UI, no sentimentality overload, no surveillance symbolism."
+    }
+  ]
+}
