@@ -1,0 +1,105 @@
+name: One-Time Built From Survival Hero Cinema
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-built-from-survival-hero-cinema-20260829.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: one-time-built-from-survival-hero-cinema-20260829
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: paid-asset-generation
+    env:
+      AUTHORIZATION_MARKER: authorizations/execute-built-from-survival-hero-cinema-20260829.json
+      MANIFEST_PATH: manifests/film/built-from-survival-hero-cinema.manifest.json
+      OUTPUT_ROOT: artifacts/film/built-from-survival-hero-cinema
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove exact one-file trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          test "$changed" = "$AUTHORIZATION_MARKER"
+          test -z "${OPENAI_API_KEY:-}"
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Compile generator
+        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py
+
+      - name: Generate exact five-shot private hero tranche
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          python scripts/generate_built_from_survival_hero_cinema.py \
+            --manifest "$MANIFEST_PATH" \
+            --authorization "$AUTHORIZATION_MARKER" \
+            --output-root "$OUTPUT_ROOT"
+
+      - name: Verify bounded private result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('artifacts/film/built-from-survival-hero-cinema')
+          receipt = json.loads((root / 'hero-cinema-receipt.json').read_text())
+          assert receipt['status'] == 'passed', receipt
+          assert receipt['providerCallsAuthorized'] == 5, receipt
+          assert receipt['providerCallsExecuted'] == 5, receipt
+          assert receipt['maximumReservedCostUsd'] == '8.00', receipt
+          assert receipt['automaticRetryAuthorized'] is False, receipt
+          assert receipt['remixAuthorized'] is False, receipt
+          assert receipt['publicReleaseAuthorized'] is False, receipt
+          assert receipt['privateReviewAuthorized'] is True, receipt
+          assert receipt['editorialPromotionAuthorized'] is False, receipt
+          assert len(receipt['clips']) == 5, receipt
+          assert len(list((root / 'clips').glob('GEN-*.mp4'))) == 5
+          assert (root / 'hero-cinema-private-review-reel.mp4').is_file()
+          print(json.dumps({'status': receipt['status'], 'calls': receipt['providerCallsExecuted'], 'clips': len(receipt['clips'])}, sort_keys=True))
+          PY
+
+      - name: Upload immutable private hero evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: built-from-survival-hero-cinema-${{ github.run_id }}
+          retention-days: 90
+          if-no-files-found: warn
+          compression-level: 0
+          path: |
+            artifacts/film/built-from-survival-hero-cinema/**
+            manifests/film/built-from-survival-hero-cinema.manifest.json
+            authorizations/execute-built-from-survival-hero-cinema-20260829.json
