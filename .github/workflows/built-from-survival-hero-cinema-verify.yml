@@ -1,0 +1,65 @@
+name: Built From Survival Hero Cinema Verify
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/built-from-survival-hero-cinema-verify.yml
+      - .github/workflows/one-time-built-from-survival-hero-cinema.yml
+      - manifests/film/built-from-survival-hero-cinema.manifest.json
+      - scripts/generate_built_from_survival_hero_cinema.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Compile bounded generator
+        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py
+
+      - name: Verify exact no-spend support contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e authorizations/execute-built-from-survival-hero-cinema-20260829.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('manifests/film/built-from-survival-hero-cinema.manifest.json').read_text())
+          assert manifest['schemaVersion'] == '1.0.0'
+          assert manifest['programAuthorityRepository'] == 'LifeLoggerAI/urai-studio'
+          assert manifest['programAuthoritySha'] == '802f909ecad2bd000e4c8011a14bc3340fe88950'
+          assert manifest['projectId'] == 'urai-life-film-001-built-from-survival-hero-cinema'
+          assert manifest['provider'] == 'openai'
+          assert manifest['videoModel'] == 'sora-2'
+          assert manifest['publicReleaseAuthorized'] is False
+          assert manifest['generatedImageryIsRecreation'] is True
+          shots = manifest['shots']
+          assert [s['id'] for s in shots] == ['GEN-01','GEN-02','GEN-03','GEN-04','GEN-05']
+          assert all(len(s['prompt'].strip()) >= 180 for s in shots)
+          workflow = Path('.github/workflows/one-time-built-from-survival-hero-cinema.yml').read_text()
+          for required in [
+            'environment: paid-asset-generation',
+            'test "$changed" = "$AUTHORIZATION_MARKER"',
+            'test -z "${OPENAI_API_KEY:-}"',
+            "assert receipt['providerCallsAuthorized'] == 5",
+            "assert receipt['maximumReservedCostUsd'] == '8.00'",
+            "assert receipt['automaticRetryAuthorized'] is False",
+            "assert receipt['publicReleaseAuthorized'] is False",
+            "assert receipt['editorialPromotionAuthorized'] is False",
+          ]:
+            assert required in workflow, required
+          print('Built From Survival hero cinema support: PASS (no provider execution)')
+          PY
