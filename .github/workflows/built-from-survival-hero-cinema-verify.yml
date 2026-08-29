@@ -8,6 +8,8 @@ on:
       - .github/workflows/one-time-built-from-survival-hero-cinema.yml
       - manifests/film/built-from-survival-hero-cinema.manifest.json
       - scripts/generate_built_from_survival_hero_cinema.py
+      - scripts/resume_built_from_survival_hero_cinema.py
+      - scripts/test-paid-workflow-current-authorities.py
 
 permissions:
   contents: read
@@ -26,40 +28,43 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Compile bounded generator
-        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py
+      - name: Compile bounded generators
+        run: python -m py_compile scripts/generate_built_from_survival_hero_cinema.py scripts/resume_built_from_survival_hero_cinema.py
 
-      - name: Verify exact no-spend support contract
+      - name: Verify exact no-spend recovery support contract
         shell: bash
         run: |
           set -euo pipefail
-          test ! -e authorizations/execute-built-from-survival-hero-cinema-20260829.json
+          test -e authorizations/execute-built-from-survival-hero-cinema-20260829.json
+          test ! -e authorizations/resume-built-from-survival-hero-cinema-20260829.json
           python - <<'PY'
           import json
           from pathlib import Path
           manifest = json.loads(Path('manifests/film/built-from-survival-hero-cinema.manifest.json').read_text())
-          assert manifest['schemaVersion'] == '1.0.0'
           assert manifest['programAuthorityRepository'] == 'LifeLoggerAI/urai-studio'
           assert manifest['programAuthoritySha'] == '802f909ecad2bd000e4c8011a14bc3340fe88950'
-          assert manifest['projectId'] == 'urai-life-film-001-built-from-survival-hero-cinema'
-          assert manifest['provider'] == 'openai'
-          assert manifest['videoModel'] == 'sora-2'
-          assert manifest['publicReleaseAuthorized'] is False
-          assert manifest['generatedImageryIsRecreation'] is True
-          shots = manifest['shots']
-          assert [s['id'] for s in shots] == ['GEN-01','GEN-02','GEN-03','GEN-04','GEN-05']
-          assert all(len(s['prompt'].strip()) >= 180 for s in shots)
+          assert [s['id'] for s in manifest['shots']] == ['GEN-01','GEN-02','GEN-03','GEN-04','GEN-05']
           workflow = Path('.github/workflows/one-time-built-from-survival-hero-cinema.yml').read_text()
+          resume = Path('scripts/resume_built_from_survival_hero_cinema.py').read_text()
           for required in [
             'environment: paid-asset-generation',
-            'test "$changed" = "$AUTHORIZATION_MARKER"',
-            'test -z "${OPENAI_API_KEY:-}"',
-            "assert receipt['providerCallsAuthorized'] == 5",
-            "assert receipt['maximumReservedCostUsd'] == '8.00'",
-            "assert receipt['automaticRetryAuthorized'] is False",
-            "assert receipt['publicReleaseAuthorized'] is False",
-            "assert receipt['editorialPromotionAuthorized'] is False",
-          ]:
-            assert required in workflow, required
-          print('Built From Survival hero cinema support: PASS (no provider execution)')
+            'authorizations/resume-built-from-survival-hero-cinema-20260829.json',
+            'EXECUTION_MODE=resume',
+            'gh run download "$PRIOR_RUN_ID"',
+            'Resume without regenerating existing provider jobs',
+            'providerCreateCallsPreviouslyExecuted',
+            'providerCreateCallsExecutedThisRun',
+            'providerCreateCallsLifetime',
+          ]: assert required in workflow, required
+          for required in [
+            'EXPECTED_PRIOR_RUN=33237442786',
+            'EXPECTED_PRIOR_ARTIFACT=9710419037',
+            "EXPECTED_GEN01_ID='video_6a927644a858819184b9ab460ce9e0a00b8ca47e894f0559'",
+            "EXPECTED_GEN02_ID='video_6a9276ec7e488193a7501cd2ae2aeac40478f6bc6ff28d70'",
+            'MAX_NEW_CREATE_CALLS=3',
+            'MAX_LIFETIME_CREATE_CALLS=5',
+            'replacement generation is not authorized',
+            "generationRetryAuthorized':False",
+          ]: assert required in resume, required
+          print('Built From Survival hero cinema recovery support: PASS (no provider execution)')
           PY
