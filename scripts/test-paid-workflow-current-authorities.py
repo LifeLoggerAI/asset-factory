@@ -78,7 +78,27 @@ def main() -> int:
     assert film['editorialPromotionAuthorized'] is False, film
     assert film['generatedImageryIsRecreation'] is True, film
 
-    assert not (ROOT / FILM_RESUME_MARKER).exists(), 'resume marker must remain absent on no-spend support PR'
+    resume = load(FILM_RESUME_MARKER)
+    assert resume['schemaVersion'] == '1.0.0', resume
+    assert resume['mode'] == 'resume-existing-generation', resume
+    assert resume['programAuthorityRepository'] == 'LifeLoggerAI/urai-studio', resume
+    assert resume['programAuthoritySha'] == '802f909ecad2bd000e4c8011a14bc3340fe88950', resume
+    assert resume['executionAuthorityRepository'] == 'LifeLoggerAI/asset-factory', resume
+    assert resume['executionAuthorityPullRequest'] == 255, resume
+    assert resume['manifestPath'] == 'manifests/film/built-from-survival-hero-cinema.manifest.json', resume
+    assert resume['provider'] == 'openai', resume
+    assert resume['priorRunId'] == 33237442786, resume
+    assert resume['priorArtifactId'] == 9710419037, resume
+    assert resume['maximumProviderCalls'] == 5, resume
+    assert resume['providerCreateCallsPreviouslyExecuted'] == 2, resume
+    assert resume['maximumNewProviderCalls'] == 3, resume
+    assert resume['maximumReservedCostUsd'] == '8.00', resume
+    assert_disabled_controls(resume, delivery_field=True)
+    assert resume['generationRetryAuthorized'] is False, resume
+    assert resume['editorialPromotionAuthorized'] is False, resume
+    assert resume['generatedImageryIsRecreation'] is True, resume
+    assert set(resume['existingProviderJobs']) == {'GEN-01', 'GEN-02'}, resume
+    assert all(resume['existingProviderJobs'].values()), resume
     film_text = (ROOT / FILM_WORKFLOW).read_text(encoding='utf-8')
     for required in (
         'environment: paid-asset-generation',
@@ -94,7 +114,7 @@ def main() -> int:
 
     errors = module.inspect(ROOT)
     assert errors == [], '\n'.join(errors)
-    print('PASS exact current paid authorities, spend caps, consumed Film marker, and no-spend resume support')
+    print('PASS exact current paid authorities, spend caps, consumed Film marker, and bounded no-duplicate resume authority')
     return 0
 
 if __name__ == '__main__':
