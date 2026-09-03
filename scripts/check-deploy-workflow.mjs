@@ -62,6 +62,7 @@ const canonicalProductionRequired = [
   'ASSET_FACTORY_PROJECT_ID: ${{ vars.ASSET_FACTORY_PROJECT_ID }}',
   'ASSET_FACTORY_HOSTING_SITE: ${{ vars.ASSET_FACTORY_HOSTING_SITE }}',
   'ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}',
+  'ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST: ${{ vars.ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST }}',
   'ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM: DEPLOY_DEDICATED_ASSET_FACTORY',
   'node scripts/run-dedicated-firebase-deploy.mjs hosting,functions,firestore,storage',
   'Remove ephemeral deployment credential', 'CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}'
@@ -193,8 +194,19 @@ for (const scriptName of ['deploy:verify', 'deploy:verify-readonly', 'deploy:ver
   const command = packageJson.scripts?.[scriptName] ?? '';
   if (command.includes('urai-4dc1d.web.app')) fail(`${scriptName} retains the canonical consumer URL`);
 }
+for (const manifestPath of ['package.json', 'functions/package.json', 'life-map-pipeline/functions/package.json']) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, manifestPath), 'utf8'));
+  for (const [scriptName, command] of Object.entries(manifest.scripts ?? {})) {
+    if (!scriptName.startsWith('deploy')) continue;
+    if (String(command).includes('firebase deploy')) fail(`${manifestPath} ${scriptName} bypasses the dedicated-target deploy wrapper`);
+    if (scriptName === 'deploy' && !String(command).includes('run-dedicated-firebase-deploy.mjs')) {
+      fail(`${manifestPath} ${scriptName} must use the dedicated-target deploy wrapper`);
+    }
+  }
+}
 for (const phrase of [
   'ASSET_FACTORY_PROJECT_ID', 'ASSET_FACTORY_HOSTING_SITE', 'ASSET_FACTORY_BASE_URL',
+  'ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST', 'allowedHosts',
   'DEPLOY_DEDICATED_ASSET_FACTORY', "source.hosting = { ...source.hosting, site: hostingSite }",
   "'--config', runtimeConfig", "'--project', projectId", "'--only', scopes",
   "projectId === 'urai-4dc1d'", "hostingSite === 'urai-4dc1d'",
