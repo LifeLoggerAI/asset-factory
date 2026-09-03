@@ -20,6 +20,8 @@ const sourceConfig = process.argv[3] || 'firebase.json';
 const projectId = (process.env.ASSET_FACTORY_PROJECT_ID || '').trim();
 const hostingSite = (process.env.ASSET_FACTORY_HOSTING_SITE || '').trim();
 const baseUrl = (process.env.ASSET_FACTORY_BASE_URL || '').trim();
+const customDomainAllowlist = (process.env.ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST || '')
+  .split(',').map((value) => value.trim().toLowerCase()).filter(Boolean);
 
 if (process.env.ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM !== 'DEPLOY_DEDICATED_ASSET_FACTORY') {
   fail('ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM must equal DEPLOY_DEDICATED_ASSET_FACTORY');
@@ -37,6 +39,17 @@ try {
   fail('ASSET_FACTORY_BASE_URL must be an absolute URL');
 }
 if (parsedUrl.protocol !== 'https:') fail('ASSET_FACTORY_BASE_URL must use HTTPS');
+if (parsedUrl.username || parsedUrl.password || parsedUrl.port || parsedUrl.pathname !== '/' || parsedUrl.search || parsedUrl.hash) {
+  fail('ASSET_FACTORY_BASE_URL must be an origin-only HTTPS URL');
+}
+const allowedHosts = new Set([
+  `${hostingSite}.web.app`.toLowerCase(),
+  `${hostingSite}.firebaseapp.com`.toLowerCase(),
+  ...customDomainAllowlist,
+]);
+if (!allowedHosts.has(parsedUrl.hostname.toLowerCase())) {
+  fail('ASSET_FACTORY_BASE_URL hostname must match the configured Hosting site or explicit custom-domain allowlist');
+}
 
 const source = JSON.parse(readFileSync(sourceConfig, 'utf8'));
 if (!source.hosting || Array.isArray(source.hosting)) fail('Firebase config must contain one Hosting object');
