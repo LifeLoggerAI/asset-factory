@@ -36,7 +36,7 @@ if (firebaseConfig.hosting?.site || firebaseConfig.hosting?.target) {
 }
 const dedicatedDeploy = readText('scripts/run-dedicated-firebase-deploy.mjs');
 requireText(dedicatedDeploy, 'scripts/run-dedicated-firebase-deploy.mjs', 'ASSET_FACTORY_HOSTING_SITE');
-requireText(dedicatedDeploy, 'scripts/run-dedicated-firebase-deploy.mjs', 'hosting: { ...config.hosting, site: hostingSite }');
+requireText(dedicatedDeploy, 'scripts/run-dedicated-firebase-deploy.mjs', 'source.hosting = { ...source.hosting, site: hostingSite }');
 if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
   errors.push('firebase.json missing /api/health hosting rewrite');
 }
