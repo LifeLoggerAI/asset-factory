@@ -1,0 +1,165 @@
+name: V1 AAA Spatial Pack Post-Certification
+
+on:
+  workflow_run:
+    workflows: [One-Time V1 AAA Spatial Pack Marker]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: v1-aaa-spatial-post-certification-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  record-not-executed:
+    if: github.event.workflow_run.conclusion != 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Record certification not executed
+        env:
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          mkdir -p post-certification
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = {
+              'schemaVersion': '2.0.0',
+              'sourceRunId': int(os.environ['SOURCE_RUN_ID']),
+              'sourceHeadSha': os.environ['SOURCE_HEAD_SHA'],
+              'sourceConclusion': os.environ['SOURCE_CONCLUSION'],
+              'status': 'not-executed',
+              'reason': 'source generation workflow did not conclude successfully',
+              'handoffAssetsChecked': 0,
+              'directProviderAssetsChecked': 0,
+              'derivedProviderAssetsChecked': 0,
+              'duplicatePairs': [],
+              'errors': [],
+          }
+          Path('post-certification/v1-spatial-duplicate-report.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - name: Upload not-executed receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-v1-spatial-post-certification-${{ github.event.workflow_run.id }}
+          retention-days: 30
+          if-no-files-found: error
+          path: post-certification/*.json
+
+  verify-generated-pack:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPYCACHEPREFIX: /tmp/urai-post-certification-pycache-${{ github.run_id }}
+    steps:
+      - name: Checkout current verification code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Initialize fail-closed certification receipt
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          mkdir -p post-certification
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = {
+              'schemaVersion': '2.0.0',
+              'sourceRunId': int(os.environ['SOURCE_RUN_ID']),
+              'sourceHeadSha': os.environ['SOURCE_HEAD_SHA'],
+              'sourceConclusion': os.environ['SOURCE_CONCLUSION'],
+              'status': 'error',
+              'reason': 'verification did not complete',
+              'handoffAssetsChecked': 0,
+              'directProviderAssetsChecked': 0,
+              'derivedProviderAssetsChecked': 0,
+              'duplicatePairs': [],
+              'errors': ['verification did not complete'],
+          }
+          Path('post-certification/v1-spatial-duplicate-report.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Download and safely extract exact generation artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/generated-pack"
+          artifact_id="$(python3 - <<'PY'
+          import os
+          from scripts.github_artifact_download import github_api_json
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          api_root = os.environ['GITHUB_API_URL'].rstrip('/')
+          run_id = int(os.environ['SOURCE_RUN_ID'])
+          token = os.environ['GH_TOKEN']
+          data = github_api_json(
+              f"{api_root}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              token,
+          )
+          matches = [
+              artifact for artifact in data.get('artifacts', [])
+              if str(artifact.get('name', '')).startswith('urai-v1-aaa-spatial-pack-')
+              and not artifact.get('expired')
+          ]
+          if len(matches) != 1:
+              raise SystemExit(f'exactly one non-expired generated pack is required: {matches!r}')
+          artifact_id = int(matches[0]['id'])
+          if artifact_id <= 0:
+              raise SystemExit('artifact id must be positive')
+          print(artifact_id)
+          PY
+          )"
+          python3 scripts/github_artifact_download.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --artifact-id "$artifact_id" \
+            --output "$RUNNER_TEMP/generated-pack.zip" \
+            --extract-all-directory "$RUNNER_TEMP/generated-pack" \
+            --max-bytes 536870912 \
+            --max-extracted-bytes 67108864 \
+            --max-total-extracted-bytes 536870912 \
+            --max-members 4096
+          test -n "$(find "$RUNNER_TEMP/generated-pack" -type f -print -quit)"
+          echo "GENERATED_PACK_ROOT=$RUNNER_TEMP/generated-pack" >> "$GITHUB_ENV"
+          echo "SOURCE_ARTIFACT_ID=$artifact_id" >> "$GITHUB_ENV"
+      - name: Install verification dependency
+        run: python3 -m pip install -r image_asset_generator/requirements.txt
+      - name: Verify source binding and perceptual uniqueness
+        env:
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          python3 image_asset_generator/post_certify_v1_spatial_pack.py \
+            --root "$GENERATED_PACK_ROOT" \
+            --source-conclusion "$SOURCE_CONCLUSION" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --source-head-sha "$SOURCE_HEAD_SHA" \
+            --source-artifact-id "$SOURCE_ARTIFACT_ID" \
+            --output post-certification/v1-spatial-duplicate-report.json
+      - name: Upload independent post-certification report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urai-v1-spatial-post-certification-${{ github.event.workflow_run.id }}
+          retention-days: 30
+          if-no-files-found: error
+          path: post-certification/*.json
