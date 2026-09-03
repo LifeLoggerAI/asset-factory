@@ -187,7 +187,7 @@ function createInitialAssetManifest(input: {
 export const assetFactoryHealth = functions.https.onRequest(async (req, res) => {
   if (applyCors(req, res)) return;
   if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
-  return sendJson(res, 200, { ok: true });
+  return sendJson(res, 200, { ok: true, service: 'asset-factory' });
 });
 
 export const createAssetRequest = functions.https.onRequest(async (req, res) => {
