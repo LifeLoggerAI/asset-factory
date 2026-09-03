@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc --types node",
     "serve": "firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions",
+    "deploy": "node ../../scripts/run-dedicated-firebase-deploy.mjs functions life-map-pipeline/firebase.json",
     "test": "npm run build"
   },
   "dependencies": {
