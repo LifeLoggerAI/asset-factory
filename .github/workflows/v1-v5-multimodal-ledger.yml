@@ -70,11 +70,9 @@ jobs:
           assert payload['providerCalls']==0
           assert payload['spendUsd']=='0.00'
           assert payload['generationAuthorized'] is False
-          assert payload['canonicalSlotCount'] == 279
-          assert payload['countsByVersion']['v1'] >= 53
-          assert payload['countsByVersion']['v2'] == 80
-          assert payload['countsByVersion']['v4'] == 39
-          assert payload['countsByVersion']['v5'] == 27
+          expected_counts = {'v1': 79, 'v2': 80, 'v3': 68, 'v4': 39, 'v5': 27}
+          assert payload['countsByVersion'] == expected_counts
+          assert payload['canonicalSlotCount'] == sum(expected_counts.values()) == 293
           v3_unique = payload['countsByVersion']['v3']
           v3_overlaps = sum(
               1
