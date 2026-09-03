@@ -199,7 +199,8 @@ jobs:
       - name: Deploy
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: firebase deploy --project "$ASSET_FACTORY_PROJECT_ID" --only hosting,functions,firestore,storage
+          ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM: DEPLOY_DEDICATED_ASSET_FACTORY
+        run: node scripts/run-dedicated-firebase-deploy.mjs hosting,functions,firestore,storage
 
       - name: Remove ephemeral deployment credential
         shell: bash
