@@ -26,7 +26,17 @@ function requireText(source, label, text) {
 const firebaseConfig = readJson('firebase.json');
 const functionsSource = firebaseConfig.functions?.source;
 if (!functionsSource) errors.push('firebase.json missing functions.source');
-if (!firebaseConfig.hosting?.site) errors.push('firebase.json missing hosting.site');
+// The repository configuration intentionally carries no deployable Hosting site.
+// scripts/run-dedicated-firebase-deploy.mjs creates a temporary config that injects
+// the protected ASSET_FACTORY_HOSTING_SITE only after validating its dedicated
+// project/site/smoke binding. A checked-in site would recreate an ambient deploy
+// target and bypass that fail-closed boundary.
+if (firebaseConfig.hosting?.site || firebaseConfig.hosting?.target) {
+  errors.push('firebase.json must not contain a checked-in hosting.site or hosting.target');
+}
+const dedicatedDeploy = readText('scripts/run-dedicated-firebase-deploy.mjs');
+requireText(dedicatedDeploy, 'scripts/run-dedicated-firebase-deploy.mjs', 'ASSET_FACTORY_HOSTING_SITE');
+requireText(dedicatedDeploy, 'scripts/run-dedicated-firebase-deploy.mjs', 'hosting: { ...config.hosting, site: hostingSite }');
 if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
   errors.push('firebase.json missing /api/health hosting rewrite');
 }
