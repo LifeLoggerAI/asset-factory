@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
     <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet" />
-    <title>URAI Internal Service</title>
+    <title>URAI Operational Service</title>
     <style>
       :root {
         color-scheme: dark;
@@ -38,17 +38,21 @@
       }
       h1 { margin: 16px 0; font-size: clamp(32px, 7vw, 56px); line-height: 1; }
       p { margin: 0; color: #c8d7ef; font-size: 18px; line-height: 1.65; }
+      p + p { margin-top: 16px; }
       a { display: inline-block; margin-top: 28px; color: #d7e5ff; text-underline-offset: 4px; }
       a:focus-visible { outline: 3px solid #a8c7ff; outline-offset: 5px; border-radius: 4px; }
     </style>
   </head>
   <body>
     <main>
-      <div class="eyebrow">URAI internal infrastructure</div>
-      <h1>Restricted service.</h1>
+      <div class="eyebrow">URAI service infrastructure</div>
+      <h1>Operational service.</h1>
       <p>
-        This system supports URAI operations and is not a public product or marketing site.
-        Public access is not provided here.
+        This host supports URAI operations and is not a public product or marketing site.
+        Search indexing is intentionally disabled.
+      </p>
+      <p>
+        Some HTTP service endpoints may be reachable without authentication. The noindex controls on this host limit search discovery; they are not an access-control boundary.
       </p>
       <a href="https://urai.app/">Return to UrAi</a>
     </main>
