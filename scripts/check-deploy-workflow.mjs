@@ -24,7 +24,8 @@ const smokeRequired = [
   "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
   'Checkout exact dispatch commit', 'ref: ${{ github.sha }}', 'persist-credentials: false',
   'Verify exact clean dispatch identity and smoke-only boundary', "ASSET_FACTORY_SMOKE_READONLY: 'true'",
-  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com', 'https://urai-4dc1d.web.app',
+  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com', 'vars.ASSET_FACTORY_BASE_URL',
+  'Canonical consumer URL is forbidden.',
   'prod-smoke', 'prod-smoke-denied', 'smoke-tenant-a', 'smoke-tenant-b', 'npm run smoke:website',
   'Authenticated read-only smoke', 'npm run smoke:staging', 'npm run smoke:prod',
   'test "$ASSET_FACTORY_SMOKE_READONLY" = true', 'Deployment performed: false',
@@ -58,7 +59,12 @@ const canonicalProductionRequired = [
   'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}', 'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
   'create_credentials_file: true', 'export_environment_variables: false', 'Verify ephemeral deployment credential',
   'GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}',
-  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
+  'ASSET_FACTORY_PROJECT_ID: ${{ vars.ASSET_FACTORY_PROJECT_ID }}',
+  'ASSET_FACTORY_HOSTING_SITE: ${{ vars.ASSET_FACTORY_HOSTING_SITE }}',
+  'ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}',
+  'ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST: ${{ vars.ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST }}',
+  'ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM: DEPLOY_DEDICATED_ASSET_FACTORY',
+  'node scripts/run-dedicated-firebase-deploy.mjs hosting,functions,firestore,storage',
   'Remove ephemeral deployment credential', 'CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}'
 ];
 for (const phrase of canonicalProductionRequired) if (!productionReadiness.includes(phrase)) fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
@@ -161,7 +167,8 @@ if (!credentialCommands || JSON.stringify(credentialCommands) !== JSON.stringify
 
 const deployStep = deploySteps[deployIndex];
 if (!deployStep.includes('GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}')) fail('deploy must receive ADC only through step env');
-if (!deployStep.includes('run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage')) fail('deploy command changed from the approved Firebase target set');
+if (!deployStep.includes('ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM: DEPLOY_DEDICATED_ASSET_FACTORY')) fail('deploy must require the exact dedicated-target confirmation');
+if (!deployStep.includes('run: node scripts/run-dedicated-firebase-deploy.mjs hosting,functions,firestore,storage')) fail('deploy must use the dedicated-project/site wrapper');
 
 const cleanupStep = deploySteps[cleanupIndex];
 if (!cleanupStep.includes('CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}')) fail('cleanup must receive the generated credential path explicitly');
@@ -174,5 +181,39 @@ for (const requiredLine of ['test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"', 'te
   if (!smokeStep.includes(requiredLine)) fail(`read-only smoke missing ${JSON.stringify(requiredLine)}`);
 }
 if (/GOOGLE_APPLICATION_CREDENTIALS:\s*\$\{\{ steps\.google_auth/.test(smokeStep)) fail('read-only smoke must not receive the deployment ADC');
+
+const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const dedicatedDeployScript = fs.readFileSync(path.join(root, 'scripts/run-dedicated-firebase-deploy.mjs'), 'utf8');
+const deployScripts = ['deploy:firebase', 'deploy:hosting-rules', 'deploy:functions', 'deploy:studio'];
+for (const scriptName of deployScripts) {
+  const command = packageJson.scripts?.[scriptName] ?? '';
+  if (!command.includes('run-dedicated-firebase-deploy.mjs')) fail(`${scriptName} must use the dedicated-target deploy wrapper`);
+  if (command.includes('urai-4dc1d') || command.includes('firebase deploy')) fail(`${scriptName} retains direct canonical/deploy authority`);
+}
+for (const scriptName of ['deploy:verify', 'deploy:verify-readonly', 'deploy:verify-custom-domain']) {
+  const command = packageJson.scripts?.[scriptName] ?? '';
+  if (command.includes('urai-4dc1d.web.app')) fail(`${scriptName} retains the canonical consumer URL`);
+}
+for (const manifestPath of ['package.json', 'functions/package.json', 'life-map-pipeline/functions/package.json']) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, manifestPath), 'utf8'));
+  for (const [scriptName, command] of Object.entries(manifest.scripts ?? {})) {
+    if (!scriptName.startsWith('deploy')) continue;
+    if (String(command).includes('firebase deploy')) fail(`${manifestPath} ${scriptName} bypasses the dedicated-target deploy wrapper`);
+    if (scriptName === 'deploy' && !String(command).includes('run-dedicated-firebase-deploy.mjs')) {
+      fail(`${manifestPath} ${scriptName} must use the dedicated-target deploy wrapper`);
+    }
+  }
+}
+for (const phrase of [
+  'ASSET_FACTORY_PROJECT_ID', 'ASSET_FACTORY_HOSTING_SITE', 'ASSET_FACTORY_BASE_URL',
+  'ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST', 'allowedHosts',
+  'DEPLOY_DEDICATED_ASSET_FACTORY', "source.hosting = { ...source.hosting, site: hostingSite }",
+  "'--config', runtimeConfig", "'--project', projectId", "'--only', scopes",
+  "projectId === 'urai-4dc1d'", "hostingSite === 'urai-4dc1d'",
+]) {
+  if (!dedicatedDeployScript.includes(phrase)) fail(`dedicated deploy wrapper missing ${JSON.stringify(phrase)}`);
+}
+if (!dedicatedDeployScript.includes("shell: false")) fail('dedicated deploy wrapper must not invoke a shell');
+if (!dedicatedDeployScript.includes("rmSync(runtimeDirectory, { recursive: true, force: true })")) fail('dedicated deploy wrapper must remove its runtime config');
 
 console.log('PASS deploy workflow static checks');
