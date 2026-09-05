@@ -80,7 +80,7 @@ const requiredPhrases = [
   ['canonical API version in contract', contract, 'asset-factory-api-v1'],
   ['launch readiness current status', launch, 'Status: **repo-side hardening complete for current pass; live evidence required before production lock**.'],
   ['launch readiness canonical tracker', launch, 'Canonical live tracker: GitHub issue #63.'],
-  ['operations workflow path', operations, 'Actions -> Deploy Asset Factory -> Run workflow'],
+  ['operations workflow path', operations, 'Actions -> Asset Factory Production Readiness -> Run workflow'],
   ['checklist live evidence state', checklist, 'Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED'],
   ['privacy safety blocked state', privacy, 'Status: BLOCKED UNTIL FINAL REVIEW AND LIVE TEST EVIDENCE'],
   ['tenant isolation gate', lock, 'Tenant isolation gate'],
