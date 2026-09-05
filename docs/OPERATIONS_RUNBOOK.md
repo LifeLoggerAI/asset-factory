@@ -54,6 +54,8 @@ Production Google-managed runtimes use attached Application Default Credentials 
 
 User-managed Firebase Admin private keys are not production runtime authority.
 
+The current synchronous Studio auth guard supports signed HS256 bearer tokens. Production readiness requires signature verification to remain enabled with a protected `ASSET_FACTORY_JWT_HS256_SECRET` and legacy header authentication disabled; do not document RS256/JWKS as production authority until that verifier is implemented and tested in the runtime guard.
+
 ## Local source verification
 
 ```bash
