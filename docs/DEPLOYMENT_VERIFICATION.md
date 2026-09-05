@@ -1,151 +1,46 @@
 # Asset Factory Deployment Verification
 
-Date: 2026-05-20
-Status: PARTIALLY VERIFIED / BLOCKED
+Status: **source authority reconciled / provider and live verification still required**.
 
-## Current deployment state
+This document distinguishes source verification from deployment proof. Historical Firebase receipts are diagnostic context only unless they bind the current certified source SHA to a current provider revision.
 
-| Target | Status | Notes |
-| --- | --- | --- |
-| Firebase default API base | Verified by repo evidence | `https://urai-4dc1d.web.app` is recorded as the verified Firebase production API base. |
-| Studio framework deploy path | Repo-owned fix merged | Use `npm run deploy:studio` for the Studio/Firebase framework surface. Do not use the older broad root deploy path as the default production workflow. |
-| Apex custom domain | Needs proof / blocked until evidence | `https://uraiassetfactory.com` must pass read-only and authenticated smoke and return Asset Factory API health at `/api/health`. |
-| WWW custom domain | Needs proof / blocked until evidence | `https://www.uraiassetfactory.com` must redirect to canonical host or serve the same Firebase-backed API surface. |
-| Staging | Blocked | Needs deployment with local fallback disabled and production-like auth. |
-| Rollback | Needs proof | Last-known-good SHA and rollback command must be recorded in release evidence. |
-| Monitoring | Needs proof | Logs, uptime, queue/DLQ, provider costs, and error tracking links must be recorded. |
+## Current authority
 
-## Deployment safety rule
+Production source mutation is authorized only by **Asset Factory Production Readiness** on exact `main`, behind the protected `asset-factory-production` environment, exact `DEPLOY_ASSET_FACTORY` confirmation, and keyless Google WIF/ADC authentication.
 
-Do not run production deploys against a shared Firebase project unless the deploy scope is explicit and collision risk is reviewed.
+`Verify Deployed Asset Factory` is smoke-only. It cannot deploy and must not be used to infer deployment authority.
 
-Required deployment evidence fields:
+Root `deploy:*` commands fail closed. Operator documentation must not instruct direct local Firebase deployment, interactive Firebase login, Firebase CLI tokens, downloaded service-account JSON, or another long-lived Google deployment credential.
 
-```text
-FIREBASE_PROJECT_ID=
-FIREBASE_HOSTING_SITE=
-FIREBASE_FUNCTIONS_CODEBASE=
-FIRESTORE_RULES_FILE=
-FIRESTORE_INDEXES_FILE=
-STORAGE_RULES_FILE=
-DEPLOY_COMMAND=
-SMOKE_COMMAND=
-ROLLBACK_SHA=
-MONITORING_LINK=
-OWNER_APPROVAL=
-```
+## Evidence required for production
 
-## Preferred evidence path
+| Boundary | Required evidence |
+| --- | --- |
+| Source | exact reviewed SHA and terminal required workflows |
+| Review | eligible unchanged-head independent approval where required |
+| WIF | protected provider + deploy service account configuration |
+| IAM | exact principal, resource-scoped least privilege, no Owner/Editor dependency |
+| Deploy | protected workflow run and provider-native revision |
+| Readback | deployed revision/source SHA binding |
+| Auth | positive protected access plus denied unauthenticated/cross-tenant checks |
+| Domain | registrar/DNS/TLS/hosting attachment and canonical host behavior |
+| Monitoring | logs/metrics/uptime/queue/provider-cost visibility and alert owner |
+| Recovery | exercised recovery procedure |
+| Rollback | different known-good revision restored and live-verified |
 
-Use the manual GitHub Actions workflow when secrets are configured:
+## Read-only verification of an existing target
+
+Preferred:
 
 ```text
-Actions -> Deploy Asset Factory -> Run workflow
+Actions -> Verify Deployed Asset Factory -> Run workflow
+environment = staging | production
+smoke_mode = readonly | authenticated | both
 ```
 
-Recommended sequence:
+The workflow forces `ASSET_FACTORY_SMOKE_READONLY=true`. Protected API/bearer/cron credentials may be supplied for authorization checks; they do not authorize data-creating smoke.
 
-1. `environment=staging`, `deploy=false`, `smoke_mode=readonly`
-2. `environment=staging`, `deploy=true`, `smoke_mode=both`
-3. `environment=production`, `deploy=false`, `smoke_mode=readonly`
-4. `environment=production`, `deploy=true`, `smoke_mode=both`
-
-Required GitHub environment/repository secrets:
-
-```text
-FIREBASE_TOKEN
-ASSET_FACTORY_API_KEY
-ASSET_FACTORY_BEARER_TOKEN
-CRON_SECRET
-```
-
-The workflow must run with:
-
-```text
-ASSET_FACTORY_FORCE_LOCAL=false
-ASSET_FACTORY_REQUIRE_API_KEY=true
-ASSET_FACTORY_REQUIRE_AUTH=true
-```
-
-Every successful workflow run must upload a release-evidence artifact and the artifact or workflow run must be linked from the production-lock issue.
-
-## Current deploy scripts
-
-Root package scripts include:
-
-```bash
-npm run deploy:studio
-npm run deploy:firebase
-npm run deploy:hosting-rules
-npm run deploy:functions
-npm run deploy:verify
-npm run deploy:verify-readonly
-npm run deploy:verify-custom-domain
-npm run deploy:production
-npm run deploy:partial
-npm run smoke:staging
-npm run smoke:prod
-npm run smoke:website
-npm run finish:custom-domain
-```
-
-Default production path for the Studio framework surface:
-
-```bash
-npm run deploy:studio
-```
-
-The broader `npm run deploy:firebase` path is available for explicit hosting/functions/firestore/storage deployments, but it should not be treated as the default Studio deploy command without reviewing collision risk.
-
-## Production verification process
-
-1. Confirm staging passed on the final release candidate.
-2. Confirm production secrets are production-scoped.
-3. Confirm provider spend caps are active.
-4. Confirm Stripe live webhook endpoint and secret are active.
-5. Confirm public docs do not claim unsupported capabilities.
-6. Deploy production with explicit Firebase project and scope.
-7. Run Firebase default API read-only smoke.
-8. Run Firebase default API authenticated smoke.
-9. Verify custom-domain DNS/TLS and API routing.
-10. Run custom-domain read-only smoke.
-11. Run custom-domain authenticated smoke.
-12. Check logs, queue backlog, dead letters, provider failures, and spend.
-13. Attach production smoke evidence to the release issue.
-14. Record rollback SHA and rollback command.
-
-## Custom-domain closure criteria
-
-The custom-domain blocker is closed only when all of these are true:
-
-- `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
-- `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
-- `https://uraiassetfactory.com/api/health` returns expected Asset Factory health JSON, not a Next.js 404 page.
-- Read-only smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
-- Authenticated smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
-- Evidence is committed under `docs/release-evidence/` or attached to the production-lock issue from the Deploy Asset Factory workflow.
-
-## Commands
-
-### GitHub Actions read-only smoke
-
-```text
-Actions -> Deploy Asset Factory -> Run workflow
-environment=<staging|production>
-deploy=false
-smoke_mode=readonly
-```
-
-### GitHub Actions authenticated smoke
-
-```text
-Actions -> Deploy Asset Factory -> Run workflow
-environment=<staging|production>
-deploy=true
-smoke_mode=both
-```
-
-### Firebase default API read-only smoke
+A local health diagnostic against the existing Firebase URL is also read-only:
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
@@ -153,38 +48,14 @@ ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
-### Firebase default API authenticated smoke
+## Staging
 
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
-ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=prod-smoke \
-ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
-CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
-```
+The current canonical workflows do not contain a repository-owned staging deploy job. A staging smoke target is not proof of how that target was deployed. The staging gate remains blocked until a governed deployment path and exact provider revision are independently evidenced.
 
-### Custom-domain read-only smoke
+## Custom domain
 
-```bash
-ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
-npm run smoke:website
-```
+Fresh public readback must be compared with repository/provider authority. Do not infer ownership from content alone and do not alter DNS blindly. `uraiassetfactory.com` and `www.uraiassetfactory.com` are accepted only after registrar/nameserver/Firebase or proxy attachment, TLS, exact runtime, auth behavior, monitoring, recovery, and rollback are proven.
 
-### Custom-domain authenticated smoke
+## Final decision rule
 
-```bash
-ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
-ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=prod-smoke \
-ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
-CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
-```
-
-## Audit limitation
-
-During this audit session, direct live `curl` checks could not be completed because the execution sandbox could not resolve the public hostnames and did not have Firebase/Stripe/provider secrets. Treat this document as a repo-grounded verification record, not a replacement for CI or production smoke logs.
+Do not update a completion lock or production-ready claim from source CI alone. Production acceptance requires the current exact SHA, provider-native deployment/readback, current independent review where required, and current monitoring/recovery/distinct-rollback evidence.

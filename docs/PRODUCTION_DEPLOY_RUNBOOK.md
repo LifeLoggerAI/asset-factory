@@ -1,130 +1,78 @@
 # Production Deploy Runbook
 
-This runbook is the canonical terminal flow for taking Asset Factory from verified local code to live Firebase production.
+This is the canonical Asset Factory production-deployment procedure.
 
-## Current Production Target
+## Current target
 
 - Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Firebase config: `firebase.json`
-- Deployed Functions source: `life-map-pipeline/functions`
-- Runtime: Node 20
+- current Firebase verification base: `https://urai-4dc1d.web.app`
+- protected GitHub environment: `asset-factory-production`
+- production workflow: **Asset Factory Production Readiness**
 
-## One-Time Local Setup
+A reachable historical target is not proof that the current candidate is deployed.
 
-```bash
-git checkout main
-git pull origin main
-npm run install:all
-```
+## Preconditions
 
-## Local Verification Gate
+Before any production mutation, require:
 
-```bash
-npm run verify:local
-```
+- exact reviewed `main` SHA;
+- required exact-head source checks terminal-success;
+- eligible independent review where governance requires it;
+- protected `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT` values;
+- provider-side WIF trust and least-privilege IAM evidence;
+- no dependency on long-lived Firebase tokens or user-managed service-account keys;
+- staging/provider prerequisites satisfied;
+- rollback target identified and genuinely different from the candidate.
 
-This runs:
+## Protected production deployment
 
-```bash
-npm run build
-npm test --if-present
-npm run test:launch-readiness --if-present
-```
-
-Expected result:
-
-- `life-map-pipeline/functions` TypeScript build passes.
-- Legacy `functions/index.js` syntax check passes.
-- Engine tests pass.
-- Deploy Functions test/build passes.
-- Launch readiness static checks pass.
-
-## Firebase Auth Gate
-
-If deploy fails with `Authentication Error: Your credentials are no longer valid`, reauthenticate before retrying:
-
-```bash
-firebase login --reauth
-firebase use urai-4dc1d
-```
-
-For a headless CI session, use a repository secret/service account as described in `docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md`.
-
-## Production Deploy
-
-```bash
-npm run deploy:firebase
-```
-
-Equivalent raw command:
-
-```bash
-firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
-```
-
-## Live Smoke Test
-
-```bash
-npm run deploy:verify
-```
-
-Equivalent raw command:
-
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
-```
-
-The smoke test must pass:
-
-- `GET /api/health`
-- `POST /api/assets`
-- `GET /api/assets/{assetId}`
-- `POST /api/lifemap/events`
-
-## Full Combined Command
-
-Use this only after Firebase auth and project access are confirmed:
-
-```bash
-npm run deploy:production
-```
-
-## Current Known Deploy Failure and Fix
-
-Observed failure:
+Run only:
 
 ```text
-Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
-Error: Assertion failed: resolving hosting target of a site with no site name or target name.
+Actions -> Asset Factory Production Readiness -> Run workflow
+branch = main
+deploy = true
+confirm = DEPLOY_ASSET_FACTORY
 ```
 
-Repo-side fix applied:
+The deploy job must run in `asset-factory-production`. It authenticates with GitHub OIDC + Google Workload Identity Federation, receives a generated ephemeral ADC credential file, verifies that file, performs the bounded Firebase deployment in the workflow, deletes the generated credential file, and runs read-only post-deploy smoke.
 
-- `firebase.json` now sets the explicit Hosting site: `urai-4dc1d`.
+There is no authorized root-package or local-shell production deploy path. Root `deploy:*` commands intentionally fail closed so operator credentials cannot bypass environment approval, exact-head binding, or WIF identity.
 
-Operator-side fix required:
+## Post-deploy acceptance
 
-```bash
-firebase login --reauth
-git pull origin main
-npm run deploy:production
+Capture and retain:
+
+1. certified source SHA;
+2. GitHub deployment workflow run;
+3. exact authenticated Google principal;
+4. target project and resource set;
+5. provider revision identifier;
+6. proof that deployed revision maps to the exact source SHA;
+7. health/readiness;
+8. positive authorization and denied-auth/tenant checks;
+9. monitoring/log visibility and alert owner;
+10. recovery exercise;
+11. rollback to a distinct known-good revision and live readback.
+
+Then run the separate verification-only workflow as appropriate:
+
+```text
+Actions -> Verify Deployed Asset Factory -> Run workflow
+environment = production
+smoke_mode = readonly | authenticated | both
 ```
 
-## Final Lock Procedure
+`authenticated` and `both` remain read-only modes; credentials are used to prove authorization and denial boundaries, not to create production proof jobs.
 
-Only after local verification, Firebase deploy, and live smoke tests pass:
+## Custom domain
 
-1. Update `docs/PRODUCTION_VERIFICATION_REPORT.md` with:
-   - deployed commit hash
-   - deploy timestamp
-   - Firebase deploy output summary
-   - hosting URL
-   - health response
-   - asset intake/status smoke output
-   - Life Map ingestion smoke output
-2. Update `LOCK.md` to `STATUS: PRODUCTION VERIFIED`.
-3. Close Issue #53.
+Do not deploy or repoint `uraiassetfactory.com` or `www.uraiassetfactory.com` from this runbook. Reconcile registrar, nameserver, TLS, and Firebase/custom-host attachment first. Only after authority is proven may the minimum provider/domain correction be separately authorized.
 
-Do not update `LOCK.md` before live smoke tests pass.
+## Failure handling
+
+If WIF variables, provider trust, IAM, environment approval, exact-head identity, build, deployment, cleanup, or smoke fails, production remains blocked. Repair the actual failing boundary and rerun the protected workflow; do not substitute local authentication or a long-lived credential.
+
+## Rollback
+
+Rollback must use protected provider authority and restore a different known-good revision. Record the restored provider revision and repeat critical health/auth checks. The same SHA redeployed twice is not rollback evidence.
