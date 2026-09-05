@@ -150,11 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
-          if [ "${{ inputs.environment }}" = production ]; then
-            npm run smoke:prod
-          else
-            npm run smoke:staging
-          fi
+          npm run smoke:remote
 
       - name: Write smoke evidence
         if: always()
