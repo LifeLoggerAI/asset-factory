@@ -70,6 +70,8 @@ npm run check:deploy-workflow
 
 The deployment-boundary gate verifies both the protected WIF workflow and operator-facing source so manual deployment bypasses cannot silently return.
 
+For implementation-completeness review, use the governed audit contract in `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`. It is an audit input, not production certification; any resulting claim still requires exact-head evidence and the applicable independent/provider/runtime gates.
+
 ## Remote smoke
 
 Remote root smoke scripts are read-only by default. Preferred verification is the protected workflow:
