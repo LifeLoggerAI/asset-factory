@@ -146,6 +146,16 @@ def image_inventory(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return inventory
 
 
+def run_handoff_certification(checkpoint_receipt: dict[str, Any], *, base: Path = BASE) -> None:
+    """Export and certify the handoff after materializing the required checkpoint receipt."""
+    subprocess.run(["python", "create_preview.py"], cwd=base, check=True)
+    subprocess.run(["python", "create_firebase_seed.py"], cwd=base, check=True)
+    subprocess.run(["python", "export_assets.py"], cwd=base, check=True)
+    subprocess.run(["python", "export_spatial_handoff.py"], cwd=base, check=True)
+    write(base / "forge_receipt.json", checkpoint_receipt)
+    subprocess.run(["python", "certify_version_handoff.py", "--version", "v1"], cwd=base, check=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recovery-root", type=Path, required=True)
@@ -189,14 +199,7 @@ def main() -> int:
     if validation_errors:
         raise ValueError(f"asset validation failed: {validation_errors}")
 
-    subprocess.run(["python", "create_preview.py"], cwd=BASE, check=True)
-    subprocess.run(["python", "create_firebase_seed.py"], cwd=BASE, check=True)
-    subprocess.run(["python", "export_assets.py"], cwd=BASE, check=True)
-    subprocess.run(["python", "export_spatial_handoff.py"], cwd=BASE, check=True)
-    subprocess.run(["python", "certify_version_handoff.py", "--version", "v1"], cwd=BASE, check=True)
-
     inventory = image_inventory(entries)
-    write(BASE / "v1_sha256_inventory.json", {"schemaVersion": "1.0.0", "assets": inventory})
     target_meta = read(metadata_path(target_path))
     spend = ledger.get("actualSpendUsd") or ledger.get("spentUsd") or "1.00"
     receipt = {
@@ -223,6 +226,8 @@ def main() -> int:
         "promotionAuthorized": False,
         "deploymentAuthorized": False,
     }
+    run_handoff_certification(receipt)
+    write(BASE / "v1_sha256_inventory.json", {"schemaVersion": "1.0.0", "assets": inventory})
     write(BASE / "v1_recertification_receipt.json", receipt)
     write(
         BASE / "v1_recertification_provenance.json",

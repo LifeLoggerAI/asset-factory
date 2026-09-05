@@ -1,10 +1,22 @@
 name: V1 Recovery Zero-Spend Recertification
 
 on:
+  pull_request:
+    paths:
+      - image_asset_generator/recertify_v1_recovery_artifact.py
+      - image_asset_generator/normalize_v1_checkpoint_receipt.py
+      - image_asset_generator/certify_dropin.py
+      - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/test-asset-truth-repair.py
+      - .github/workflows/v1-recovery-zero-spend-recertification.yml
   push:
     branches: [main]
     paths:
       - image_asset_generator/recertify_v1_recovery_artifact.py
+      - image_asset_generator/normalize_v1_checkpoint_receipt.py
+      - image_asset_generator/certify_dropin.py
+      - scripts/build-v1-v5-multimodal-ledger.py
+      - scripts/test-asset-truth-repair.py
       - image_asset_generator/export_spatial_handoff.py
       - .github/workflows/v1-recovery-zero-spend-recertification.yml
   workflow_dispatch:
@@ -18,21 +30,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  fixture:
+    name: Test asset truth repair fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Install image dependencies
+        run: python -m pip install -r image_asset_generator/requirements.txt
+      - name: Run zero-spend fixtures
+        run: python scripts/test-asset-truth-repair.py
+
   certify:
     name: Certify retained 53-asset V1 recovery pack
+    if: github.event_name != 'pull_request'
+    needs: fixture
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Verify exact clean candidate
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -98,7 +137,11 @@ jobs:
           compression-level: 6
           path: |
             image_asset_generator/quality_report.json
+            image_asset_generator/quality_report_v1.json
             image_asset_generator/upgrade_feedback.json
+            image_asset_generator/forge_receipt.json
+            image_asset_generator/forge_receipt_v1.json
+            image_asset_generator/dropin_receipt_v1.json
             image_asset_generator/v1_sha256_inventory.json
             image_asset_generator/v1_recertification_receipt.json
             image_asset_generator/v1_recertification_provenance.json

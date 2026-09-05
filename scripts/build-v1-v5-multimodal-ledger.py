@@ -17,6 +17,20 @@ SPATIAL_REPO = "LifeLoggerAI/urai-spatial"
 SPATIAL_REF = "main"
 PROD_REPO = "LifeLoggerAI/UrAiProd"
 PROD_REF = "78c61397f4732427bb1dd5628f221d153d8d9594"
+CANONICAL_MANIFESTS = {
+    "v1": "v1.manifest.json",
+    "v2": "v2.manifest.json",
+    "v3": "v3-canonical.manifest.json",
+    "v4": "v4-canonical.manifest.json",
+    "v5": "v5-canonical.manifest.json",
+}
+
+
+def canonical_manifest_name(version: str) -> str:
+    try:
+        return CANONICAL_MANIFESTS[version]
+    except KeyError as error:
+        raise ValueError(f"Unsupported visual manifest version: {version}") from error
 
 
 def gh_json(endpoint: str) -> Any:
@@ -68,7 +82,7 @@ def visual_entries() -> list[dict[str, Any]]:
     versions = {"v1": 53, "v2": 80, "v3": 14, "v4": 39, "v5": 27}
     rows: list[dict[str, Any]] = []
     for version, expected in versions.items():
-        manifest_name = "v1.manifest.json" if version == "v1" else f"{version}-canonical.manifest.json"
+        manifest_name = canonical_manifest_name(version)
         path = GEN / "manifests/generated" / manifest_name
         entries = json.loads(path.read_text(encoding="utf-8"))
         if len(entries) != expected:
