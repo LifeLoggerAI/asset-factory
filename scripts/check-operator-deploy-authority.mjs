@@ -52,14 +52,18 @@ const authorityDocs = [
   'LAUNCH_READINESS.md',
 ];
 
+const commandLinePatterns = [
+  [/^\s*(?:\$\s*)?firebase\s+login\b/im, 'interactive Firebase login'],
+  [/^\s*(?:\$\s*)?firebase\s+deploy\s+--project\b/im, 'direct Firebase CLI deployment'],
+  [/^\s*(?:\$\s*)?npm\s+run\s+deploy:(?:firebase|hosting-rules|functions|studio|production|partial)\b/im, 'an unprotected deploy script'],
+];
+
 for (const path of authorityDocs) {
   if (!fs.existsSync(path)) fail(`missing authority document ${path}`);
   const text = fs.readFileSync(path, 'utf8');
-  if (/\bfirebase\s+login\b/i.test(text)) fail(`${path} still instructs interactive Firebase login`);
-  if (/npm\s+run\s+deploy:(?:firebase|hosting-rules|functions|studio|production|partial)\b/i.test(text)) {
-    fail(`${path} still instructs an unprotected deploy script`);
+  for (const [pattern, label] of commandLinePatterns) {
+    if (pattern.test(text)) fail(`${path} still instructs ${label}`);
   }
-  if (/\bfirebase\s+deploy\s+--project\b/i.test(text)) fail(`${path} still instructs direct Firebase CLI deployment`);
   if (/full JSON service account key/i.test(text)) fail(`${path} still instructs user-managed service-account JSON`);
   if (/New repository secret[\s\S]{0,300}FIREBASE_SERVICE_ACCOUNT/i.test(text)) {
     fail(`${path} still instructs a long-lived deployment secret`);
