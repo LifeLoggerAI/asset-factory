@@ -4,7 +4,7 @@ Use this runbook with `LAUNCH_READINESS.md` and the canonical production-lock is
 
 ## Operating rule
 
-Source checks, historical deploy receipts, or a reachable URL do not by themselves certify a current release. Every launch claim must bind the exact source SHA to protected provider identity, deployed revision, live readback, monitoring, recovery, and distinct rollback evidence.
+Source checks, historical deploy receipts, or a reachable URL do not by themselves certify a current release. Every launch claim must bind the exact source SHA to protected provider identity, the dedicated Asset Factory project/site, deployed revision, live readback, monitoring, recovery, and distinct rollback evidence.
 
 ## Production deployment authority
 
@@ -18,9 +18,11 @@ confirm = DEPLOY_ASSET_FACTORY
 environment = asset-factory-production
 ```
 
-The protected environment must provide non-empty `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT`. The deploy job receives `id-token: write`, authenticates with GitHub OIDC + Google Workload Identity Federation, uses generated ephemeral ADC credentials, removes the generated credential file immediately after deployment, then performs read-only smoke.
+The protected environment must provide non-empty `ASSET_FACTORY_PROJECT_ID`, `ASSET_FACTORY_HOSTING_SITE`, `ASSET_FACTORY_BASE_URL`, `GCP_WIF_PROVIDER`, and `GCP_DEPLOY_SERVICE_ACCOUNT`. The project/site/base URL must identify a dedicated Asset Factory target and must not resolve deployment authority to `urai-4dc1d`, `urai.app`, `www.urai.app`, or `urai-4dc1d.web.app`. The deploy service account must belong to the dedicated project.
 
-Do not restore direct local Firebase deployment, interactive Firebase login, a Firebase CLI token, downloaded service-account JSON, or another long-lived Google deployment identity. Root `deploy:*` scripts intentionally refuse provider mutation.
+The deploy job receives `id-token: write`, authenticates with GitHub OIDC + Google Workload Identity Federation, uses generated ephemeral ADC credentials, deploys only through the dedicated-target wrapper, removes the generated credential file immediately after deployment, then performs read-only smoke.
+
+Do not restore direct local Firebase deployment, interactive Firebase login, a Firebase CLI token, downloaded service-account JSON, or another long-lived Google deployment identity. Root and nested operator-facing deploy scripts intentionally refuse provider mutation.
 
 ## Existing-deployment verification
 
@@ -37,7 +39,7 @@ environment = staging | production
 smoke_mode = readonly | authenticated | both
 ```
 
-This workflow is verification-only and cannot deploy. Authenticated mode is still read-only and uses protected smoke credentials only for authorization and tenant-denial checks.
+This workflow is verification-only and cannot deploy. Production verification reads the protected `ASSET_FACTORY_BASE_URL`; it must not fall back to the consumer project. Authenticated mode is still read-only and uses protected smoke credentials only for authorization and tenant-denial checks.
 
 ## Staging boundary
 
@@ -70,13 +72,15 @@ These are source gates only. They do not prove provider deployment.
 
 ## Read-only diagnostics
 
-Against an already-deployed Firebase target:
+Against an already-deployed, proven dedicated Asset Factory target:
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL="$PROD_ASSET_FACTORY_BASE_URL" \
 npm run smoke:website
 ```
+
+`PROD_ASSET_FACTORY_BASE_URL` must be the same dedicated origin proven in protected provider configuration. Do not substitute the consumer Firebase project or an unproven custom domain.
 
 Authenticated read-only smoke should normally be run through `Verify Deployed Asset Factory`, which enforces read-only mode globally and tests protected authorization/tenant boundaries without creating generation jobs or support mutations.
 
@@ -89,7 +93,8 @@ Protected operator surfaces include the queue/DLQ console and tenant-support exp
 `uraiassetfactory.com` and `www.uraiassetfactory.com` remain untrusted as Asset Factory authority until registrar/DNS/Firebase Hosting attachment is proven and the hosts serve the intended exact deployment. Do not change DNS blindly. Before closure, prove:
 
 - actual registrar/nameserver authority;
-- actual Firebase/custom-host attachment;
+- actual authoritative DNS records and owner-controlled provider;
+- actual dedicated Firebase/custom-host attachment;
 - TLS and canonical-host behavior;
 - Asset Factory health/authorization behavior;
 - exact deployed source/revision binding;
@@ -108,7 +113,7 @@ For auth, tenant-isolation, diagnostics exposure, queue, billing, provider-cost,
 
 ## Rollback
 
-A rollback counts only when a genuinely different known-good revision is restored through protected authority, the provider confirms the different revision, and live health/auth checks pass on that restored revision. Redeploying the same SHA or writing rollback documentation is not rollback proof.
+A rollback counts only when a genuinely different known-good revision is restored through protected authority to the proven dedicated target, the provider confirms the different revision, and live health/auth checks pass on that restored revision. Redeploying the same SHA or writing rollback documentation is not rollback proof.
 
 ## Release evidence
 
@@ -116,6 +121,7 @@ Retain at minimum:
 
 - exact source SHA and workflow run;
 - protected environment and authenticated principal;
+- dedicated project/site/base URL;
 - least-privilege IAM receipt;
 - deployed provider revision and source readback;
 - health plus positive/denied auth checks;
