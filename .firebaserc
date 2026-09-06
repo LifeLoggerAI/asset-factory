@@ -1,15 +1,5 @@
 {
-  "projects": {
-    "asset-factory": "urai-4dc1d"
-  },
-  "targets": {
-    "urai-4dc1d": {
-      "hosting": {
-        "default": [
-          "urai-4dc1d"
-        ]
-      }
-    }
-  },
+  "projects": {},
+  "targets": {},
   "etags": {}
 }
