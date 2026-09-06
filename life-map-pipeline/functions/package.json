@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc --types node",
     "serve": "firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions",
+    "deploy": "node ../../scripts/refuse-unprotected-deploy.mjs life-map-functions:deploy",
     "test": "npm run build"
   },
   "dependencies": {

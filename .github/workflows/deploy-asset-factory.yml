@@ -103,7 +103,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ inputs.environment }}" = production ]; then
-            echo "base_url=https://urai-4dc1d.web.app" >> "$GITHUB_OUTPUT"
+            test -n "${{ vars.ASSET_FACTORY_BASE_URL }}" || { echo "Dedicated production base URL is required." >&2; exit 1; }
+            case "${{ vars.ASSET_FACTORY_BASE_URL }}" in *urai-4dc1d.web.app*|https://urai.app*|https://www.urai.app*) echo "Canonical consumer URL is forbidden." >&2; exit 1;; esac
+            echo "base_url=${{ vars.ASSET_FACTORY_BASE_URL }}" >> "$GITHUB_OUTPUT"
             echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
             echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
           else
