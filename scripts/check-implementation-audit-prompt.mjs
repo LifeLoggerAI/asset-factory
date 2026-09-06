@@ -46,7 +46,7 @@ if (missingPromptPhrases.length > 0) {
 }
 
 const requiredLaunchPhrases = [
-  'Status: **repo-side hardening complete for current pass; live evidence required before production lock**.',
+  'Status: **repo-side hardening in exact-head validation; live evidence required before production lock**.',
   'Do not call Asset Factory production-ready until every P0 gate below is complete and linked to evidence.',
   'Live staging deployment authority and fresh staging workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.',
   'Real provider-backed generation using production credentials and selected model IDs.',
