@@ -74,12 +74,40 @@ const requiredAuthority = fs.readFileSync('docs/PRODUCTION_DEPLOY_RUNBOOK.md', '
 for (const phrase of [
   'Asset Factory Production Readiness',
   'asset-factory-production',
+  'ASSET_FACTORY_PROJECT_ID',
+  'ASSET_FACTORY_HOSTING_SITE',
+  'ASSET_FACTORY_BASE_URL',
   'GCP_WIF_PROVIDER',
   'GCP_DEPLOY_SERVICE_ACCOUNT',
   'DEPLOY_ASSET_FACTORY',
   'Verify Deployed Asset Factory',
+  'must not be `urai-4dc1d`',
 ]) {
   if (!requiredAuthority.includes(phrase)) fail(`production runbook missing ${JSON.stringify(phrase)}`);
+}
+
+const operations = fs.readFileSync('docs/OPERATIONS_RUNBOOK.md', 'utf8');
+for (const phrase of [
+  'ASSET_FACTORY_PROJECT_ID',
+  'ASSET_FACTORY_HOSTING_SITE',
+  'ASSET_FACTORY_BASE_URL',
+  'must not fall back to the consumer project',
+]) {
+  if (!operations.includes(phrase)) fail(`operations runbook missing ${JSON.stringify(phrase)}`);
+}
+
+const readiness = fs.readFileSync('LAUNCH_READINESS.md', 'utf8');
+for (const phrase of [
+  'Dedicated target gate',
+  'ASSET_FACTORY_PROJECT_ID',
+  'ASSET_FACTORY_HOSTING_SITE',
+  'ASSET_FACTORY_BASE_URL',
+  'PROD_ASSET_FACTORY_BASE_URL',
+]) {
+  if (!readiness.includes(phrase)) fail(`launch readiness missing ${JSON.stringify(phrase)}`);
+}
+if (/ASSET_FACTORY_BASE_URL=https:\/\/urai-4dc1d\.web\.app/i.test(readiness)) {
+  fail('launch readiness still instructs the canonical consumer verification base');
 }
 
 const accountGuide = fs.readFileSync('docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md', 'utf8');
@@ -87,4 +115,4 @@ for (const phrase of ['Workload Identity Federation', 'GCP_WIF_PROVIDER', 'GCP_D
   if (!accountGuide.includes(phrase)) fail(`deployment identity guide missing ${JSON.stringify(phrase)}`);
 }
 
-console.log('PASS operator deployment authority is fail-closed and WIF-only');
+console.log('PASS operator deployment authority is fail-closed, dedicated-target, and WIF-only');
