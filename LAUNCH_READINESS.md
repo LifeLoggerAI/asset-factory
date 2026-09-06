@@ -2,13 +2,13 @@
 
 This document is the current launch-readiness source of truth for `LifeLoggerAI/asset-factory`.
 
-It supersedes older historical/lock/final-report documents when those documents imply the system is complete, immutable, or already production-live. It also supersedes any older operator documentation that still describes `FIREBASE_TOKEN`, service-account JSON, or a combined deploy-and-smoke workflow as current production authority. Those instructions are stale and must not be used. Older documents may remain useful for historical context, but public launch decisions must use this checklist plus live staging/production evidence.
+It supersedes older historical/lock/final-report documents when those documents imply the system is complete, immutable, or already production-live. It also supersedes any older operator documentation that still describes `FIREBASE_TOKEN`, service-account JSON, a consumer Firebase project, or a combined deploy-and-smoke workflow as current production authority. Those instructions are stale and must not be used. Older documents may remain useful for historical context, but public launch decisions must use this checklist plus live staging/production evidence.
 
 Operational execution details live in `docs/OPERATIONS_RUNBOOK.md`, but when that runbook conflicts with the current GitHub workflows or this file, the current workflows and this file win. Canonical live tracker: GitHub issue #63.
 
 ## Current release position
 
-Status: **repo-side hardening complete for current pass; live evidence required before production lock**.
+Status: **repo-side hardening in exact-head validation; live evidence required before production lock**.
 
 The repo contains a functional local proof pipeline and a protected production deployment workflow using GitHub OIDC + Google Workload Identity Federation. The separate deployed-target workflow is smoke-only and cannot deploy. Asset Factory is still not locked until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow with local fallback disabled.
 
@@ -27,16 +27,21 @@ The repo contains a functional local proof pipeline and a protected production d
 - Durable queue/operator surfaces for worker leases, retries, dead-letter visibility, and controlled requeue.
 - `Verify Deployed Asset Factory` GitHub Actions workflow for read-only and authenticated read-only smoke against an existing staging or production deployment.
 - `Asset Factory Production Readiness` GitHub Actions workflow for source verification and an explicitly confirmed production deployment from `main` using GitHub OIDC + Google Workload Identity Federation.
+- Dedicated-target fencing that rejects the canonical consumer project/site and injects the validated Asset Factory Hosting site only at protected deploy time.
+- Minimal noindex operational Hosting shell and response-level noindex headers.
 - `/api/system/health` primary health route with `/api/health` compatibility for smoke/tools.
 - Release evidence validator for final lock evidence.
 
 ### What is not proven complete
 
+- Fresh exact-head workflow evidence for the current reconciled source candidate.
+- Eligible independent approval of that unchanged exact head.
 - Live staging deployment authority and fresh staging workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.
 - Live production deployment/read-back evidence on the exact release candidate.
+- Dedicated Asset Factory GCP/Firebase project and Hosting site provider evidence.
 - Protected Google Cloud WIF/IAM configuration and least-privilege role evidence for the production deploy service account.
 - Historical long-lived Firebase/service-account credential revocation evidence where such credentials previously existed.
-- Production Firebase project, Firestore rules, indexes, storage bucket, IAM, and signed/private access policy.
+- Production Firestore rules, indexes, storage bucket, IAM, and signed/private access policy on the dedicated project.
 - Production auth provider issuing HS256 bearer tokens with the configured issuer, audience, tenant claim, and role claim.
 - Real provider-backed generation using production credentials and selected model IDs.
 - Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.
@@ -52,8 +57,11 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 
 | Gate | Required evidence | Status |
 | --- | --- | --- |
+| Exact-head source gate | Current reconciled SHA has all required workflows terminal-success. | Pending fresh workflow evidence |
+| Independent review gate | Eligible independent reviewer approves the unchanged current head. | Pending eligible review |
 | Local proof gate | `npm --prefix assetfactory-studio run check` and `npm --prefix assetfactory-studio run e2e` pass, plus root gates. | Pending fresh workflow evidence |
 | Staging deploy gate | A governed staging deployment with `ASSET_FACTORY_FORCE_LOCAL=false`; the smoke-only workflow does not create it. | Pending deployment authority + live evidence |
+| Dedicated target gate | Provider proves a dedicated `ASSET_FACTORY_PROJECT_ID`, `ASSET_FACTORY_HOSTING_SITE`, and `ASSET_FACTORY_BASE_URL`, none using canonical consumer authority. | Pending provider evidence |
 | Firebase gate | Firestore/Storage backend active, rules/indexes/IAM reviewed, no local fallback in staging. | Pending live workflow evidence |
 | WIF/IAM gate | Protected production environment has `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT`; OIDC trust and least-privilege IAM are proven by protected authentication/read-back. | Pending provider evidence |
 | Legacy credential gate | Production deploy does not use `FIREBASE_TOKEN`, service-account JSON, or tracked private keys; any historical long-lived deploy keys are independently confirmed revoked where applicable. | Pending provider/revocation evidence |
@@ -71,15 +79,21 @@ Do not call Asset Factory production-ready until every P0 gate below is complete
 
 ## Required environment groups
 
-### Deployment identity
+### Deployment identity and dedicated target
 
-Production GitHub deployment uses short-lived OIDC/WIF credentials only:
+Production GitHub deployment uses short-lived OIDC/WIF credentials only and requires explicit dedicated target values:
 
 - GitHub environment: `asset-factory-production`
+- GitHub variable: `ASSET_FACTORY_PROJECT_ID`
+- GitHub variable: `ASSET_FACTORY_HOSTING_SITE`
+- GitHub variable: `ASSET_FACTORY_BASE_URL`
+- optional custom-domain allowlist variable: `ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST`
 - GitHub variable: `GCP_WIF_PROVIDER`
 - GitHub variable: `GCP_DEPLOY_SERVICE_ACCOUNT`
 - GitHub Actions permission: `id-token: write`
 - Google auth action: `google-github-actions/auth@v2`
+
+`ASSET_FACTORY_PROJECT_ID` and `ASSET_FACTORY_HOSTING_SITE` must not equal `urai-4dc1d`. `ASSET_FACTORY_BASE_URL` must not be `urai.app`, `www.urai.app`, or `urai-4dc1d.web.app`. The deploy service account must belong to the dedicated Asset Factory project.
 
 Do **not** provision or use `FIREBASE_TOKEN`, `FIREBASE_SERVICE_ACCOUNT_KEY`, `credentials_json`, or a tracked/private service-account JSON file for production deployment.
 
@@ -142,7 +156,7 @@ environment = staging | production
 smoke_mode = readonly | authenticated | both
 ```
 
-This workflow is deliberately smoke-only. It sets `ASSET_FACTORY_SMOKE_READONLY=true`, contains no Firebase deployment authority, and must never be described as a deployment workflow.
+This workflow is deliberately smoke-only. It sets `ASSET_FACTORY_SMOKE_READONLY=true`, contains no Firebase deployment authority, and must never be described as a deployment workflow. Production verification resolves the protected `ASSET_FACTORY_BASE_URL` and refuses the canonical consumer URL.
 
 Authenticated smoke requires these protected secrets:
 
@@ -168,11 +182,14 @@ branch/ref = main
 input deploy = true
 input confirm = DEPLOY_ASSET_FACTORY
 environment = asset-factory-production
+ASSET_FACTORY_PROJECT_ID is a non-consumer dedicated project
+ASSET_FACTORY_HOSTING_SITE is a non-consumer dedicated site
+ASSET_FACTORY_BASE_URL is an approved dedicated HTTPS origin
 GCP_WIF_PROVIDER is non-empty
-GCP_DEPLOY_SERVICE_ACCOUNT is non-empty
+GCP_DEPLOY_SERVICE_ACCOUNT belongs to ASSET_FACTORY_PROJECT_ID
 ```
 
-The workflow authenticates with GitHub OIDC + Google WIF, deploys using the generated ephemeral ADC credentials, removes the generated credentials file after deployment, and then performs read-only production finalization smoke. A workflow run alone is not final production certification: retain exact deployed revision, protected provider authentication/read-back, monitoring, recovery, and distinct-revision rollback evidence.
+The workflow authenticates with GitHub OIDC + Google WIF, deploys using generated ephemeral ADC credentials through the dedicated-target wrapper, removes the generated credential file after deployment, and then performs read-only production finalization smoke. A workflow run alone is not final production certification: retain exact deployed revision, protected provider authentication/read-back, monitoring, recovery, and distinct-revision rollback evidence.
 
 There is currently no repo-owned staging deploy job in these two workflows. Do not reinterpret the smoke-only staging target as deployment authority. A governed staging deployment path must be established or independently proven before the staging-deploy gate can close.
 
@@ -200,30 +217,31 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
-Production smoke, after protected deployment:
+Production smoke, after a protected deployment to the proven dedicated provider origin:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL="$PROD_ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
 ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
 CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
+npm run smoke:remote
 ```
 
-Do not switch production smoke to the custom domain until registrar/DNS/Firebase Hosting authority is reconciled and the domain serves this repository's intended runtime.
+`PROD_ASSET_FACTORY_BASE_URL` must be the proven dedicated provider origin. Do not switch it to the custom domain until registrar/DNS/Firebase Hosting authority is reconciled and the domain serves this repository's intended exact runtime.
 
 ## Immediate next implementation order
 
-1. Reconcile the actual registrar/DNS/Firebase Hosting attachment for the Asset Factory domains without blind DNS/Hosting mutation.
-2. Establish or independently prove a governed staging deployment path; then run `Verify Deployed Asset Factory` against that exact staging revision.
-3. Verify protected production WIF provider/service-account configuration and least-privilege IAM.
-4. Confirm historical long-lived Firebase/service-account deployment keys are revoked where applicable.
-5. Run `Asset Factory Production Readiness` on the exact approved `main` revision only after source/review/provider gates permit deployment.
-6. Retain the exact deployed revision and run protected production read-back plus `Verify Deployed Asset Factory` smoke.
-7. Verify provider-backed generation, worker queue/DLQ, Stripe entitlements, diagnostics redaction, cron enforcement, and cross-tenant denial.
-8. Configure observability and operator dashboards.
-9. Verify custom-domain DNS/TLS/hosting authority and legal/trust/status pages.
-10. Record recovery evidence and rollback to a genuinely distinct known-good revision.
-11. Only then update `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md` to LOCKED and announce the system as live.
+1. Complete fresh exact-head source validation and eligible independent review.
+2. Reconcile the actual registrar/DNS/Firebase Hosting attachment for the Asset Factory domains without blind DNS/Hosting mutation.
+3. Establish or independently prove a governed staging deployment path; then run `Verify Deployed Asset Factory` against that exact staging revision.
+4. Verify the dedicated production project/site/base URL, WIF provider/service-account configuration, and least-privilege IAM.
+5. Confirm historical long-lived Firebase/service-account deployment keys are revoked where applicable.
+6. Run `Asset Factory Production Readiness` on the exact approved `main` revision only after source/review/provider gates permit deployment.
+7. Retain the exact deployed revision and run protected production read-back plus `Verify Deployed Asset Factory` smoke.
+8. Verify provider-backed generation, worker queue/DLQ, Stripe entitlements, diagnostics redaction, cron enforcement, and cross-tenant denial.
+9. Configure observability and operator dashboards.
+10. Verify custom-domain DNS/TLS/hosting authority and legal/trust/status pages.
+11. Record recovery evidence and rollback to a genuinely distinct known-good revision.
+12. Only then update `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md` to LOCKED and announce the system as live.
