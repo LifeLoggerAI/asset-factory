@@ -78,7 +78,7 @@ const requiredPhrases = [
   ['canonical tracker in lock', lock, 'GitHub issue #63'],
   ['canonical API version in lock', lock, 'asset-factory-api-v1'],
   ['canonical API version in contract', contract, 'asset-factory-api-v1'],
-  ['launch readiness current status', launch, 'Status: **repo-side hardening complete for current pass; live evidence required before production lock**.'],
+  ['launch readiness current status', launch, 'Status: **repo-side hardening in exact-head validation; live evidence required before production lock**.'],
   ['launch readiness canonical tracker', launch, 'Canonical live tracker: GitHub issue #63.'],
   ['operations workflow path', operations, 'Actions -> Asset Factory Production Readiness -> Run workflow'],
   ['checklist live evidence state', checklist, 'Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED'],
