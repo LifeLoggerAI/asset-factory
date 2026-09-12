@@ -11,15 +11,24 @@
   },
   "provider": {
     "name": "openai",
+    "endpoint": "/v1/videos",
     "primaryModel": "sora-2",
     "qualityModel": "sora-2-pro",
-    "trainingUse": "prohibited-by-production-policy",
+    "supportedSourceDurationsSeconds": [4, 8, 12],
+    "supportsImageInputReference": true,
+    "apiRetirementDate": "2026-09-24",
+    "trainingUse": "not-used-for-training-by-default",
+    "standardApiRetentionBoundary": "up-to-30-days-unless-eligible-zdr-or-other-documented-exception",
     "privateReferenceSubmission": "minimum-necessary-only"
   },
   "budget": {
     "legacyAbsoluteCeilingRevoked": true,
     "initialShotCount": 30,
     "maximumInitialCalls": 30,
+    "certifiedEditorialSeconds": 180,
+    "plannedGeneratedSourceSecondsAtSupportedDurations": 236,
+    "estimatedInitialSora2CostUsd": 23.60,
+    "maximumInitialPassUsd": 30,
     "maximumRepairCalls": 15,
     "absoluteProjectCeilingUsd": 120,
     "requireDefectReasonForRetry": true,
@@ -29,6 +38,7 @@
     "adamAuthorized": true,
     "adamReferenceKeys": ["ADAM-AGE19-001", "ADAM-CURRENT-LIKENESS-001", "ADAM-JACOB-MOTION-001"],
     "identityMappingRule": "provenance-source-label-prior-user-confirmation-only-no-facial-recognition",
+    "originalReferencePriority": "original-source-before-generated-predecessor",
     "familyIdentifiableLikenessRule": "fail-closed-unless-private-authority-confirms-role-mapping-and-use-permission",
     "fallback": "non-identifying-composite"
   },
@@ -37,13 +47,16 @@
     "publicRepoMayContainPrivateFamilyNames": false,
     "publicRepoMayContainPrivateContactSheets": false,
     "publicRepoMayContainRawFamilyMedia": false,
-    "semanticKeysOnly": true
+    "semanticKeysOnly": true,
+    "populatedPrivateReferenceMapMayBeCommitted": false
   },
   "release": {
     "paidGenerationAuthorized": true,
     "finalRenderingAuthorized": true,
     "publicReleaseAuthorized": false,
-    "independentReviewRequirementsPreserved": true
+    "independentReviewRequirementsPreserved": true,
+    "familyConsentRequirementsPreserved": true,
+    "narratorVoiceAuthorizationPreserved": true
   },
   "authorizedBy": "Adam Clamp",
   "authorizationSource": "founder execution order in authenticated ChatGPT production session, 2026-09-11/12",
