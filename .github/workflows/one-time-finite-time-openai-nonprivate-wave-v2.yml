@@ -1,0 +1,117 @@
+name: FINITE TIME OpenAI Nonprivate Story Wave V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-finite-time-openai-nonprivate-wave-v2-20260912.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finite-time-openai-nonprivate-wave-v2-20260912
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: paid-asset-generation
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shot: [7, 12, 13, 14, 15, 17, 19, 25, 26, 27]
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Prove exact bounded V2 authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          parents="$(git rev-list --parents -n 1 "$GITHUB_SHA")"
+          test "$(wc -w <<<"$parents")" -eq 3
+          first_parent="$(git rev-parse "$GITHUB_SHA^1")"
+          marker='authorizations/execute-finite-time-openai-nonprivate-wave-v2-20260912.json'
+          workflow='.github/workflows/one-time-finite-time-openai-nonprivate-wave-v2.yml'
+          adapter='scripts/check-paid-workflow-boundary-current.py'
+          fixture='scripts/test-paid-workflow-current-authorities.py'
+          changed="$(git diff --name-only "$first_parent" "$GITHUB_SHA" | sort)"
+          expected="$(printf '%s\n%s\n%s\n%s\n' "$workflow" "$marker" "$adapter" "$fixture" | sort)"
+          test "$changed" = "$expected"
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          m=json.load(open('authorizations/execute-finite-time-openai-nonprivate-wave-v2-20260912.json'))
+          assert m['schemaVersion']=='finite-time-nonprivate-story-wave-v2'
+          assert m['confirmation']=='AUTHORIZE_FINITE_TIME_NONPRIVATE_STORY_WAVE_V2'
+          assert m['productionSource']=='32041da2e66d553ce8e2aa696bb125cc25261ac5'
+          assert m['defectSourceRun']==34677073895
+          assert m['semanticCanaryRun']==34677817931
+          assert m['provider']=='openai' and m['model']=='sora-2'
+          assert m['shotNumbers']==[7,12,13,14,15,17,19,25,26,27]
+          assert m['maximumProviderCalls']==10
+          assert m['automaticRetryAuthorized'] is False
+          assert m['containsPrivateReferenceMedia'] is False
+          assert m['promotionAuthorized'] is False
+          assert m['deploymentAuthorized'] is False
+          assert m['deliveryAuthorized'] is False
+          assert m['publicReleaseAuthorized'] is False
+          PY
+      - name: Checkout repaired governed production source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 32041da2e66d553ce8e2aa696bb125cc25261ac5
+          path: production-src
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Generate one defect-driven V2 story shot
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FINITE_TIME_VIDEO_MODEL: sora-2
+          FINITE_TIME_VIDEO_SIZE: 1280x720
+          SHOT_NUMBER: ${{ matrix.shot }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          root="$GITHUB_WORKSPACE/production-src"
+          out="$GITHUB_WORKSPACE/artifacts/finite-time/nonprivate-wave-v2/shot-${SHOT_NUMBER}"
+          python "$root/film_foundry/finite_time/generate-openai-production.py" \
+            --manifest "$root/film_foundry/finite_time/farm-to-lake.manifest.json" \
+            --edit-plan "$root/film_foundry/finite_time/farm-to-lake.edit-plan.v2.json" \
+            --authorization "$root/film_foundry/finite_time/openai-production-authorization.v2.json" \
+            --output-root "$out" \
+            --start-shot "$SHOT_NUMBER" --end-shot "$SHOT_NUMBER"
+          python - "$out/provider-receipt.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          assert r['status']=='generated-awaiting-literal-qc', r
+          assert r['providerCallsExecuted']==1 and len(r['videos'])==1, r
+          assert r['videos'][0]['referenceUsed'] is False, r
+          assert r['videos'][0]['acceptanceStatus']=='awaiting-literal-visual-qc', r
+          assert r['publicReleaseAuthorized'] is False, r
+          PY
+      - name: Upload V2 story evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finite-time-nonprivate-v2-shot-${{ matrix.shot }}-${{ github.run_id }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: warn
+          path: artifacts/finite-time/nonprivate-wave-v2/shot-${{ matrix.shot }}/**
