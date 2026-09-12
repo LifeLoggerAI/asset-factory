@@ -34,6 +34,8 @@ CURRENT_MARKER_WORKFLOWS = {
         "authorizations/execute-finite-time-openai-representative-validation-20260912.json",
     Path(".github/workflows/one-time-finite-time-openai-representative-retry-v2.yml"):
         "authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json",
+    Path(".github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml"):
+        "authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json",
 }
 
 for workflow, marker in CURRENT_MARKER_WORKFLOWS.items():
