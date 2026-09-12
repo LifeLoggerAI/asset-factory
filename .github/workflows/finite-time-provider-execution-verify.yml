@@ -1,0 +1,57 @@
+name: FINITE TIME Provider Execution Verify
+
+on:
+  pull_request:
+    paths:
+      - 'film_foundry/finite_time/provider-execution-authority.2026-09-12.json'
+      - 'film_foundry/finite_time/private-reference-map.template.json'
+      - 'scripts/generate_finite_time_openai_video.py'
+      - 'scripts/test_finite_time_openai_video.py'
+      - '.github/workflows/finite-time-provider-execution-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Compile generator
+        run: python -m py_compile scripts/generate_finite_time_openai_video.py scripts/test_finite_time_openai_video.py
+
+      - name: Test generator guardrails
+        run: python scripts/test_finite_time_openai_video.py
+
+      - name: Validate public-safe authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          authority = json.loads(Path('film_foundry/finite_time/provider-execution-authority.2026-09-12.json').read_text())
+          template = json.loads(Path('film_foundry/finite_time/private-reference-map.template.json').read_text())
+          assert authority['sourceCommit'] == '2f61af8442b4b20e8b0e4638ca4119a17969c6d4'
+          assert authority['founderAuthorization']['paidOpenAIExecutionAuthorized'] is True
+          assert authority['releaseBoundary']['publicReleaseAuthorized'] is False
+          assert authority['referencePolicy']['identityMappingByFacialRecognition'] is False
+          assert template['privacyClass'] == 'private-runtime-input-do-not-commit-populated-copy'
+          text = Path('film_foundry/finite_time/provider-execution-authority.2026-09-12.json').read_text() + Path('film_foundry/finite_time/private-reference-map.template.json').read_text()
+          forbidden = [r'drive\.google\.com', r'private-user-images', r'sk-[A-Za-z0-9_-]+', r'OPENAI_API_KEY\s*[:=]\s*[A-Za-z0-9]']
+          for pattern in forbidden:
+              assert not re.search(pattern, text), pattern
+          print('FINITE TIME provider authority: PASS')
+          PY
