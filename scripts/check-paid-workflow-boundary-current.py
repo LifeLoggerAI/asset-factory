@@ -26,6 +26,8 @@ CURRENT_MARKER_WORKFLOWS = {
         "authorizations/execute-before-rest-world-full-master-t1-20260801.json",
     Path(".github/workflows/one-time-built-from-survival-hero-cinema.yml"):
         "authorizations/execute-built-from-survival-hero-cinema-20260829.json",
+    Path(".github/workflows/one-time-finite-time-openai-physics-validation.yml"):
+        "authorizations/execute-finite-time-openai-physics-validation-20260912.json",
 }
 
 for workflow, marker in CURRENT_MARKER_WORKFLOWS.items():
