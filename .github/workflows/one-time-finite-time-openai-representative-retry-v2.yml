@@ -1,0 +1,73 @@
+name: FINITE TIME OpenAI Representative Retry V2
+on:
+  push:
+    branches: [main]
+    paths: [authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json]
+permissions:
+  contents: read
+env:
+  AUTHORIZATION_MARKER: authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json
+jobs:
+  retry:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: paid-asset-generation
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - category: complex-human-motion-v2
+            prompt: >-
+              Photoreal cinematic memory reconstruction, one anonymous adult farm worker and one calm dairy cow on a mildly icy uphill farm lane before dawn. In one continuous medium-wide side view, the worker clearly holds the cow's tail with both hands for balance. The cow takes four steady uphill steps. On step two the worker's right boot visibly loses traction and slides backward, the worker's torso drops and arms become taut, then the cow's forward movement helps pull the worker back upright; the worker regains footing and takes two more uphill steps while still holding the tail. Show this exact cause-and-effect action clearly. Real gravity, boot traction, arm tension, cow gait, cloth movement and breath. Stable anatomy. No injury, slapstick, text, logos, extra fingers, fused limbs, floating body, impossible cow anatomy, still-photo animation, slow motion, or cutaways.
+          - category: emotional-lookback-v2
+            prompt: >-
+              Photoreal cinematic performance validation on a classic unbranded ski boat at an East Texas lake in clean morning light. One anonymous middle-aged adult driver only. In a continuous over-shoulder medium shot, the driver keeps one hand naturally on the wheel, turns head and shoulders to look behind the boat, holds a quiet restrained look for one second as if checking on someone off-camera, then turns forward again. The emotional beat is calm trust and memory, not melodrama. Boat geometry stays stable; water and wake move naturally; eyes, hands, hair and shirt remain stable. No other person visible. No text, logos, registration numbers, morphing face, extra fingers, warped hull, frozen portrait, Ken Burns, theatrical acting, or excessive slow motion.
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Prove bounded retry authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")" = "$AUTHORIZATION_MARKER"
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          m=json.load(open('authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json'))
+          assert m['confirmation']=='AUTHORIZE_FINITE_TIME_REPRESENTATIVE_RETRY_V2'
+          assert m['maximumProviderCalls']==2
+          assert m['automaticRetryAuthorized'] is False
+          assert m['publicReleaseAuthorized'] is False
+          PY
+      - name: Generate retry
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CATEGORY: ${{ matrix.category }}
+          PROMPT: ${{ matrix.prompt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/finite-time/representative-retry-v2/$CATEGORY"; mkdir -p "$root"
+          curl --fail-with-body -sS https://api.openai.com/v1/videos -H "Authorization: Bearer $OPENAI_API_KEY" -F model=sora-2 -F size=1280x720 -F seconds=8 -F "prompt=$PROMPT" > "$root/create.json"
+          id=$(jq -r '.id // empty' "$root/create.json"); test -n "$id"
+          for i in $(seq 1 90); do curl --fail-with-body -sS "https://api.openai.com/v1/videos/$id" -H "Authorization: Bearer $OPENAI_API_KEY" > "$root/status.json"; s=$(jq -r '.status // empty' "$root/status.json"); [ "$s" = completed ] && break; [ "$s" = failed ] && break; sleep 10; done
+          test "$s" = completed
+          curl --fail-with-body -sS "https://api.openai.com/v1/videos/$id/content" -H "Authorization: Bearer $OPENAI_API_KEY" -o "$root/$CATEGORY.mp4"
+          test -s "$root/$CATEGORY.mp4"; sha256sum "$root/$CATEGORY.mp4" > "$root/SHA256SUMS.txt"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finite-time-${{ matrix.category }}-${{ github.run_id }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: warn
+          path: |
+            artifacts/finite-time/representative-retry-v2/${{ matrix.category }}/**
+            authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json
