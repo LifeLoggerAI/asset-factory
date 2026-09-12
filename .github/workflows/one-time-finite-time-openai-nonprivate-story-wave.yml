@@ -40,8 +40,11 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
           test "$GITHUB_RUN_ATTEMPT" = '1'
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
-          test "$changed" = authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json
+          marker='authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json'
+          workflow='.github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml'
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | sort)"
+          expected="$(printf '%s\n%s\n' "$workflow" "$marker" | sort)"
+          test "$changed" = "$expected"
           test -z "${OPENAI_API_KEY:-}"
           python - <<'PY'
           import json
@@ -60,6 +63,8 @@ jobs:
           assert m['publicReleaseAuthorized'] is False
           assert m['independentReviewDeferred'] is True
           assert m['containsPrivateReferenceMedia'] is False
+          assert m['preProviderStaticRetryAuthorized'] is True
+          assert m['preProviderStaticFailureRun']==34676667073
           PY
 
       - name: Checkout governed production source
