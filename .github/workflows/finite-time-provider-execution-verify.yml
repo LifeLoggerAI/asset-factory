@@ -3,10 +3,12 @@ name: FINITE TIME Provider Execution Verify
 on:
   pull_request:
     paths:
-      - 'film_foundry/finite_time/provider-execution-authority.2026-09-12.json'
+      - 'film_foundry/finite_time/openai-production-authorization.v2.json'
       - 'film_foundry/finite_time/private-reference-map.template.json'
-      - 'scripts/generate_finite_time_openai_video.py'
+      - 'film_foundry/finite_time/generate-openai-production.py'
+      - 'film_foundry/finite_time/farm-to-lake.edit-plan.v2.json'
       - 'scripts/test_finite_time_openai_video.py'
+      - '.github/workflows/finite-time-openai-production.yml'
       - '.github/workflows/finite-time-provider-execution-verify.yml'
 
 permissions:
@@ -29,29 +31,40 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
 
-      - name: Compile generator
-        run: python -m py_compile scripts/generate_finite_time_openai_video.py scripts/test_finite_time_openai_video.py
+      - name: Compile generator and tests
+        run: python -m py_compile film_foundry/finite_time/generate-openai-production.py scripts/test_finite_time_openai_video.py
 
       - name: Test generator guardrails
         run: python scripts/test_finite_time_openai_video.py
 
-      - name: Validate public-safe authority
+      - name: Validate authority, budget and public/private boundary
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, re
           from pathlib import Path
-          authority = json.loads(Path('film_foundry/finite_time/provider-execution-authority.2026-09-12.json').read_text())
-          template = json.loads(Path('film_foundry/finite_time/private-reference-map.template.json').read_text())
-          assert authority['sourceCommit'] == '2f61af8442b4b20e8b0e4638ca4119a17969c6d4'
-          assert authority['founderAuthorization']['paidOpenAIExecutionAuthorized'] is True
-          assert authority['releaseBoundary']['publicReleaseAuthorized'] is False
-          assert authority['referencePolicy']['identityMappingByFacialRecognition'] is False
-          assert template['privacyClass'] == 'private-runtime-input-do-not-commit-populated-copy'
-          text = Path('film_foundry/finite_time/provider-execution-authority.2026-09-12.json').read_text() + Path('film_foundry/finite_time/private-reference-map.template.json').read_text()
-          forbidden = [r'drive\.google\.com', r'private-user-images', r'sk-[A-Za-z0-9_-]+', r'OPENAI_API_KEY\s*[:=]\s*[A-Za-z0-9]']
+          authority=json.loads(Path('film_foundry/finite_time/openai-production-authorization.v2.json').read_text())
+          template=json.loads(Path('film_foundry/finite_time/private-reference-map.template.json').read_text())
+          edit=json.loads(Path('film_foundry/finite_time/farm-to-lake.edit-plan.v2.json').read_text())
+          assert authority['sourceCommit']=='2f61af8442b4b20e8b0e4638ca4119a17969c6d4'
+          assert authority['sourceStoryboardArtifact']['shotCount']==30
+          assert authority['sourceStoryboardArtifact']['durationSeconds']==180
+          assert authority['provider']['supportedSourceDurationsSeconds']==[4,8,12]
+          assert authority['provider']['supportsImageInputReference'] is True
+          assert authority['budget']['plannedGeneratedSourceSecondsAtSupportedDurations']==236
+          assert authority['budget']['estimatedInitialSora2CostUsd']==23.60
+          assert authority['budget']['maximumInitialPassUsd']==30
+          assert sum(int(v) for v in edit['shotDurations'].values())==180
+          generated=sum(next(x for x in (4,8,12) if int(v)<=x) for v in edit['shotDurations'].values())
+          assert generated==236
+          assert authority['release']['paidGenerationAuthorized'] is True
+          assert authority['release']['publicReleaseAuthorized'] is False
+          assert authority['likeness']['identityMappingRule'].endswith('no-facial-recognition')
+          assert template['privacyClass']=='private-runtime-input-do-not-commit-populated-copy'
+          text=Path('film_foundry/finite_time/openai-production-authorization.v2.json').read_text()+Path('film_foundry/finite_time/private-reference-map.template.json').read_text()
+          forbidden=[r'drive\.google\.com',r'private-user-images',r'sk-[A-Za-z0-9_-]+',r'OPENAI_API_KEY\s*[:=]\s*[A-Za-z0-9]']
           for pattern in forbidden:
-              assert not re.search(pattern, text), pattern
-          print('FINITE TIME provider authority: PASS')
+              assert not re.search(pattern,text),pattern
+          print('FINITE TIME canonical provider lane: PASS')
           PY
