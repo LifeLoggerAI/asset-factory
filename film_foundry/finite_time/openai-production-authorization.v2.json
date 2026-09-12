@@ -31,16 +31,31 @@
     "maximumInitialPassUsd": 30,
     "maximumRepairCalls": 15,
     "absoluteProjectCeilingUsd": 120,
+    "founderAdditionalSpendAuthority": "use-what-is-reasonably-needed-for-quality-with-ledger-and-no-runaway-retries",
     "requireDefectReasonForRetry": true,
     "stopOnUnexpectedOpenEndedEscalation": true
   },
   "likeness": {
     "adamAuthorized": true,
     "adamReferenceKeys": ["ADAM-AGE19-001", "ADAM-CURRENT-LIKENESS-001", "ADAM-JACOB-MOTION-001"],
+    "familyAndPlacesConsent": {
+      "status": "founder-attested-authorized-for-finite-time-production",
+      "scope": ["father", "mother", "brother", "other-family-members", "family-places"],
+      "attestedBy": "Adam Clamp",
+      "attestedAt": "2026-09-12",
+      "boundary": "This records the founder's explicit attestation of consent for this production; it is not represented as a separately signed legal release from each person."
+    },
     "identityMappingRule": "provenance-source-label-prior-user-confirmation-only-no-facial-recognition",
     "originalReferencePriority": "original-source-before-generated-predecessor",
-    "familyIdentifiableLikenessRule": "fail-closed-unless-private-authority-confirms-role-mapping-and-use-permission",
-    "fallback": "non-identifying-composite"
+    "familyIdentifiableLikenessRule": "authorized-by-founder-attestation-but-source-role-mapping-remains-provenance-gated",
+    "fallback": "non-identifying-composite-only-when-role-mapping-is-unresolved"
+  },
+  "creativeStandard": {
+    "movingCinemaRequired": true,
+    "slideshowTreatmentProhibited": true,
+    "kenBurnsPhotoTreatmentProhibited": true,
+    "realisticRecurringCharacterContinuityRequired": true,
+    "useRealReferencesForIdentityContinuity": true
   },
   "privacy": {
     "publicRepoMayContainPrivateDriveIds": false,
@@ -55,10 +70,11 @@
     "finalRenderingAuthorized": true,
     "publicReleaseAuthorized": false,
     "independentReviewRequirementsPreserved": true,
-    "familyConsentRequirementsPreserved": true,
+    "familyConsentGateForProduction": "satisfied-by-founder-attestation",
+    "identityMappingGate": "still-required",
     "narratorVoiceAuthorizationPreserved": true
   },
   "authorizedBy": "Adam Clamp",
-  "authorizationSource": "founder execution order in authenticated ChatGPT production session, 2026-09-11/12",
+  "authorizationSource": "founder execution orders in authenticated ChatGPT production session, 2026-09-11/12",
   "authorizedAt": "2026-09-12T00:00:00-05:00"
 }
