@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "finite-time-openai-production-authorization-v2",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "sourceCommit": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+  "sourceStoryboardArtifact": {
+    "artifactId": "10289594684",
+    "sha256": "f9c32415c51818e16537e45f97ff2851fc3d9b818e4bac1258be8904e81c0d84",
+    "shotCount": 30,
+    "durationSeconds": 180
+  },
+  "provider": {
+    "name": "openai",
+    "endpoint": "/v1/videos",
+    "primaryModel": "sora-2",
+    "qualityModel": "sora-2-pro",
+    "supportedSourceDurationsSeconds": [4, 8, 12],
+    "supportsImageInputReference": true,
+    "apiRetirementDate": "2026-09-24",
+    "trainingUse": "not-used-for-training-by-default",
+    "standardApiRetentionBoundary": "up-to-30-days-unless-eligible-zdr-or-other-documented-exception",
+    "privateReferenceSubmission": "minimum-necessary-only"
+  },
+  "budget": {
+    "legacyAbsoluteCeilingRevoked": true,
+    "initialShotCount": 30,
+    "maximumInitialCalls": 30,
+    "certifiedEditorialSeconds": 180,
+    "plannedGeneratedSourceSecondsAtSupportedDurations": 236,
+    "estimatedInitialSora2CostUsd": 23.60,
+    "initialPlanningThresholdUsd": 30,
+    "repairPlanningThresholdCalls": 15,
+    "hardProjectCeilingUsd": null,
+    "founderAdditionalSpendAuthority": "use-what-is-reasonably-needed-for-quality-with-ledger-and-no-runaway-retries",
+    "requireDefectReasonForRetry": true,
+    "stopOnUnexpectedOpenEndedEscalation": true
+  },
+  "likeness": {
+    "adamAuthorized": true,
+    "adamReferenceKeys": ["ADAM-AGE19-001", "ADAM-CURRENT-LIKENESS-001", "ADAM-JACOB-MOTION-001"],
+    "familyAndPlacesConsent": {
+      "status": "founder-attested-authorized-for-finite-time-production",
+      "scope": ["father", "mother", "brother", "other-family-members", "family-places"],
+      "attestedBy": "Adam Clamp",
+      "attestedAt": "2026-09-12",
+      "boundary": "This records the founder's explicit attestation of consent for this production; it is not represented as a separately signed legal release from each person."
+    },
+    "identityMappingRule": "provenance-source-label-prior-user-confirmation-only-no-facial-recognition",
+    "originalReferencePriority": "original-source-before-generated-predecessor",
+    "familyIdentifiableLikenessRule": "authorized-by-founder-attestation-but-source-role-mapping-remains-provenance-gated",
+    "fallback": "non-identifying-composite-only-when-role-mapping-is-unresolved"
+  },
+  "creativeStandard": {
+    "movingCinemaRequired": true,
+    "slideshowTreatmentProhibited": true,
+    "kenBurnsPhotoTreatmentProhibited": true,
+    "realisticRecurringCharacterContinuityRequired": true,
+    "useRealReferencesForIdentityContinuity": true
+  },
+  "privacy": {
+    "publicRepoMayContainPrivateDriveIds": false,
+    "publicRepoMayContainPrivateFamilyNames": false,
+    "publicRepoMayContainPrivateContactSheets": false,
+    "publicRepoMayContainRawFamilyMedia": false,
+    "semanticKeysOnly": true,
+    "populatedPrivateReferenceMapMayBeCommitted": false
+  },
+  "release": {
+    "paidGenerationAuthorized": true,
+    "finalRenderingAuthorized": true,
+    "publicReleaseAuthorized": false,
+    "independentReviewRequirementsPreserved": true,
+    "familyConsentGateForProduction": "satisfied-by-founder-attestation",
+    "identityMappingGate": "still-required",
+    "narratorVoiceAuthorizationPreserved": true
+  },
+  "authorizedBy": "Adam Clamp",
+  "authorizationSource": "founder execution orders in authenticated ChatGPT production session, 2026-09-11/12",
+  "authorizedAt": "2026-09-12T00:00:00-05:00"
+}

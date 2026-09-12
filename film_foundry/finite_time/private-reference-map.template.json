@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "finite-time-private-reference-map-v1",
+  "privacyClass": "private-runtime-input-do-not-commit-populated-copy",
+  "instructions": "Copy this template only into private runtime storage. Never commit a populated copy. Map shot IDs to materialized production-safe reference paths after provenance and consent checks. Paths must resolve only inside the private execution environment.",
+  "shots": {
+    "ft-fl-001": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-002": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-003": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-004": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-005": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-006": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-009": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-010": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-011": {"semanticReferenceKeys": [], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-016": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-018": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-020": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-021": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-022": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-023": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-024": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-029": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false},
+    "ft-fl-030": {"semanticReferenceKeys": ["ADAM-AGE19-001"], "path": "", "clearedForProviderSubmission": false}
+  }
+}
