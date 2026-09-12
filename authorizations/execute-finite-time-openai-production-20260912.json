@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "finite-time-paid-execution-marker-v1",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "confirmation": "AUTHORIZE_FINITE_TIME_OPENAI_PRODUCTION",
+  "sourceAuthoritySha": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+  "maximumProviderCalls": 30,
+  "maximumInitialSpendUsd": 30,
+  "repairSpendRequiresDefectReceipt": true,
+  "publicReleaseAuthorized": false,
+  "privateFamilySourcePointersAllowedInPublicArtifacts": false,
+  "authorizedBy": "Adam Clamp",
+  "authorizedAt": "2026-09-12T00:00:00-05:00",
+  "note": "This marker is staged on the review branch. The protected paid workflow is intentionally main-only and will not execute from this branch. Promotion to main remains subject to repository governance and review."
+}
