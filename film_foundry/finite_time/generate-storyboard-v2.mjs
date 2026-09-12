@@ -84,10 +84,10 @@ function board(shot,index) {
   } else if (scene==='scene-school-mornings') {
     if(phase===0)b.push(truck(1020,520,1.15),person(520,620,.65),arrow(330,710,860,600,'MORNING RIDE'),text(1150,300,'RED TRUCK',34,P.red));
     if(phase===1)b.push(rect(300,260,1300,390,'#f5f0df',P.ink,7),circle(760,480,100,'#fff',P.gold),text(760,488,'WIN?',30,P.gold),person(1200,610,.65),text(950,210,'BREAKFAST GAME PIECE',28));
-    if(phase===2)b.push(person(790,620,.8),person(1140,600,1.0),arrow(820,400,1120,440,'AFTER BOOT CAMP'),text(960,250,'BIGGER · STRONGER',30));
+    if(phase===2)b.push(rect(1120,260,500,210,'#f5f0df',P.ink,7),text(1370,345,'SCHOOL',34),person(480,650,.72),truck(1250,565,.72),arrow(700,600,1480,570,'DROP-OFF · DRIVE AWAY'));
   } else if (scene==='scene-snake-shoe') {
-    if(phase===0)b.push(rect(650,330,650,260,P.panel),ellipse(900,500,80,25,'none',P.green,10),path('M 820 500 q 80 -90 160 0 q -80 90 -160 0','none',P.green,10),person(430,640,.65),text(970,300,'SHOE',28));
-    if(phase===1)b.push(person(750,650,.82,'reach'),person(1180,620,1.02),arrow(820,550,1070,520,'CHARGE'),text(980,240,'I TRIED',36,P.red));
+    if(phase===0)b.push(person(500,650,.7),person(1460,620,1.0),rect(720,500,160,70,'#d7e0e8',P.ink,5,35),rect(930,500,160,70,'#d7e0e8',P.ink,5,35),rect(1140,500,160,70,'#d7e0e8',P.ink,5,35),text(1010,300,'AFTER BOOT CAMP · BIGGER / STRONGER',28),arrow(560,620,1260,540,'LEAVING FOR SCHOOL'));
+    if(phase===1)b.push(rect(650,330,650,260,P.panel),ellipse(900,500,80,25,'none',P.green,10),path('M 820 500 q 80 -90 160 0 q -80 90 -160 0','none',P.green,10),person(430,640,.65),text(970,300,'DEAD SNAKE · SHOE',28));
     if(phase===2)b.push(person(730,650,.78,'slide'),person(1220,610,1.02),path('M 820 620 Q 950 500 1080 590','none',P.red,14),text(980,280,'COULD NOT. TRIED ANYWAY.',28));
   } else if (scene==='scene-land-to-water') {
     if(phase===0)b.push(rect(250,350,380,250,P.panel),rect(720,350,380,250,P.panel),rect(1190,350,380,250,P.panel),path('M 180 700 C 650 650 1200 700 1740 610','none',P.gray,12),text(910,270,'BUILDINGS DISAPPEAR',30));

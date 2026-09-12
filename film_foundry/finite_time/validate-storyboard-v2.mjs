@@ -98,6 +98,18 @@ const expectedScenes = [
 ].flatMap((sceneId) => Array(3).fill(sceneId));
 assert.deepEqual(timeline.shots.map((shot) => shot.sceneId), expectedScenes, 'storyboard scene sequence drifted');
 
+const expectedSemanticMarkers = new Map([
+  ['ft-fl-021', ['SCHOOL', 'DROP-OFF · DRIVE AWAY']],
+  ['ft-fl-022', ['AFTER BOOT CAMP · BIGGER / STRONGER', 'LEAVING FOR SCHOOL']],
+  ['ft-fl-023', ['DEAD SNAKE · SHOE']],
+  ['ft-fl-024', ['COULD NOT. TRIED ANYWAY.']],
+]);
+const forbiddenSemanticMarkers = new Map([
+  ['ft-fl-021', ['AFTER BOOT CAMP', 'BIGGER · STRONGER']],
+  ['ft-fl-022', ['DEAD SNAKE · SHOE']],
+  ['ft-fl-023', ['COULD NOT. TRIED ANYWAY.']],
+]);
+
 assert.deepEqual(readdirSync(join(outputDir, 'frames-svg')).filter((file) => file.endsWith('.svg')).sort(), ids.map((id) => `${id}.svg`));
 assert.deepEqual(readdirSync(join(outputDir, 'frames-png')).filter((file) => file.endsWith('.png')).sort(), ids.map((id) => `${id}.png`));
 for (const id of ids) {
@@ -108,6 +120,8 @@ for (const id of ids) {
   assert.match(source, new RegExp(id));
   const drawingGeometryCount = (source.match(/<(?:line|path|circle|ellipse|rect)\b/g) ?? []).length;
   assert.ok(drawingGeometryCount >= 3, `${id} has no scene-specific drawing geometry`);
+  for (const marker of expectedSemanticMarkers.get(id) ?? []) assert.ok(source.includes(marker), `${id} missing semantic marker: ${marker}`);
+  for (const marker of forbiddenSemanticMarkers.get(id) ?? []) assert.ok(!source.includes(marker), `${id} contains stale semantic marker: ${marker}`);
   assert.doesNotMatch(source, /drive\.google\.com|google\.com\/maps|private-user-images|OPENAI_API_KEY|REPLICATE_API_TOKEN|ELEVENLABS_API_KEY|sk-proj-/);
   assert.ok(statSync(join(outputDir, 'frames-png', `${id}.png`)).size > 10_000, `${id}.png suspiciously small`);
 }
