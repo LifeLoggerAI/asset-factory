@@ -20,6 +20,8 @@ FILM_MARKER = 'authorizations/execute-built-from-survival-hero-cinema-20260829.j
 FILM_RESUME_MARKER = 'authorizations/resume-built-from-survival-hero-cinema-20260829.json'
 FINITE_TIME_WORKFLOW = '.github/workflows/one-time-finite-time-openai-physics-validation.yml'
 FINITE_TIME_MARKER = 'authorizations/execute-finite-time-openai-physics-validation-20260912.json'
+FINITE_TIME_NONPRIVATE_WORKFLOW = '.github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml'
+FINITE_TIME_NONPRIVATE_MARKER = 'authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json'
 
 EXPECTED_CURRENT = {
     '.github/workflows/one-time-before-rest-world-cinematic-motion.yml':
@@ -34,6 +36,7 @@ EXPECTED_CURRENT = {
         'authorizations/execute-finite-time-openai-representative-validation-20260912.json',
     '.github/workflows/one-time-finite-time-openai-representative-retry-v2.yml':
         'authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json',
+    FINITE_TIME_NONPRIVATE_WORKFLOW: FINITE_TIME_NONPRIVATE_MARKER,
 }
 EXPECTED_ALL = {
     '.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml':
@@ -113,6 +116,22 @@ def main() -> int:
     for required in ('environment: paid-asset-generation', FINITE_TIME_MARKER, 'maximumProviderCalls', 'independentReviewDeferred'):
         assert required in finite_time_text, required
 
+    nonprivate = load(FINITE_TIME_NONPRIVATE_MARKER)
+    assert nonprivate['schemaVersion']=='finite-time-nonprivate-story-wave-v1', nonprivate
+    assert nonprivate['provider']=='openai', nonprivate
+    assert nonprivate['maximumProviderCalls']==12, nonprivate
+    assert nonprivate['shotNumbers']==[7,8,12,13,14,15,17,19,25,26,27,28], nonprivate
+    assert nonprivate['containsPrivateReferenceMedia'] is False, nonprivate
+    assert nonprivate['automaticRetryAuthorized'] is False, nonprivate
+    assert nonprivate['promotionAuthorized'] is False, nonprivate
+    assert nonprivate['deploymentAuthorized'] is False, nonprivate
+    assert nonprivate['deliveryAuthorized'] is False, nonprivate
+    assert nonprivate['publicReleaseAuthorized'] is False, nonprivate
+    assert nonprivate['privateReviewAuthorized'] is True, nonprivate
+    nonprivate_text=(ROOT / FINITE_TIME_NONPRIVATE_WORKFLOW).read_text(encoding='utf-8')
+    for required in ('environment: paid-asset-generation', FINITE_TIME_NONPRIVATE_MARKER, 'matrix:', 'SHOT_NUMBER', '2a872b885b3a7b99182f6a9d440cd8f1ee3ab27e'):
+        assert required in nonprivate_text, required
+
     film_text = (ROOT / FILM_WORKFLOW).read_text(encoding='utf-8')
     for required in (
         'environment: paid-asset-generation', FILM_MARKER, FILM_RESUME_MARKER,
@@ -124,7 +143,7 @@ def main() -> int:
 
     errors = module.inspect(ROOT)
     assert errors == [], '\n'.join(errors)
-    print('PASS exact current paid authorities including bounded FINITE TIME private physics validation')
+    print('PASS exact current paid authorities including bounded FINITE TIME nonprivate story generation')
     return 0
 
 if __name__ == '__main__':

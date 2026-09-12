@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "finite-time-nonprivate-story-wave-v1",
+  "confirmation": "AUTHORIZE_FINITE_TIME_NONPRIVATE_STORY_WAVE",
+  "project": "FINITE TIME / Farm-to-Lake",
+  "storyAuthority": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+  "productionSource": "2a872b885b3a7b99182f6a9d440cd8f1ee3ab27e",
+  "provider": "openai",
+  "model": "sora-2",
+  "shotNumbers": [7, 8, 12, 13, 14, 15, 17, 19, 25, 26, 27, 28],
+  "maximumProviderCalls": 12,
+  "estimatedMaximumSpendUsd": 9.60,
+  "automaticRetryAuthorized": false,
+  "privateProductionOnly": true,
+  "privateReviewAuthorized": true,
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "deliveryAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "independentReviewDeferred": true,
+  "containsPrivateReferenceMedia": false,
+  "literalVisualQcRequired": true,
+  "note": "Bounded first-pass generation of certified non-identifying story shots only. Provider completion is not acceptance. No private likeness reference is submitted by this wave."
+}
