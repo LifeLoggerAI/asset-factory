@@ -5,7 +5,7 @@
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "deploy": "node ../scripts/refuse-unprotected-deploy.mjs functions:deploy",
     "logs": "firebase functions:log",
     "build": "node --check index.js",
     "test": "npm run build"

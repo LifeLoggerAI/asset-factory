@@ -1,116 +1,57 @@
-# Firebase Service Account Setup
+# Firebase Deployment Identity Setup — WIF Only
 
-Asset Factory is already production verified from local authenticated deployment. This document is now the CI deployment setup guide for GitHub Actions.
+The filename is retained for compatibility with older links. It is **not** a service-account-key setup guide.
 
-## Current Verified Production Baseline
+Asset Factory production deployment uses short-lived Google credentials obtained from GitHub OIDC through Google Workload Identity Federation. Do not create, download, paste, or store a JSON service-account key for this repository's production deployment path.
 
-- Firebase project: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Production lock: `LOCK.md` is `STATUS: PRODUCTION VERIFIED`
-- Verification evidence: `docs/PRODUCTION_VERIFICATION_REPORT.md`
+## Required GitHub protected configuration
 
-CI deploy is a post-production automation hardening item. Production status does not depend on CI until the team chooses to make GitHub Actions the deploy path.
+Production workflow: **Asset Factory Production Readiness**
 
-## Required GitHub Secret
-
-Create this repository secret:
+Protected environment:
 
 ```text
-FIREBASE_SERVICE_ACCOUNT
+asset-factory-production
 ```
 
-The value must be the full JSON service account key for Firebase project:
+Required GitHub environment/repository variables:
 
 ```text
-urai-4dc1d
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ```
 
-Do not commit this JSON file to the repository.
+The deploy job requires `id-token: write`, passes the exact provider and service-account identifiers to `google-github-actions/auth@v2`, creates an ephemeral ADC credential file for the deploy steps, and deletes that file immediately after provider mutation.
 
-## Required Permissions
+## Google Cloud trust requirements
 
-The service account must be able to deploy:
+Before deployment, provider administration must prove:
 
-- Firebase Hosting
-- Firebase Functions
-- Firestore rules
-- Storage rules
+- the WIF provider trusts only the intended LifeLoggerAI repository/ref/environment subjects;
+- the impersonated service account belongs to the intended project and is the exact account referenced by protected configuration;
+- IAM is resource-scoped and least privilege;
+- Owner/Editor is not required;
+- no user-managed service-account private key is needed;
+- Cloud Audit attribution identifies the federated principal/service account;
+- historical long-lived credentials are revoked where they previously existed.
 
-Recommended roles for the deploy account:
+## Production execution
 
-- Firebase Admin, or narrowly equivalent deploy permissions
-- Cloud Functions Admin
-- Cloud Build Editor
-- Service Account User
-- Firebase Hosting Admin
-- Firestore Rules Admin / Firebase Rules Admin
-- Storage Admin or Firebase Storage rules deploy equivalent
-
-Use the least-privilege role set available in the Firebase / Google Cloud console.
-
-## GitHub UI Path
-
-1. Open `LifeLoggerAI/asset-factory`.
-2. Go to `Settings`.
-3. Go to `Secrets and variables`.
-4. Open `Actions`.
-5. Select `New repository secret`.
-6. Name it exactly:
+After source/review/provider gates close, invoke:
 
 ```text
-FIREBASE_SERVICE_ACCOUNT
+Actions -> Asset Factory Production Readiness -> Run workflow
+branch = main
+deploy = true
+confirm = DEPLOY_ASSET_FACTORY
 ```
 
-7. Paste the full JSON key as the value.
-8. Save.
+Do not substitute local CLI authentication when WIF is missing or broken. Missing `GCP_WIF_PROVIDER` or `GCP_DEPLOY_SERVICE_ACCOUNT` is a provider-admin blocker and must remain fail closed.
 
-## Trigger Deployment
+## Runtime identity
 
-After the secret exists:
+Google-managed production runtimes should use attached Application Default Credentials and an exact least-privilege runtime service account. Runtime identity is separate from deployment identity and must be verified independently.
 
-1. Go to `Actions`.
-2. Open `Asset Factory Production Readiness`.
-3. Select `Run workflow`.
-4. Choose `main`.
-5. Run it.
+## Evidence
 
-The workflow will:
-
-1. Install root dependencies.
-2. Install engine dependencies.
-3. Install legacy Functions dependencies.
-4. Install deploy Functions dependencies.
-5. Run doctor/readiness scripts.
-6. Build Functions.
-7. Run tests.
-8. Run non-blocking audit reporting.
-9. Deploy hosting, functions, Firestore rules, and Storage rules to `urai-4dc1d`.
-10. Run production-finalization smoke tests against `https://urai-4dc1d.web.app`.
-
-## Required Passing Smoke Tests
-
-The CI deploy is not considered verified unless all of these pass:
-
-- `GET /api/health`
-- `POST /api/assets`
-- `GET /api/assets/{assetId}`
-- `POST /api/lifemap/events`
-
-## Expected Failure Modes
-
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| Workflow says `FIREBASE_SERVICE_ACCOUNT secret is not configured` | Secret is missing or named incorrectly | Add repository secret named exactly `FIREBASE_SERVICE_ACCOUNT` |
-| Firebase deploy permission error | Service account lacks one or more deploy roles | Add least-privilege Firebase/GCP deploy roles listed above |
-| Smoke test fails after deploy | Runtime or hosting rewrite regression | Do not update lock; inspect workflow logs and rerun local `npm run deploy:verify` |
-| Audit step reports low findings | Known post-production dependency hardening item | Keep audit non-blocking unless runtime-reachable high/critical findings appear |
-
-## Final CI Evidence Update
-
-After the first passing CI deployment:
-
-1. Add the GitHub Actions workflow URL and smoke evidence to `docs/PRODUCTION_VERIFICATION_REPORT.md`.
-2. Comment on Issue #56 with the passing workflow run link.
-3. Close Issue #56.
-
-Do not rotate or expose the service account JSON in issue comments, logs, screenshots, or docs.
+A passing source workflow is not provider proof. Retain the authenticated principal, project/resource scope, deployed revision, exact source readback, audit correlation, monitoring, recovery, and distinct rollback evidence before calling the provider gate complete.

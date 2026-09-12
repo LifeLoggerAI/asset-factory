@@ -1,330 +1,110 @@
 # Asset Factory
 
-Production-oriented monorepo for deterministic asset generation and Firebase processing pipelines.
+URAI Asset Factory is the governed asset-generation and processing subsystem for deterministic proof assets, provider-backed generation seams, durable job handling, and Life Map handoff contracts.
 
-The current canonical Studio path supports a local proof pipeline for four core modalities:
+## Launch authority
 
-- `graphic` -> SVG proof assets
-- `model3d` -> GLTF proof meshes
-- `audio` -> WAV proof sounds
-- `bundle` -> JSON bundle manifests
+Current status is **source hardening in progress / live production certification not yet earned**.
 
-These local proof renderers are intentionally deterministic so API contracts, manifests, usage metrics, storage paths, and E2E tests can run without external provider credentials. Production provider adapters can be swapped in behind the same renderer contract.
+Canonical launch truth is defined by `LAUNCH_READINESS.md`, `docs/OPERATIONS_RUNBOOK.md`, the protected GitHub workflows, and exact retained release evidence. Historical lock reports or older deploy instructions do not override those sources.
 
-## Launch status
+Production deployment authority is singular:
 
-Asset Factory repo-side hardening is complete for the current pass, but the system is **not production-locked until `LAUNCH_READINESS.md` gates pass in staging and production with live evidence**.
+- workflow: **Asset Factory Production Readiness**;
+- ref: exact `main` only;
+- protected environment: `asset-factory-production`;
+- explicit confirmation: `DEPLOY_ASSET_FACTORY`;
+- Google authentication: GitHub OIDC + Workload Identity Federation;
+- required GitHub variables: `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT`;
+- generated ADC credentials are ephemeral and removed before post-deploy smoke.
 
-Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Use issue #63 as the live production-lock tracker. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
+Root `deploy:*` shortcuts intentionally fail closed. Do not restore direct local Firebase deployment, interactive Firebase login, a Firebase CLI token, downloaded service-account JSON, or another long-lived Google deployment credential.
 
-For repeatable AI-assisted repo audits and implementation passes, use `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`. Keep it aligned with the launch-readiness contract by running `npm run test:implementation-audit-prompt` or the broader `npm run test:completion-lock` gate.
+`Verify Deployed Asset Factory` is smoke-only. It verifies an existing target and cannot deploy.
 
-### Current verified production surface
+## Domain truth
 
-- Verified Firebase production API base: `https://urai-4dc1d.web.app`
-- Verified production smoke evidence: `docs/release-evidence/2026-05-16-production-api-smoke.md`
-- Verified Firebase deploy evidence: `docs/release-evidence/2026-05-16-firebase-deploy.md`
-- Verified final local gate evidence: `docs/release-evidence/2026-05-16-final-local-gates.md`
-- Known custom-domain API blocker: `docs/release-evidence/2026-05-16-custom-domain-blocker.md`
+Do not treat `uraiassetfactory.com` or `www.uraiassetfactory.com` as this repository's live runtime until registrar/DNS/Firebase Hosting attachment and exact deployed-revision evidence are proven. A public page at those hosts is not hosting-authority proof.
 
-Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as the API base until the custom-domain blocker is closed. Those domains currently do not prove the Firebase Hosting API rewrites for this repo.
+## Repository structure
 
-## Repo structure
-- `engine/`: sealed headless V1 engine API/runtime.
-- `functions/`: Firebase Cloud Functions (legacy/root deployment set).
-- `life-map-pipeline/functions/`: TypeScript Firebase Functions for LifeMap ingestion.
-- `assetfactory-studio/`: web/studio app and canonical multimodal API surface.
-- `image_asset_generator/`: manifest-driven image asset loop for generate, validate, preview, and export.
-- `docs/MULTIMODAL_ASSET_WIRING.md`: asset type, renderer, storage, provider, and E2E contract.
-- `docs/OPERATIONS_RUNBOOK.md`: staging/production deploy, smoke, incident, rollback, and release evidence runbook.
-- `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`: automation-first repo audit and safe implementation prompt.
-- `LAUNCH_READINESS.md`: current production launch gate checklist.
+- `engine/` - deterministic core engine.
+- `functions/` - retained root Functions package.
+- `life-map-pipeline/functions/` - TypeScript Life Map ingestion Functions.
+- `assetfactory-studio/` - Studio/API surface.
+- `image_asset_generator/` - manifest-driven image generation/validation/export loop.
+- `scripts/` - verification, smoke, evidence, and release-boundary tooling.
+- `docs/` - governed operations, security, privacy, and release evidence.
 
-## Requirements
-- Node.js 22.x for Studio/deploy workflow parity. Root packages still accept Node.js 20.19.0 or newer, but use Node 22 when validating the Studio/Firebase deployment path.
-- npm 10.8.0 or newer.
-- Java 21 for current Firebase emulator/CLI tooling.
-- Firebase CLI (`npm i -g firebase-tools`) for emulators/deploy.
-- Python 3.11+ for the image asset generator loop.
+## Local development
 
-## Quick start
-
-Recommended fail-fast setup:
+Use Node 22 for release-parity validation.
 
 ```bash
-unset NPM_CONFIG_PREFIX
-nvm install 22
-nvm use 22
-node --version
-node scripts/setup-local.mjs
-```
-
-The fail-fast setup installs the package workspaces used by the current repo gates. Root dependency installation is skipped by default when root Firebase packages are missing because the current static validation path does not require them and the root lockfile is intentionally not committed.
-
-Install root dependencies only when intentionally working on root-level Firebase packages:
-
-```bash
-ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs
-```
-
-Manual setup, if you need to run each step yourself:
-
-```bash
-unset NPM_CONFIG_PREFIX
-nvm install 22
-nvm use 22
-node --version
-npm --prefix engine install
-npm --prefix functions install
-npm --prefix life-map-pipeline/functions install
-npm --prefix assetfactory-studio install
-npm run doctor
-```
-
-If `npm run doctor`, `npm run test:launch-readiness`, `npm --prefix assetfactory-studio test`, or `npm --prefix assetfactory-studio run typecheck` reports a missing script, your local checkout is stale or you are not in the repository root. Recover with:
-
-```bash
-git fetch origin
-git checkout main
-git reset --hard origin/main
 unset NPM_CONFIG_PREFIX
 nvm install 22
 nvm use 22
 node scripts/setup-local.mjs
 ```
 
-## Environment
-Copy and edit:
-- `./.env.example`
-- `engine/.env.example`
-- `life-map-pipeline/functions/.env.example`
-- `assetfactory-studio/.env.example`
-
-Never commit real secrets.
-
-For local Studio development, keep local proof mode enabled:
+Local deterministic proof mode remains the safe default:
 
 ```bash
 ASSET_FACTORY_FORCE_LOCAL=true
 ASSET_FACTORY_MEDIA_PROVIDER=local-proof
 ```
 
-Provider-backed rendering is configured later via the provider environment variables documented in `assetfactory-studio/.env.example`.
+Never commit real provider, Firebase, Stripe, auth, tenant, or operator secrets.
 
-## Run locally
+## Verification
 
-### Asset Factory Studio
-```bash
-cd assetfactory-studio
-npm run dev
-```
+Run the repo-owned fail-closed gates:
 
-Then open the Studio and create a `graphic`, `model3d`, `audio`, or `bundle` job. The local proof flow is:
-
-1. `POST /api/generate`
-2. `POST /api/jobs/:jobId/materialize`
-3. `GET /api/generated-assets/:file`
-4. `POST /api/jobs/:jobId/publish`
-5. `POST /api/jobs/:jobId/approve`
-
-### Image asset generator loop
-```bash
-python -m pip install -r image_asset_generator/requirements.txt
-python image_asset_generator/generate_assets.py
-python image_asset_generator/validate_assets.py
-python image_asset_generator/create_preview.py
-python image_asset_generator/export_assets.py
-```
-
-This loop reads `image_asset_generator/manifest.json`, creates missing local proof PNGs, validates dimensions and RGBA requirements, builds a review gallery, and exports a ZIP bundle.
-
-### Engine API
-```bash
-cd engine
-npm start
-```
-
-### LifeMap functions build
-```bash
-cd life-map-pipeline/functions
-npm run build
-```
-
-### Firebase emulator (functions package)
-```bash
-cd life-map-pipeline/functions
-npm run serve
-```
-
-## Tests and validation
-
-### Repo doctor
 ```bash
 npm run doctor
-```
-
-The doctor checks Node/npm versions, `NPM_CONFIG_PREFIX`, required scripts, required files, Studio dependencies, and whether local `HEAD` matches `origin/main`.
-
-### Full intended validation
-```bash
-npm run doctor
+npm run verify:local
 npm run test:launch-readiness
 npm run test:completion-lock
 npm run check:deploy-workflow
-npm --prefix engine test
-npm --prefix assetfactory-studio run lint
-npm --prefix assetfactory-studio run typecheck
-npm --prefix assetfactory-studio test
-npm --prefix assetfactory-studio run build
-npm --prefix assetfactory-studio run e2e
-npm --prefix functions run build
-npm --prefix functions test
-npm --prefix life-map-pipeline/functions run build
-npm --prefix life-map-pipeline/functions test
-python -m pip install -r image_asset_generator/requirements.txt
-python image_asset_generator/generate_assets.py
-python image_asset_generator/validate_assets.py
-python image_asset_generator/create_preview.py
 ```
 
-### Studio multimodal checks
-```bash
-cd assetfactory-studio
-npm test
-npm run e2e
-```
+The deployment-boundary gate verifies both the protected WIF workflow and operator-facing source so manual deployment bypasses cannot silently return.
 
-The E2E suite exercises graphic, model3d, audio, and bundle jobs through generate -> materialize -> fetch -> publish -> approve.
+For implementation-completeness review, use the governed audit contract in `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`. It is an audit input, not production certification; any resulting claim still requires exact-head evidence and the applicable independent/provider/runtime gates.
 
-### Preferred remote launch smoke checks
+## Remote smoke
 
-Use the manual GitHub Actions workflow whenever possible:
+Remote root smoke scripts are read-only by default. Preferred verification is the protected workflow:
 
 ```text
-Actions -> Deploy Asset Factory -> Run workflow
+Actions -> Verify Deployed Asset Factory -> Run workflow
 ```
 
-Sequence:
+Choose `staging` or `production` and `readonly`, `authenticated`, or `both`. Authenticated mode still performs read-only checks and requires protected smoke credentials.
 
-```text
-staging / deploy=false / smoke_mode=readonly
-staging / deploy=true / smoke_mode=both
-production / deploy=false / smoke_mode=readonly
-production / deploy=true / smoke_mode=both
-```
-
-Required GitHub environment/repository secrets:
-
-```text
-FIREBASE_TOKEN
-ASSET_FACTORY_API_KEY
-ASSET_FACTORY_BEARER_TOKEN
-CRON_SECRET
-```
-
-### Manual remote smoke checks
-
-Run these only when debugging deployed staging/production targets with the correct secrets available locally or in CI.
-
-```bash
-ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
-ASSET_FACTORY_API_KEY=$STAGING_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$STAGING_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=smoke-tenant-a \
-ASSET_FACTORY_OTHER_TENANT_ID=smoke-tenant-b \
-CRON_SECRET=$STAGING_CRON_SECRET \
-npm run smoke:staging
-```
-
-Verified Firebase production API smoke uses the Firebase Hosting URL until the custom-domain blocker closes:
+For a local diagnostic against an already-deployed target:
 
 ```bash
 ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
-ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=prod-smoke \
-ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
-CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
-```
-
-Use the custom domain only after DNS/Firebase Hosting attachment is verified:
-
-```bash
-ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
-ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
-ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
-ASSET_FACTORY_TENANT_ID=prod-smoke \
-ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied \
-CRON_SECRET=$PROD_CRON_SECRET \
-npm run smoke:prod
-```
-
-For read-only diagnostics checks on the verified Firebase URL:
-
-```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
-For read-only diagnostics checks on the custom domain after the blocker closes:
+Do not use smoke output as deployment proof. Bind launch evidence to the exact deployed source SHA, provider revision, provider principal, health/readback, monitoring, recovery, and a distinct-revision rollback.
 
-```bash
-ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com \
-npm run smoke:website
-```
+## Production prerequisites
 
-## Production notes
+Before launch, retain evidence for at least:
 
-Before using real provider-backed rendering in production:
+- protected WIF trust and least-privilege IAM;
+- historical long-lived credential revocation where applicable;
+- staging deployment and tenant-isolation proof;
+- exact production deployment/revision readback;
+- provider-backed generation and bounded spend;
+- durable worker/retry/dead-letter behavior;
+- Stripe entitlement/webhook correctness if billing is enabled;
+- monitoring, recovery, and distinct rollback;
+- domain/TLS/hosting authority;
+- legal/privacy/security/support approval.
 
-- Replace proof renderer internals with provider adapters behind `assetProviderAdapters.ts`.
-- Move long-running generation to durable queue workers.
-- Persist artifacts to Cloud Storage or equivalent using canonical storage paths.
-- Enforce `ASSET_FACTORY_REQUIRE_AUTH=true` with real tenant membership/RBAC.
-- Apply billing and quota checks per modality before queueing jobs.
-- Run emulator-backed Firestore/Storage integration tests.
-- Run the launch gates in `LAUNCH_READINESS.md`.
-- Follow `docs/OPERATIONS_RUNBOOK.md` for release evidence, rollback, and incident response.
-
-For the image asset generator loop specifically:
-
-- Keep `image_asset_generator/manifest.json` as the canonical image registry.
-- Replace the local placeholder renderer while preserving the manifest and validation contract.
-- Store approved renderer version, prompt version, content hash, approval status, and Firebase Storage path in the manifest before production lock.
-- Run the `Image Asset Generator` GitHub Actions workflow for every PR that changes image generator files.
-
-## Deploy notes
-
-Preferred deployment path for the Studio/Firebase framework surface is the manual GitHub Actions workflow documented above and in `docs/OPERATIONS_RUNBOOK.md`.
-
-Manual Studio deploy command, when debugging with configured Firebase credentials:
-
-```bash
-npm run deploy:studio
-```
-
-Other deploy scripts exist for explicit lower-level Firebase operations and should only be used with collision-risk review:
-
-```bash
-npm run deploy:firebase
-npm run deploy:verify-readonly
-npm run deploy:verify
-npm run check:deploy-workflow
-```
-
-Ensure project, service account, and env are configured before deploy.
-
-## Troubleshooting
-- If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
-- If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 22 && nvm use 22`.
-- If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
-- If root setup reports missing root dependencies, continue with `node scripts/setup-local.mjs` unless you are intentionally working on root-level Firebase packages; use `ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs` only for that case.
-- If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
-- If Firebase build fails, verify Node version, Java 21, firebase-tools auth, and project selection.
-- If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
-- If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
-- If image asset validation fails, run `python image_asset_generator/generate_assets.py` first, then rerun `python image_asset_generator/validate_assets.py`.
-- If `https://uraiassetfactory.com/api/system/health` or `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
+See `LAUNCH_READINESS.md` for the current gate matrix.

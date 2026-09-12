@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
+import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter } from './lifemap.types';
 import { deterministicHash } from './hash';
 
 type HttpsRequest = Parameters<typeof functions.https.onRequest>[0] extends (req: infer Req, res: any) => any ? Req : never;
@@ -11,12 +11,12 @@ type LifeMapEventContext = functions.EventContext<{ eventId: string }>;
 
 admin.initializeApp();
 const db = admin.firestore();
-const VERSION = process.env.K_REVISION || process.env.GIT_SHA || 'dev';
 
 function now(): number { return Date.now(); }
 
 function sendJson(res: HttpsResponse, status: number, body: unknown): void {
   res.set('Cache-Control', 'no-store');
+  res.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
   res.status(status).json(body);
 }
 
@@ -187,25 +187,7 @@ function createInitialAssetManifest(input: {
 export const assetFactoryHealth = functions.https.onRequest(async (req, res) => {
   if (applyCors(req, res)) return;
   if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
-
-  const status: SystemStatusRecord = {
-    status: 'healthy',
-    service: 'asset-factory',
-    version: VERSION,
-    updatedAt: now(),
-    checks: { firestore: 'unchecked', functions: true, storageRulesPath: 'storage.rules', firestoreRulesPath: 'firestore.rules' },
-  };
-
-  try {
-    await db.collection('systemStatus').doc('asset-factory').set(status, { merge: true });
-    status.checks.firestore = true;
-  } catch (error) {
-    console.error('assetFactoryHealth status write failed', error);
-    status.status = 'degraded';
-    status.checks.firestore = `status-write-failed: ${errorMessage(error)}`;
-  }
-
-  return sendJson(res, 200, { ok: true, ...status });
+  return sendJson(res, 200, { ok: true, service: 'asset-factory' });
 });
 
 export const createAssetRequest = functions.https.onRequest(async (req, res) => {

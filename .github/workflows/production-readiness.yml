@@ -118,7 +118,10 @@ jobs:
       contents: read
       id-token: write
     env:
-      ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
+      ASSET_FACTORY_PROJECT_ID: ${{ vars.ASSET_FACTORY_PROJECT_ID }}
+      ASSET_FACTORY_HOSTING_SITE: ${{ vars.ASSET_FACTORY_HOSTING_SITE }}
+      ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}
+      ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST: ${{ vars.ASSET_FACTORY_CUSTOM_DOMAIN_ALLOWLIST }}
       ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
       - name: Require WIF deployment identity
@@ -126,10 +129,18 @@ jobs:
         env:
           WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
           DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ vars.ASSET_FACTORY_PROJECT_ID }}
+          HOSTING_SITE: ${{ vars.ASSET_FACTORY_HOSTING_SITE }}
+          BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}
         run: |
           set -euo pipefail
           test -n "$WIF_PROVIDER" || { echo "GCP_WIF_PROVIDER is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
           test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "GCP_DEPLOY_SERVICE_ACCOUNT is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
+          test -n "$PROJECT_ID" && test -n "$HOSTING_SITE" && test -n "$BASE_URL" || { echo "Dedicated Asset Factory project, site, and base URL are required." >&2; exit 1; }
+          test "$PROJECT_ID" != "urai-4dc1d" || { echo "Canonical consumer project is forbidden." >&2; exit 1; }
+          test "$HOSTING_SITE" != "urai-4dc1d" || { echo "Canonical consumer Hosting site is forbidden." >&2; exit 1; }
+          case "$BASE_URL" in *urai-4dc1d.web.app*|https://urai.app*|https://www.urai.app*) echo "Canonical consumer URL is forbidden." >&2; exit 1;; esac
+          case "$DEPLOY_SERVICE_ACCOUNT" in *@"$PROJECT_ID".iam.gserviceaccount.com) ;; *) echo "Deploy service account must belong to the dedicated project." >&2; exit 1;; esac
 
       - name: Checkout exact main candidate
         uses: actions/checkout@v4
@@ -171,7 +182,7 @@ jobs:
         id: google_auth
         uses: google-github-actions/auth@v2
         with:
-          project_id: urai-4dc1d
+          project_id: ${{ vars.ASSET_FACTORY_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
@@ -189,7 +200,8 @@ jobs:
       - name: Deploy
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
+          ASSET_FACTORY_DIRECT_DEPLOY_CONFIRM: DEPLOY_DEDICATED_ASSET_FACTORY
+        run: node scripts/run-dedicated-firebase-deploy.mjs hosting,functions,firestore,storage
 
       - name: Remove ephemeral deployment credential
         shell: bash
