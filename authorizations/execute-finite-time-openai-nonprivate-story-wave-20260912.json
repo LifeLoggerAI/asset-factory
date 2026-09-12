@@ -21,5 +21,6 @@
   "literalVisualQcRequired": true,
   "preProviderStaticRetryAuthorized": true,
   "preProviderStaticFailureRun": 34676667073,
-  "note": "Bounded first-pass generation of certified non-identifying story shots only. The first main attempt failed before any provider call at the exact-authority proof step; this successor authorizes one corrected pre-provider static retry without changing the 12-call cap or enabling automatic provider retries. Provider completion is not acceptance. No private likeness reference is submitted by this wave."
+  "preProviderStaticSecondFailureRun": 34676828562,
+  "note": "Bounded first-pass generation of certified non-identifying story shots only. Two main attempts failed before any provider call at the exact-authority proof step. This successor corrects only merge-commit changed-file proof by diffing the exact merge against its first parent. The 12-call cap remains unchanged, automatic provider retries remain unauthorized, and provider completion is not acceptance. No private likeness reference is submitted by this wave."
 }
