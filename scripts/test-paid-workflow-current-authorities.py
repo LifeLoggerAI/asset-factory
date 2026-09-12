@@ -22,6 +22,8 @@ FINITE_TIME_WORKFLOW = '.github/workflows/one-time-finite-time-openai-physics-va
 FINITE_TIME_MARKER = 'authorizations/execute-finite-time-openai-physics-validation-20260912.json'
 FINITE_TIME_NONPRIVATE_WORKFLOW = '.github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml'
 FINITE_TIME_NONPRIVATE_MARKER = 'authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json'
+FINITE_TIME_CANARY_WORKFLOW = '.github/workflows/one-time-finite-time-openai-semantic-canary.yml'
+FINITE_TIME_CANARY_MARKER = 'authorizations/execute-finite-time-openai-semantic-canary-20260912.json'
 
 EXPECTED_CURRENT = {
     '.github/workflows/one-time-before-rest-world-cinematic-motion.yml':
@@ -37,6 +39,7 @@ EXPECTED_CURRENT = {
     '.github/workflows/one-time-finite-time-openai-representative-retry-v2.yml':
         'authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json',
     FINITE_TIME_NONPRIVATE_WORKFLOW: FINITE_TIME_NONPRIVATE_MARKER,
+    FINITE_TIME_CANARY_WORKFLOW: FINITE_TIME_CANARY_MARKER,
 }
 EXPECTED_ALL = {
     '.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml':
@@ -132,6 +135,27 @@ def main() -> int:
     for required in ('environment: paid-asset-generation', FINITE_TIME_NONPRIVATE_MARKER, 'matrix:', 'SHOT_NUMBER', '2a872b885b3a7b99182f6a9d440cd8f1ee3ab27e'):
         assert required in nonprivate_text, required
 
+    canary = load(FINITE_TIME_CANARY_MARKER)
+    assert canary['schemaVersion']=='finite-time-nonprivate-semantic-canary-v1', canary
+    assert canary['defectSourceRun']==34677073895, canary
+    assert canary['productionSource']=='32041da2e66d553ce8e2aa696bb125cc25261ac5', canary
+    assert canary['provider']=='openai', canary
+    assert canary['model']=='sora-2', canary
+    assert canary['maximumProviderCalls']==2, canary
+    assert canary['shotNumbers']==[8,28], canary
+    assert canary['containsPrivateReferenceMedia'] is False, canary
+    assert canary['automaticRetryAuthorized'] is False, canary
+    assert canary['promotionAuthorized'] is False, canary
+    assert canary['deploymentAuthorized'] is False, canary
+    assert canary['deliveryAuthorized'] is False, canary
+    assert canary['publicReleaseAuthorized'] is False, canary
+    assert canary['privateReviewAuthorized'] is True, canary
+    assert canary['literalVisualQcRequired'] is True, canary
+    assert canary['successDoesNotAuthorizeRemainingRetries'] is True, canary
+    canary_text=(ROOT / FINITE_TIME_CANARY_WORKFLOW).read_text(encoding='utf-8')
+    for required in ('environment: paid-asset-generation', FINITE_TIME_CANARY_MARKER, 'matrix:', 'shot: [8, 28]', '32041da2e66d553ce8e2aa696bb125cc25261ac5', '34677073895'):
+        assert required in canary_text, required
+
     film_text = (ROOT / FILM_WORKFLOW).read_text(encoding='utf-8')
     for required in (
         'environment: paid-asset-generation', FILM_MARKER, FILM_RESUME_MARKER,
@@ -143,7 +167,7 @@ def main() -> int:
 
     errors = module.inspect(ROOT)
     assert errors == [], '\n'.join(errors)
-    print('PASS exact current paid authorities including bounded FINITE TIME nonprivate story generation')
+    print('PASS exact current paid authorities including bounded FINITE TIME semantic canary')
     return 0
 
 if __name__ == '__main__':
