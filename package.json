@@ -35,7 +35,7 @@
     "check:smoke-readonly-boundary": "node scripts/test-smoke-readonly-boundary.mjs",
     "finite-time:animatic": "node film_foundry/finite_time/generate-animatic.mjs",
     "finite-time:validate": "node film_foundry/finite_time/validate-animatic.mjs",
-    "finite-time:storyboard-v2": "node film_foundry/finite_time/generate-storyboard-v2.mjs",
+    "finite-time:storyboard-v2": "tmpdir=$(mktemp -d) && realffmpeg=$(command -v ffmpeg) && printf '#!/bin/sh\\nif [ \"$1\" = \"--version\" ]; then exec \"%s\" -version; fi\\nexec \"%s\" \"$@\"\\n' \"$realffmpeg\" \"$realffmpeg\" > \"$tmpdir/ffmpeg\" && chmod +x \"$tmpdir/ffmpeg\" && PATH=\"$tmpdir:$PATH\" node film_foundry/finite_time/generate-storyboard-v2.mjs; status=$?; rm -rf \"$tmpdir\"; exit $status",
     "finite-time:validate-v2": "node film_foundry/finite_time/validate-storyboard-v2.mjs",
     "finite-time:validate-authorization": "node film_foundry/finite_time/validate-final-render-authorization.mjs",
     "finite-time:proof": "npm run finite-time:animatic && npm run finite-time:validate && npm run finite-time:storyboard-v2 && npm run finite-time:validate-v2 && npm run finite-time:validate-authorization",
