@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "finite-time-private-production-validation-retry-v1",
+  "project": "FINITE TIME / Farm-to-Lake",
+  "confirmation": "AUTHORIZE_FINITE_TIME_OPENAI_PHYSICS_VALIDATION_V2",
+  "executionAuthority": "founder authenticated production order 2026-09-12",
+  "purpose": "defect-driven retry for real boat departure, wake, rope inertia and zero visible text",
+  "provider": "openai",
+  "model": "sora-2",
+  "maximumProviderCalls": 1,
+  "generatedSeconds": 8,
+  "estimatedProviderCostUsd": 0.80,
+  "priorRunId": 34672206540,
+  "priorArtifactId": 10290224314,
+  "priorClipSha256": "7fe6deca60d296c2b7e5477707785b673f338e3412ec2a9b9ec01ae28358f836",
+  "retryReason": "reject-static-beauty-shot-and-hull-text",
+  "defects": [
+    "boat state changed too little and read as an animated beauty shot",
+    "visible invented hull text violated no-text/no-logo requirement"
+  ],
+  "automaticRetryAuthorized": false,
+  "remixAuthorized": false,
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "deliveryAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "privateReviewAuthorized": true,
+  "independentReviewDeferred": true,
+  "containsPrivateReferenceMedia": false,
+  "generatedImageryIsRecreation": true,
+  "literalVisualQcRequired": true,
+  "note": "PRIVATE PRODUCTION AUTHORITY - NOT PUBLIC RELEASE APPROVAL"
+}
