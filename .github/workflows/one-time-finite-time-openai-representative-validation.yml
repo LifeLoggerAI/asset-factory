@@ -1,0 +1,146 @@
+name: FINITE TIME OpenAI Representative Validation Wave
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-finite-time-openai-representative-validation-20260912.json
+
+permissions:
+  contents: read
+
+env:
+  AUTHORIZATION_MARKER: authorizations/execute-finite-time-openai-representative-validation-20260912.json
+
+concurrency:
+  group: finite-time-openai-representative-validation-20260912
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: paid-asset-generation
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - category: family-interaction
+            prompt: >-
+              Photoreal cinematic autobiographical-memory reconstruction in a lived-in East Texas farmhouse kitchen at morning. An anonymous mother and two anonymous school-age brothers share a small ordinary breakfast moment: one child slides a paper bag across the bench, the other unwraps food, the mother leans in and gives a restrained affectionate glance. All faces remain non-identifying and generic for this validation; the purpose is believable multi-person blocking, hand interaction, eyelines, weight shifts, breathing, cloth motion, and natural micro-expression. Continuous real moving cinema with subtle 35mm handheld inertia, practical window light, stable anatomy, stable wardrobe, realistic hands touching paper and food. No slideshow, no Ken Burns, no frozen portrait, no text, no logos, no brand marks, no melodramatic acting, no morphing faces, no fused limbs, no extra fingers.
+          - category: complex-human-motion
+            prompt: >-
+              Photoreal cinematic autobiographical-memory reconstruction on an icy East Texas farm grade before dawn. An anonymous adult woman in practical winter farm clothes carefully grips a trusted dairy cow's tail while the cow steadily walks uphill; her boots slip twice but she recovers and is physically pulled forward by the cow's motion. The scene must show believable traction loss, weight transfer, arm tension, boot scrape, cow gait, fabric movement, breath in cold air, and gravity. Restrained side-follow 35mm camera with clear state change from lower slope toward warm barn light. Generic non-identifying person only. No slapstick, no injury, no floating body, no impossible cow anatomy, no fused limbs, no extra fingers, no text, no logos, no slow-motion spectacle, no still-image animation.
+          - category: emotional-lookback
+            prompt: >-
+              Photoreal cinematic autobiographical-memory reconstruction on a classic ski boat at an East Texas lake in clean morning light. An anonymous middle-aged father figure drives at low planing speed, then turns his head and shoulders once to look back toward a child safely behind the boat, holds the look for a brief emotionally restrained beat, then returns his eyes forward. The performance is quiet trust, not melodrama. The boat remains geometrically stable; water, wake, hair, shirt fabric and sunlight reflections move naturally. Restrained over-shoulder 50mm camera from inside the boat, subtle handheld inertia, realistic skin and eyes, anatomically correct hands on the wheel. Generic non-identifying face for validation only. No text, logos, registration numbers, warped hull, morphing face, extra fingers, frozen portrait, Ken Burns, excessive slow motion, or theatrical acting.
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove exact one-time private-production authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          test "$changed" = "$AUTHORIZATION_MARKER"
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          m=json.load(open('authorizations/execute-finite-time-openai-representative-validation-20260912.json'))
+          assert m['schemaVersion']=='finite-time-private-representative-validation-v1'
+          assert m['confirmation']=='AUTHORIZE_FINITE_TIME_REPRESENTATIVE_VALIDATION_WAVE'
+          assert m['provider']=='openai'
+          assert m['model']=='sora-2'
+          assert m['maximumProviderCalls']==3
+          assert m['automaticRetryAuthorized'] is False
+          assert m['privateProductionOnly'] is True
+          assert m['promotionAuthorized'] is False
+          assert m['deploymentAuthorized'] is False
+          assert m['publicReleaseAuthorized'] is False
+          assert m['independentReviewDeferred'] is True
+          assert m['containsPrivateReferenceMedia'] is False
+          PY
+
+      - name: Generate representative validation clip
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CATEGORY: ${{ matrix.category }}
+          PROMPT: ${{ matrix.prompt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          root="artifacts/finite-time/representative-validation/$CATEGORY"
+          mkdir -p "$root"
+          curl --fail-with-body -sS https://api.openai.com/v1/videos \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -F "model=sora-2" \
+            -F "size=1280x720" \
+            -F "seconds=8" \
+            -F "prompt=$PROMPT" \
+            > "$root/create.json"
+          video_id="$(jq -r '.id // empty' "$root/create.json")"
+          test -n "$video_id"
+          printf '%s' "$video_id" > "$root/video-id.txt"
+          status=''
+          for i in $(seq 1 90); do
+            curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id" \
+              -H "Authorization: Bearer $OPENAI_API_KEY" \
+              > "$root/status.json"
+            status="$(jq -r '.status // empty' "$root/status.json")"
+            if [ "$status" = completed ] || [ "$status" = failed ]; then break; fi
+            sleep 10
+          done
+          test "$status" = completed
+          curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id/content" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -o "$root/$CATEGORY.mp4"
+          test -s "$root/$CATEGORY.mp4"
+          sha256sum "$root/$CATEGORY.mp4" > "$root/SHA256SUMS.txt"
+          python - <<'PY'
+          import json, os, pathlib
+          category=os.environ['CATEGORY']
+          root=pathlib.Path('artifacts/finite-time/representative-validation')/category
+          create=json.loads((root/'create.json').read_text())
+          status=json.loads((root/'status.json').read_text())
+          receipt={
+            'schemaVersion':'finite-time-representative-validation-receipt-v1',
+            'category':category,
+            'status':'generated-awaiting-literal-qc',
+            'provider':'openai',
+            'model':status.get('model') or create.get('model'),
+            'videoId':status.get('id') or create.get('id'),
+            'generatedSeconds':int(status.get('seconds') or create.get('seconds') or 8),
+            'size':status.get('size') or create.get('size'),
+            'providerCallsExecuted':1,
+            'automaticRetryAuthorized':False,
+            'privateProductionOnly':True,
+            'containsPrivateReferenceMedia':False,
+            'publicReleaseAuthorized':False,
+            'independentReviewDeferred':True,
+            'literalQcRequired':True
+          }
+          (root/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PY
+
+      - name: Upload private validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finite-time-representative-${{ matrix.category }}-${{ github.run_id }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: warn
+          path: |
+            artifacts/finite-time/representative-validation/${{ matrix.category }}/**
+            authorizations/execute-finite-time-openai-representative-validation-20260912.json

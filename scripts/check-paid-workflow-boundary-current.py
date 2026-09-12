@@ -30,6 +30,8 @@ CURRENT_MARKER_WORKFLOWS = {
         "authorizations/execute-finite-time-openai-physics-validation-20260912.json",
     Path(".github/workflows/one-time-finite-time-openai-physics-validation-v2.yml"):
         "authorizations/execute-finite-time-openai-physics-validation-v2-20260912.json",
+    Path(".github/workflows/one-time-finite-time-openai-representative-validation.yml"):
+        "authorizations/execute-finite-time-openai-representative-validation-20260912.json",
 }
 
 for workflow, marker in CURRENT_MARKER_WORKFLOWS.items():
