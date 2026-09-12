@@ -23,8 +23,10 @@ jobs:
     env:
       AUTHORIZATION_MARKER: authorizations/execute-finite-time-openai-production-20260912.json
       MANIFEST_PATH: film_foundry/finite_time/farm-to-lake.manifest.json
+      EDIT_PLAN_PATH: film_foundry/finite_time/farm-to-lake.edit-plan.v2.json
       PRODUCTION_AUTH: film_foundry/finite_time/openai-production-authorization.v2.json
       OUTPUT_ROOT: artifacts/film/finite-time/farm-to-lake/openai-production
+      PRIVATE_REFERENCE_MAP: ${{ vars.FINITE_TIME_PRIVATE_REFERENCE_MAP_PATH }}
     steps:
       - name: Checkout exact authorization commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -50,6 +52,7 @@ jobs:
           m=json.load(open('authorizations/execute-finite-time-openai-production-20260912.json'))
           assert a['sourceCommit']=='2f61af8442b4b20e8b0e4638ca4119a17969c6d4'
           assert a['sourceStoryboardArtifact']['shotCount']==30
+          assert a['sourceStoryboardArtifact']['durationSeconds']==180
           assert a['privacy']['semanticKeysOnly'] is True
           assert a['release']['paidGenerationAuthorized'] is True
           assert a['release']['publicReleaseAuthorized'] is False
@@ -66,6 +69,30 @@ jobs:
       - name: Compile generator
         run: python -m py_compile film_foundry/finite_time/generate-openai-production.py
 
+      - name: Verify private reference boundary before provider secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PRIVATE_REFERENCE_MAP:-}" ]; then
+            echo 'FINITE_TIME_PRIVATE_REFERENCE_MAP_PATH is not configured; refusing paid generation.'
+            exit 1
+          fi
+          test -f "$PRIVATE_REFERENCE_MAP"
+          python - "$PRIVATE_REFERENCE_MAP" <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          data=json.loads(p.read_text())
+          assert data.get('schemaVersion')=='finite-time-private-reference-map-v1'
+          shots=data.get('shots',{})
+          required={'ft-fl-001','ft-fl-002','ft-fl-003','ft-fl-004','ft-fl-005','ft-fl-006','ft-fl-009','ft-fl-010','ft-fl-011','ft-fl-016','ft-fl-018','ft-fl-020','ft-fl-021','ft-fl-022','ft-fl-023','ft-fl-024','ft-fl-029','ft-fl-030'}
+          for shot in required:
+              spec=shots.get(shot)
+              assert spec and spec.get('clearedForProviderSubmission') is True, shot
+              path=pathlib.Path(spec.get('path',''))
+              assert path.is_file(), (shot, path)
+          print('private reference preflight: PASS')
+          PY
+
       - name: Generate 30 moving source clips
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -76,7 +103,9 @@ jobs:
           test -n "$OPENAI_API_KEY"
           python film_foundry/finite_time/generate-openai-production.py \
             --manifest "$MANIFEST_PATH" \
+            --edit-plan "$EDIT_PLAN_PATH" \
             --authorization "$PRODUCTION_AUTH" \
+            --private-reference-map "$PRIVATE_REFERENCE_MAP" \
             --output-root "$OUTPUT_ROOT" \
             --start-shot 1 --end-shot 30
 
@@ -85,6 +114,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          p='artifacts/film/finite-time/farm-to-lake/openai-production/provider-receipt.json'
+          test -f "$p"
           python - <<'PY'
           import json
           from pathlib import Path
@@ -96,7 +127,7 @@ jobs:
           assert r['publicReleaseAuthorized'] is False
           assert r['privateSourcePointersRetained'] is False
           assert len(list(p.parent.joinpath('clips').glob('*.mp4')))==30
-          print(json.dumps({'status':r['status'],'calls':r['providerCallsExecuted'],'videos':len(r['videos'])},sort_keys=True))
+          print(json.dumps({'status':r['status'],'calls':r['providerCallsExecuted'],'videos':len(r['videos']),'generatedSeconds':r['generatedSeconds']},sort_keys=True))
           PY
 
       - name: Upload private production evidence
