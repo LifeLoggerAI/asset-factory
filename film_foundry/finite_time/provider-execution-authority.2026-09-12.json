@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "finite-time-provider-execution-authority-v2",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "sourceCommit": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+  "certifiedStoryboardArtifactId": "10289594684",
+  "certifiedStoryboardArtifactSha256": "sha256:f9c32415c51818e16537e45f97ff2851fc3d9b818e4bac1258be8904e81c0d84",
+  "founderAuthorization": {
+    "authorizedBy": "Adam Clamp",
+    "authorizedAt": "2026-09-12",
+    "reference": "LifeLoggerAI/urai-storytime#29 issue comment 5643113532",
+    "adamLikenessAuthorized": true,
+    "paidOpenAIExecutionAuthorized": true,
+    "formerUsd20CeilingRevoked": true,
+    "finalRenderingAuthorizedSubjectToPerShotRightsAndPrivacy": true
+  },
+  "provider": {
+    "name": "openai",
+    "videoModelsAllowed": ["sora-2", "sora-2-pro"],
+    "endpoint": "/v1/videos",
+    "referenceMode": "optional-input-reference-image",
+    "allowedDurationsSeconds": [4, 8, 12],
+    "trainingUse": "prohibited-by-default-api-policy",
+    "standardRetentionBoundary": "up-to-30-days-unless-eligible-zdr-or-other-documented-exception",
+    "apiRetirementDate": "2026-09-24"
+  },
+  "costControl": {
+    "absoluteLegacyCeilingRevoked": true,
+    "runawaySpendAuthorized": false,
+    "requirePerCallLedger": true,
+    "requireDefectReasonForRetry": true,
+    "stopBeforeUnexpectedOpenEndedEscalation": true
+  },
+  "referencePolicy": {
+    "useOriginalBeforeGenerated": true,
+    "publicRepoMayContainPrivateDriveIds": false,
+    "publicRepoMayContainPrivateFamilyNames": false,
+    "identityMappingByFacialRecognition": false,
+    "identityMappingSources": ["provenance", "source-label", "prior-explicit-user-confirmation", "private-production-record"],
+    "adamSemanticKeys": ["ADAM-AGE19-001", "ADAM-CURRENT-LIKENESS-001", "ADAM-JACOB-MOTION-001"],
+    "identifiableFamilyPolicy": "fail-closed-until-cleared-private-reference-package-is-materialized"
+  },
+  "releaseBoundary": {
+    "publicReleaseAuthorized": false,
+    "independentReviewWaived": false,
+    "familyReleaseWaived": false,
+    "narratorVoiceAuthorizationWaived": false
+  }
+}
