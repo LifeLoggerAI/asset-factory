@@ -28,9 +28,9 @@
     "certifiedEditorialSeconds": 180,
     "plannedGeneratedSourceSecondsAtSupportedDurations": 236,
     "estimatedInitialSora2CostUsd": 23.60,
-    "maximumInitialPassUsd": 30,
-    "maximumRepairCalls": 15,
-    "absoluteProjectCeilingUsd": 120,
+    "initialPlanningThresholdUsd": 30,
+    "repairPlanningThresholdCalls": 15,
+    "hardProjectCeilingUsd": null,
     "founderAdditionalSpendAuthority": "use-what-is-reasonably-needed-for-quality-with-ledger-and-no-runaway-retries",
     "requireDefectReasonForRetry": true,
     "stopOnUnexpectedOpenEndedEscalation": true
