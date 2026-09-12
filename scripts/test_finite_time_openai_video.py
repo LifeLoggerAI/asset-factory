@@ -21,18 +21,32 @@ assert mod.choose_source_duration(12) == 12
 
 shot = {
     "id": "ft-fl-test",
-    "title": "Continuity test",
-    "visual": "A person crosses a lived-in room.",
-    "audioDescription": "A person crosses the room."
+    "title": "Milking line",
+    "visual": "Cows stand side by side in a working milking line.",
+    "audioDescription": "Cows stand side by side in a working milking line."
 }
-prompt = mod.build_prompt(shot, 6, True)
-assert "REAL MOVING CINEMA" in prompt
+prompt = mod.build_prompt(shot, 6, False)
+assert prompt.startswith("MANDATORY SHOT ft-fl-test")
+assert prompt.index("Milking line") < 100
+assert prompt.index("Cows stand side by side") < 250
+assert prompt.index("FINITE TIME autobiographical prestige short film") > prompt.index("Cows stand side by side")
 assert "never a slideshow" in prompt
-assert "identity/appearance authority" in prompt
-assert "Photoreal memory-realism" in prompt
-assert "no readable brands" in prompt
-assert "invent no dialogue or unsupported event" in prompt
-assert "no identity drift" in prompt
+assert "do not introduce people, vehicles, animals, or props" in prompt
+assert "generic adult portrait, pickup-truck portrait, porch portrait" in prompt
+assert "Photoreal East Texas memory-realism" in prompt
+assert "readable brands" in prompt
+assert "invented dialogue" in prompt
+assert len(prompt) <= 1800
+
+reference_prompt = mod.build_prompt({
+    "id": "ft-fl-ref",
+    "title": "Family memory",
+    "visual": "A parent and child share a quiet smile.",
+    "audioDescription": "A parent and child smile together."
+}, 6, True)
+assert reference_prompt.startswith("MANDATORY SHOT ft-fl-ref")
+assert "identity/appearance authority" in reference_prompt
+assert "identity drift" in reference_prompt
 
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / "refs.json"
