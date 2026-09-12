@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "finite-time-private-representative-retry-v2",
+  "confirmation": "AUTHORIZE_FINITE_TIME_REPRESENTATIVE_RETRY_V2",
+  "project": "FINITE TIME / Farm-to-Lake",
+  "provider": "openai",
+  "model": "sora-2",
+  "maximumProviderCalls": 2,
+  "generatedSecondsPerCall": 8,
+  "estimatedMaximumSpendUsd": 1.60,
+  "sourceRunId": 34673270179,
+  "automaticRetryAuthorized": false,
+  "privateProductionOnly": true,
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "deliveryAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "independentReviewDeferred": true,
+  "containsPrivateReferenceMedia": false,
+  "literalVisualQcRequired": true,
+  "retryReasons": {
+    "complex-human-motion-v2": "V1 simplified required tail-grip/slip/recovery mechanics into ordinary walking beside cow",
+    "emotional-lookback-v2": "V1 provider generation failed before usable clip; retry removes visible child and isolates adult turn-hold-return performance"
+  },
+  "note": "PRIVATE PRODUCTION VALIDATION RETRY AUTHORITY - NOT PUBLIC RELEASE APPROVAL"
+}
