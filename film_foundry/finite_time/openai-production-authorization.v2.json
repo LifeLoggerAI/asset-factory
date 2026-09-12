@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "finite-time-openai-production-authorization-v2",
+  "projectId": "finite-time",
+  "chapterId": "farm-to-lake",
+  "sourceCommit": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+  "sourceStoryboardArtifact": {
+    "artifactId": "10289594684",
+    "sha256": "f9c32415c51818e16537e45f97ff2851fc3d9b818e4bac1258be8904e81c0d84",
+    "shotCount": 30,
+    "durationSeconds": 180
+  },
+  "provider": {
+    "name": "openai",
+    "primaryModel": "sora-2",
+    "qualityModel": "sora-2-pro",
+    "trainingUse": "prohibited-by-production-policy",
+    "privateReferenceSubmission": "minimum-necessary-only"
+  },
+  "budget": {
+    "legacyAbsoluteCeilingRevoked": true,
+    "initialShotCount": 30,
+    "maximumInitialCalls": 30,
+    "maximumRepairCalls": 15,
+    "absoluteProjectCeilingUsd": 120,
+    "requireDefectReasonForRetry": true,
+    "stopOnUnexpectedOpenEndedEscalation": true
+  },
+  "likeness": {
+    "adamAuthorized": true,
+    "adamReferenceKeys": ["ADAM-AGE19-001", "ADAM-CURRENT-LIKENESS-001", "ADAM-JACOB-MOTION-001"],
+    "identityMappingRule": "provenance-source-label-prior-user-confirmation-only-no-facial-recognition",
+    "familyIdentifiableLikenessRule": "fail-closed-unless-private-authority-confirms-role-mapping-and-use-permission",
+    "fallback": "non-identifying-composite"
+  },
+  "privacy": {
+    "publicRepoMayContainPrivateDriveIds": false,
+    "publicRepoMayContainPrivateFamilyNames": false,
+    "publicRepoMayContainPrivateContactSheets": false,
+    "publicRepoMayContainRawFamilyMedia": false,
+    "semanticKeysOnly": true
+  },
+  "release": {
+    "paidGenerationAuthorized": true,
+    "finalRenderingAuthorized": true,
+    "publicReleaseAuthorized": false,
+    "independentReviewRequirementsPreserved": true
+  },
+  "authorizedBy": "Adam Clamp",
+  "authorizationSource": "founder execution order in authenticated ChatGPT production session, 2026-09-11/12",
+  "authorizedAt": "2026-09-12T00:00:00-05:00"
+}
