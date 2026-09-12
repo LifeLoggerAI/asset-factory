@@ -1,0 +1,113 @@
+name: FINITE TIME OpenAI Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-finite-time-openai-production-20260912.json
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: finite-time-openai-production-20260912
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: paid-asset-generation
+    env:
+      AUTHORIZATION_MARKER: authorizations/execute-finite-time-openai-production-20260912.json
+      MANIFEST_PATH: film_foundry/finite_time/farm-to-lake.manifest.json
+      PRODUCTION_AUTH: film_foundry/finite_time/openai-production-authorization.v2.json
+      OUTPUT_ROOT: artifacts/film/finite-time/farm-to-lake/openai-production
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove bounded protected trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          test "$changed" = "$AUTHORIZATION_MARKER"
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          a=json.load(open('film_foundry/finite_time/openai-production-authorization.v2.json'))
+          m=json.load(open('authorizations/execute-finite-time-openai-production-20260912.json'))
+          assert a['sourceCommit']=='2f61af8442b4b20e8b0e4638ca4119a17969c6d4'
+          assert a['sourceStoryboardArtifact']['shotCount']==30
+          assert a['privacy']['semanticKeysOnly'] is True
+          assert a['release']['paidGenerationAuthorized'] is True
+          assert a['release']['publicReleaseAuthorized'] is False
+          assert m['confirmation']=='AUTHORIZE_FINITE_TIME_OPENAI_PRODUCTION'
+          assert m['maximumProviderCalls']==30
+          assert m['publicReleaseAuthorized'] is False
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Compile generator
+        run: python -m py_compile film_foundry/finite_time/generate-openai-production.py
+
+      - name: Generate 30 moving source clips
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FINITE_TIME_VIDEO_MODEL: sora-2
+          FINITE_TIME_VIDEO_SIZE: 1280x720
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          python film_foundry/finite_time/generate-openai-production.py \
+            --manifest "$MANIFEST_PATH" \
+            --authorization "$PRODUCTION_AUTH" \
+            --output-root "$OUTPUT_ROOT" \
+            --start-shot 1 --end-shot 30
+
+      - name: Verify generated evidence remains pre-acceptance
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('artifacts/film/finite-time/farm-to-lake/openai-production/provider-receipt.json')
+          r=json.loads(p.read_text())
+          assert r['status']=='generated-awaiting-literal-qc', r
+          assert r['providerCallsExecuted']==30, r
+          assert len(r['videos'])==30, r
+          assert r['publicReleaseAuthorized'] is False
+          assert r['privateSourcePointersRetained'] is False
+          assert len(list(p.parent.joinpath('clips').glob('*.mp4')))==30
+          print(json.dumps({'status':r['status'],'calls':r['providerCallsExecuted'],'videos':len(r['videos'])},sort_keys=True))
+          PY
+
+      - name: Upload private production evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finite-time-openai-production-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: warn
+          compression-level: 0
+          path: |
+            artifacts/film/finite-time/farm-to-lake/openai-production/**
+            film_foundry/finite_time/openai-production-authorization.v2.json
+            authorizations/execute-finite-time-openai-production-20260912.json
