@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "finite-time-nonprivate-story-wave-v2",
+  "confirmation": "AUTHORIZE_FINITE_TIME_NONPRIVATE_STORY_WAVE_V2",
+  "productionSource": "32041da2e66d553ce8e2aa696bb125cc25261ac5",
+  "defectSourceRun": 34677073895,
+  "semanticCanaryRun": 34677817931,
+  "provider": "openai",
+  "model": "sora-2",
+  "shotNumbers": [7,12,13,14,15,17,19,25,26,27],
+  "maximumProviderCalls": 10,
+  "estimatedMaximumSpendUsd": 8.00,
+  "automaticRetryAuthorized": false,
+  "privateProductionOnly": true,
+  "containsPrivateReferenceMedia": false,
+  "privateReviewAuthorized": true,
+  "literalVisualQcRequired": true,
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "deliveryAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "independentReviewDeferred": true,
+  "notes": "Defect-driven successor wave after first-pass rejection and successful shots 8/28 semantic canary. Provider completion is not acceptance."
+}
