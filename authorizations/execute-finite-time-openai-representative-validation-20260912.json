@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "finite-time-private-representative-validation-v1",
+  "confirmation": "AUTHORIZE_FINITE_TIME_REPRESENTATIVE_VALIDATION_WAVE",
+  "project": "FINITE TIME / Farm-to-Lake",
+  "purpose": "Prove non-identifying family interaction, complex human motion, and restrained emotional look-back generation contracts before likeness-dependent scale production.",
+  "provider": "openai",
+  "model": "sora-2",
+  "maximumProviderCalls": 3,
+  "generatedSecondsPerCall": 8,
+  "maximumGeneratedSeconds": 24,
+  "automaticRetryAuthorized": false,
+  "remixAuthorized": false,
+  "privateProductionOnly": true,
+  "promotionAuthorized": false,
+  "deploymentAuthorized": false,
+  "deliveryAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "independentReviewDeferred": true,
+  "containsPrivateReferenceMedia": false,
+  "generatedImageryIsRecreation": true,
+  "literalVisualQcRequired": true,
+  "categories": [
+    "family-interaction",
+    "complex-human-motion",
+    "emotional-lookback"
+  ],
+  "note": "PRIVATE PRODUCTION VALIDATION AUTHORITY - NOT PUBLIC RELEASE APPROVAL. Every output remains generated-awaiting-literal-qc until manually inspected. Any retry requires a new defect-specific authority marker."
+}
