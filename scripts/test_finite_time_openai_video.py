@@ -25,10 +25,14 @@ shot = {
     "visual": "A person crosses a lived-in room.",
     "audioDescription": "A person crosses the room."
 }
-prompt = mod.build_prompt(shot, 6)
+prompt = mod.build_prompt(shot, 6, True)
+assert "REAL MOVING CINEMA" in prompt
+assert "never a slideshow" in prompt
+assert "identity/appearance authority" in prompt
 assert "Photoreal memory-realism" in prompt
 assert "no readable brands" in prompt
-assert "do not invent facts or dialogue" in prompt
+assert "invent no dialogue or unsupported event" in prompt
+assert "no identity drift" in prompt
 
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / "refs.json"
