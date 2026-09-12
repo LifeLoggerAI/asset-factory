@@ -19,5 +19,7 @@
   "independentReviewDeferred": true,
   "containsPrivateReferenceMedia": false,
   "literalVisualQcRequired": true,
-  "note": "Bounded first-pass generation of certified non-identifying story shots only. Provider completion is not acceptance. No private likeness reference is submitted by this wave."
+  "preProviderStaticRetryAuthorized": true,
+  "preProviderStaticFailureRun": 34676667073,
+  "note": "Bounded first-pass generation of certified non-identifying story shots only. The first main attempt failed before any provider call at the exact-authority proof step; this successor authorizes one corrected pre-provider static retry without changing the 12-call cap or enabling automatic provider retries. Provider completion is not acceptance. No private likeness reference is submitted by this wave."
 }
