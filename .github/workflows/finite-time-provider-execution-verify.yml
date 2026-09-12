@@ -8,6 +8,8 @@ on:
       - 'film_foundry/finite_time/generate-openai-production.py'
       - 'film_foundry/finite_time/farm-to-lake.edit-plan.v2.json'
       - 'scripts/test_finite_time_openai_video.py'
+      - 'scripts/check-paid-workflow-boundary-current.py'
+      - 'scripts/test-paid-workflow-current-authorities.py'
       - '.github/workflows/finite-time-openai-production.yml'
       - '.github/workflows/finite-time-provider-execution-verify.yml'
 
@@ -54,7 +56,10 @@ jobs:
           assert authority['provider']['supportsImageInputReference'] is True
           assert authority['budget']['plannedGeneratedSourceSecondsAtSupportedDurations']==236
           assert authority['budget']['estimatedInitialSora2CostUsd']==23.60
-          assert authority['budget']['maximumInitialPassUsd']==30
+          assert authority['budget']['initialPlanningThresholdUsd']==30
+          assert authority['budget']['hardProjectCeilingUsd'] is None
+          assert authority['budget']['requireDefectReasonForRetry'] is True
+          assert authority['budget']['stopOnUnexpectedOpenEndedEscalation'] is True
           assert sum(int(v) for v in edit['shotDurations'].values())==180
           generated=sum(next(x for x in (4,8,12) if int(v)<=x) for v in edit['shotDurations'].values())
           assert generated==236
