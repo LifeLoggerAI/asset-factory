@@ -1,0 +1,128 @@
+name: FINITE TIME OpenAI Physics Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - authorizations/execute-finite-time-openai-physics-validation-20260912.json
+
+permissions:
+  contents: read
+
+env:
+  AUTHORIZATION_MARKER: authorizations/execute-finite-time-openai-physics-validation-20260912.json
+
+concurrency:
+  group: finite-time-openai-physics-validation-20260912
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: paid-asset-generation
+    steps:
+      - name: Checkout exact authorization commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove exact one-time private-production authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          changed="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+          test "$changed" = "$AUTHORIZATION_MARKER"
+          test -z "${OPENAI_API_KEY:-}"
+          python - <<'PY'
+          import json
+          m=json.load(open('authorizations/execute-finite-time-openai-physics-validation-20260912.json'))
+          assert m['schemaVersion']=='finite-time-private-production-validation-v1'
+          assert m['confirmation']=='AUTHORIZE_FINITE_TIME_OPENAI_PHYSICS_VALIDATION'
+          assert m['provider']=='openai'
+          assert m['model']=='sora-2'
+          assert m['maximumProviderCalls']==1
+          assert m['automaticRetryAuthorized'] is False
+          assert m['promotionAuthorized'] is False
+          assert m['deploymentAuthorized'] is False
+          assert m['publicReleaseAuthorized'] is False
+          assert m['privateReviewAuthorized'] is True
+          assert m['independentReviewDeferred'] is True
+          PY
+
+      - name: Generate one moving physics validation clip
+        id: generate
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          mkdir -p artifacts/finite-time/physics-validation
+          prompt='Photoreal cinematic autobiographical-memory reconstruction at an East Texas lake. A classic low white ski boat with restrained blue-teal striping rocks naturally beside a wooden dock in clean morning light. The shot must be genuinely moving cinema, not a still image, not a slideshow, not Ken Burns. Water has physically believable small waves, reflections, hull displacement and wake interaction; dock ropes flex and tighten naturally; the hull has stable geometry and mass; a tow rope lies coiled with believable gravity. A person may remain anonymous and non-identifying in the background only if needed for scale. Restrained 35mm camera, subtle handheld inertia, natural exposure, filmic highlight rolloff, realistic wood, fiberglass and water. No text, no logos, no warped hull, no melting geometry, no impossible reflections, no floating objects, no excessive slow motion.'
+          curl --fail-with-body -sS https://api.openai.com/v1/videos \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -F "model=sora-2" \
+            -F "size=1280x720" \
+            -F "seconds=8" \
+            -F "prompt=$prompt" \
+            > artifacts/finite-time/physics-validation/create.json
+          video_id="$(jq -r '.id // empty' artifacts/finite-time/physics-validation/create.json)"
+          test -n "$video_id"
+          printf '%s' "$video_id" > artifacts/finite-time/physics-validation/video-id.txt
+          status=''
+          for i in $(seq 1 90); do
+            curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id" \
+              -H "Authorization: Bearer $OPENAI_API_KEY" \
+              > artifacts/finite-time/physics-validation/status.json
+            status="$(jq -r '.status // empty' artifacts/finite-time/physics-validation/status.json)"
+            if [ "$status" = completed ] || [ "$status" = failed ]; then break; fi
+            sleep 10
+          done
+          test "$status" = completed
+          curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id/content" \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -o artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4
+          test -s artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4
+          sha256sum artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4 > artifacts/finite-time/physics-validation/SHA256SUMS.txt
+          python - <<'PY'
+          import json, pathlib
+          root=pathlib.Path('artifacts/finite-time/physics-validation')
+          create=json.loads((root/'create.json').read_text())
+          status=json.loads((root/'status.json').read_text())
+          receipt={
+            'schemaVersion':'finite-time-openai-physics-validation-receipt-v1',
+            'status':'generated-awaiting-literal-qc',
+            'provider':'openai',
+            'model':status.get('model') or create.get('model'),
+            'videoId':status.get('id') or create.get('id'),
+            'generatedSeconds':int(status.get('seconds') or create.get('seconds') or 8),
+            'size':status.get('size') or create.get('size'),
+            'providerCallsExecuted':1,
+            'automaticRetryAuthorized':False,
+            'privateProductionOnly':True,
+            'publicReleaseAuthorized':False,
+            'independentReviewDeferred':True,
+            'literalQcRequired':True
+          }
+          (root/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PY
+
+      - name: Upload private validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finite-time-openai-physics-validation-${{ github.run_id }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: warn
+          path: |
+            artifacts/finite-time/physics-validation/**
+            authorizations/execute-finite-time-openai-physics-validation-20260912.json
