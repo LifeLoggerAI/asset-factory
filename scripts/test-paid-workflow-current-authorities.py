@@ -18,6 +18,8 @@ spec.loader.exec_module(module)
 FILM_WORKFLOW = '.github/workflows/one-time-built-from-survival-hero-cinema.yml'
 FILM_MARKER = 'authorizations/execute-built-from-survival-hero-cinema-20260829.json'
 FILM_RESUME_MARKER = 'authorizations/resume-built-from-survival-hero-cinema-20260829.json'
+FINITE_TIME_WORKFLOW = '.github/workflows/one-time-finite-time-openai-physics-validation.yml'
+FINITE_TIME_MARKER = 'authorizations/execute-finite-time-openai-physics-validation-20260912.json'
 
 EXPECTED_CURRENT = {
     '.github/workflows/one-time-before-rest-world-cinematic-motion.yml':
@@ -25,6 +27,7 @@ EXPECTED_CURRENT = {
     '.github/workflows/one-time-before-rest-world-full-master-t1.yml':
         'authorizations/execute-before-rest-world-full-master-t1-20260801.json',
     FILM_WORKFLOW: FILM_MARKER,
+    FINITE_TIME_WORKFLOW: FINITE_TIME_MARKER,
 }
 EXPECTED_ALL = {
     '.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml':
@@ -99,22 +102,23 @@ def main() -> int:
     assert resume['generatedImageryIsRecreation'] is True, resume
     assert set(resume['existingProviderJobs']) == {'GEN-01', 'GEN-02'}, resume
     assert all(resume['existingProviderJobs'].values()), resume
+
+    finite_time_text = (ROOT / FINITE_TIME_WORKFLOW).read_text(encoding='utf-8')
+    for required in ('environment: paid-asset-generation', FINITE_TIME_MARKER, 'maximumProviderCalls', 'independentReviewDeferred'):
+        assert required in finite_time_text, required
+
     film_text = (ROOT / FILM_WORKFLOW).read_text(encoding='utf-8')
     for required in (
-        'environment: paid-asset-generation',
-        FILM_MARKER,
-        FILM_RESUME_MARKER,
-        'EXECUTION_MODE=resume',
-        'gh run download "$PRIOR_RUN_ID"',
-        'providerCreateCallsPreviouslyExecuted',
-        'providerCreateCallsExecutedThisRun',
+        'environment: paid-asset-generation', FILM_MARKER, FILM_RESUME_MARKER,
+        'EXECUTION_MODE=resume', 'gh run download "$PRIOR_RUN_ID"',
+        'providerCreateCallsPreviouslyExecuted', 'providerCreateCallsExecutedThisRun',
         'providerCreateCallsLifetime',
     ):
         assert required in film_text, required
 
     errors = module.inspect(ROOT)
     assert errors == [], '\n'.join(errors)
-    print('PASS exact current paid authorities, spend caps, consumed Film marker, and bounded no-duplicate resume authority')
+    print('PASS exact current paid authorities including bounded FINITE TIME private physics validation')
     return 0
 
 if __name__ == '__main__':
