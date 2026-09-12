@@ -46,16 +46,30 @@ def choose_source_duration(editorial_seconds):
         if editorial_seconds<=candidate: return candidate
     raise ValueError(f'editorial shot {editorial_seconds}s exceeds one supported source clip')
 def build_prompt(shot, editorial_seconds, has_reference):
-    identity = ("The supplied reference is identity/appearance authority. Preserve recognizable facial structure, age cues, hair, body proportions and grounded family resemblance while creating NEW continuous action; do not animate the still as a flat card. " if has_reference else "Use natural non-celebrity human casting consistent with the autobiographical scene. ")
-    return (
-        "FINITE TIME autobiographical prestige short film. This must be REAL MOVING CINEMA, never a slideshow, photo montage, Ken Burns move, frozen portrait, parallax card, or still-image presentation. "
-        + identity +
-        "Photoreal memory-realism in East Texas. Natural skin texture, believable hair and fabric, physically credible body mechanics, micro-expressions, blinking, breathing, weight shifts, hand contact, cloth motion, environmental motion and real depth. "
-        "Use emotionally motivated live-action camera movement with foreground/background parallax, coherent lens behavior, consistent geography, realistic water/vehicle/animal physics, coherent lighting and temporal continuity. "
-        "No text overlays, no readable brands, no synthetic plastic AI aesthetic, no morphing faces, no extra fingers, no identity drift. Preserve autobiographical restraint; invent no dialogue or unsupported event. "
-        f"Shot {shot['id']}; editorial window {editorial_seconds}s. Title: {shot.get('title','')}. Visual intent: {shot.get('visual','')}. Accessibility intent: {shot.get('audioDescription','')}. "
-        "Deliver a believable live-action moment that could have been photographed by a real cinema camera on location."
+    # Put the unique shot authority FIRST. The first paid wave proved that long shared
+    # boilerplate ahead of the scene can collapse distinct requests into generic rural
+    # portraiture if the provider truncates or over-weights the beginning of a prompt.
+    scene = (
+        f"MANDATORY SHOT {shot['id']} ({editorial_seconds}s editorial). "
+        f"Title: {shot.get('title','')}. "
+        f"Required visual action: {shot.get('visual','')}. "
+        f"Accessibility intent: {shot.get('audioDescription','')}. "
+        "This exact subject and action are the shot. Do not replace them with a generic adult portrait, pickup-truck portrait, porch portrait, or unrelated rural tableau. "
     )
+    identity = (
+        "A supplied reference, when present, is identity/appearance authority only: preserve recognizable facial structure, age cues, hair, body proportions and grounded family resemblance while creating new continuous action. "
+        if has_reference else
+        "Use natural non-celebrity casting only when this shot explicitly requires people; do not introduce people, vehicles, animals, or props that are absent from the required visual action. "
+    )
+    craft = (
+        "FINITE TIME autobiographical prestige short film; real moving cinema, never a slideshow, photo montage, Ken Burns move, frozen portrait, parallax card, or still-image presentation. "
+        "Photoreal East Texas memory-realism with believable body mechanics, micro-expressions where relevant, natural fabric/environment motion, real depth and coherent lens/camera behavior. "
+        "Keep geography, lighting and animal/water/vehicle physics credible. No text overlays, readable brands, synthetic plastic AI look, morphing faces, extra fingers, identity drift, invented dialogue, or unsupported event. "
+        "Deliver the mandatory shot as a believable live-action moment photographed by a real cinema camera on location."
+    )
+    prompt = scene + identity + craft
+    if len(prompt) > 1800: raise ValueError(f"{shot['id']}: provider prompt exceeds bounded length")
+    return prompt
 def load_reference_map(path):
     if path is None: return {}
     data=json.loads(path.read_text())
