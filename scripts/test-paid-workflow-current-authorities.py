@@ -28,6 +28,12 @@ EXPECTED_CURRENT = {
         'authorizations/execute-before-rest-world-full-master-t1-20260801.json',
     FILM_WORKFLOW: FILM_MARKER,
     FINITE_TIME_WORKFLOW: FINITE_TIME_MARKER,
+    '.github/workflows/one-time-finite-time-openai-physics-validation-v2.yml':
+        'authorizations/execute-finite-time-openai-physics-validation-v2-20260912.json',
+    '.github/workflows/one-time-finite-time-openai-representative-validation.yml':
+        'authorizations/execute-finite-time-openai-representative-validation-20260912.json',
+    '.github/workflows/one-time-finite-time-openai-representative-retry-v2.yml':
+        'authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json',
 }
 EXPECTED_ALL = {
     '.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml':
