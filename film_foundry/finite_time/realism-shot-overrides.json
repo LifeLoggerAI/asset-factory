@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "finite-time-realism-shot-overrides-v1",
+  "shots": {
+    "ft-fl-013": {
+      "title": "White cat takes the television",
+      "visual": "The same white family cat jumps onto the broad top of an older deep television, lands, and tries to stabilize as it begins losing grip.",
+      "audioDescription": "A white cat jumps onto the broad top of an older deep television and begins struggling for grip."
+    },
+    "ft-fl-014": {
+      "title": "Physics has other plans",
+      "visual": "Continue in the same room with the same white cat and same deep television: the cat slowly loses purchase, scrambles, slides off, bumps the nearby wall during the fall, and lands safely.",
+      "audioDescription": "The same white cat slowly slides from the old television, scrambles, slips off, bumps the nearby wall, and lands safely."
+    }
+  }
+}
