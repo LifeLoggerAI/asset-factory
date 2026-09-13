@@ -19,6 +19,15 @@ assert mod.choose_source_duration(8) == 8
 assert mod.choose_source_duration(9) == 12
 assert mod.choose_source_duration(12) == 12
 
+realism, overrides, periods = mod.load_realism_authority()
+assert realism["genericFamilySubstitution"] is False
+assert realism["cat"]["color"] == "white"
+assert realism["cat"]["tvType"] == "period-deep-television"
+assert set(overrides) == {"ft-fl-013", "ft-fl-014"}
+assert periods["ft-fl-003"] == "childhood"
+assert periods["ft-fl-020"] == "junior-high-era"
+assert periods["ft-fl-029"] == "childhood-lake-era"
+
 shot = {
     "id": "ft-fl-test",
     "title": "Milking line",
@@ -34,6 +43,7 @@ assert "never a slideshow" in prompt
 assert "do not introduce people, vehicles, animals, or props" in prompt
 assert "generic adult portrait, pickup-truck portrait, porch portrait" in prompt
 assert "Photoreal East Texas memory-realism" in prompt
+assert "generic family or generic memory" in prompt
 assert "readable brands" in prompt
 assert "invented dialogue" in prompt
 assert len(prompt) <= 1800
@@ -47,6 +57,29 @@ reference_prompt = mod.build_prompt({
 assert reference_prompt.startswith("MANDATORY SHOT ft-fl-ref")
 assert "identity/appearance authority" in reference_prompt
 assert "identity drift" in reference_prompt
+
+valid_child_ref = {
+    "semanticReferenceKeys": ["APPROVED-CHILDHOOD-REFERENCE"],
+    "path": "/private/ref.jpg",
+    "clearedForProviderSubmission": True,
+}
+mod.validate_reference_period("ft-fl-003", valid_child_ref, periods)
+
+try:
+    mod.validate_reference_period("ft-fl-003", {
+        "semanticReferenceKeys": ["ADAM-AGE19-001"],
+        "path": "/private/ref.jpg",
+        "clearedForProviderSubmission": True,
+    }, periods)
+    raise AssertionError("age-19 fallback must fail for childhood authority")
+except RuntimeError as exc:
+    assert "age-19 likeness reference cannot authorize childhood" in str(exc)
+
+try:
+    mod.validate_reference_period("ft-fl-029", None, periods)
+    raise AssertionError("missing childhood reference must stage rather than substitute")
+except RuntimeError as exc:
+    assert "stage shot instead of substituting a generic person" in str(exc)
 
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / "refs.json"
