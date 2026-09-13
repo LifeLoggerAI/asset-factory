@@ -24,6 +24,8 @@ FINITE_TIME_NONPRIVATE_WORKFLOW = '.github/workflows/one-time-finite-time-openai
 FINITE_TIME_NONPRIVATE_MARKER = 'authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json'
 FINITE_TIME_CANARY_WORKFLOW = '.github/workflows/one-time-finite-time-openai-semantic-canary.yml'
 FINITE_TIME_CANARY_MARKER = 'authorizations/execute-finite-time-openai-semantic-canary-20260912.json'
+FINITE_TIME_CONTINUATION_WORKFLOW = '.github/workflows/one-time-finite-time-openai-semantic-continuation.yml'
+FINITE_TIME_CONTINUATION_MARKER = 'authorizations/execute-finite-time-openai-semantic-continuation-20260912.json'
 
 EXPECTED_CURRENT = {
     '.github/workflows/one-time-before-rest-world-cinematic-motion.yml':
@@ -40,6 +42,7 @@ EXPECTED_CURRENT = {
         'authorizations/execute-finite-time-openai-representative-retry-v2-20260912.json',
     FINITE_TIME_NONPRIVATE_WORKFLOW: FINITE_TIME_NONPRIVATE_MARKER,
     FINITE_TIME_CANARY_WORKFLOW: FINITE_TIME_CANARY_MARKER,
+    FINITE_TIME_CONTINUATION_WORKFLOW: FINITE_TIME_CONTINUATION_MARKER,
 }
 EXPECTED_ALL = {
     '.github/workflows/one-time-v1-aaa-spatial-pack-safe-resume-3.yml':
@@ -156,6 +159,30 @@ def main() -> int:
     for required in ('environment: paid-asset-generation', FINITE_TIME_CANARY_MARKER, 'matrix:', 'shot: [8, 28]', '32041da2e66d553ce8e2aa696bb125cc25261ac5', '34677073895'):
         assert required in canary_text, required
 
+    continuation = load(FINITE_TIME_CONTINUATION_MARKER)
+    assert continuation['schemaVersion']=='finite-time-nonprivate-semantic-continuation-v1', continuation
+    assert continuation['defectSourceRun']==34677073895, continuation
+    assert continuation['proofCanaryRun']==34677817931, continuation
+    assert continuation['proofCanaryMainSha']=='d31b14d922733280ce9040ec1b6391de0ba12824', continuation
+    assert continuation['productionSource']=='32041da2e66d553ce8e2aa696bb125cc25261ac5', continuation
+    assert continuation['provider']=='openai', continuation
+    assert continuation['model']=='sora-2', continuation
+    assert continuation['maximumProviderCalls']==9, continuation
+    assert continuation['shotNumbers']==[7,12,13,14,15,17,25,26,27], continuation
+    assert continuation['containsPrivateReferenceMedia'] is False, continuation
+    assert continuation['automaticRetryAuthorized'] is False, continuation
+    assert continuation['promotionAuthorized'] is False, continuation
+    assert continuation['deploymentAuthorized'] is False, continuation
+    assert continuation['deliveryAuthorized'] is False, continuation
+    assert continuation['publicReleaseAuthorized'] is False, continuation
+    assert continuation['privateReviewAuthorized'] is True, continuation
+    assert continuation['literalVisualQcRequired'] is True, continuation
+    assert continuation['shot19ModerationRetryAuthorized'] is False, continuation
+    assert continuation['successDoesNotAuthorizeFurtherRetries'] is True, continuation
+    continuation_text=(ROOT / FINITE_TIME_CONTINUATION_WORKFLOW).read_text(encoding='utf-8')
+    for required in ('environment: paid-asset-generation', FINITE_TIME_CONTINUATION_MARKER, 'matrix:', 'shot: [7, 12, 13, 14, 15, 17, 25, 26, 27]', '32041da2e66d553ce8e2aa696bb125cc25261ac5', '34677817931'):
+        assert required in continuation_text, required
+
     film_text = (ROOT / FILM_WORKFLOW).read_text(encoding='utf-8')
     for required in (
         'environment: paid-asset-generation', FILM_MARKER, FILM_RESUME_MARKER,
@@ -167,7 +194,7 @@ def main() -> int:
 
     errors = module.inspect(ROOT)
     assert errors == [], '\n'.join(errors)
-    print('PASS exact current paid authorities including bounded FINITE TIME semantic canary')
+    print('PASS exact current paid authorities including bounded FINITE TIME semantic continuation')
     return 0
 
 if __name__ == '__main__':

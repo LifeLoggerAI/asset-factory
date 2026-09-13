@@ -38,6 +38,8 @@ CURRENT_MARKER_WORKFLOWS = {
         "authorizations/execute-finite-time-openai-nonprivate-story-wave-20260912.json",
     Path(".github/workflows/one-time-finite-time-openai-semantic-canary.yml"):
         "authorizations/execute-finite-time-openai-semantic-canary-20260912.json",
+    Path(".github/workflows/one-time-finite-time-openai-semantic-continuation.yml"):
+        "authorizations/execute-finite-time-openai-semantic-continuation-20260912.json",
 }
 
 for workflow, marker in CURRENT_MARKER_WORKFLOWS.items():
