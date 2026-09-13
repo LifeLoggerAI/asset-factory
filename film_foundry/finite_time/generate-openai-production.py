@@ -72,7 +72,9 @@ def load_realism_authority():
                 raise ValueError(f'{sid}: incomplete realism override')
     return contract,shot_overrides
 
-def build_prompt(shot, editorial_seconds, has_reference, realism):
+def build_prompt(shot, editorial_seconds, has_reference, realism=None):
+    if realism is None:
+        realism,_=load_realism_authority()
     # Put the unique shot authority FIRST. The first paid wave proved that long shared
     # boilerplate ahead of the scene can collapse distinct requests into generic rural
     # portraiture if the provider truncates or over-weights the beginning of a prompt.
