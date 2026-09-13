@@ -11,6 +11,9 @@ EXPECTED_SOURCE = "2f61af8442b4b20e8b0e4638ca4119a17969c6d4"
 EXPECTED_SHOTS = 30
 EXPECTED_SECONDS = 180
 ALLOWED_MODELS = {"sora-2", "sora-2-pro"}
+SCRIPT_DIR = Path(__file__).resolve().parent
+REALISM_CONTRACT_PATH = SCRIPT_DIR / "realism-contract.json"
+REALISM_OVERRIDES_PATH = SCRIPT_DIR / "realism-shot-overrides.json"
 IDENTIFIABLE_CHARACTER_SHOTS = {
     "ft-fl-001", "ft-fl-002", "ft-fl-003", "ft-fl-004", "ft-fl-005", "ft-fl-006",
     "ft-fl-009", "ft-fl-010", "ft-fl-011", "ft-fl-016", "ft-fl-018", "ft-fl-020",
@@ -45,7 +48,31 @@ def choose_source_duration(editorial_seconds):
     for candidate in (4,8,12):
         if editorial_seconds<=candidate: return candidate
     raise ValueError(f'editorial shot {editorial_seconds}s exceeds one supported source clip')
-def build_prompt(shot, editorial_seconds, has_reference):
+
+def load_realism_authority():
+    contract=json.loads(REALISM_CONTRACT_PATH.read_text())
+    overrides=json.loads(REALISM_OVERRIDES_PATH.read_text())
+    if contract.get('schemaVersion')!='finite-time-realism-v1': raise ValueError('realism contract schema mismatch')
+    required_true=('ageContinuityRequired','roomContinuityRequired','periodObjectsRequired','literalQcRequired')
+    if contract.get('genericFamilySubstitution') is not False or any(contract.get(k) is not True for k in required_true):
+        raise ValueError('realism contract required guarantees missing')
+    cat=contract.get('cat',{})
+    if cat.get('color')!='white' or cat.get('sameCatAcrossShots') is not True or cat.get('tvType')!='period-deep-television':
+        raise ValueError('cat continuity authority mismatch')
+    if cat.get('shots')!=['ft-fl-013','ft-fl-014']:
+        raise ValueError('cat continuity shot authority mismatch')
+    if overrides.get('schemaVersion')!='finite-time-realism-shot-overrides-v1':
+        raise ValueError('realism shot override schema mismatch')
+    shot_overrides=overrides.get('shots',{})
+    if set(shot_overrides)!={'ft-fl-013','ft-fl-014'}:
+        raise ValueError('realism shot override authority mismatch')
+    for sid, spec in shot_overrides.items():
+        for key in ('title','visual','audioDescription'):
+            if not isinstance(spec.get(key),str) or not spec[key].strip():
+                raise ValueError(f'{sid}: incomplete realism override')
+    return contract,shot_overrides
+
+def build_prompt(shot, editorial_seconds, has_reference, realism):
     # Put the unique shot authority FIRST. The first paid wave proved that long shared
     # boilerplate ahead of the scene can collapse distinct requests into generic rural
     # portraiture if the provider truncates or over-weights the beginning of a prompt.
@@ -61,13 +88,18 @@ def build_prompt(shot, editorial_seconds, has_reference):
         if has_reference else
         "Use natural non-celebrity casting only when this shot explicitly requires people; do not introduce people, vehicles, animals, or props that are absent from the required visual action. "
     )
+    continuity = (
+        "Memory-specific realism is mandatory: never substitute a generic family or generic memory. Preserve age, room and period-object continuity where the shot requires them. "
+    )
+    if shot['id'] in set(realism['cat']['shots']):
+        continuity += "This is the same white family cat, same room, and same older deep television across the connected cat shots; preserve believable cat and fall physics exactly. "
     craft = (
         "FINITE TIME autobiographical prestige short film; real moving cinema, never a slideshow, photo montage, Ken Burns move, frozen portrait, parallax card, or still-image presentation. "
         "Photoreal East Texas memory-realism with believable body mechanics, micro-expressions where relevant, natural fabric/environment motion, real depth and coherent lens/camera behavior. "
         "Keep geography, lighting and animal/water/vehicle physics credible. No text overlays, readable brands, synthetic plastic AI look, morphing faces, extra fingers, identity drift, invented dialogue, or unsupported event. "
         "Deliver the mandatory shot as a believable live-action moment photographed by a real cinema camera on location."
     )
-    prompt = scene + identity + craft
+    prompt = scene + identity + continuity + craft
     if len(prompt) > 1800: raise ValueError(f"{shot['id']}: provider prompt exceeds bounded length")
     return prompt
 def load_reference_map(path):
@@ -80,6 +112,7 @@ def main():
     p=argparse.ArgumentParser(); p.add_argument('--manifest',required=True); p.add_argument('--edit-plan',required=True); p.add_argument('--authorization',required=True); p.add_argument('--private-reference-map'); p.add_argument('--output-root',required=True); p.add_argument('--start-shot',type=int,default=1); p.add_argument('--end-shot',type=int,default=30); args=p.parse_args()
     story_path,edit_path,auth_path=Path(args.manifest),Path(args.edit_plan),Path(args.authorization)
     story=json.loads(story_path.read_text()); edit=json.loads(edit_path.read_text()); auth=json.loads(auth_path.read_text())
+    realism,shot_overrides=load_realism_authority()
     if auth.get('sourceCommit')!=EXPECTED_SOURCE: raise ValueError('source authority drift')
     if not auth.get('release',{}).get('paidGenerationAuthorized'): raise ValueError('paid generation not authorized')
     if auth.get('release',{}).get('publicReleaseAuthorized') is not False: raise ValueError('public release must remain false')
@@ -95,10 +128,11 @@ def main():
     if model not in ALLOWED_MODELS: raise ValueError('unsupported video model')
     size=os.environ.get('FINITE_TIME_VIDEO_SIZE','1280x720').strip(); refs=load_reference_map(Path(args.private_reference_map) if args.private_reference_map else None)
     out=Path(args.output_root); clips=out/'clips'; clips.mkdir(parents=True,exist_ok=True); rp=out/'provider-receipt.json'
-    receipt={'schemaVersion':'finite-time-provider-receipt-v2','sourceCommit':EXPECTED_SOURCE,'startedAt':now(),'model':model,'size':size,'providerCallsExecuted':0,'generatedSeconds':0,'videos':[],'status':'running','publicReleaseAuthorized':False,'privateSourcePointersRetained':False,'storyManifestSha256':sha256(story_path),'editPlanSha256':sha256(edit_path),'authorizationSha256':sha256(auth_path)}
+    receipt={'schemaVersion':'finite-time-provider-receipt-v2','sourceCommit':EXPECTED_SOURCE,'startedAt':now(),'model':model,'size':size,'providerCallsExecuted':0,'generatedSeconds':0,'videos':[],'status':'running','publicReleaseAuthorized':False,'privateSourcePointersRetained':False,'storyManifestSha256':sha256(story_path),'editPlanSha256':sha256(edit_path),'authorizationSha256':sha256(auth_path),'realismContractSha256':sha256(REALISM_CONTRACT_PATH),'realismOverridesSha256':sha256(REALISM_OVERRIDES_PATH)}
     try:
         for index in range(args.start_shot-1,args.end_shot):
             shot=shots[index]; sid=shot['id']; editorial=int(durations[sid]); source=choose_source_duration(editorial); spec=refs.get(sid); reference=None
+            effective_shot={**shot,**shot_overrides.get(sid,{})}
             if sid in IDENTIFIABLE_CHARACTER_SHOTS and not spec: raise RuntimeError(f'{sid}: provenance-mapped private reference required before provider submission')
             if spec:
                 if spec.get('clearedForProviderSubmission') is not True: raise RuntimeError(f'{sid}: private reference not cleared')
@@ -106,7 +140,7 @@ def main():
                 if not raw: raise RuntimeError(f'{sid}: private reference has no materialized path')
                 reference=Path(raw)
                 if not reference.is_file(): raise RuntimeError(f'{sid}: materialized private reference missing')
-            created=create_video(key,model,size,source,build_prompt(shot,editorial,reference is not None),reference); receipt['providerCallsExecuted']+=1; receipt['generatedSeconds']+=source
+            created=create_video(key,model,size,source,build_prompt(effective_shot,editorial,reference is not None,realism),reference); receipt['providerCallsExecuted']+=1; receipt['generatedSeconds']+=source
             vid=created['id']; completed=wait_video(key,vid); target=clips/f'{sid}.mp4'; download_video(key,vid,target)
             receipt['videos'].append({'shotId':sid,'videoId':vid,'status':completed.get('status'),'model':completed.get('model',model),'editorialSeconds':editorial,'generatedSeconds':source,'size':completed.get('size',size),'referenceUsed':reference is not None,'sha256':sha256(target),'bytes':target.stat().st_size,'acceptanceStatus':'awaiting-literal-visual-qc'})
             rp.write_text(json.dumps(receipt,indent=2,sort_keys=True)+'\n')
