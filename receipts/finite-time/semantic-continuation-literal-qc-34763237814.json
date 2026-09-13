@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "finite-time-literal-qc-v1",
+  "recordedAt": "2026-09-13",
+  "authorityCommit": "1ecff7c8f1b471bbc8acd38f655705af4ff0a78f",
+  "productionSource": "32041da2e66d553ce8e2aa696bb125cc25261ac5",
+  "providerRun": 34763237814,
+  "provider": "openai",
+  "model": "sora-2",
+  "authorizedShots": [7, 12, 13, 14, 15, 17, 25, 26, 27],
+  "providerCallsExecuted": 9,
+  "literalQcMethod": "Downloaded the exact run artifacts, inspected the generated MP4s across the full generated duration at one-second intervals, and compared visible action, continuity and framing against the governed farm-to-lake manifest and edit-plan requirements.",
+  "accepted": [
+    {
+      "shot": 7,
+      "shotId": "ft-fl-007",
+      "artifactId": 10319702637,
+      "videoSha256": "c98e53bccf365f068b95377be65cd7cf2e9c40619c9aab6865e636e6a14a0a77",
+      "finding": "ACCEPT — green tractor follows long cut-hay rows; stable geography and framing; required visual action is materially present."
+    },
+    {
+      "shot": 12,
+      "shotId": "ft-fl-012",
+      "artifactId": 10319153557,
+      "videoSha256": "1868a3a49ee378558f156fcbd24acba75cd625a9ee5b94640b598279c8441612",
+      "finding": "ACCEPT — porch firework actively ricochets/sparks while people scatter; required chaotic porch action is materially present."
+    },
+    {
+      "shot": 25,
+      "shotId": "ft-fl-025",
+      "artifactId": 10319023931,
+      "videoSha256": "b1b16c7c1d790e502987b470ec5a82c86506cfabee2a48420b840c9b22ceec09",
+      "finding": "ACCEPT — present-day open field communicates absence and continuity with stable natural motion; required present-day absence beat is materially present."
+    },
+    {
+      "shot": 27,
+      "shotId": "ft-fl-027",
+      "artifactId": 10319403707,
+      "videoSha256": "31f6c157b574abe09790c0bcb1fd7eee30ac60f4c2466fed3c1a12ced2129c92",
+      "finding": "ACCEPT — broad lake reveal under clean sky with coherent shoreline and stable movement; required lake-reveal action is materially present."
+    }
+  ],
+  "rejected": [
+    {
+      "shot": 13,
+      "shotId": "ft-fl-013",
+      "artifactId": 10319173438,
+      "videoSha256": "6f77f8f3c78257fbe5e2c2b6570fa49ebb8845a79483a1ee7a5774ef07400e20",
+      "finding": "REJECT — cat approaches/sits at the closed door but the required slide and soft bump into the door are not visibly delivered."
+    },
+    {
+      "shot": 14,
+      "shotId": "ft-fl-014",
+      "artifactId": 10319637812,
+      "videoSha256": "07c1c49d5e3dc556f15caa5679797675797d94b12ab5ad13c1205d69f89616d2",
+      "finding": "REJECT — cat climbs/jumps down around the television; it does not perform the required slow slide down the television front."
+    },
+    {
+      "shot": 15,
+      "shotId": "ft-fl-015",
+      "artifactId": 10319867511,
+      "videoSha256": "4ef06803d0e3ed8318156440424c57c64b85a9c0885c113393f5ba8e2362f856",
+      "finding": "REJECT — skeleton mask/skull remains present in fire; the required mask-to-fire dissolve is not visibly executed."
+    },
+    {
+      "shot": 17,
+      "shotId": "ft-fl-017",
+      "artifactId": 10318939133,
+      "finding": "REJECT/BLOCKED — provider failed at 99 percent with moderation_blocked; no completed video exists for literal acceptance."
+    },
+    {
+      "shot": 26,
+      "shotId": "ft-fl-026",
+      "artifactId": 10319023935,
+      "finding": "REJECT/BLOCKED — provider failed at 99 percent with moderation_blocked; no completed video exists for literal acceptance."
+    }
+  ],
+  "summary": {
+    "acceptedCount": 4,
+    "rejectedOrBlockedCount": 5,
+    "promotionAuthorized": false,
+    "deploymentAuthorized": false,
+    "deliveryAuthorized": false,
+    "publicReleaseAuthorized": false,
+    "additionalProviderCallsAuthorized": 0,
+    "automaticRetryAuthorized": false
+  },
+  "spend": {
+    "maximumAuthorizedUsd": 7.20,
+    "actualProviderBillingUsd": null,
+    "note": "Provider receipts prove nine calls were executed but do not expose an exact billed dollar amount. Do not report the authorization ceiling as actual spend."
+  }
+}
