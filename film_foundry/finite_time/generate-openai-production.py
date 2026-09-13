@@ -14,11 +14,13 @@ ALLOWED_MODELS = {"sora-2", "sora-2-pro"}
 SCRIPT_DIR = Path(__file__).resolve().parent
 REALISM_CONTRACT_PATH = SCRIPT_DIR / "realism-contract.json"
 REALISM_OVERRIDES_PATH = SCRIPT_DIR / "realism-shot-overrides.json"
+LIKENESS_PERIOD_CONTRACT_PATH = SCRIPT_DIR / "likeness-period-contract.json"
 IDENTIFIABLE_CHARACTER_SHOTS = {
     "ft-fl-001", "ft-fl-002", "ft-fl-003", "ft-fl-004", "ft-fl-005", "ft-fl-006",
     "ft-fl-009", "ft-fl-010", "ft-fl-011", "ft-fl-016", "ft-fl-018", "ft-fl-020",
     "ft-fl-021", "ft-fl-022", "ft-fl-023", "ft-fl-024", "ft-fl-029", "ft-fl-030"
 }
+
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def sha256(path: Path):
@@ -49,9 +51,11 @@ def choose_source_duration(editorial_seconds):
         if editorial_seconds<=candidate: return candidate
     raise ValueError(f'editorial shot {editorial_seconds}s exceeds one supported source clip')
 
+
 def load_realism_authority():
     contract=json.loads(REALISM_CONTRACT_PATH.read_text())
     overrides=json.loads(REALISM_OVERRIDES_PATH.read_text())
+    periods=json.loads(LIKENESS_PERIOD_CONTRACT_PATH.read_text())
     if contract.get('schemaVersion')!='finite-time-realism-v1': raise ValueError('realism contract schema mismatch')
     required_true=('ageContinuityRequired','roomContinuityRequired','periodObjectsRequired','literalQcRequired')
     if contract.get('genericFamilySubstitution') is not False or any(contract.get(k) is not True for k in required_true):
@@ -70,14 +74,35 @@ def load_realism_authority():
         for key in ('title','visual','audioDescription'):
             if not isinstance(spec.get(key),str) or not spec[key].strip():
                 raise ValueError(f'{sid}: incomplete realism override')
-    return contract,shot_overrides
+    if periods.get('schemaVersion')!='finite-time-likeness-period-v1':
+        raise ValueError('likeness period contract schema mismatch')
+    if periods.get('missingReferenceBehavior')!='stage-shot-do-not-substitute':
+        raise ValueError('likeness missing-reference behavior mismatch')
+    if periods.get('prohibitAge19FallbackForChildhood') is not True:
+        raise ValueError('likeness age fallback guard missing')
+    likeness_periods=periods.get('shots',{})
+    if not likeness_periods or not set(likeness_periods).issubset(IDENTIFIABLE_CHARACTER_SHOTS):
+        raise ValueError('likeness period shot authority mismatch')
+    return contract,shot_overrides,likeness_periods
+
+
+def validate_reference_period(sid, spec, likeness_periods):
+    period=likeness_periods.get(sid)
+    if period is None:
+        return
+    if not spec:
+        raise RuntimeError(f'{sid}: appropriate period reference unavailable; stage shot instead of substituting a generic person')
+    keys=spec.get('semanticReferenceKeys') or []
+    if not isinstance(keys,list):
+        raise RuntimeError(f'{sid}: semantic reference keys must be a list')
+    younger_period = period.startswith('childhood') or period.startswith('junior-high') or period.startswith('school-age')
+    if younger_period and any('AGE19' in str(key).upper() for key in keys):
+        raise RuntimeError(f'{sid}: age-19 likeness reference cannot authorize {period}; stage until an appropriate period reference is available')
+
 
 def build_prompt(shot, editorial_seconds, has_reference, realism=None):
     if realism is None:
-        realism,_=load_realism_authority()
-    # Put the unique shot authority FIRST. The first paid wave proved that long shared
-    # boilerplate ahead of the scene can collapse distinct requests into generic rural
-    # portraiture if the provider truncates or over-weights the beginning of a prompt.
+        realism,_,_=load_realism_authority()
     scene = (
         f"MANDATORY SHOT {shot['id']} ({editorial_seconds}s editorial). "
         f"Title: {shot.get('title','')}. "
@@ -110,11 +135,12 @@ def load_reference_map(path):
     if data.get('schemaVersion')!='finite-time-private-reference-map-v1': raise ValueError('private reference map schema mismatch')
     return data.get('shots',{})
 
+
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--manifest',required=True); p.add_argument('--edit-plan',required=True); p.add_argument('--authorization',required=True); p.add_argument('--private-reference-map'); p.add_argument('--output-root',required=True); p.add_argument('--start-shot',type=int,default=1); p.add_argument('--end-shot',type=int,default=30); args=p.parse_args()
     story_path,edit_path,auth_path=Path(args.manifest),Path(args.edit_plan),Path(args.authorization)
     story=json.loads(story_path.read_text()); edit=json.loads(edit_path.read_text()); auth=json.loads(auth_path.read_text())
-    realism,shot_overrides=load_realism_authority()
+    realism,shot_overrides,likeness_periods=load_realism_authority()
     if auth.get('sourceCommit')!=EXPECTED_SOURCE: raise ValueError('source authority drift')
     if not auth.get('release',{}).get('paidGenerationAuthorized'): raise ValueError('paid generation not authorized')
     if auth.get('release',{}).get('publicReleaseAuthorized') is not False: raise ValueError('public release must remain false')
@@ -130,12 +156,13 @@ def main():
     if model not in ALLOWED_MODELS: raise ValueError('unsupported video model')
     size=os.environ.get('FINITE_TIME_VIDEO_SIZE','1280x720').strip(); refs=load_reference_map(Path(args.private_reference_map) if args.private_reference_map else None)
     out=Path(args.output_root); clips=out/'clips'; clips.mkdir(parents=True,exist_ok=True); rp=out/'provider-receipt.json'
-    receipt={'schemaVersion':'finite-time-provider-receipt-v2','sourceCommit':EXPECTED_SOURCE,'startedAt':now(),'model':model,'size':size,'providerCallsExecuted':0,'generatedSeconds':0,'videos':[],'status':'running','publicReleaseAuthorized':False,'privateSourcePointersRetained':False,'storyManifestSha256':sha256(story_path),'editPlanSha256':sha256(edit_path),'authorizationSha256':sha256(auth_path),'realismContractSha256':sha256(REALISM_CONTRACT_PATH),'realismOverridesSha256':sha256(REALISM_OVERRIDES_PATH)}
+    receipt={'schemaVersion':'finite-time-provider-receipt-v2','sourceCommit':EXPECTED_SOURCE,'startedAt':now(),'model':model,'size':size,'providerCallsExecuted':0,'generatedSeconds':0,'videos':[],'status':'running','publicReleaseAuthorized':False,'privateSourcePointersRetained':False,'storyManifestSha256':sha256(story_path),'editPlanSha256':sha256(edit_path),'authorizationSha256':sha256(auth_path),'realismContractSha256':sha256(REALISM_CONTRACT_PATH),'realismOverridesSha256':sha256(REALISM_OVERRIDES_PATH),'likenessPeriodContractSha256':sha256(LIKENESS_PERIOD_CONTRACT_PATH)}
     try:
         for index in range(args.start_shot-1,args.end_shot):
             shot=shots[index]; sid=shot['id']; editorial=int(durations[sid]); source=choose_source_duration(editorial); spec=refs.get(sid); reference=None
             effective_shot={**shot,**shot_overrides.get(sid,{})}
             if sid in IDENTIFIABLE_CHARACTER_SHOTS and not spec: raise RuntimeError(f'{sid}: provenance-mapped private reference required before provider submission')
+            validate_reference_period(sid,spec,likeness_periods)
             if spec:
                 if spec.get('clearedForProviderSubmission') is not True: raise RuntimeError(f'{sid}: private reference not cleared')
                 raw=spec.get('path')
