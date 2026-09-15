@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "asset-factory-production",
     "source": ".",
     "ignore": [
       "firebase.json",
