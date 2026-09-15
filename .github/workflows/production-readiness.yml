@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: 'Run the Firebase production deployment after verification'
+        description: 'Request production deployment evaluation. Deployment remains fail-closed until a dedicated Asset Factory target is provider-proven.'
         required: true
         type: boolean
         default: false
       confirm:
-        description: 'Type DEPLOY_ASSET_FACTORY to authorize deployment'
+        description: 'Type DEPLOY_ASSET_FACTORY to acknowledge the production boundary'
         required: false
         type: string
         default: ''
@@ -104,113 +104,39 @@ jobs:
       - name: Non-blocking dependency audit
         run: npm run audit:all
 
-  deploy:
-    name: Deploy to Firebase
+  provider-boundary:
+    name: Production deployment fail-closed
     runs-on: ubuntu-latest
     needs: verify
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.ref == 'refs/heads/main' &&
-      inputs.deploy == true &&
-      inputs.confirm == 'DEPLOY_ASSET_FACTORY'
-    environment: asset-factory-production
+      inputs.deploy == true
     permissions:
       contents: read
-      id-token: write
-    env:
-      ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
-      ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
-      - name: Require WIF deployment identity
-        shell: bash
-        env:
-          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
-          DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-        run: |
-          set -euo pipefail
-          test -n "$WIF_PROVIDER" || { echo "GCP_WIF_PROVIDER is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
-          test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "GCP_DEPLOY_SERVICE_ACCOUNT is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
-
-      - name: Checkout exact main candidate
+      - name: Checkout exact dispatch candidate
         uses: actions/checkout@v4
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify exact clean main identity
+      - name: Verify exact clean dispatch identity
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "${{ inputs.deploy }}" = "true"
+          test "${{ inputs.confirm }}" = "DEPLOY_ASSET_FACTORY"
           test "$GITHUB_REF" = "refs/heads/main"
-          test '${{ inputs.deploy }}' = 'true'
-          test '${{ inputs.confirm }}' = 'DEPLOY_ASSET_FACTORY'
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
-          test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Install dependencies
-        run: |
-          npm install
-          npm --prefix functions install
-          npm --prefix life-map-pipeline/functions install
-
-      - name: Build
-        run: npm run build
-
-      - name: Authenticate to Google Cloud with WIF
-        id: google_auth
-        uses: google-github-actions/auth@v2
-        with:
-          project_id: urai-4dc1d
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-          create_credentials_file: true
-          export_environment_variables: false
-
-      - name: Verify ephemeral deployment credential
-        shell: bash
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: |
-          set -euo pipefail
-          test -n "${GOOGLE_APPLICATION_CREDENTIALS:-}"
-          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
-
-      - name: Deploy
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
-
-      - name: Remove ephemeral deployment credential
-        shell: bash
-        env:
-          CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: |
-          set -euo pipefail
-          test -n "$CREDENTIAL_PATH"
-          case "$CREDENTIAL_PATH" in
-            "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
-            *) echo "Unexpected ADC credential path; refusing cleanup outside the generated WIF file." >&2; exit 1 ;;
-          esac
-          rm -f -- "$CREDENTIAL_PATH"
-          test ! -e "$CREDENTIAL_PATH"
-
-      - name: Read-only smoke production finalization endpoints
+      - name: Fail closed until dedicated Asset Factory hosting target is provider-proven
         shell: bash
         run: |
           set -euo pipefail
-          test "$ASSET_FACTORY_SMOKE_READONLY" = true
-          test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"
-          test -z "${CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE:-}"
-          test -z "${GOOGLE_GHA_CREDS_PATH:-}"
-          npm run smoke:production-finalization
+          echo "Production deployment is blocked: provider-native inventory has not yet proved the dedicated Asset Factory hosting target and current domain attachment." >&2
+          echo "The consumer Firebase Hosting site urai-4dc1d is explicitly prohibited as the Asset Factory web target." >&2
+          echo "No OIDC token, Firebase credential, hosting mutation, function deployment, DNS mutation, or production data mutation is performed by this workflow." >&2
+          exit 1

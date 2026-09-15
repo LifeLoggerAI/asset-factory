@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, '..');
 const errors = [];
+const expectedHostingTarget = 'asset-factory-production';
+const forbiddenConsumerSite = 'urai-4dc1d';
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8'));
@@ -26,9 +28,23 @@ function requireText(source, label, text) {
 const firebaseConfig = readJson('firebase.json');
 const functionsSource = firebaseConfig.functions?.source;
 if (!functionsSource) errors.push('firebase.json missing functions.source');
-if (!firebaseConfig.hosting?.site) errors.push('firebase.json missing hosting.site');
-if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
-  errors.push('firebase.json missing /api/health hosting rewrite');
+
+const hosting = firebaseConfig.hosting;
+if (!hosting) {
+  errors.push('firebase.json missing hosting configuration');
+} else {
+  if (hosting.site === forbiddenConsumerSite) {
+    errors.push(`firebase.json must not bind Asset Factory to consumer Hosting site ${forbiddenConsumerSite}`);
+  }
+  if (hosting.site) {
+    errors.push('firebase.json must not embed a concrete production hosting.site; use the provider-bound symbolic target');
+  }
+  if (hosting.target !== expectedHostingTarget) {
+    errors.push(`firebase.json hosting.target must be ${expectedHostingTarget}`);
+  }
+  if (!hosting.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
+    errors.push('firebase.json missing /api/health hosting rewrite');
+  }
 }
 
 if (functionsSource) {
@@ -77,4 +93,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log('Firebase deploy preflight validation passed');
+console.log('Firebase deploy preflight validation passed with symbolic provider-bound Hosting authority');
