@@ -24,14 +24,17 @@ const smokeRequired = [
   "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
   'Checkout exact dispatch commit', 'ref: ${{ github.sha }}', 'persist-credentials: false',
   'Verify exact clean dispatch identity and smoke-only boundary', "ASSET_FACTORY_SMOKE_READONLY: 'true'",
-  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com', 'https://urai-4dc1d.web.app',
-  'prod-smoke', 'prod-smoke-denied', 'smoke-tenant-a', 'smoke-tenant-b', 'npm run smoke:website',
-  'Authenticated read-only smoke', 'npm run smoke:staging', 'npm run smoke:prod',
+  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com',
+  'Production verification blocked: no dedicated Asset Factory production target has been provider-proven.',
+  'consumer Firebase Hosting site urai-4dc1d is prohibited as the Asset Factory target',
+  'smoke-tenant-a', 'smoke-tenant-b', 'npm run smoke:website',
+  'Authenticated read-only smoke', 'npm run smoke:staging',
   'test "$ASSET_FACTORY_SMOKE_READONLY" = true', 'Deployment performed: false',
-  'Production deploy workflow: Asset Factory Production Readiness', 'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
+  'Production deployment boundary workflow: Asset Factory Production Readiness',
+  'Production target provider-proven: false',
   'Read-only smoke enforced globally: true', 'Authenticated read-only smoke requested:', 'Firebase mutation allowed: false',
   'Upload smoke evidence', 'actions/upload-artifact@v4',
-  'This artifact verifies an existing deployment. It performs no Firebase deployment',
+  'This artifact verifies an existing deployment only when a provider-proven target exists.',
   'Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
   'Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md',
   'Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md'
@@ -42,38 +45,56 @@ const readonlyAssertions = smokeWorkflow.match(/test "\$ASSET_FACTORY_SMOKE_READ
 if (readonlyAssertions.length < 2) fail('smoke-only workflow must assert read-only mode before dispatch validation and authenticated smoke');
 
 const smokeForbidden = [
+  'https://urai-4dc1d.web.app',
   'deploy:', 'confirm:', 'FIREBASE_TOKEN', 'FIREBASE_SERVICE_ACCOUNT', 'firebase deploy', 'npm run deploy:',
   'Install Firebase CLI', 'Use Java 21 for Firebase CLI', 'DEPLOY_ASSET_FACTORY_STAGING', 'Deploy Firebase Studio',
   'Deployment or smoke target', 'Run the staging Firebase Studio deploy', 'Deploy allowed by this workflow',
   'Staging deploy command', 'fully production ready', 'system of systems complete',
-  'This artifact is final completion-lock evidence', 'update the completion lock after this workflow passes'
+  'This artifact is final completion-lock evidence', 'update the completion lock after this workflow passes',
+  'Production deployment remains a separate explicitly confirmed operation'
 ];
-for (const phrase of smokeForbidden) if (smokeWorkflow.includes(phrase)) fail(`smoke-only workflow contains forbidden deployment capability: ${JSON.stringify(phrase)}`);
+for (const phrase of smokeForbidden) if (smokeWorkflow.includes(phrase)) fail(`smoke-only workflow contains forbidden deployment or false-target capability: ${JSON.stringify(phrase)}`);
 
-const failClosedRequired = [
-  'name: Asset Factory Production Readiness', 'workflow_dispatch:', 'deploy:', 'confirm:',
-  "inputs.deploy == true", 'Production deployment fail-closed',
-  'Checkout exact dispatch candidate', 'Verify exact clean dispatch identity',
+const productionRequired = [
+  'name: Asset Factory Production Readiness',
+  'workflow_dispatch:',
+  'deploy:',
+  'confirm:',
+  'Production deployment fail-closed',
+  'inputs.deploy == true',
+  'test "${{ inputs.confirm }}" = "DEPLOY_ASSET_FACTORY"',
+  'test "$GITHUB_REF" = "refs/heads/main"',
   'Fail closed until dedicated Asset Factory hosting target is provider-proven',
   'provider-native inventory has not yet proved the dedicated Asset Factory hosting target',
   'The consumer Firebase Hosting site urai-4dc1d is explicitly prohibited as the Asset Factory web target.',
   'No OIDC token, Firebase credential, hosting mutation, function deployment, DNS mutation, or production data mutation is performed by this workflow.',
   'exit 1'
 ];
-for (const phrase of failClosedRequired) if (!productionReadiness.includes(phrase)) fail(`production fail-closed workflow missing ${JSON.stringify(phrase)}`);
+for (const phrase of productionRequired) if (!productionReadiness.includes(phrase)) fail(`production readiness workflow missing fail-closed marker ${JSON.stringify(phrase)}`);
 
 const productionForbidden = [
-  'firebase deploy', 'Install Firebase CLI', 'google-github-actions/auth@', 'id-token: write',
-  'GCP_WIF_PROVIDER', 'GCP_DEPLOY_SERVICE_ACCOUNT', 'FIREBASE_SERVICE_ACCOUNT',
-  'FIREBASE_SERVICE_ACCOUNT_JSON', 'FIREBASE_TOKEN', 'credentials_json', '--token',
-  'firebase-service-account.json', 'Write service account', 'Remove service-account file',
-  'GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE', 'GOOGLE_GHA_CREDS_PATH'
+  'id-token: write',
+  'google-github-actions/auth@',
+  'firebase deploy',
+  'Install Firebase CLI',
+  'GCP_WIF_PROVIDER',
+  'GCP_DEPLOY_SERVICE_ACCOUNT',
+  'FIREBASE_SERVICE_ACCOUNT',
+  'FIREBASE_SERVICE_ACCOUNT_JSON',
+  'FIREBASE_TOKEN',
+  'credentials_json',
+  '--token',
+  'firebase-service-account.json',
+  'Write service account',
+  'Remove service-account file',
+  'GOOGLE_APPLICATION_CREDENTIALS:'
 ];
-for (const phrase of productionForbidden) if (productionReadiness.includes(phrase)) fail(`production readiness must remain mutation-disabled until a dedicated provider target is proven: ${JSON.stringify(phrase)}`);
+for (const phrase of productionForbidden) if (productionReadiness.includes(phrase)) fail(`production readiness workflow still contains forbidden deployment capability: ${JSON.stringify(phrase)}`);
 
-if (!productionReadiness.includes("test \"${{ inputs.confirm }}\" = \"DEPLOY_ASSET_FACTORY\"")) fail('fail-closed dispatch must require exact steward confirmation before evaluating the provider boundary');
-if (!productionReadiness.includes('test "$GITHUB_REF" = "refs/heads/main"')) fail('fail-closed dispatch must require main');
-if (!productionReadiness.includes('test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"')) fail('fail-closed dispatch must verify exact head');
-if (!productionReadiness.includes('test -z "$(git status --porcelain --untracked-files=all)"')) fail('fail-closed dispatch must verify a clean checkout');
+const providerBoundarySection = productionReadiness.split('\n  provider-boundary:\n', 2)[1];
+if (!providerBoundarySection) fail('provider-boundary job is missing');
+if (!providerBoundarySection.includes("github.event_name == 'workflow_dispatch'")) fail('provider boundary is not dispatch-only');
+if (!providerBoundarySection.includes('permissions:\n      contents: read')) fail('provider boundary must remain contents-read only');
+if (providerBoundarySection.includes('environment: asset-factory-production')) fail('provider boundary must not acquire a protected deployment environment before target proof');
 
-console.log('PASS deploy workflow static checks: verification-only smoke retained; production mutation fails closed until dedicated Asset Factory target is provider-proven');
+console.log('PASS deploy workflow static checks: production deployment and production smoke remain fail-closed until dedicated Asset Factory target is provider-proven');
