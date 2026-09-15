@@ -1,33 +1,39 @@
 # Asset Factory Custom Domain API Routing
 
-Asset Factory is live and verified on Firebase default hosting:
+`uraiassetfactory.com` must not be attached to the consumer URAI Hosting site `urai-4dc1d`.
 
-- https://urai-4dc1d.web.app
-
-The canonical domain is currently blocked because:
-
-- https://uraiassetfactory.com/api/health returns a Next.js 404
-- That means /api/* is being handled by the current custom-domain host, not by Asset Factory Firebase Hosting.
+Current public verification shows the custom domain can resolve to consumer URAI/Life Map content when it is bound to that site. Treat that state as a routing failure, not as an Asset Factory deployment.
 
 ## Required production routing
 
-Choose one:
+Use a dedicated, provider-proven Asset Factory web/Hosting target. Do not guess or synthesize a site ID.
 
-### Option A - Firebase owns the domain
+Before any domain or Hosting mutation, establish all of the following from provider-native inventory:
 
-Attach uraiassetfactory.com to Firebase Hosting site urai-4dc1d.
+- the exact Firebase/GCP project that owns the Asset Factory runtime;
+- the exact dedicated Hosting site ID intended for Asset Factory public web content;
+- the current custom-domain attachment for `uraiassetfactory.com` and `www.uraiassetfactory.com`;
+- the API origin that returns the Asset Factory health contract;
+- rollback ownership for the previous domain attachment.
 
-### Option B - Current web host keeps the domain
+The dedicated Hosting site ID must not be `urai-4dc1d`.
 
-Add this rewrite/proxy on the host that serves uraiassetfactory.com:
+### If Firebase owns the domain
 
-{
-  "source": "/api/:path*",
-  "destination": "https://urai-4dc1d.web.app/api/:path*"
-}
+Attach `uraiassetfactory.com` only to the verified dedicated Asset Factory Hosting site, then verify the literal rendered product plus `/api/health` before calling the domain live.
 
-A Vercel-compatible example is provided in:
+Do not attach the domain to `urai-4dc1d` merely because Asset Factory backend services currently share resources in that Firebase project.
 
-deploy/custom-domain/asset-factory-api-proxy.vercel.json
+### If another web host owns the domain
 
-Copy the rewrites block into the active custom-domain web app config, then redeploy that app.
+Keep the public Asset Factory web app on that host and proxy only the required API surface to the verified Asset Factory API origin.
+
+A Vercel-compatible example exists at:
+
+`deploy/custom-domain/asset-factory-api-proxy.vercel.json`
+
+Do not use the proxy example until the API origin has been independently verified as Asset Factory and not consumer URAI. After deployment, verify apex and `www`, TLS, rendered product identity, `/api/health`, authenticated read-only smoke, and rollback readiness.
+
+## Fail-closed state
+
+Until provider-native inventory proves the dedicated target and domain attachment, custom-domain production cutover remains blocked. Source-green or Firebase-default-host reachability is not equivalent to a correct `uraiassetfactory.com` deployment.
