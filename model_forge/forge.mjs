@@ -233,26 +233,58 @@ async function generateTripo(spec) {
   const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   const refs = spec.referenceImages ?? [];
   const model = process.env.URAI_TRIPO_MODEL || TRIPO_STABLE_MODEL;
-  const endpoint = refs.length ? 'image-to-model' : 'text-to-model';
-  if (refs.length > 1) fail('Tripo adapter currently accepts one canonical reference image; use the primary/front view or Meshy/Rodin for multiview');
-  const body = refs.length
-    ? { input: refs[0], model, texture: true, pbr: spec.target.pbr, texture_quality: spec.target.textureResolution === '8k' ? 'detailed' : 'standard', geometry_quality: 'detailed', auto_size: true }
-    : { prompt: spec.prompt, model, texture: true, pbr: spec.target.pbr, texture_quality: 'detailed' };
-  const create = await requestJson(`https://openapi.tripo3d.ai/v3/generation/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (refs.length > 1) fail('Tripo multiview requires ordered front/left/back/right inputs; use one canonical reference until referenceViews are explicitly supplied');
+
+  const common = {
+    model_version: model,
+    texture: true,
+    pbr: spec.target.pbr,
+    texture_quality: spec.target.textureResolution === '8k' ? 'extreme' : 'detailed',
+    geometry_quality: 'detailed',
+    face_limit: spec.target.maxTriangles,
+    auto_size: true,
+    ...(spec.generation.seed === null ? {} : { model_seed: spec.generation.seed, texture_seed: spec.generation.seed }),
+  };
+
+  let body;
+  if (refs.length === 1) {
+    const ref = refs[0];
+    if (!/^https?:\/\//.test(ref)) fail('Tripo image-to-model currently requires a public JPEG/PNG URL; local references must be uploaded through the provider upload API before execution');
+    const parsed = new URL(ref);
+    const ext = path.extname(parsed.pathname).toLowerCase();
+    const type = ext === '.png' ? 'png' : 'jpg';
+    body = { type: 'image_to_model', file: { type, url: assertPublicHttpUrl(ref, 'Tripo reference URL') }, ...common };
+  } else {
+    body = { type: 'text_to_model', prompt: spec.prompt.slice(0, 1024), ...common };
+  }
+
+  const create = await requestJson('https://api.tripo3d.ai/v2/openapi/task', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
   const payload = assertTripoOk(create.payload, 'create task');
   const taskId = payload.data?.task_id;
   if (!taskId) fail(`Tripo did not return task_id: ${JSON.stringify(payload)}`);
+
   const result = await pollJson(
-    `https://openapi.tripo3d.ai/v3/tasks/${taskId}`,
+    `https://api.tripo3d.ai/v2/openapi/task/${encodeURIComponent(taskId)}`,
     { Authorization: `Bearer ${key}` },
     (p) => { assertTripoOk(p, 'task poll'); return p.data?.status === 'success'; },
-    (p) => ['failed', 'cancelled', 'canceled'].includes(p.data?.status),
+    (p) => ['failed', 'cancelled', 'banned', 'expired'].includes(p.data?.status),
     3000,
   );
   assertTripoOk(result, 'task result');
-  const url = result.data?.output?.model_url;
-  if (!url) fail('Tripo task completed without model_url');
-  return { url, taskId, model, creditsConsumed: result.data?.credits_consumed ?? null, raw: result.data };
+  const output = result.data?.output ?? {};
+  const url = output.pbr_model || output.model || output.base_model;
+  if (!url) fail(`Tripo task completed without downloadable model output: ${JSON.stringify(output)}`);
+  return {
+    url,
+    taskId,
+    model,
+    creditsConsumed: output.consumed_credit ?? null,
+    raw: result.data,
+  };
 }
 
 function mimeFor(file) {
