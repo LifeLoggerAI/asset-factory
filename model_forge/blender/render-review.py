@@ -51,7 +51,9 @@ def main():
     add_area("Rim",(center.x,center.y+radius*2,center.z+radius*2),900,max(radius,1.5),center)
     cam_data=bpy.data.cameras.new("URAI_REVIEW_CAMERA"); cam=bpy.data.objects.new("URAI_REVIEW_CAMERA",cam_data); bpy.context.collection.objects.link(cam)
     cam_data.lens=52; bpy.context.scene.camera=cam
-    scene=bpy.context.scene; scene.render.engine="BLENDER_EEVEE_NEXT"; scene.render.resolution_x=a.resolution; scene.render.resolution_y=a.resolution; scene.render.resolution_percentage=100
+    scene=bpy.context.scene
+    scene.render.engine="BLENDER_EEVEE_NEXT" if bpy.app.version >= (4, 2, 0) else "BLENDER_EEVEE"
+    scene.render.resolution_x=a.resolution; scene.render.resolution_y=a.resolution; scene.render.resolution_percentage=100
     scene.render.image_settings.file_format="PNG"
     views={"front":(0,-1,0.35),"front-three-quarter":(0.8,-0.8,0.45),"side":(1,0,0.35),"back":(0,1,0.35)}
     for name,d in views.items():
