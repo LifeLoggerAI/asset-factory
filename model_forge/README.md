@@ -80,15 +80,11 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 - `model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json`: Replicate/Hunyuan, one attempt, maximum one candidate.
 - `.github/workflows/model-forge-replicate-wave.yml`: main-only, production-environment-gated WIF/OIDC execution for Wave 2. It requires the exact dispatch phrase `RUN_ONE_URAI_REPLICATE_MODEL_WAVE`, creates at most one candidate, validates it, retains provenance, and grants no promotion authority.
 
-## Current exact authority — 2026-09-19
+## Authority discipline — 2026-09-19
 
-Model Forge PR #274 exact head: `177515deb6fceee0fde6780bdd0fdcbbad364483`.
+PR #274 is the Model Forge source authority while it remains open. Do not hard-code a mutable PR head in this README: every source edit creates a successor and makes such prose stale. Recover the live PR head and fresh workflow state from GitHub before execution.
 
-Exact-head proof:
-- URAI Model Forge Proof run `35452222370`: SUCCESS.
-- URAI Production Verify run `35452222336`: SUCCESS.
-
-Spatial authority reconciled for model ownership: `LifeLoggerAI/urai-spatial#1237` exact head `b6df26e82ebe10505cab36d974e97b88bcf7e3f3`. Current Ground/Replay model-target authority is unchanged by the intervening Life Map-only successor work.
+The model inventory/reference-resolution receipts record the Spatial head they were reconciled against. If Spatial #1237 moves, compare the successor before treating those receipts as current. Ground/Replay ownership must be rechecked if relevant Spatial source changes.
 
 Current external execution boundaries:
 - ordinary Actions secrets for Meshy / Tripo / Rodin / Replicate are absent;
