@@ -7,6 +7,9 @@ import process from 'node:process';
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
 const SUPPORTED_PROVIDERS = new Set(['meshy', 'tripo', 'rodin']);
+const TRIPO_STABLE_MODEL = 'v3.1-20260211';
+const DEFAULT_MAX_PROVIDER_ATTEMPTS = 1;
+const MAX_PROVIDER_ATTEMPTS = 3;
 
 function fail(message) {
   throw new Error(message);
@@ -85,13 +88,50 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function requestJson(url, init = {}) {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(Math.min(timeoutMs(), 120000)) });
-  const text = await response.text();
-  let payload;
-  try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
-  if (!response.ok) fail(`HTTP ${response.status} from ${url}: ${JSON.stringify(payload).slice(0, 1200)}`);
-  return { payload, response };
+function isPrivateIpv4(hostname) {
+  const parts = hostname.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+function assertPublicHttpUrl(value, label = 'URL') {
+  let parsed;
+  try { parsed = new URL(value); } catch { fail(`${label} is invalid`); }
+  if (!['https:', 'http:'].includes(parsed.protocol)) fail(`${label} uses unsupported protocol`);
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '::1' || host.endsWith('.localhost') || host.endsWith('.local') || isPrivateIpv4(host)) fail(`${label} points to a private/local host`);
+  return parsed.toString();
+}
+
+function retryAfterMs(response, fallbackMs) {
+  const raw = response.headers.get('retry-after');
+  if (!raw) return fallbackMs;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.max(fallbackMs, seconds * 1000);
+  const date = Date.parse(raw);
+  return Number.isFinite(date) ? Math.max(fallbackMs, date - Date.now()) : fallbackMs;
+}
+
+async function requestJson(url, init = {}, maxRateLimitRetries = 4) {
+  for (let attempt = 0; attempt <= maxRateLimitRetries; attempt += 1) {
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(Math.min(timeoutMs(), 120000)) });
+    const text = await response.text();
+    let payload;
+    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+    if (response.status === 429 && attempt < maxRateLimitRetries) {
+      await sleep(retryAfterMs(response, Math.min(30000, 3000 * (attempt + 1))));
+      continue;
+    }
+    if (!response.ok) fail(`HTTP ${response.status} from ${url}: ${JSON.stringify(payload).slice(0, 1200)}`);
+    return { payload, response };
+  }
+  fail(`Rate-limit retries exhausted for ${url}`);
+}
+
+function assertTripoOk(payload, context) {
+  if (payload?.code !== undefined && payload.code !== 0) fail(`Tripo ${context} failed with code ${payload.code}: ${payload.message ?? JSON.stringify(payload)}`);
+  return payload;
 }
 
 async function pollJson(url, headers, isDone, isFailed, intervalMs = 3000) {
@@ -123,7 +163,8 @@ function firstHttpUrl(value) {
 }
 
 async function downloadFile(url, destination) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)) });
+  const safeUrl = assertPublicHttpUrl(url, 'Provider artifact URL');
+  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)) });
   if (!response.ok) fail(`Artifact download failed ${response.status}`);
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes()) fail(`Artifact too large: ${declared}`);
@@ -181,16 +222,24 @@ async function generateTripo(spec) {
   const key = process.env.TRIPO_API_KEY;
   const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   const refs = spec.referenceImages ?? [];
-  const model = process.env.URAI_TRIPO_MODEL || 'tripo-v3.1';
+  const model = process.env.URAI_TRIPO_MODEL || TRIPO_STABLE_MODEL;
   const endpoint = refs.length ? 'image-to-model' : 'text-to-model';
   if (refs.length > 1) fail('Tripo adapter currently accepts one canonical reference image; use the primary/front view or Meshy/Rodin for multiview');
   const body = refs.length
     ? { input: refs[0], model, texture: true, pbr: spec.target.pbr, texture_quality: spec.target.textureResolution === '8k' ? 'detailed' : 'standard', geometry_quality: 'detailed', auto_size: true }
     : { prompt: spec.prompt, model, texture: true, pbr: spec.target.pbr, texture_quality: 'detailed' };
-  const { payload } = await requestJson(`https://openapi.tripo3d.ai/v3/generation/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const create = await requestJson(`https://openapi.tripo3d.ai/v3/generation/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const payload = assertTripoOk(create.payload, 'create task');
   const taskId = payload.data?.task_id;
   if (!taskId) fail(`Tripo did not return task_id: ${JSON.stringify(payload)}`);
-  const result = await pollJson(`https://openapi.tripo3d.ai/v3/tasks/${taskId}`, { Authorization: `Bearer ${key}` }, (p) => p.data?.status === 'success', (p) => ['failed', 'cancelled', 'canceled'].includes(p.data?.status), 3000);
+  const result = await pollJson(
+    `https://openapi.tripo3d.ai/v3/tasks/${taskId}`,
+    { Authorization: `Bearer ${key}` },
+    (p) => { assertTripoOk(p, 'task poll'); return p.data?.status === 'success'; },
+    (p) => ['failed', 'cancelled', 'canceled'].includes(p.data?.status),
+    3000,
+  );
+  assertTripoOk(result, 'task result');
   const url = result.data?.output?.model_url;
   if (!url) fail('Tripo task completed without model_url');
   return { url, taskId, model, creditsConsumed: result.data?.credits_consumed ?? null, raw: result.data };
@@ -225,7 +274,7 @@ async function generateRodin(spec) {
   form.append('texture_mode', spec.target.textureResolution === '8k' ? 'high' : 'medium');
 
   const { payload } = await requestJson('https://api.hyper3d.com/api/v2/rodin', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form });
-  if (payload.error) fail(`Rodin rejected generation: ${JSON.stringify(payload)}`);
+  if (payload.error) fail(`Rodin rejected generation despite transport success: ${payload.error}: ${payload.message ?? JSON.stringify(payload)}`);
   const taskUuid = payload.uuid;
   const subscriptionKey = payload.jobs?.subscription_key;
   if (!taskUuid || !subscriptionKey) fail('Rodin response missing uuid/subscription_key');
