@@ -19,7 +19,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
           blender --version | head -n 2
       - name: Build deterministic smoke fixture
         run: |
