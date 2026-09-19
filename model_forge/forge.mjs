@@ -51,6 +51,16 @@ function validateSpec(spec) {
       fail(`Reference image is neither URL, data URI, nor existing file: ${ref}`);
     }
   }
+  spec.generation = {
+    maxProviderAttempts: Number(spec.generation?.maxProviderAttempts ?? DEFAULT_MAX_PROVIDER_ATTEMPTS),
+    seed: spec.generation?.seed === undefined ? null : Number(spec.generation.seed),
+  };
+  if (!Number.isInteger(spec.generation.maxProviderAttempts) || spec.generation.maxProviderAttempts < 1 || spec.generation.maxProviderAttempts > MAX_PROVIDER_ATTEMPTS) {
+    fail(`generation.maxProviderAttempts must be 1-${MAX_PROVIDER_ATTEMPTS}`);
+  }
+  if (spec.generation.seed !== null && (!Number.isInteger(spec.generation.seed) || spec.generation.seed < 0)) {
+    fail('generation.seed must be a non-negative integer');
+  }
   spec.target = {
     meters: Number(spec.target?.meters ?? 2),
     hero: spec.target?.hero !== false,
@@ -310,6 +320,7 @@ function dryRunReceipt(spec, providers) {
     assetId: spec.id,
     providers: providers.map((provider) => ({ provider, requiredEnv: requiredEnv(provider), configured: Boolean(process.env[requiredEnv(provider)]) })),
     target: spec.target,
+    generationPolicy: spec.generation,
     referenceCount: (spec.referenceImages ?? []).length,
     next: 'Provider execution remains blocked until URAI_MODEL_FORGE_SPEND_AUTHORIZED=1 and credentials are available.',
   };
@@ -331,7 +342,14 @@ async function main() {
 
   const runRoot = path.resolve(args.out, spec.id, new Date().toISOString().replace(/[:.]/g, '-'));
   fs.mkdirSync(runRoot, { recursive: true });
-  const runReceipt = { schemaVersion: 'urai-model-forge-run-v1', assetId: spec.id, startedAt: new Date().toISOString(), providers: [], target: spec.target };
+  const runReceipt = {
+    schemaVersion: 'urai-model-forge-run-v1',
+    assetId: spec.id,
+    startedAt: new Date().toISOString(),
+    providers: [],
+    target: spec.target,
+    generationPolicy: spec.generation,
+  };
 
   for (const provider of providers) {
     const keyName = requiredEnv(provider);
@@ -341,33 +359,49 @@ async function main() {
     }
     const providerDir = path.join(runRoot, provider);
     fs.mkdirSync(providerDir, { recursive: true });
-    const startedAt = new Date().toISOString();
-    try {
-      const result = await generate(provider, spec);
-      const artifact = await downloadFile(result.url, path.join(providerDir, 'candidate.glb'));
-      const provenance = {
-        schemaVersion: 'urai-model-candidate-provenance-v1',
-        assetId: spec.id,
-        provider,
-        providerModel: result.model,
-        taskId: result.taskId,
-        startedAt,
-        completedAt: new Date().toISOString(),
-        sourceSpecSha256: crypto.createHash('sha256').update(fs.readFileSync(specPath)).digest('hex'),
-        referenceImages: spec.referenceImages ?? [],
-        prompt: spec.prompt,
-        target: spec.target,
-        artifact: { file: 'candidate.glb', bytes: artifact.bytes, sha256: artifact.sha256 },
-        providerUsage: { creditsConsumed: result.creditsConsumed ?? result.consumed ?? null },
-        productionAuthority: false,
-        promotionAllowed: false,
-        nextRequired: ['GLB structural validation', 'Blender cleanup/scale/LOD', 'literal rendered-pixel review', 'explicit approval', 'governed promotion'],
-      };
-      fs.writeFileSync(path.join(providerDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
-      runReceipt.providers.push({ provider, status: 'candidate-downloaded', artifact: path.relative(runRoot, path.join(providerDir, 'candidate.glb')), sha256: artifact.sha256 });
-    } catch (error) {
-      runReceipt.providers.push({ provider, status: 'failed', error: String(error?.message ?? error) });
+    const attempts = [];
+    let completed = false;
+    for (let attempt = 1; attempt <= spec.generation.maxProviderAttempts && !completed; attempt += 1) {
+      const startedAt = new Date().toISOString();
+      const attemptDir = path.join(providerDir, `attempt-${attempt}`);
+      fs.mkdirSync(attemptDir, { recursive: true });
+      try {
+        const result = await generate(provider, spec);
+        const artifact = await downloadFile(result.url, path.join(attemptDir, 'candidate.glb'));
+        const provenance = {
+          schemaVersion: 'urai-model-candidate-provenance-v1',
+          assetId: spec.id,
+          provider,
+          providerModel: result.model,
+          taskId: result.taskId,
+          attempt,
+          startedAt,
+          completedAt: new Date().toISOString(),
+          sourceSpecSha256: crypto.createHash('sha256').update(fs.readFileSync(specPath)).digest('hex'),
+          referenceImages: spec.referenceImages ?? [],
+          prompt: spec.prompt,
+          target: spec.target,
+          generationPolicy: spec.generation,
+          artifact: { file: 'candidate.glb', bytes: artifact.bytes, sha256: artifact.sha256 },
+          providerUsage: { creditsConsumed: result.creditsConsumed ?? result.consumed ?? null },
+          productionAuthority: false,
+          promotionAllowed: false,
+          nextRequired: ['GLB structural validation', 'Blender cleanup/scale/LOD', 'literal rendered-pixel review', 'explicit approval', 'governed promotion'],
+        };
+        fs.writeFileSync(path.join(attemptDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+        attempts.push({ attempt, status: 'candidate-downloaded', artifact: path.relative(runRoot, path.join(attemptDir, 'candidate.glb')), sha256: artifact.sha256, taskId: result.taskId });
+        completed = true;
+      } catch (error) {
+        attempts.push({ attempt, status: 'failed', error: String(error?.message ?? error) });
+      }
     }
+    const acceptedAttempt = attempts.find((entry) => entry.status === 'candidate-downloaded');
+    runReceipt.providers.push({
+      provider,
+      status: acceptedAttempt ? 'candidate-downloaded' : 'failed',
+      attempts,
+      ...(acceptedAttempt ? { artifact: acceptedAttempt.artifact, sha256: acceptedAttempt.sha256, taskId: acceptedAttempt.taskId } : {}),
+    });
   }
   runReceipt.completedAt = new Date().toISOString();
   fs.writeFileSync(path.join(runRoot, 'run-receipt.json'), `${JSON.stringify(runReceipt, null, 2)}\n`);
