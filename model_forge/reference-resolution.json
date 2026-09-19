@@ -18,14 +18,26 @@
     {
       "route": "/life-map",
       "name": "UrAi Life Map: A Living Galaxy(2).png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "not-a-provider-model-target"
+      "status": "resolved-current-library-file",
+      "providerUse": "not-a-provider-model-target",
+      "library": {
+        "fileId": "file_000000005c0481f5bfd549538944bc49",
+        "libraryFileId": "libfile_02a42330f8dc819189209725db4302e0",
+        "sha256": "2506aa772af9cc4e3e71947ce6725c65d33e0e9228b593d840c6b6b1efe07012",
+        "bytes": 2724420
+      }
     },
     {
       "route": "/replay",
       "name": "UrAi Replay Canonical Storyboard.png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "source-canon-only-until-file-resolved"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000a5b081f593df94917b3ecc31",
+        "libraryFileId": "libfile_82342e20f6f08191a082653268cc30eb",
+        "sha256": "1e009a3379d4ff48088d5db6e93e2238377f53d5b7ff47ae50cf3e9c28040ba1",
+        "bytes": 2365244
+      }
     },
     {
       "route": "/focus",
@@ -36,14 +48,26 @@
     {
       "route": "journey",
       "name": "From Life Map to Memory Replay.png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "journey-authority-only"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000817c81f59eb8f3a91e841a4f",
+        "libraryFileId": "libfile_c3a901f386c88191930c5d00eb0ab4f8",
+        "sha256": "5b2f0d83febc5990cd8ff1d7ea5b68625db37b283ba66a53b2fe84144a726d21",
+        "bytes": 2769286
+      }
     },
     {
       "route": "/focus→/replay",
       "name": "Focus to Replay: Memory Becomes Environment.png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "journey-authority-only"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000750c81f581feba420510df3e",
+        "libraryFileId": "libfile_e4d5ad3a9de881919febec43b4ec701e",
+        "sha256": "c5b231fd8809cf12b8c4779236c01b744bd2062ee38adbabc632d1d80788f36e",
+        "bytes": 2541974
+      }
     }
   ],
   "resolvedDocuments": [
@@ -62,11 +86,17 @@
     }
   ],
   "generationPolicy": {
-    "exactImageReferenceResolved": false,
+    "exactImageReferenceResolved": "partial",
     "allowTextOnlyExploration": true,
     "allowTextOnlyProductionAuthority": false,
     "allowRuntimeSourceDerivedEnvironmentalCandidate": true,
-    "productionAcceptanceStillRequiresLiteralScenePixels": true
+    "productionAcceptanceStillRequiresLiteralScenePixels": true,
+    "resolvedAuthorityFiles": 4,
+    "unresolvedCriticalFiles": [
+      "UrAi Home Reference Pack.png",
+      "UrAi Visual Reference Library.png — Core Experiences Part 1",
+      "The Quiet Reset: Memory Star Network.png"
+    ]
   },
   "successorReconciliation": "Four commits since prior audited head changed Life Map composition/tests only; environmental model-generation targets and Ground/Replay authority remain unchanged."
 }
