@@ -6,7 +6,7 @@ import process from 'node:process';
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
-const SUPPORTED_PROVIDERS = new Set(['meshy', 'tripo', 'rodin']);
+const SUPPORTED_PROVIDERS = new Set(['meshy', 'tripo', 'rodin', 'replicate']);
 const TRIPO_STABLE_MODEL = 'v3.1-20260211';
 const DEFAULT_MAX_PROVIDER_ATTEMPTS = 1;
 const MAX_PROVIDER_ATTEMPTS = 3;
@@ -88,6 +88,7 @@ function requiredEnv(provider) {
   if (provider === 'meshy') return 'MESHY_API_KEY';
   if (provider === 'tripo') return 'TRIPO_API_KEY';
   if (provider === 'rodin') return 'RODIN_API_KEY';
+  if (provider === 'replicate') return 'REPLICATE_API_TOKEN';
   fail(`Unsupported provider: ${provider}`);
 }
 
@@ -359,10 +360,79 @@ async function generateRodin(spec) {
   return { url: glb.url, taskId: taskUuid, model: tier, consumed: payload.consumed ?? null, raw: downloads };
 }
 
+function replicateOfficialModel() {
+  const model = process.env.URAI_REPLICATE_MODEL || 'tencent/hunyuan-3d-3.1';
+  const parts = model.split('/');
+  if (parts.length !== 2 || parts.some((part) => !/^[a-zA-Z0-9_.-]+$/.test(part))) {
+    fail(`URAI_REPLICATE_MODEL must be owner/name for an official Replicate model: ${model}`);
+  }
+  return model;
+}
+
+async function generateReplicate(spec) {
+  const key = process.env.REPLICATE_API_TOKEN;
+  const model = replicateOfficialModel();
+  const [owner, name] = model.split('/');
+  const refs = spec.referenceImages ?? [];
+  if (spec.referenceViews) {
+    fail('Hunyuan 3D 3.1 accepts one image or one text prompt, not an ordered multiview pack; do not silently collapse referenceViews');
+  }
+  if (refs.length > 1) fail('Hunyuan 3D 3.1 accepts one image or one text prompt, not multiple referenceImages');
+
+  const faceCount = Math.max(40000, Math.min(1500000, spec.target.maxTriangles));
+  const input = {
+    enable_pbr: spec.target.pbr,
+    face_count: faceCount,
+    generate_type: 'Normal',
+  };
+  if (refs.length === 1) {
+    const ref = refs[0];
+    if (!/^https?:\/\//.test(ref)) {
+      fail('Replicate Hunyuan image-to-3D requires one public reference URI; local/private references must be uploaded through a governed provider file boundary before execution');
+    }
+    input.image = assertPublicHttpUrl(ref, 'Replicate Hunyuan reference URL');
+  } else {
+    input.prompt = spec.prompt.slice(0, 1024);
+  }
+
+  const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+  const create = await requestJson(`https://api.replicate.com/v1/models/${owner}/${name}/predictions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ input }),
+  }, 2);
+  const prediction = create.payload;
+  const taskId = prediction.id;
+  const getUrl = prediction.urls?.get;
+  if (!taskId || !getUrl) fail(`Replicate did not return prediction id/get URL: ${JSON.stringify(prediction).slice(0, 1200)}`);
+
+  let current = prediction;
+  if (current.status !== 'succeeded') {
+    current = await pollJson(
+      assertPublicHttpUrl(getUrl, 'Replicate prediction URL'),
+      { Authorization: `Bearer ${key}` },
+      (p) => p.status === 'succeeded',
+      (p) => ['failed', 'canceled'].includes(p.status),
+      3000,
+    );
+  }
+  const url = firstHttpUrl(current.output);
+  if (!url) fail(`Replicate Hunyuan prediction completed without output URI: ${JSON.stringify(current).slice(0, 1200)}`);
+  return {
+    url,
+    taskId,
+    model,
+    metrics: current.metrics ?? null,
+    version: current.version ?? null,
+    raw: current,
+  };
+}
+
 async function generate(provider, spec) {
   if (provider === 'meshy') return generateMeshy(spec);
   if (provider === 'tripo') return generateTripo(spec);
   if (provider === 'rodin') return generateRodin(spec);
+  if (provider === 'replicate') return generateReplicate(spec);
   fail(`Unsupported provider: ${provider}`);
 }
 
@@ -375,7 +445,7 @@ function dryRunReceipt(spec, providers) {
     providers: providers.map((provider) => ({ provider, requiredEnv: requiredEnv(provider), configured: Boolean(process.env[requiredEnv(provider)]) })),
     target: spec.target,
     generationPolicy: spec.generation,
-    referenceCount: (spec.referenceImages ?? []).length,
+    referenceCount: spec.referenceViews ? Object.keys(spec.referenceViews).length : (spec.referenceImages ?? []).length,
     next: 'Provider execution remains blocked until URAI_MODEL_FORGE_SPEND_AUTHORIZED=1 and credentials are available.',
   };
 }
@@ -384,7 +454,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const specPath = path.resolve(args.spec);
   const spec = validateSpec(readJson(specPath));
-  const providers = (args.providers.length ? args.providers : (spec.providers ?? ['meshy', 'tripo', 'rodin'])).map((v) => String(v).toLowerCase());
+  const providers = (args.providers.length ? args.providers : (spec.providers ?? ['meshy', 'tripo', 'rodin', 'replicate'])).map((v) => String(v).toLowerCase());
   if (!providers.length) fail('No providers selected');
   for (const p of providers) if (!SUPPORTED_PROVIDERS.has(p)) fail(`Unsupported provider: ${p}`);
 
@@ -433,11 +503,16 @@ async function main() {
           completedAt: new Date().toISOString(),
           sourceSpecSha256: crypto.createHash('sha256').update(fs.readFileSync(specPath)).digest('hex'),
           referenceImages: spec.referenceImages ?? [],
+          referenceViews: spec.referenceViews ?? null,
           prompt: spec.prompt,
           target: spec.target,
           generationPolicy: spec.generation,
           artifact: { file: 'candidate.glb', bytes: artifact.bytes, sha256: artifact.sha256 },
-          providerUsage: { creditsConsumed: result.creditsConsumed ?? result.consumed ?? null },
+          providerUsage: {
+            creditsConsumed: result.creditsConsumed ?? result.consumed ?? null,
+            metrics: result.metrics ?? null,
+            providerVersion: result.version ?? null,
+          },
           productionAuthority: false,
           promotionAllowed: false,
           nextRequired: ['GLB structural validation', 'Blender cleanup/scale/LOD', 'literal rendered-pixel review', 'explicit approval', 'governed promotion'],
