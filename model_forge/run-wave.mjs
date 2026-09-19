@@ -14,6 +14,10 @@ if(wave.schemaVersion!=='urai-model-forge-wave-v1') throw new Error('unsupported
 const planned=wave.entries.reduce((n,e)=>n+(e.providers?.length??0)*(e.maxAttemptsPerProvider??1),0);
 if(planned>wave.maxCandidateGenerations) throw new Error(`planned candidate attempts ${planned} exceed wave cap ${wave.maxCandidateGenerations}`);
 if(execute&&process.env.URAI_MODEL_FORGE_SPEND_AUTHORIZED!=='1') throw new Error('wave execution requires URAI_MODEL_FORGE_SPEND_AUTHORIZED=1');
+if(execute){
+  const preflight=spawnSync(process.execPath,['model_forge/provider-preflight.mjs','--live'],{stdio:'inherit',env:process.env});
+  if(preflight.status!==0) throw new Error('provider preflight failed; generation wave not started');
+}
 const summary={schemaVersion:'urai-model-forge-wave-receipt-v1',waveId:wave.id,execute,plannedCandidateAttempts:planned,maxCandidateGenerations:wave.maxCandidateGenerations,entries:[]};
 for(const entry of wave.entries){
   const spec=JSON.parse(fs.readFileSync(entry.spec,'utf8'));
