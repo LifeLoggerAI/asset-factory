@@ -2,5 +2,6 @@ assets/
 asset_pack.zip
 preview.html
 validation_report.json
+production_visual_gate.json
 __pycache__/
 *.pyc

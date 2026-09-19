@@ -4,7 +4,7 @@ Create Firebase-ready metadata seed records from generated image assets.
 The output is a JSON file that can be uploaded/imported by deployment tooling.
 It does not perform any network writes. Each generated image variant becomes one
 seed record with stable identifiers, local path, proposed Firebase Storage path,
-asset metadata, and SHA-256 hash.
+asset metadata, SHA-256 hash, render authority, and production-eligibility state.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
 SEED_PATH = BASE_DIR / "firebase_seed.json"
 DEFAULT_STORAGE_PREFIX = "urai/image-assets"
+APPROVED_STATUSES = {"approved", "committed", "shipped"}
 
 
 def sha256_file(path: Path) -> str:
@@ -41,6 +42,9 @@ def make_seed() -> Dict[str, Any]:
     for entry in load_manifest():
         storage_prefix = str(entry.get("firebase_storage_prefix") or DEFAULT_STORAGE_PREFIX).strip("/")
         template = str(entry.get("path_template"))
+        renderer = str(entry.get("renderer", "unknown"))
+        status = str(entry.get("status", "unknown"))
+        production_eligible = renderer == "provider" and status in APPROVED_STATUSES
         for size in entry.get("sizes", []):
             output_path = template.format(size=int(size))
             local_path = BASE_DIR / output_path
@@ -52,25 +56,36 @@ def make_seed() -> Dict[str, Any]:
                 "prompt": entry.get("prompt"),
                 "size": int(size),
                 "alpha": bool(entry.get("alpha")),
-                "status": entry.get("status"),
+                "status": status,
                 "localPath": output_path,
                 "storagePath": storage_path,
                 "contentType": "image/png",
                 "generatedAt": generated_at,
                 "tags": entry.get("tags", []),
-                "renderer": entry.get("renderer", "local-proof"),
+                "renderer": renderer,
                 "promptVersion": entry.get("prompt_version", "v1"),
+                "productionEligible": production_eligible,
+                "visualAuthority": "production-candidate" if production_eligible else "diagnostic-only",
             }
             if local_path.exists():
                 record["bytes"] = local_path.stat().st_size
                 record["sha256"] = sha256_file(local_path)
             records.append(record)
 
+    all_production_eligible = bool(records) and all(
+        bool(record.get("productionEligible")) for record in records
+    )
     return {
         "generatedAt": generated_at,
         "collection": "imageAssets",
         "storagePrefix": DEFAULT_STORAGE_PREFIX,
         "recordCount": len(records),
+        "productionEligible": all_production_eligible,
+        "usagePolicy": (
+            "production-import-allowed"
+            if all_production_eligible
+            else "diagnostic-only-do-not-promote"
+        ),
         "records": records,
     }
 

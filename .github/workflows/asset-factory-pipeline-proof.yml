@@ -128,17 +128,46 @@ jobs:
       - name: Install image pipeline dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
-      - name: Run image asset pipeline
+      - name: Run offline image asset mechanical proof
+        env:
+          ASSET_RENDERER_MODE: offline
+          ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS: "0"
         run: python image_asset_generator/run_pipeline.py
 
-      - name: Upload image pipeline proof
+      - name: Assert retained proof is explicitly non-production
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("image_asset_generator/validation_report.json").read_text())
+          gate = json.loads(Path("image_asset_generator/production_visual_gate.json").read_text())
+
+          if report.get("status") != "passed":
+              raise SystemExit("mechanical pipeline report did not pass")
+          if report.get("status_scope") != "mechanical_integrity_only":
+              raise SystemExit("mechanical proof status scope is missing or ambiguous")
+          if report.get("proof_classification", {}).get("scope") != "mechanical-diagnostic":
+              raise SystemExit("proof classification is missing or ambiguous")
+          if gate.get("status") != "blocked" or gate.get("production_visual_authority") is not False:
+              raise SystemExit("offline proof must remain blocked from production visual authority")
+          if not gate.get("non_provider_assets"):
+              raise SystemExit("offline proof must identify non-provider render provenance")
+
+          print("Retained image proof is truthful: mechanical PASS, production visual BLOCKED.")
+          PY
+
+      - name: Upload image pipeline mechanical proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: asset-factory-image-pipeline-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
+          name: asset-factory-image-mechanical-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           path: |
             image_asset_generator/validation_report.json
+            image_asset_generator/production_visual_gate.json
             image_asset_generator/firebase_seed.json
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
-          if-no-files-found: warn
+          if-no-files-found: error
