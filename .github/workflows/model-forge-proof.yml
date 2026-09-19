@@ -1,0 +1,56 @@
+name: URAI Model Forge Proof
+
+on:
+  pull_request:
+    paths:
+      - 'model_forge/**'
+      - '.github/workflows/model-forge-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-spend-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove source parses
+        run: |
+          node --check model_forge/forge.mjs
+          node --check model_forge/validate-glb.mjs
+          python -m py_compile model_forge/blender/clean-export.py
+      - name: Prove no-spend dry run
+        env:
+          URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+          MESHY_API_KEY: ''
+          TRIPO_API_KEY: ''
+          RODIN_API_KEY: ''
+        run: |
+          node model_forge/forge.mjs \
+            --spec model_forge/specs/ground-hero-tree.json \
+            --providers meshy,tripo,rodin \
+            --dry-run > model-forge-dry-run.json
+          grep -q '"dryRun": true' model-forge-dry-run.json
+          grep -q '"spendAuthorized": false' model-forge-dry-run.json
+      - name: Prove live execution fails closed without spend authorization
+        run: |
+          set +e
+          node model_forge/forge.mjs \
+            --spec model_forge/specs/ground-hero-tree.json \
+            --providers meshy > fail-closed.log 2>&1
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          grep -q 'Provider execution is fail-closed' fail-closed.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-forge-no-spend-proof-${{ github.sha }}
+          path: model-forge-dry-run.json
+          if-no-files-found: error
