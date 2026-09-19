@@ -184,10 +184,14 @@ def build_production_visual_gate(
     }
 
 
-def write_report(errors: List[str], zip_path: Path) -> Dict[str, Any]:
+def write_report(
+    errors: List[str],
+    zip_path: Path,
+    production_visual_gate: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
     entries = load_manifest()
     assets = collect_asset_records(entries)
-    gate = build_production_visual_gate(entries, assets, errors)
+    gate = production_visual_gate or build_production_visual_gate(entries, assets, errors)
     generated_at = datetime.now(timezone.utc).isoformat()
     exact_head = os.environ.get("ASSET_FACTORY_EXACT_HEAD") or None
     report: Dict[str, Any] = {
@@ -247,10 +251,14 @@ def main() -> None:
     generate_assets.main()
     asset_errors = validate_assets.validate()
     create_preview.main()
-    create_firebase_seed.main()
+
+    entries = load_manifest()
+    assets = collect_asset_records(entries)
+    production_visual_gate = build_production_visual_gate(entries, assets, asset_errors)
+    create_firebase_seed.main(production_visual_gate=production_visual_gate)
 
     zip_path = BASE_DIR / "asset_pack.zip"
-    report = write_report(asset_errors, zip_path)
+    report = write_report(asset_errors, zip_path, production_visual_gate)
     export_assets.export(zip_path)
 
     if asset_errors:

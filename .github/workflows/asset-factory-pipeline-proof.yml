@@ -128,22 +128,43 @@ jobs:
       - name: Install image pipeline dependencies
         run: python -m pip install -r image_asset_generator/requirements.txt
 
+      - name: Test production visual gate contracts
+        run: python -m unittest discover -s image_asset_generator -p 'test_production_visual_gate.py' -v
+
       - name: Run offline image asset mechanical proof
         env:
           ASSET_RENDERER_MODE: offline
           ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS: "0"
         run: python image_asset_generator/run_pipeline.py
 
-      - name: Assert retained proof is explicitly non-production
+      - name: Exercise production-required negative path
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          ASSET_RENDERER_MODE=offline \
+          ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS=1 \
+            python image_asset_generator/run_pipeline.py > production-visual-negative.log 2>&1
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          grep -q "Production visual gate is required and remains blocked." production-visual-negative.log
+          grep -q '"production_visual_authority": false' image_asset_generator/production_visual_gate.json
+          echo "Production-required negative path failed closed without provider mode."
+
+      - name: Assert retained proof is explicitly non-production and self-describing
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
+          from zipfile import ZipFile
 
-          report = json.loads(Path("image_asset_generator/validation_report.json").read_text())
-          gate = json.loads(Path("image_asset_generator/production_visual_gate.json").read_text())
+          base = Path("image_asset_generator")
+          report = json.loads((base / "validation_report.json").read_text())
+          gate = json.loads((base / "production_visual_gate.json").read_text())
+          seed = json.loads((base / "firebase_seed.json").read_text())
 
           if report.get("status") != "passed":
               raise SystemExit("mechanical pipeline report did not pass")
@@ -153,8 +174,36 @@ jobs:
               raise SystemExit("proof classification is missing or ambiguous")
           if gate.get("status") != "blocked" or gate.get("production_visual_authority") is not False:
               raise SystemExit("offline proof must remain blocked from production visual authority")
+          if gate.get("promotion_allowed") is not False:
+              raise SystemExit("offline proof must remain blocked from promotion")
           if not gate.get("non_provider_assets"):
               raise SystemExit("offline proof must identify non-provider render provenance")
+          if seed.get("productionEligible") is not False:
+              raise SystemExit("offline Firebase seed must not be production eligible")
+          if seed.get("productionGateEligible") is not False:
+              raise SystemExit("offline Firebase seed must inherit the blocked global gate")
+          if seed.get("usagePolicy") != "diagnostic-only-do-not-promote":
+              raise SystemExit("offline Firebase seed must be diagnostic-only")
+
+          required = {
+              "validation_report.json",
+              "production_visual_gate.json",
+              "firebase_seed.json",
+              "preview.html",
+              "manifest.json",
+          }
+          with ZipFile(base / "asset_pack.zip") as archive:
+              names = set(archive.namelist())
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit(f"asset pack missing proof file(s): {missing}")
+              for name in ("validation_report.json", "production_visual_gate.json", "firebase_seed.json"):
+                  if archive.read(name) != (base / name).read_bytes():
+                      raise SystemExit(f"asset pack contains stale {name}")
+              png_count = sum(name.endswith(".png") for name in names)
+              metadata_count = sum(name.endswith(".png.render.json") for name in names)
+              if png_count != report.get("asset_count") or metadata_count != report.get("asset_count"):
+                  raise SystemExit("asset pack output/provenance counts do not match report")
 
           print("Retained image proof is truthful: mechanical PASS, production visual BLOCKED.")
           PY
