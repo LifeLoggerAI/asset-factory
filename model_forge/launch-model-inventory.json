@@ -3,14 +3,15 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1237,
-    "recoveredSpatialHead": "6e1fbd11258436eeaad7e17ae4af04353524ae70",
+    "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
       "operations/visual/urai-visual-gold-master-manifest.v1.json",
       "operations/assets/launch-critical-assets.json"
     ],
-    "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement."
+    "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
+    "successorReconciliation": "Compared from 6e1fbd11258436eeaad7e17ae4af04353524ae70: four successor commits touched Life Map composition/tests only; Ground/Replay/model-target authority unchanged."
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
