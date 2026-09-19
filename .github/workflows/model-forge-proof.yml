@@ -30,6 +30,11 @@ jobs:
           node --check model_forge/verify-promotion.mjs
           node --check model_forge/run-wave.mjs
           node --check model_forge/provider-preflight.mjs
+          grep -q "tencent/hunyuan-3d-3.1" model_forge/forge.mjs
+          grep -q "REPLICATE_API_TOKEN" model_forge/forge.mjs
+          grep -q "refs/heads/main" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "google-github-actions/auth@v3" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "RUN_ONE_URAI_REPLICATE_MODEL_WAVE" .github/workflows/model-forge-replicate-wave.yml
           node model_forge/provider-preflight.mjs > provider-preflight-dry.json
           grep -q '"live": false' provider-preflight-dry.json
           node model_forge/verify-inventory.mjs
@@ -45,6 +50,7 @@ jobs:
           MESHY_API_KEY: ''
           TRIPO_API_KEY: ''
           RODIN_API_KEY: ''
+          REPLICATE_API_TOKEN: ''
         run: |
           : > model-forge-dry-run.json
           for spec in \
@@ -62,6 +68,9 @@ jobs:
           test "$(grep -c '"dryRun": true' model-forge-dry-run.json)" -eq 5
           test "$(grep -c '"spendAuthorized": false' model-forge-dry-run.json)" -eq 5
           test "$(grep -c '"maxProviderAttempts": 1' model-forge-dry-run.json)" -eq 5
+          node model_forge/forge.mjs             --spec model_forge/specs/ground-canopy-challenger.json             --providers replicate             --dry-run > model-forge-replicate-dry-run.json
+          grep -q '"provider": "replicate"' model-forge-replicate-dry-run.json
+          grep -q '"requiredEnv": "REPLICATE_API_TOKEN"' model-forge-replicate-dry-run.json
       - name: Prove live execution fails closed without spend authorization
         run: |
           set +e
@@ -78,18 +87,24 @@ jobs:
           MESHY_API_KEY: ''
           TRIPO_API_KEY: ''
           RODIN_API_KEY: ''
+          REPLICATE_API_TOKEN: ''
         run: |
           node model_forge/run-wave.mjs \
             --wave model_forge/waves/wave-01-ground-canopy-bakeoff.json > wave-plan.json
           grep -q '"execute": false' wave-plan.json
           grep -q '"plannedCandidateAttempts": 3' wave-plan.json
           test "$(grep -c '"status": "planned"' wave-plan.json)" -eq 3
+          node model_forge/run-wave.mjs             --wave model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json > replicate-wave-plan.json
+          grep -q '"plannedCandidateAttempts": 1' replicate-wave-plan.json
+          test "$(grep -c '"status": "planned"' replicate-wave-plan.json)" -eq 1
       - uses: actions/upload-artifact@v4
         with:
           name: model-forge-no-spend-proof-${{ github.sha }}
           path: |
             model-forge-dry-run.json
+            model-forge-replicate-dry-run.json
             wave-plan.json
+            replicate-wave-plan.json
             provider-preflight-dry.json
           if-no-files-found: error
 
