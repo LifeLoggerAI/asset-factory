@@ -6,14 +6,27 @@
     {
       "route": "/home",
       "name": "UrAi Home Reference Pack.png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "blocked-for-reference-fidelity"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_0000000012b881f58f88023bc7089ebb",
+        "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
+        "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
+        "bytes": 2459496
+      }
     },
     {
       "route": "/ground",
       "name": "UrAi Visual Reference Library.png — Core Experiences Part 1",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "source-canon-only-until-file-resolved"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_0000000049f081f58f210d25500aed2c",
+        "libraryFileId": "libfile_d1284a826a348191b5a44e9c52e772b7",
+        "sha256": "9a27373e6c776e99f76fb179d8fc54a14bf26750cda64723e41a0c6d77985afe",
+        "bytes": 2632988,
+        "libraryName": "UrAi Visual Reference Library.png"
+      }
     },
     {
       "route": "/life-map",
@@ -42,8 +55,14 @@
     {
       "route": "/focus",
       "name": "The Quiet Reset: Memory Star Network.png",
-      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
-      "providerUse": "not-a-provider-model-target"
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-supporting-authority-input",
+      "library": {
+        "fileId": "file_0000000067a081f5838f7ac75b675781",
+        "libraryFileId": "libfile_1cef3c47a3608191b7e02e5c424912f7",
+        "sha256": "0754189745a2801bdc21584ca609d0ba14e44d56476991fe125aff5739bd667d",
+        "bytes": 2476575
+      }
     },
     {
       "route": "journey",
@@ -86,17 +105,14 @@
     }
   ],
   "generationPolicy": {
-    "exactImageReferenceResolved": "partial",
+    "exactImageReferenceResolved": true,
     "allowTextOnlyExploration": true,
     "allowTextOnlyProductionAuthority": false,
     "allowRuntimeSourceDerivedEnvironmentalCandidate": true,
     "productionAcceptanceStillRequiresLiteralScenePixels": true,
-    "resolvedAuthorityFiles": 4,
-    "unresolvedCriticalFiles": [
-      "UrAi Home Reference Pack.png",
-      "UrAi Visual Reference Library.png — Core Experiences Part 1",
-      "The Quiet Reset: Memory Star Network.png"
-    ]
+    "resolvedAuthorityFiles": 7,
+    "unresolvedCriticalFiles": [],
+    "providerMaterializationBoundary": "Library reference bytes are resolved and hashed, but paid provider execution must use a governed upload/materialization path; do not replace them with public lookalikes or historical storyboards."
   },
   "successorReconciliation": "Four commits since prior audited head changed Life Map composition/tests only; environmental model-generation targets and Ground/Replay authority remain unchanged."
 }
