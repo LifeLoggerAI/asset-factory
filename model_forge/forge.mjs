@@ -51,6 +51,17 @@ function validateSpec(spec) {
       fail(`Reference image is neither URL, data URI, nor existing file: ${ref}`);
     }
   }
+  if (spec.referenceViews !== undefined) {
+    if (!spec.referenceViews || typeof spec.referenceViews !== 'object' || Array.isArray(spec.referenceViews)) fail('referenceViews must be an object');
+    const allowedViews = new Set(['front', 'left', 'back', 'right']);
+    for (const [view, ref] of Object.entries(spec.referenceViews)) {
+      if (!allowedViews.has(view)) fail(`Unsupported reference view: ${view}`);
+      if (typeof ref !== 'string' || !ref.trim()) fail(`referenceViews.${view} must be a non-empty string`);
+      if (!(ref.startsWith('http://') || ref.startsWith('https://') || ref.startsWith('data:') || fs.existsSync(ref))) fail(`referenceViews.${view} is not a URL, data URI, or file`);
+    }
+    if (!spec.referenceViews.front) fail('referenceViews.front is required');
+    if (Object.keys(spec.referenceViews).length < 2) fail('referenceViews requires at least two views');
+  }
   spec.generation = {
     maxProviderAttempts: Number(spec.generation?.maxProviderAttempts ?? DEFAULT_MAX_PROVIDER_ATTEMPTS),
     seed: spec.generation?.seed === undefined ? null : Number(spec.generation.seed),
@@ -188,7 +199,9 @@ async function downloadFile(url, destination) {
 async function generateMeshy(spec) {
   const key = process.env.MESHY_API_KEY;
   const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
-  const refs = spec.referenceImages ?? [];
+  const refs = spec.referenceViews
+    ? ['front', 'left', 'back', 'right'].map((view) => spec.referenceViews[view]).filter(Boolean)
+    : (spec.referenceImages ?? []);
   const model = process.env.URAI_MESHY_MODEL || 'meshy-7.1';
   let taskId;
   let pollUrl;
@@ -232,8 +245,8 @@ async function generateTripo(spec) {
   const key = process.env.TRIPO_API_KEY;
   const headers = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
   const refs = spec.referenceImages ?? [];
+  const views = spec.referenceViews ?? null;
   const model = process.env.URAI_TRIPO_MODEL || TRIPO_STABLE_MODEL;
-  if (refs.length > 1) fail('Tripo multiview requires ordered front/left/back/right inputs; use one canonical reference until referenceViews are explicitly supplied');
 
   const common = {
     model_version: model,
@@ -246,14 +259,25 @@ async function generateTripo(spec) {
     ...(spec.generation.seed === null ? {} : { model_seed: spec.generation.seed, texture_seed: spec.generation.seed }),
   };
 
-  let body;
-  if (refs.length === 1) {
-    const ref = refs[0];
-    if (!/^https?:\/\//.test(ref)) fail('Tripo image-to-model currently requires a public JPEG/PNG URL; local references must be uploaded through the provider upload API before execution');
-    const parsed = new URL(ref);
+  const fileInput = (ref) => {
+    if (!ref) return {};
+    if (!/^https?:\/\//.test(ref)) fail('Tripo reference-driven generation currently requires public JPEG/PNG URLs; local/private references must be materialized and uploaded before paid execution');
+    const parsed = new URL(assertPublicHttpUrl(ref, 'Tripo reference URL'));
     const ext = path.extname(parsed.pathname).toLowerCase();
-    const type = ext === '.png' ? 'png' : 'jpg';
-    body = { type: 'image_to_model', file: { type, url: assertPublicHttpUrl(ref, 'Tripo reference URL') }, ...common };
+    return { type: ext === '.png' ? 'png' : 'jpg', url: parsed.toString() };
+  };
+
+  let body;
+  if (views) {
+    body = {
+      type: 'multiview_to_model',
+      files: ['front', 'left', 'back', 'right'].map((view) => fileInput(views[view])),
+      ...common,
+    };
+  } else if (refs.length === 1) {
+    body = { type: 'image_to_model', file: fileInput(refs[0]), ...common };
+  } else if (refs.length > 1) {
+    fail('Use referenceViews for Tripo multiview so front/left/back/right ordering is explicit');
   } else {
     body = { type: 'text_to_model', prompt: spec.prompt.slice(0, 1024), ...common };
   }
@@ -266,7 +290,6 @@ async function generateTripo(spec) {
   const payload = assertTripoOk(create.payload, 'create task');
   const taskId = payload.data?.task_id;
   if (!taskId) fail(`Tripo did not return task_id: ${JSON.stringify(payload)}`);
-
   const result = await pollJson(
     `https://api.tripo3d.ai/v2/openapi/task/${encodeURIComponent(taskId)}`,
     { Authorization: `Bearer ${key}` },
@@ -278,13 +301,7 @@ async function generateTripo(spec) {
   const output = result.data?.output ?? {};
   const url = output.pbr_model || output.model || output.base_model;
   if (!url) fail(`Tripo task completed without downloadable model output: ${JSON.stringify(output)}`);
-  return {
-    url,
-    taskId,
-    model,
-    creditsConsumed: output.consumed_credit ?? null,
-    raw: result.data,
-  };
+  return { url, taskId, model, creditsConsumed: output.consumed_credit ?? null, raw: result.data };
 }
 
 function mimeFor(file) {
@@ -297,7 +314,9 @@ function mimeFor(file) {
 async function generateRodin(spec) {
   const key = process.env.RODIN_API_KEY;
   const tier = process.env.URAI_RODIN_TIER || 'Gen-2.5-Medium';
-  const refs = spec.referenceImages ?? [];
+  const refs = spec.referenceViews
+    ? ['front', 'left', 'back', 'right'].map((view) => spec.referenceViews[view]).filter(Boolean)
+    : (spec.referenceImages ?? []);
   const form = new FormData();
   if (refs.length) {
     if (!refs.every((v) => fs.existsSync(v))) fail('Rodin adapter uses local image files for image-to-3D; URLs should be downloaded into the workspace first');
