@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "6e1fbd11258436eeaad7e17ae4af04353524ae70",
+  "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -67,5 +67,6 @@
     "allowTextOnlyProductionAuthority": false,
     "allowRuntimeSourceDerivedEnvironmentalCandidate": true,
     "productionAcceptanceStillRequiresLiteralScenePixels": true
-  }
+  },
+  "successorReconciliation": "Four commits since prior audited head changed Life Map composition/tests only; environmental model-generation targets and Ground/Replay authority remain unchanged."
 }
