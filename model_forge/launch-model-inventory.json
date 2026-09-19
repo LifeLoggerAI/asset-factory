@@ -113,7 +113,7 @@
       "route": "shared",
       "class": "custom_procedural_urai_native",
       "currentAuthority": "semantic-world-travel-with-negative-canon",
-      "providerAction": "do-not-generate-generic-portals",
+      "providerAction": "do-not-generate",
       "candidateSpec": null
     },
     {
