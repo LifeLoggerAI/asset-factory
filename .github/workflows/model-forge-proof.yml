@@ -25,7 +25,9 @@ jobs:
         run: |
           node --check model_forge/forge.mjs
           node --check model_forge/validate-glb.mjs
+          node --check model_forge/verify-inventory.mjs
           python -m py_compile model_forge/blender/clean-export.py
+          node model_forge/verify-inventory.mjs
       - name: Prove no-spend dry run
         env:
           URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
@@ -33,12 +35,22 @@ jobs:
           TRIPO_API_KEY: ''
           RODIN_API_KEY: ''
         run: |
-          node model_forge/forge.mjs \
-            --spec model_forge/specs/ground-hero-tree.json \
-            --providers meshy,tripo,rodin \
-            --dry-run > model-forge-dry-run.json
-          grep -q '"dryRun": true' model-forge-dry-run.json
-          grep -q '"spendAuthorized": false' model-forge-dry-run.json
+          : > model-forge-dry-run.json
+          for spec in \
+            model_forge/specs/ground-hero-tree.json \
+            model_forge/specs/ground-canopy-challenger.json \
+            model_forge/specs/ground-hero-root-system.json \
+            model_forge/specs/ground-sanctuary-geology.json \
+            model_forge/specs/replay-memory-geology.json
+          do
+            node model_forge/forge.mjs \
+              --spec "$spec" \
+              --providers meshy,tripo,rodin \
+              --dry-run >> model-forge-dry-run.json
+          done
+          test "$(grep -c '"dryRun": true' model-forge-dry-run.json)" -eq 5
+          test "$(grep -c '"spendAuthorized": false' model-forge-dry-run.json)" -eq 5
+          test "$(grep -c '"maxProviderAttempts": 1' model-forge-dry-run.json)" -eq 5
       - name: Prove live execution fails closed without spend authorization
         run: |
           set +e
