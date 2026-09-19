@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import process from 'node:process';
+import dns from 'node:dns/promises';
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
@@ -117,13 +118,43 @@ function isPrivateIpv4(hostname) {
   return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
+function isPrivateIpv6(hostname) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  return host === '::1'
+    || host === '::'
+    || host.startsWith('fc')
+    || host.startsWith('fd')
+    || /^fe[89ab]/.test(host)
+    || host.startsWith('::ffff:127.')
+    || host.startsWith('::ffff:10.')
+    || host.startsWith('::ffff:192.168.')
+    || /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(host);
+}
+
 function assertPublicHttpUrl(value, label = 'URL') {
   let parsed;
   try { parsed = new URL(value); } catch { fail(`${label} is invalid`); }
   if (!['https:', 'http:'].includes(parsed.protocol)) fail(`${label} uses unsupported protocol`);
   const host = parsed.hostname.toLowerCase();
-  if (host === 'localhost' || host === '::1' || host.endsWith('.localhost') || host.endsWith('.local') || isPrivateIpv4(host)) fail(`${label} points to a private/local host`);
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || isPrivateIpv4(host) || isPrivateIpv6(host)) fail(`${label} points to a private/local host`);
   return parsed.toString();
+}
+
+async function assertPublicResolvedUrl(value, label = 'URL') {
+  const safe = assertPublicHttpUrl(value, label);
+  const parsed = new URL(safe);
+  let addresses;
+  try {
+    addresses = await dns.lookup(parsed.hostname, { all: true, verbatim: true });
+  } catch (error) {
+    fail(`${label} hostname could not be resolved: ${error?.message ?? error}`);
+  }
+  if (!addresses.length) fail(`${label} hostname resolved to no addresses`);
+  for (const entry of addresses) {
+    if (entry.family === 4 && isPrivateIpv4(entry.address)) fail(`${label} resolves to a private IPv4 address`);
+    if (entry.family === 6 && isPrivateIpv6(entry.address)) fail(`${label} resolves to a private IPv6 address`);
+  }
+  return safe;
 }
 
 function retryAfterMs(response, fallbackMs) {
@@ -247,16 +278,42 @@ function structuralCandidateReport(buffer, maxTriangles) {
 }
 
 async function downloadFile(url, destination) {
-  const safeUrl = assertPublicHttpUrl(url, 'Provider artifact URL');
-  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)) });
+  const safeUrl = await assertPublicResolvedUrl(url, 'Provider artifact URL');
+  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)), redirect: 'error' });
   if (!response.ok) fail(`Artifact download failed ${response.status}`);
   const declared = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > maxBytes()) fail(`Artifact too large: ${declared}`);
-  const data = Buffer.from(await response.arrayBuffer());
-  if (data.byteLength > maxBytes()) fail(`Artifact too large after download: ${data.byteLength}`);
+  const limit = maxBytes();
+  if (Number.isFinite(declared) && declared > limit) fail(`Artifact too large: ${declared}`);
+  if (!response.body) fail('Artifact response has no body');
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.writeFileSync(destination, data);
-  return { bytes: data.byteLength, sha256: crypto.createHash('sha256').update(data).digest('hex') };
+  const handle = fs.openSync(destination, 'w');
+  const reader = response.body.getReader();
+  const hash = crypto.createHash('sha256');
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      bytes += value.byteLength;
+      if (bytes > limit) {
+        await reader.cancel('artifact size limit exceeded').catch(() => {});
+        fail(`Artifact too large during download: ${bytes}`);
+      }
+      fs.writeSync(handle, value);
+      hash.update(value);
+    }
+  } catch (error) {
+    try { fs.closeSync(handle); } catch {}
+    try { fs.unlinkSync(destination); } catch {}
+    throw error;
+  }
+  fs.closeSync(handle);
+  if (!bytes) {
+    try { fs.unlinkSync(destination); } catch {}
+    fail('Provider artifact download was empty');
+  }
+  return { bytes, sha256: hash.digest('hex') };
 }
 
 async function generateMeshy(spec) {
