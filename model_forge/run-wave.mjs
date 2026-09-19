@@ -23,7 +23,8 @@ for(const entry of wave.entries){
   const spec=JSON.parse(fs.readFileSync(entry.spec,'utf8'));
   if(spec.generation?.maxProviderAttempts!==entry.maxAttemptsPerProvider) throw new Error(`${entry.spec}: spec attempt policy does not match wave`);
   for(const provider of entry.providers){
-    const required={meshy:'MESHY_API_KEY',tripo:'TRIPO_API_KEY',rodin:'RODIN_API_KEY'}[provider];
+    const required={meshy:'MESHY_API_KEY',tripo:'TRIPO_API_KEY',rodin:'RODIN_API_KEY',replicate:'REPLICATE_API_TOKEN'}[provider];
+    if(!required) throw new Error(`unsupported wave provider ${provider}`);
     const configured=Boolean(process.env[required]);
     if(!execute){
       summary.entries.push({assetId:spec.id,provider,status:'planned',credentialConfigured:configured});
