@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "urai-model-reference-resolution-v1",
+  "recoveredSpatialHead": "6e1fbd11258436eeaad7e17ae4af04353524ae70",
+  "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
+  "authority": [
+    {
+      "route": "/home",
+      "name": "UrAi Home Reference Pack.png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "blocked-for-reference-fidelity"
+    },
+    {
+      "route": "/ground",
+      "name": "UrAi Visual Reference Library.png — Core Experiences Part 1",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "source-canon-only-until-file-resolved"
+    },
+    {
+      "route": "/life-map",
+      "name": "UrAi Life Map: A Living Galaxy(2).png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "not-a-provider-model-target"
+    },
+    {
+      "route": "/replay",
+      "name": "UrAi Replay Canonical Storyboard.png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "source-canon-only-until-file-resolved"
+    },
+    {
+      "route": "/focus",
+      "name": "The Quiet Reset: Memory Star Network.png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "not-a-provider-model-target"
+    },
+    {
+      "route": "journey",
+      "name": "From Life Map to Memory Replay.png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "journey-authority-only"
+    },
+    {
+      "route": "/focus→/replay",
+      "name": "Focus to Replay: Memory Becomes Environment.png",
+      "status": "named-in-spatial-authority-ledger-not-resolved-as-direct-drive-file",
+      "providerUse": "journey-authority-only"
+    }
+  ],
+  "resolvedDocuments": [
+    {
+      "name": "URAI Visual Gold Master Active Manifest — 2026-09-17",
+      "driveId": "1rO7aerhcM8yYljlqyBSOnIUEwHMSB3fiAghTMeGipLI",
+      "use": "current/superseding prose authority subject to live GitHub head"
+    },
+    {
+      "name": "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
+      "use": "repository reference classification"
+    },
+    {
+      "name": "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
+      "use": "Ground physical-world/negative canon"
+    }
+  ],
+  "generationPolicy": {
+    "exactImageReferenceResolved": false,
+    "allowTextOnlyExploration": true,
+    "allowTextOnlyProductionAuthority": false,
+    "allowRuntimeSourceDerivedEnvironmentalCandidate": true,
+    "productionAcceptanceStillRequiresLiteralScenePixels": true
+  }
+}
