@@ -203,14 +203,14 @@ async function generateMeshy(spec) {
   } else if (refs.length === 1 && /^https?:|^data:/.test(refs[0])) {
     const { payload } = await requestJson('https://api.meshy.ai/openapi/v1/image-to-3d', {
       method: 'POST', headers,
-      body: JSON.stringify({ image_url: refs[0], ai_model: model, geometry_resolution: '4k', enable_pbr: spec.target.pbr, should_remesh: true, target_polycount: spec.target.maxTriangles, should_texture: true, target_formats: ['glb'] }),
+      body: JSON.stringify({ image_url: refs[0], ai_model: model, geometry_resolution: '4k', enable_pbr: spec.target.pbr, should_remesh: false, should_texture: true, target_formats: ['glb'] }),
     });
     taskId = payload.result;
     pollUrl = `https://api.meshy.ai/openapi/v1/image-to-3d/${taskId}`;
   } else {
     const preview = await requestJson('https://api.meshy.ai/openapi/v2/text-to-3d', {
       method: 'POST', headers,
-      body: JSON.stringify({ mode: 'preview', prompt: spec.prompt, ai_model: model, geometry_resolution: '4k', should_remesh: true, target_polycount: spec.target.maxTriangles, target_formats: ['glb'] }),
+      body: JSON.stringify({ mode: 'preview', prompt: spec.prompt, ai_model: model, geometry_resolution: '4k', should_remesh: false, target_formats: ['glb'] }),
     });
     const previewId = preview.payload.result;
     await pollJson(`https://api.meshy.ai/openapi/v2/text-to-3d/${previewId}`, { Authorization: `Bearer ${key}` }, (p) => p.status === 'SUCCEEDED', (p) => ['FAILED', 'CANCELED'].includes(p.status));
@@ -310,10 +310,13 @@ async function generateRodin(spec) {
   }
   form.append('tier', tier);
   form.append('mesh_mode', 'Raw');
-  form.append('quality', spec.target.hero ? 'high' : 'medium');
+  form.append('quality_override', String(spec.target.maxTriangles));
   form.append('geometry_file_format', 'glb');
   form.append('material', spec.target.pbr ? 'PBR' : 'Shaded');
   form.append('texture_mode', spec.target.textureResolution === '8k' ? 'high' : 'medium');
+  if (spec.target.textureResolution === '4k' || spec.target.textureResolution === '8k') form.append('addons', 'HighPack');
+  if (spec.generation.seed !== null) form.append('seed', String(spec.generation.seed % 65536));
+  form.append('is_symmetric', 'asymmetric');
 
   const { payload } = await requestJson('https://api.hyper3d.com/api/v2/rodin', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form });
   if (payload.error) fail(`Rodin rejected generation despite transport success: ${payload.error}: ${payload.message ?? JSON.stringify(payload)}`);
