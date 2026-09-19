@@ -184,6 +184,68 @@ function firstHttpUrl(value) {
   return null;
 }
 
+function parseGlbCandidate(buffer) {
+  if (buffer.byteLength < 20) fail('Candidate GLB too small');
+  if (buffer.toString('ascii', 0, 4) !== 'glTF') fail('Candidate has invalid GLB magic');
+  const version = buffer.readUInt32LE(4);
+  const declaredLength = buffer.readUInt32LE(8);
+  if (version !== 2) fail(`Candidate uses unsupported GLB version ${version}`);
+  if (declaredLength !== buffer.byteLength) fail(`Candidate GLB declared length ${declaredLength} != actual ${buffer.byteLength}`);
+  const jsonLength = buffer.readUInt32LE(12);
+  const jsonType = buffer.readUInt32LE(16);
+  if (jsonType !== 0x4E4F534A) fail('Candidate first GLB chunk is not JSON');
+  const jsonStart = 20;
+  const jsonEnd = jsonStart + jsonLength;
+  if (jsonEnd > buffer.byteLength) fail('Candidate GLB JSON chunk is out of bounds');
+  const gltf = JSON.parse(buffer.toString('utf8', jsonStart, jsonEnd).replace(/\u0000+|\s+$/g, ''));
+  return gltf;
+}
+
+function structuralCandidateReport(buffer, maxTriangles) {
+  const gltf = parseGlbCandidate(buffer);
+  const meshes = gltf.meshes?.length ?? 0;
+  if (!meshes) fail('Candidate GLB contains no meshes');
+  let triangles = 0;
+  let indexedTrianglePrimitives = 0;
+  for (const mesh of gltf.meshes ?? []) {
+    for (const primitive of mesh.primitives ?? []) {
+      const mode = primitive.mode ?? 4;
+      if (mode !== 4) continue;
+      const accessor = primitive.indices !== undefined ? gltf.accessors?.[primitive.indices] : null;
+      if (accessor?.count) {
+        triangles += Math.floor(accessor.count / 3);
+        indexedTrianglePrimitives += 1;
+      }
+    }
+  }
+  if (triangles > maxTriangles) fail(`Candidate triangle estimate ${triangles} exceeds spec budget ${maxTriangles}`);
+  const required = gltf.extensionsRequired ?? [];
+  const unsafeRequired = required.filter((name) => ![
+    'KHR_draco_mesh_compression',
+    'EXT_meshopt_compression',
+    'KHR_texture_basisu',
+    'KHR_materials_unlit',
+    'KHR_materials_transmission',
+    'KHR_materials_ior',
+    'KHR_materials_clearcoat',
+    'KHR_materials_specular',
+    'KHR_materials_emissive_strength',
+  ].includes(name));
+  if (unsafeRequired.length) fail(`Candidate requires unsupported extensions: ${unsafeRequired.join(', ')}`);
+  return {
+    meshes,
+    nodes: gltf.nodes?.length ?? 0,
+    materials: gltf.materials?.length ?? 0,
+    images: gltf.images?.length ?? 0,
+    animations: gltf.animations?.length ?? 0,
+    trianglesEstimatedFromIndexedTrianglePrimitives: triangles,
+    indexedTrianglePrimitives,
+    extensionsUsed: gltf.extensionsUsed ?? [],
+    extensionsRequired: required,
+    verdict: 'structurally-valid-candidate-not-visual-authority',
+  };
+}
+
 async function downloadFile(url, destination) {
   const safeUrl = assertPublicHttpUrl(url, 'Provider artifact URL');
   const response = await fetch(safeUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)) });
@@ -491,7 +553,18 @@ async function main() {
       fs.mkdirSync(attemptDir, { recursive: true });
       try {
         const result = await generate(provider, spec);
-        const artifact = await downloadFile(result.url, path.join(attemptDir, 'candidate.glb'));
+        const candidatePath = path.join(attemptDir, 'candidate.glb');
+        const artifact = await downloadFile(result.url, candidatePath);
+        const structural = structuralCandidateReport(fs.readFileSync(candidatePath), spec.target.maxTriangles);
+        fs.writeFileSync(path.join(attemptDir, 'structural-validation.json'), `${JSON.stringify({
+          schemaVersion: 'urai-glb-validation-v1',
+          assetId: spec.id,
+          provider,
+          taskId: result.taskId,
+          bytes: artifact.bytes,
+          sha256: artifact.sha256,
+          ...structural,
+        }, null, 2)}\n`);
         const provenance = {
           schemaVersion: 'urai-model-candidate-provenance-v1',
           assetId: spec.id,
@@ -515,19 +588,20 @@ async function main() {
           },
           productionAuthority: false,
           promotionAllowed: false,
-          nextRequired: ['GLB structural validation', 'Blender cleanup/scale/LOD', 'literal rendered-pixel review', 'explicit approval', 'governed promotion'],
+          structuralValidation: structural,
+          nextRequired: ['Blender cleanup/scale/LOD', 'standardized candidate review renders', 'literal in-scene rendered-pixel review', 'explicit approval', 'governed promotion'],
         };
         fs.writeFileSync(path.join(attemptDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
-        attempts.push({ attempt, status: 'candidate-downloaded', artifact: path.relative(runRoot, path.join(attemptDir, 'candidate.glb')), sha256: artifact.sha256, taskId: result.taskId });
+        attempts.push({ attempt, status: 'candidate-structurally-valid', artifact: path.relative(runRoot, candidatePath), sha256: artifact.sha256, taskId: result.taskId, structuralValidation: path.relative(runRoot, path.join(attemptDir, 'structural-validation.json')) });
         completed = true;
       } catch (error) {
         attempts.push({ attempt, status: 'failed', error: String(error?.message ?? error) });
       }
     }
-    const acceptedAttempt = attempts.find((entry) => entry.status === 'candidate-downloaded');
+    const acceptedAttempt = attempts.find((entry) => entry.status === 'candidate-structurally-valid');
     runReceipt.providers.push({
       provider,
-      status: acceptedAttempt ? 'candidate-downloaded' : 'failed',
+      status: acceptedAttempt ? 'candidate-structurally-valid' : 'failed',
       attempts,
       ...(acceptedAttempt ? { artifact: acceptedAttempt.artifact, sha256: acceptedAttempt.sha256, taskId: acceptedAttempt.taskId } : {}),
     });
