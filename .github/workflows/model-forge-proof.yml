@@ -26,8 +26,15 @@ jobs:
           node --check model_forge/forge.mjs
           node --check model_forge/validate-glb.mjs
           node --check model_forge/verify-inventory.mjs
-          python -m py_compile model_forge/blender/clean-export.py
+          python -m py_compile model_forge/blender/clean-export.py model_forge/blender/render-review.py
+          node --check model_forge/verify-promotion.mjs
           node model_forge/verify-inventory.mjs
+          set +e
+          node model_forge/verify-promotion.mjs model_forge/promotion-receipt.template.json > promotion-negative.log 2>&1
+          promotion_rc=$?
+          set -e
+          test "$promotion_rc" -ne 0
+          grep -q 'URAI_MODEL_PROMOTION=BLOCKED' promotion-negative.log
       - name: Prove no-spend dry run
         env:
           URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
