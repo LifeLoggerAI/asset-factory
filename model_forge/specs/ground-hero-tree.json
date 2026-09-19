@@ -1,0 +1,13 @@
+{
+  "id": "ground-hero-broadleaf-tree-01",
+  "prompt": "Photoreal mature broadleaf sanctuary tree for UrAi Ground. Natural irregular trunk and branch architecture, dense layered canopy with believable leaf clusters, grounded exposed roots, realistic bark microdetail, no fantasy glow, no cartoon proportions, no text, no base pedestal. Designed to read from first-person human scale under cinematic natural sky lighting.",
+  "providers": ["meshy", "tripo", "rodin"],
+  "referenceImages": [],
+  "target": {
+    "meters": 9.0,
+    "hero": true,
+    "maxTriangles": 180000,
+    "textureResolution": "4k",
+    "pbr": true
+  }
+}
