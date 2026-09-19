@@ -28,6 +28,7 @@ jobs:
           node --check model_forge/verify-inventory.mjs
           python -m py_compile model_forge/blender/clean-export.py model_forge/blender/render-review.py
           node --check model_forge/verify-promotion.mjs
+          node --check model_forge/run-wave.mjs
           node model_forge/verify-inventory.mjs
           set +e
           node model_forge/verify-promotion.mjs model_forge/promotion-receipt.template.json > promotion-negative.log 2>&1
@@ -68,10 +69,24 @@ jobs:
           set -e
           test "$rc" -ne 0
           grep -q 'Provider execution is fail-closed' fail-closed.log
+      - name: Prove first provider wave remains bounded and no-spend
+        env:
+          URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+          MESHY_API_KEY: ''
+          TRIPO_API_KEY: ''
+          RODIN_API_KEY: ''
+        run: |
+          node model_forge/run-wave.mjs \
+            --wave model_forge/waves/wave-01-ground-canopy-bakeoff.json > wave-plan.json
+          grep -q '"execute": false' wave-plan.json
+          grep -q '"plannedCandidateAttempts": 3' wave-plan.json
+          test "$(grep -c '"status": "planned"' wave-plan.json)" -eq 3
       - uses: actions/upload-artifact@v4
         with:
           name: model-forge-no-spend-proof-${{ github.sha }}
-          path: model-forge-dry-run.json
+          path: |
+            model-forge-dry-run.json
+            wave-plan.json
           if-no-files-found: error
 
   provider-credential-presence:
