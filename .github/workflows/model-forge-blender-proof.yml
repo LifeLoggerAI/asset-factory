@@ -19,7 +19,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy libegl1 libgl1
           blender --version | head -n 2
       - name: Build deterministic smoke fixture
         run: |
@@ -36,6 +36,9 @@ jobs:
           test -s blender-smoke/cleaned/lod2.glb
           test -s blender-smoke/cleaned/cleanup-receipt.json
       - name: Run standardized literal-review render pipeline
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          EGL_PLATFORM: surfaceless
         run: |
           set -euo pipefail
           blender --background --python model_forge/blender/render-review.py --             --input blender-smoke/cleaned/lod0.glb             --output-dir blender-smoke/review             --resolution 512
