@@ -1,0 +1,33 @@
+{
+  "id": "replay-memory-geology-01",
+  "prompt": "Cinematic photoreal weathered valley geology for UrAi Replay non-demo memory environments. Natural near/mid/far rock formation with layered erosion, irregular silhouette, believable scale, grounded vegetation pockets and restrained earth/mineral PBR response. Designed for an anchored first-person witness camera. Must support physical depth without becoming a giant procedural slab, game basin, fantasy canyon, portal, stage wall, projection screen, or fabricated autobiographical evidence.",
+  "providers": [
+    "meshy",
+    "tripo",
+    "rodin"
+  ],
+  "referenceImages": [],
+  "generation": {
+    "maxProviderAttempts": 1,
+    "seed": 241001
+  },
+  "target": {
+    "meters": 12,
+    "hero": true,
+    "maxTriangles": 180000,
+    "textureResolution": "4k",
+    "pbr": true
+  },
+  "authority": {
+    "route": "/replay",
+    "source": "URAI Reference Authority Ledger 2026-09-19 + current CinematicReplayClient source",
+    "useBoundary": "support truthful non-demo spatial memory reconstruction; do not replace current explicit-demo cinematic matte by default",
+    "negativeCanon": [
+      "procedural slab wall",
+      "flat game basin",
+      "projection wall",
+      "portal",
+      "invented personal evidence"
+    ]
+  }
+}
