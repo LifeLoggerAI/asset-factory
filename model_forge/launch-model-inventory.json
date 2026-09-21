@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "urai-model-forge-launch-inventory-v1",
+  "authority": {
+    "spatialRepository": "LifeLoggerAI/urai-spatial",
+    "spatialPr": 1237,
+    "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
+    "sourceDocuments": [
+      "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
+      "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
+      "operations/visual/urai-visual-gold-master-manifest.v1.json",
+      "operations/assets/launch-critical-assets.json"
+    ],
+    "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
+    "successorReconciliation": "Compared from 6e1fbd11258436eeaad7e17ae4af04353524ae70: four successor commits touched Life Map composition/tests only; Ground/Replay/model-target authority unchanged."
+  },
+  "classes": {
+    "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
+    "generated_cleaned_environmental": "Eligible for bounded provider bake-off plus cleanup.",
+    "hero_close_camera": "Highest fidelity, scene-specific literal-pixel review required.",
+    "background_support": "May use stronger optimization/LOD/instancing."
+  },
+  "assets": [
+    {
+      "id": "ground-authored-canopy-v20",
+      "route": "/ground",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "runtime-authored-canopy-v20",
+      "providerAction": "challenger-only",
+      "reason": "Current runtime explicitly supersedes ground-natural-canopy-v3 low-poly silhouette.",
+      "candidateSpec": "model_forge/specs/ground-hero-tree.json"
+    },
+    {
+      "id": "ground-hero-root-system-01",
+      "route": "/ground",
+      "class": "hero_close_camera",
+      "currentAuthority": "physical-ground-canon",
+      "providerAction": "generate-and-compare",
+      "candidateSpec": "model_forge/specs/ground-hero-root-system.json"
+    },
+    {
+      "id": "ground-sanctuary-geology-01",
+      "route": "/ground",
+      "class": "generated_cleaned_environmental",
+      "currentAuthority": "scanned-rock-plus-authored-terrain",
+      "providerAction": "generate-and-compare",
+      "candidateSpec": "model_forge/specs/ground-sanctuary-geology.json"
+    },
+    {
+      "id": "ground-understory-support-01",
+      "route": "/ground",
+      "class": "background_support",
+      "currentAuthority": "polyhaven-fern-understory",
+      "providerAction": "preserve-existing-unless-composition-gap",
+      "candidateSpec": null
+    },
+    {
+      "id": "ground-distant-ridge",
+      "route": "/ground",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "authored-irregular-distant-ridge",
+      "providerAction": "preserve",
+      "candidateSpec": null
+    },
+    {
+      "id": "replay-memory-environment-v1",
+      "route": "/replay",
+      "class": "hero_close_camera",
+      "currentAuthority": "truthful-non-demo-memory-environment",
+      "providerAction": "generate-support-candidate",
+      "candidateSpec": "model_forge/specs/replay-memory-geology.json"
+    },
+    {
+      "id": "replay-demo-valley-v241",
+      "route": "/replay",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "authored-cinematic-demo-matte",
+      "providerAction": "preserve",
+      "candidateSpec": null
+    },
+    {
+      "id": "replay-rock-and-fern-support",
+      "route": "/replay",
+      "class": "background_support",
+      "currentAuthority": "polyhaven-rock-face-and-fern",
+      "providerAction": "preserve-existing-unless-better-candidate",
+      "candidateSpec": null
+    },
+    {
+      "id": "urai-orb-avatar-v1",
+      "route": "shared",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "authored-Orb",
+      "providerAction": "do-not-generate",
+      "candidateSpec": null
+    },
+    {
+      "id": "life-map-memory-star-current",
+      "route": "/life-map",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "stellar-point-photosphere-layered-corona-no-visible-sphere",
+      "providerAction": "do-not-generate",
+      "candidateSpec": null
+    },
+    {
+      "id": "focus-selected-memory-star",
+      "route": "/focus",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "same-selected-star-with-contained-memory",
+      "providerAction": "do-not-generate",
+      "candidateSpec": null
+    },
+    {
+      "id": "portal-route-language",
+      "route": "shared",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "semantic-world-travel-with-negative-canon",
+      "providerAction": "do-not-generate",
+      "candidateSpec": null
+    },
+    {
+      "id": "home-entry-chamber-v1",
+      "route": "/home",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "current-home-candidate",
+      "providerAction": "preserve-unless-specific-literal-pixel-gap",
+      "candidateSpec": null
+    },
+    {
+      "id": "ground-world-terrain-v1",
+      "route": "/ground",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "current-ground-terrain-and-five-environment-families",
+      "providerAction": "preserve-base-terrain",
+      "candidateSpec": null
+    },
+    {
+      "id": "passport-status-room-v1",
+      "route": "/passport",
+      "class": "custom_procedural_urai_native",
+      "currentAuthority": "conventional-passport-ui-separate-from-home-passport",
+      "providerAction": "do-not-generate-as-current-priority",
+      "candidateSpec": null
+    },
+    {
+      "id": "human-rig-and-makehuman-assets",
+      "route": "home-council",
+      "class": "hero_close_camera",
+      "currentAuthority": "runtime-integration-evidence-not-final-likeness",
+      "providerAction": "do-not-invent-likeness",
+      "candidateSpec": null
+    }
+  ],
+  "productionTargets": [
+    "ground-hero-root-system-01",
+    "ground-sanctuary-geology-01",
+    "replay-memory-environment-v1"
+  ],
+  "challengerTargets": [
+    "ground-authored-canopy-v20"
+  ],
+  "forbiddenGenericGeneration": [
+    "Orb",
+    "Memory Star",
+    "generic portal ring",
+    "invented Avatar likeness",
+    "generic fantasy Ground",
+    "fabricated personal memory environment"
+  ]
+}
