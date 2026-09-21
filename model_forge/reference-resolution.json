@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "urai-model-reference-resolution-v1",
+  "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
+  "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
+  "authority": [
+    {
+      "route": "/home",
+      "name": "UrAi Home Reference Pack.png",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_0000000012b881f58f88023bc7089ebb",
+        "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
+        "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
+        "bytes": 2459496
+      }
+    },
+    {
+      "route": "/ground",
+      "name": "UrAi Visual Reference Library.png — Core Experiences Part 1",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_0000000049f081f58f210d25500aed2c",
+        "libraryFileId": "libfile_d1284a826a348191b5a44e9c52e772b7",
+        "sha256": "9a27373e6c776e99f76fb179d8fc54a14bf26750cda64723e41a0c6d77985afe",
+        "bytes": 2632988,
+        "libraryName": "UrAi Visual Reference Library.png"
+      }
+    },
+    {
+      "route": "/life-map",
+      "name": "UrAi Life Map: A Living Galaxy(2).png",
+      "status": "resolved-current-library-file",
+      "providerUse": "not-a-provider-model-target",
+      "library": {
+        "fileId": "file_000000005c0481f5bfd549538944bc49",
+        "libraryFileId": "libfile_02a42330f8dc819189209725db4302e0",
+        "sha256": "2506aa772af9cc4e3e71947ce6725c65d33e0e9228b593d840c6b6b1efe07012",
+        "bytes": 2724420
+      }
+    },
+    {
+      "route": "/replay",
+      "name": "UrAi Replay Canonical Storyboard.png",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000a5b081f593df94917b3ecc31",
+        "libraryFileId": "libfile_82342e20f6f08191a082653268cc30eb",
+        "sha256": "1e009a3379d4ff48088d5db6e93e2238377f53d5b7ff47ae50cf3e9c28040ba1",
+        "bytes": 2365244
+      }
+    },
+    {
+      "route": "/focus",
+      "name": "The Quiet Reset: Memory Star Network.png",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-supporting-authority-input",
+      "library": {
+        "fileId": "file_0000000067a081f5838f7ac75b675781",
+        "libraryFileId": "libfile_1cef3c47a3608191b7e02e5c424912f7",
+        "sha256": "0754189745a2801bdc21584ca609d0ba14e44d56476991fe125aff5739bd667d",
+        "bytes": 2476575
+      }
+    },
+    {
+      "route": "journey",
+      "name": "From Life Map to Memory Replay.png",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000817c81f59eb8f3a91e841a4f",
+        "libraryFileId": "libfile_c3a901f386c88191930c5d00eb0ab4f8",
+        "sha256": "5b2f0d83febc5990cd8ff1d7ea5b68625db37b283ba66a53b2fe84144a726d21",
+        "bytes": 2769286
+      }
+    },
+    {
+      "route": "/focus→/replay",
+      "name": "Focus to Replay: Memory Becomes Environment.png",
+      "status": "resolved-current-library-file",
+      "providerUse": "resolved-authority-input",
+      "library": {
+        "fileId": "file_00000000750c81f581feba420510df3e",
+        "libraryFileId": "libfile_e4d5ad3a9de881919febec43b4ec701e",
+        "sha256": "c5b231fd8809cf12b8c4779236c01b744bd2062ee38adbabc632d1d80788f36e",
+        "bytes": 2541974
+      }
+    }
+  ],
+  "resolvedDocuments": [
+    {
+      "name": "URAI Visual Gold Master Active Manifest — 2026-09-17",
+      "driveId": "1rO7aerhcM8yYljlqyBSOnIUEwHMSB3fiAghTMeGipLI",
+      "use": "current/superseding prose authority subject to live GitHub head"
+    },
+    {
+      "name": "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
+      "use": "repository reference classification"
+    },
+    {
+      "name": "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
+      "use": "Ground physical-world/negative canon"
+    }
+  ],
+  "generationPolicy": {
+    "exactImageReferenceResolved": true,
+    "allowTextOnlyExploration": true,
+    "allowTextOnlyProductionAuthority": false,
+    "allowRuntimeSourceDerivedEnvironmentalCandidate": true,
+    "productionAcceptanceStillRequiresLiteralScenePixels": true,
+    "resolvedAuthorityFiles": 7,
+    "unresolvedCriticalFiles": [],
+    "providerMaterializationBoundary": "Library reference bytes are resolved and hashed, but paid provider execution must use a governed upload/materialization path; do not replace them with public lookalikes or historical storyboards."
+  },
+  "successorReconciliation": "Four commits since prior audited head changed Life Map composition/tests only; environmental model-generation targets and Ground/Replay authority remain unchanged."
+}
