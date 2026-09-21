@@ -1,0 +1,21 @@
+{
+  "schemaVersion":"finite-time-likeness-period-v1",
+  "missingReferenceBehavior":"stage-shot-do-not-substitute",
+  "prohibitAge19FallbackForChildhood":true,
+  "shots":{
+    "ft-fl-003":"childhood",
+    "ft-fl-004":"farm-era-adult",
+    "ft-fl-006":"farm-era-adult",
+    "ft-fl-010":"farm-era-adult",
+    "ft-fl-011":"farm-era-family",
+    "ft-fl-016":"childhood-computer-era",
+    "ft-fl-018":"childhood-computer-era",
+    "ft-fl-020":"junior-high-era",
+    "ft-fl-021":"junior-high-era",
+    "ft-fl-022":"school-age-post-boot-camp-era",
+    "ft-fl-023":"school-age-post-boot-camp-era",
+    "ft-fl-024":"school-age-post-boot-camp-era",
+    "ft-fl-029":"childhood-lake-era",
+    "ft-fl-030":"childhood-lake-era"
+  }
+}

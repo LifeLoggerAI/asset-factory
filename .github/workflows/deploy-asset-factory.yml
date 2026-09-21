@@ -103,14 +103,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ inputs.environment }}" = production ]; then
-            echo "base_url=https://urai-4dc1d.web.app" >> "$GITHUB_OUTPUT"
-            echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
-            echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
-          else
-            echo "base_url=https://staging.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
-            echo "tenant_id=smoke-tenant-a" >> "$GITHUB_OUTPUT"
-            echo "other_tenant_id=smoke-tenant-b" >> "$GITHUB_OUTPUT"
+            echo "Production verification blocked: no dedicated Asset Factory production target has been provider-proven. The consumer Firebase Hosting site urai-4dc1d is prohibited as the Asset Factory target." >&2
+            exit 1
           fi
+          echo "base_url=https://staging.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
+          echo "tenant_id=smoke-tenant-a" >> "$GITHUB_OUTPUT"
+          echo "other_tenant_id=smoke-tenant-b" >> "$GITHUB_OUTPUT"
 
       - name: Validate authenticated smoke secrets
         if: ${{ inputs.smoke_mode == 'authenticated' || inputs.smoke_mode == 'both' }}
@@ -150,11 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
-          if [ "${{ inputs.environment }}" = production ]; then
-            npm run smoke:prod
-          else
-            npm run smoke:staging
-          fi
+          npm run smoke:staging
 
       - name: Write smoke evidence
         if: always()
@@ -164,7 +158,7 @@ jobs:
           cat > "release-evidence/asset-factory-${{ inputs.environment }}-smoke-${GITHUB_RUN_ID}.md" <<EOF
           # Asset Factory ${{ inputs.environment }} smoke evidence
 
-          This artifact verifies an existing deployment. It performs no Firebase deployment and is not final completion-lock evidence.
+          This artifact verifies an existing deployment only when a provider-proven target exists. It performs no Firebase deployment and is not final completion-lock evidence.
 
           - Repository: ${GITHUB_REPOSITORY}
           - Commit: ${GITHUB_SHA}
@@ -174,9 +168,9 @@ jobs:
           - Base URL: ${{ steps.target.outputs.base_url }}
           - Smoke mode: ${{ inputs.smoke_mode }}
           - Deployment performed: false
-          - Production deploy workflow: Asset Factory Production Readiness
-          - Production deploy confirmation: DEPLOY_ASSET_FACTORY
-          - Production deploy environment: asset-factory-production
+          - Production deployment boundary workflow: Asset Factory Production Readiness
+          - Production confirmation token: DEPLOY_ASSET_FACTORY
+          - Production target provider-proven: false
           - Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md
           - Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md
           - Final validator command: npm run check:release-evidence -- docs/release-evidence/YYYY-MM-DD-environment.md
@@ -193,7 +187,7 @@ jobs:
 
           ## Required follow-up
 
-          Attach this smoke artifact to the release issue. Production deployment remains a separate explicitly confirmed operation in Asset Factory Production Readiness.
+          Attach this smoke artifact to the release issue. Production verification and deployment remain blocked until provider-native inventory proves the dedicated Asset Factory production target and domain attachment.
           EOF
 
       - name: Upload smoke evidence

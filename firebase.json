@@ -14,7 +14,7 @@
     ]
   },
   "hosting": {
-    "site": "urai-4dc1d",
+    "target": "asset-factory-production",
     "public": "public",
     "ignore": [
       "firebase.json",

@@ -95,6 +95,9 @@ jobs:
       - name: Compile generator sources
         run: python -m compileall -q image_asset_generator scripts
 
+      - name: Test production visual gate contracts
+        run: python -m unittest discover -s image_asset_generator -p 'test_production_visual_gate.py' -v
+
       - name: Upload validation and cost-control evidence
         uses: actions/upload-artifact@v4
         with:
@@ -118,6 +121,7 @@ jobs:
       ASSET_RENDERER_MODE: offline
       ASSET_FORGE_REQUIRE_PROVIDER: "0"
       ASSET_QUALITY_REQUIRE_PROVIDER: "0"
+      ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS: "0"
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v4
@@ -144,6 +148,20 @@ jobs:
       - name: Build local pack without provider credentials
         run: python image_asset_generator/run_pipeline.py
 
+      - name: Verify local pack is explicitly non-production
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          gate = json.loads(Path("image_asset_generator/production_visual_gate.json").read_text())
+          seed = json.loads(Path("image_asset_generator/firebase_seed.json").read_text())
+          assert gate["status"] == "blocked"
+          assert gate["production_visual_authority"] is False
+          assert gate["promotion_allowed"] is False
+          assert seed["productionEligible"] is False
+          assert seed["usagePolicy"] == "diagnostic-only-do-not-promote"
+          PY
+
       - name: Upload local-only artifact
         uses: actions/upload-artifact@v4
         with:
@@ -154,4 +172,5 @@ jobs:
             image_asset_generator/asset_pack.zip
             image_asset_generator/preview.html
             image_asset_generator/validation_report.json
+            image_asset_generator/production_visual_gate.json
             image_asset_generator/firebase_seed.json

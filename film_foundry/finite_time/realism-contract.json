@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "finite-time-realism-v1",
+  "genericFamilySubstitution": false,
+  "ageContinuityRequired": true,
+  "roomContinuityRequired": true,
+  "periodObjectsRequired": true,
+  "literalQcRequired": true,
+  "cat": {
+    "color": "white",
+    "sameCatAcrossShots": true,
+    "tvType": "period-deep-television",
+    "shots": ["ft-fl-013", "ft-fl-014"],
+    "action": ["jump","land","lose-grip","slide","scramble","fall","wall-bump","land-safely"]
+  }
+}

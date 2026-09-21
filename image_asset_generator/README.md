@@ -1,38 +1,51 @@
 # URAI Image Asset Generator Loop
 
-This directory contains the first complete local loop for URAI image assets.
-
-Pipeline:
+This directory contains the manifest-driven URAI image asset loop.
 
 ```text
-manifest -> generation -> validation -> preview -> export
+manifest -> generation -> validation -> preview -> production visual gate -> seed -> export
 ```
 
-## Files
+The deterministic offline renderer exists for **mechanical and diagnostic proof only**. Its output is not production visual authority.
 
-- `manifest.json` - canonical registry for names, categories, prompts, sizes, alpha requirements, status, and output paths.
-- `generate_assets.py` - local deterministic placeholder renderer for missing PNG assets.
-- `validate_assets.py` - checks file existence, dimensions, and RGBA alpha requirements.
-- `create_preview.py` - builds a static HTML review gallery.
-- `export_assets.py` - bundles assets, manifest, and preview into a ZIP archive.
+## Core files
 
-## Usage
+- `manifest.json` — canonical registry for names, categories, prompts, sizes, alpha requirements, status, and output paths.
+- `generate_assets.py` — provider adapter plus deterministic offline renderer.
+- `validate_assets.py` — file, dimension, and alpha checks.
+- `run_pipeline.py` — mechanical report plus production visual gate orchestration.
+- `production_visual_gate.json` — machine-readable production eligibility decision for the current run.
+- `create_preview.py` — static review gallery with authority labeling.
+- `create_firebase_seed.py` — no-network metadata seed; production eligibility is inherited from the current in-process global gate.
+- `export_assets.py` — self-describing asset pack ZIP.
 
-Run from this directory:
+## No-spend proof
 
 ```bash
-python generate_assets.py
-python validate_assets.py
-python create_preview.py
-python export_assets.py
+ASSET_RENDERER_MODE=offline \
+ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS=0 \
+python image_asset_generator/run_pipeline.py
 ```
 
-## Next integration step
+A successful offline run means mechanical packaging/integrity passed. It should still report production visual authority and promotion as blocked.
 
-The current generator creates deterministic placeholders so the loop can be tested without an external model. To wire in final art generation, keep `manifest.json` as the source of truth and replace `render_asset()` in `generate_assets.py` with the approved renderer while preserving exact output paths.
+## Production-required mode
+
+```bash
+ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS=1 \
+python image_asset_generator/run_pipeline.py
+```
+
+This fails closed unless all retained visuals satisfy the production gate. It does not authorize provider spend.
+
+## Production gate
+
+Production visual authority requires provider-backed per-file provenance, no missing render metadata, no semantic duplicate-hash collisions, explicit visual approval, and no mechanical validation errors.
 
 Recommended status flow:
 
 ```text
 prompted -> generated -> validated -> previewed -> approved -> committed -> shipped
 ```
+
+Those statuses do not bypass the global production visual gate.
