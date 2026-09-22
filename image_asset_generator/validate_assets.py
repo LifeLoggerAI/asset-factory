@@ -32,8 +32,8 @@ def validate() -> List[str]:
             promotion_eligible = entry.get("promotion_eligible")
             if authority not in {"proof-only", "candidate"}:
                 errors.append(f"Generated asset {entry.get('name')} must declare proof-only or candidate authority")
-            if renderer == "offline-safe" and authority != "proof-only":
-                errors.append(f"Offline-safe asset {entry.get('name')} must remain proof-only")
+            if renderer != "provider" and authority != "proof-only":
+                errors.append(f"Non-provider asset {entry.get('name')} must remain proof-only")
             if acceptance != "unreviewed":
                 errors.append(f"Generated asset {entry.get('name')} must remain unreviewed until explicit acceptance")
             if promotion_eligible is not False:
