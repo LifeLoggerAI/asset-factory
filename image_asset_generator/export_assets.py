@@ -32,6 +32,7 @@ def export(zip_path: Path = DEFAULT_ZIP) -> Path:
             "preview.html",
             "firebase_seed.json",
             "validation_report.json",
+            "production_visual_gate.json",
         ):
             extra_path = BASE_DIR / extra_name
             if extra_path.exists():
