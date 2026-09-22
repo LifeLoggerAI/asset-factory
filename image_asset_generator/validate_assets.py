@@ -25,6 +25,20 @@ def validate() -> List[str]:
     entries = load_manifest()
 
     for entry in entries:
+        if entry.get("status") == "generated":
+            renderer = entry.get("renderer")
+            authority = entry.get("authority")
+            acceptance = entry.get("acceptance")
+            promotion_eligible = entry.get("promotion_eligible")
+            if authority not in {"proof-only", "candidate"}:
+                errors.append(f"Generated asset {entry.get('name')} must declare proof-only or candidate authority")
+            if renderer == "offline-safe" and authority != "proof-only":
+                errors.append(f"Offline-safe asset {entry.get('name')} must remain proof-only")
+            if acceptance != "unreviewed":
+                errors.append(f"Generated asset {entry.get('name')} must remain unreviewed until explicit acceptance")
+            if promotion_eligible is not False:
+                errors.append(f"Generated asset {entry.get('name')} must not be promotion-eligible by generation alone")
+
         template = entry.get("path_template")
         alpha_required = bool(entry.get("alpha", False))
         for raw_size in entry.get("sizes", []):
