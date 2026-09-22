@@ -12,6 +12,7 @@ from typing import Any, Dict
 BASE_DIR = Path(__file__).resolve().parent
 MANIFEST_PATH = BASE_DIR / "manifest.json"
 PREVIEW_PATH = BASE_DIR / "preview.html"
+APPROVED_STATUSES = {"approved", "committed", "shipped"}
 
 
 def load_manifest() -> list[Dict[str, Any]]:
@@ -20,6 +21,16 @@ def load_manifest() -> list[Dict[str, Any]]:
 
 
 def build_html(entries: list[Dict[str, Any]]) -> str:
+    production_candidate = bool(entries) and all(
+        entry.get("renderer") == "provider" and entry.get("status") in APPROVED_STATUSES
+        for entry in entries
+    )
+    authority_label = (
+        "PRODUCTION VISUAL CANDIDATE — verify production_visual_gate.json before promotion."
+        if production_candidate
+        else "DIAGNOSTIC / MECHANICAL PREVIEW — NOT PRODUCTION VISUAL AUTHORITY."
+    )
+
     lines = [
         "<!doctype html>",
         "<html lang=\"en\">",
@@ -30,26 +41,26 @@ def build_html(entries: list[Dict[str, Any]]) -> str:
         "  <style>",
         "    body{font-family:Arial,sans-serif;margin:24px;background:#f7f7f8;color:#171717}",
         "    h1{margin-bottom:8px}",
+        "    .notice{font-weight:700;border:2px solid currentColor;border-radius:10px;padding:12px;margin:16px 0}",
         "    .asset{background:white;border:1px solid #ddd;border-radius:14px;padding:18px;margin:18px 0}",
         "    .meta{color:#555;font-size:14px;margin-bottom:12px}",
         "    .grid{display:flex;flex-wrap:wrap;gap:16px}",
         "    figure{margin:0;text-align:center}",
         "    img{background:linear-gradient(45deg,#eee 25%,transparent 25%),linear-gradient(-45deg,#eee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eee 75%),linear-gradient(-45deg,transparent 75%,#eee 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;border:1px solid #ccc;max-width:220px;height:auto}",
         "    figcaption{font-size:12px;color:#444;margin-top:6px}",
-        "    .authority{border:2px solid #8b5e00;background:#fff3cd;color:#5f3d00;padding:14px 16px;margin:16px 0;font-weight:700}",
-        "    .proof{color:#8b1e1e;font-weight:800}",
         "  </style>",
         "</head>",
         "<body>",
         "  <h1>URAI Image Asset Preview</h1>",
         "  <p>Generated from image_asset_generator/manifest.json.</p>",
-        "  <p class=\"authority\">Pipeline proof only. Generated output is not production visual authority. Every asset remains unreviewed and non-promotable until an explicit inspect → accept/reject → promote decision.</p>",
+        f"  <p class=\"notice\">{html.escape(authority_label)}</p>",
     ]
 
     for entry in entries:
         name = html.escape(str(entry.get("name", "unnamed")))
         category = html.escape(str(entry.get("category", "uncategorized")))
         status = html.escape(str(entry.get("status", "unknown")))
+        renderer = html.escape(str(entry.get("renderer", "unknown")))
         authority = html.escape(str(entry.get("authority", "not-declared")))
         acceptance = html.escape(str(entry.get("acceptance", "not-reviewed")))
         promotion = "yes" if entry.get("promotion_eligible") is True else "no"
@@ -58,8 +69,8 @@ def build_html(entries: list[Dict[str, Any]]) -> str:
         lines.extend([
             "  <section class=\"asset\">",
             f"    <h2>{name}</h2>",
-            f"    <div class=\"meta\">Category: {category} | Status: {status}</div>",
-            f"    <div class=\"meta proof\">Authority: {authority} | Acceptance: {acceptance} | Promotion eligible: {promotion}</div>",
+            f"    <div class=\"meta\">Category: {category} | Status: {status} | Renderer: {renderer}</div>",
+            f"    <div class=\"meta\">Authority: {authority} | Acceptance: {acceptance} | Promotion eligible: {promotion}</div>",
             f"    <div class=\"meta\">Prompt: {prompt}</div>",
             "    <div class=\"grid\">",
         ])
