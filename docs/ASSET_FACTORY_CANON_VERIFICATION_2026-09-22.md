@@ -13,3 +13,8 @@ This branch preserves the canonical Asset Factory role:
 - no provider/live status is inferred from source readiness.
 
 This receipt exists to bind the current design successor to its own PR-triggered verification. It does not transfer predecessor acceptance and is not a production/deployment receipt.
+
+
+## Post-ready synchronization
+
+PR #276 was marked ready for review before this synchronization commit so the current successor must receive its own pull-request-triggered verification. No predecessor workflow result transfers to this head.
