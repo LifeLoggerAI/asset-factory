@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "urai-model-forge-wave-v1",
+  "id": "wave-01-ground-canopy-bakeoff",
+  "purpose": "First bounded provider comparison against Ground runtime-authored canopy V20; challenger only.",
+  "spendAuthorizationRequired": true,
+  "productionAuthority": false,
+  "maxCandidateGenerations": 3,
+  "entries": [
+    {
+      "spec": "model_forge/specs/ground-canopy-challenger.json",
+      "providers": [
+        "meshy",
+        "tripo",
+        "rodin"
+      ],
+      "maxAttemptsPerProvider": 1
+    }
+  ],
+  "acceptance": "No winner is promoted from provider success. Winner must pass GLB validation, Blender cleanup/LODs, standardized review renders, real /ground scene integration, literal desktop/portrait/reduced-motion review, and governance."
+}
