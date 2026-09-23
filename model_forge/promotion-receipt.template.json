@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "urai-model-promotion-receipt-v1",
+  "assetId": "",
+  "candidate": {
+    "provider": "",
+    "providerModel": "",
+    "taskId": "",
+    "sha256": "",
+    "provenancePath": ""
+  },
+  "structuralValidation": {
+    "passed": false,
+    "reportPath": ""
+  },
+  "cleanup": {
+    "passed": false,
+    "receiptPath": "",
+    "lod0": "",
+    "lod1": "",
+    "lod2": ""
+  },
+  "performance": {
+    "passed": false,
+    "triangleBudget": false,
+    "textureBudget": false,
+    "drawCallBudget": false,
+    "notes": ""
+  },
+  "sceneIntegration": {
+    "spatialRepository": "LifeLoggerAI/urai-spatial",
+    "exactHead": "",
+    "route": "",
+    "targetPath": "",
+    "integrated": false
+  },
+  "literalPixelReview": {
+    "accepted": false,
+    "desktop": false,
+    "phonePortrait": false,
+    "reducedMotion": false,
+    "proofArtifact": "",
+    "notes": ""
+  },
+  "explicitApproval": {
+    "approved": false,
+    "reviewer": "",
+    "reviewedAt": ""
+  },
+  "governance": {
+    "promotionAllowed": false,
+    "reason": "fail-closed until every required field is true"
+  },
+  "promoted": false
+}
