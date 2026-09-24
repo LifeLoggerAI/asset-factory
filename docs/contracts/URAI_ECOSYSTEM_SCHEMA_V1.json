@@ -3,17 +3,154 @@
   "$id": "urai://contracts/ecosystem-schema-v1",
   "title": "URAI Ecosystem Shared Schema V1",
   "type": "object",
-  "required": ["users","memories","emotionalFields","lifeMapNodes","generatedAssets","spatialScenes","jobs","contentPacks","b2bAccounts","xrSceneObjects"],
+  "additionalProperties": false,
+  "required": [
+    "users",
+    "memories",
+    "emotionalFields",
+    "lifeMapNodes",
+    "generatedAssets",
+    "spatialScenes",
+    "jobs",
+    "contentPacks",
+    "b2bAccounts",
+    "xrSceneObjects"
+  ],
   "properties": {
-    "users": {"type":"array"},
-    "memories": {"type":"array"},
-    "emotionalFields": {"type":"array"},
-    "lifeMapNodes": {"type":"array"},
-    "generatedAssets": {"type":"array"},
-    "spatialScenes": {"type":"array"},
-    "jobs": {"type":"array"},
-    "contentPacks": {"type":"array"},
-    "b2bAccounts": {"type":"array"},
-    "xrSceneObjects": {"type":"array"}
+    "users": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "memories": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "emotionalFields": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "lifeMapNodes": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "generatedAssets": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "spatialScenes": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "jobs": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "contentPacks": { "type": "array", "items": { "$ref": "#/$defs/contentPack" } },
+    "b2bAccounts": { "type": "array", "items": { "$ref": "#/$defs/ecosystemRecord" } },
+    "xrSceneObjects": { "type": "array", "items": { "$ref": "#/$defs/xrSceneObject" } }
+  },
+  "$defs": {
+    "lifecycleStatus": {
+      "type": "string",
+      "enum": ["draft", "review", "approved", "published", "archived", "blocked"]
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["public", "private", "tiered", "licensed", "internal"]
+    },
+    "integrationTarget": {
+      "type": "string",
+      "enum": [
+        "home",
+        "jobs",
+        "b2bportal",
+        "asset-factory",
+        "analytics",
+        "communications",
+        "privacy",
+        "studio",
+        "spatial",
+        "admin",
+        "marketing",
+        "investors",
+        "foundation",
+        "licensing"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "createdAt"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "license": { "type": "string" },
+        "rightsStatus": { "type": "string" }
+      }
+    },
+    "ecosystemRecord": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "version",
+        "lifecycleStatus",
+        "visibility",
+        "integrationTargets",
+        "provenance"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "lifecycleStatus": { "$ref": "#/$defs/lifecycleStatus" },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "entitlementKey": { "type": "string" },
+        "integrationTargets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/integrationTarget" },
+          "uniqueItems": true
+        },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "failsafeStatus": {
+          "type": "string",
+          "enum": ["not_required", "pending", "passed", "blocked"]
+        }
+      }
+    },
+    "contentPack": {
+      "allOf": [
+        { "$ref": "#/$defs/ecosystemRecord" },
+        {
+          "type": "object",
+          "required": ["slug", "assetIds"],
+          "properties": {
+            "slug": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "assetIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "xrCompatible": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "xrSceneObject": {
+      "allOf": [
+        { "$ref": "#/$defs/ecosystemRecord" },
+        {
+          "type": "object",
+          "required": ["sceneId", "spatialLayer"],
+          "properties": {
+            "sceneId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "spatialLayer": {
+              "type": "string",
+              "enum": [
+                "ground",
+                "sky",
+                "orb",
+                "memory",
+                "overlay",
+                "ambient",
+                "interaction"
+              ]
+            }
+          }
+        }
+      ]
+    }
   }
 }
