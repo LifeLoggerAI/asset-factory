@@ -38,7 +38,9 @@ if (functionsSource) {
   const packageJson = readJson(packagePath);
   const source = readText(sourcePath);
 
-  requireText(source, sourcePath, 'admin.auth().verifyIdToken');
+  if (!source.includes('getAuth().verifyIdToken') && !source.includes('admin.auth().verifyIdToken')) {
+    errors.push(`${sourcePath} missing Firebase ID-token verification`);
+  }
   requireText(source, sourcePath, 'await assertUserAccess(req, userId);');
   requireText(source, sourcePath, 'await assertUserAccess(req, asset.userId);');
   requireText(source, sourcePath, 'assertAnonymousSessionAccess(asset.anonymousSessionId');
