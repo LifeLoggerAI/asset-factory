@@ -11,14 +11,14 @@ No older report, local smoke, partial Firebase deploy, demo proof, or roadmap no
 | Area | Status | Meaning |
 | --- | --- | --- |
 | Repo-side hardening | `COMPLETE_FOR_CURRENT_PASS` | Studio deploy/runtime/API routing, CI runtime, deploy workflow, diagnostics, health compatibility, runbooks, evidence validation, route guard coverage, multimodal E2E proof path, and final repo-side evidence addenda have been updated through commit `7e5174417736ec83cf19507589f40ce4356c25a9`. |
-| Firebase API slice | `PRODUCTION-SMOKED` | Health, asset request/status, and Life Map event ingestion have historical smoke evidence on `urai-4dc1d`. Fresh final evidence is still required before lock. |
+| Firebase API slice | `HISTORICAL-SHARED-TARGET-EVIDENCE` | Historical smoke exists on `urai-4dc1d`; it is not valid final dedicated Asset Factory production authority. Fresh dedicated-target evidence is required. |
 | Full Asset Factory product system | `LIVE_EVIDENCE_REQUIRED` | Staging/production, auth, tenancy, provider, worker, billing, observability, legal/support, rollback, and custom-domain gates remain incomplete until proven by live artifacts. |
 | UrAi Core dependency | `NOT_LOCKED` | Core may integrate only behind a feature flag until this lock is closed. |
 
 ## Current source of truth
 
 - Canonical production tracker: GitHub issue #63.
-- Open PRs at latest status sync: 0.
+- Current convergence includes open PRs #278, #279, #280 (draft compatibility) and #281 (draft production-authority hardening).
 - Duplicate trackers consolidated: #29, #59, #60.
 - Latest repo-side hardening commit: `7e5174417736ec83cf19507589f40ce4356c25a9`.
 
@@ -137,8 +137,10 @@ release:
   local_proof_run: <link-or-log-path>
   staging_smoke_run: <link-or-log-path>
   production_smoke_run: <link-or-log-path>
-  firebase_project: urai-4dc1d
-  staging_url: https://staging.uraiassetfactory.com
+  firebase_project: <provider-generated-dedicated-project-id>
+  firebase_hosting_site: <provider-generated-dedicated-hosting-site>
+  provider_origin: <verified-dedicated-provider-origin>
+  staging_url: <verified-staging-url>
   production_url: https://www.uraiassetfactory.com
   fallback_disabled: true
   auth_required: true
@@ -176,7 +178,7 @@ Do not use these phrases in README, launch notes, website, or Core dependency do
 Allowed phrase until locked:
 
 ```text
-Asset Factory repo-side hardening is complete for the current pass, with a production-smoked Firebase API slice and deterministic local proof pipeline. The full product system remains launch-gated until live staging/production auth, tenancy, provider-backed generation, worker, billing, observability, website, rollback, and production smoke evidence pass.
+Asset Factory has strong repo-side hardening and deterministic proof pipelines. Historical shared-project smoke remains historical only; the full system remains launch-gated until dedicated staging/production authority, auth, tenancy, provider-backed generation where required, worker, billing, observability, website, rollback, and current production smoke evidence pass.
 ```
 
 ## Lock transition procedure
