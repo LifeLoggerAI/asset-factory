@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1296,
-    "recoveredSpatialHead": "e4bddd9aaf9f773c9184efaa086a7744f169906a",
+    "recoveredSpatialHead": "4d48679155d53010536ed642d5be55063d300052",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,7 +13,7 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Directly re-reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head e4bddd9aaf9f773c9184efaa086a7744f169906a. Eight successor commits since 56281a4a... affect Focus/Life Map proof and selected-memory contracts, not Ground geometry or Replay environment ownership. Focus V388 explicitly preserves selected-memory-star authority, terrainOwner=false, and forbids regression to Ground/terrain/cavity semantics. Ground/Replay provider-target ownership therefore remains unchanged. Provider manufacture remains challenger-only and requires a specific current-head literal-pixel gap before spend."
+    "successorReconciliation": "Directly re-reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head 4d48679155d53010536ed642d5be55063d300052. Four successor commits since e4bddd9a... update Focus to V389 and its regression/selected-memory contracts only. Focus remains the selected memory star with terrainOwner=false, now explicitly stellar-photosphere / contained-memory / no-Orb. Ground geometry and Replay environment ownership are unchanged. Provider manufacture remains challenger-only and requires a specific current-head literal-pixel gap before spend."
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
@@ -173,7 +173,7 @@
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof",
     "spatialPr": 1296,
-    "spatialHead": "e4bddd9aaf9f773c9184efaa086a7744f169906a",
+    "spatialHead": "4d48679155d53010536ed642d5be55063d300052",
     "rule": "Do not execute a paid Model Forge wave until current Spatial #1296 head 56281a4ab6881fa6e5649f0a9e0a66fb70494ecf route pixels identify a specific asset gap that cannot be closed by the existing runtime/candidate authority. Dry-run/tooling proof remains authorized."
   }
 }
