@@ -80,16 +80,19 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 - `model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json`: Replicate/Hunyuan, one attempt, maximum one candidate.
 - `.github/workflows/model-forge-replicate-wave.yml`: main-only, production-environment-gated WIF/OIDC execution for Wave 2. It requires the exact dispatch phrase `RUN_ONE_URAI_REPLICATE_MODEL_WAVE`, creates at most one candidate, validates it, retains provenance, and grants no promotion authority.
 
-## Authority discipline — 2026-09-19
+## Authority discipline — current convergence
 
-PR #274 is the Model Forge source authority while it remains open. Do not hard-code a mutable PR head in this README: every source edit creates a successor and makes such prose stale. Recover the live PR head and fresh workflow state from GitHub before execution.
+PR #279 is the Model Forge child of Asset Factory PR #278. Do not hard-code its mutable source head in this README: every source edit creates a successor. Recover the live PR head and fresh workflow state from GitHub before execution.
 
-The model inventory/reference-resolution receipts record the Spatial head they were reconciled against. If Spatial #1237 moves, compare the successor before treating those receipts as current. Ground/Replay ownership must be rechecked if relevant Spatial source changes.
+The model inventory and reference-resolution receipts are currently reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `9844228d0f83eef8778f9fa8b570ccad89e9f7f8`. If Spatial moves, those receipts become historical until re-reconciled.
 
-Current external execution boundaries:
-- ordinary Actions secrets for Meshy / Tripo / Rodin / Replicate are absent;
-- Replicate has an existing protected Google WIF/OIDC → Secret Manager token path, but the Model Forge paid workflow is main-only and this draft PR is not merged;
-- canonical current reference-pack PNG filenames remain unresolved as actual current files across GitHub, connected Drive, and ChatGPT Library; historical May storyboards are not current reference authority;
-- Blender scripts are source/CI-verified, but real Blender cleanup/render proof requires a Blender-capable runtime after an actual candidate exists.
+Current production boundary:
+- all seven named canonical reference files are resolved and SHA-256 bound;
+- current #1296 already owns authored Ground canopy, canonical roots, scanned geology/terrain, and an existing Replay environment candidate;
+- therefore there are **zero currently authorized paid Model Forge production targets**; provider manufacture is challenger-only after a specific current-head literal-pixel gap is proven;
+- ordinary Actions secrets for Meshy / Tripo / Rodin / Replicate were absent at the last provider-presence proof;
+- Replicate retains a protected Google WIF/OIDC → Secret Manager path, and the paid Replicate wave remains main-only and production-environment gated;
+- Blender cleanup/LOD/review rendering is runtime-proven with deterministic smoke material, but a smoke fixture is not production art;
+- PR workflows must explicitly checkout and verify the pull-request branch head; GitHub's synthetic merge ref is not accepted as exact-head proof.
 
-Do not call the asset program production-complete until real candidates exist, cleaned winners are integrated into the then-current Spatial exact head, and the actual UrAi scene pixels pass governed literal review.
+Do not call the asset program production-complete until any actually required provider candidates are manufactured under bounded authority, cleaned winners are integrated into the then-current Spatial exact head, and the real UrAi route pixels pass governed literal review.
