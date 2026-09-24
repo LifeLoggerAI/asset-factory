@@ -1,9 +1,14 @@
 {
   "contract": "urai://contracts/ecosystem-schema-v1",
-  "authorityRepository": "LifeLoggerAI/urai-content",
+  "authorityRepository": "LifeLoggerAI/UrAi",
   "authorityPath": "docs/contracts/URAI_ECOSYSTEM_SCHEMA_V1.json",
-  "authorityBlobSha": "d7d9d17ab81de0e7f33d5caa4824e2bcca6d7527",
-  "authorityCandidatePr": 84,
+  "authorityBlobSha": "b664508396d0257a5a54179c332dc19898fe556b",
+  "contentGovernanceExtension": {
+    "authorityRepository": "LifeLoggerAI/urai-content",
+    "authorityCandidatePr": 84,
+    "authorityPath": "docs/contracts/URAI_CONTENT_ECOSYSTEM_EXTENSION_V1.json",
+    "contract": "urai://contracts/content-ecosystem-extension-v1"
+  },
   "state": "draft-sync-only",
-  "rule": "Do not treat this copy as independently authoritative; update only from the canonical Content contract and re-prove local compatibility."
+  "rule": "The UrAi file is the whole-ecosystem base. Content-specific lifecycle, visibility, provenance, entitlement and integration-target governance is a separately versioned urai-content extension. Do not reuse one schema id for both meanings."
 }
