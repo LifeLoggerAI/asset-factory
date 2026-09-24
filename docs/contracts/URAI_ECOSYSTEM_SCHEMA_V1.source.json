@@ -1,0 +1,9 @@
+{
+  "contract": "urai://contracts/ecosystem-schema-v1",
+  "authorityRepository": "LifeLoggerAI/urai-content",
+  "authorityPath": "docs/contracts/URAI_ECOSYSTEM_SCHEMA_V1.json",
+  "authorityBlobSha": "d7d9d17ab81de0e7f33d5caa4824e2bcca6d7527",
+  "authorityCandidatePr": 84,
+  "state": "draft-sync-only",
+  "rule": "Do not treat this copy as independently authoritative; update only from the canonical Content contract and re-prove local compatibility."
+}
