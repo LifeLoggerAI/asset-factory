@@ -137,7 +137,7 @@ jobs:
             film_foundry/finite_time/dist/farm-to-lake
             film_foundry/finite_time/dist/farm-to-lake-storyboard-v2
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
 
       - name: Restore exact source and prove no mutation
         if: always()
