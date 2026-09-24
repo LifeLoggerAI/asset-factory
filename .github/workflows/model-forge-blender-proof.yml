@@ -10,11 +10,24 @@ on:
 permissions:
   contents: read
 
+env:
+  URAI_MODEL_FORGE_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   blender-runtime:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$URAI_MODEL_FORGE_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Install Blender
         run: |
           set -euo pipefail
@@ -68,7 +81,7 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: model-forge-blender-smoke-${{ github.sha }}
+          name: model-forge-blender-smoke-${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
           path: blender-smoke/
           if-no-files-found: error
           retention-days: 14
