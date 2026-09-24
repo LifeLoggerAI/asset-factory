@@ -2,7 +2,7 @@ const express = require("express");
 const { fork } = require("child_process");
 const fs = require("fs").promises;
 const path = require("path");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("node:crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,7 +52,7 @@ app.post("/v1/jobs", apiKeyAuth, checkJobQuota, async (req, res) => {
     return res.status(400).json({ error: "prompt and format are required" });
   }
 
-  const jobId = uuidv4();
+  const jobId = randomUUID();
   const job = {
     id: jobId,
     status: "queued",
