@@ -122,20 +122,25 @@ Actions -> Deploy Asset Factory -> Run workflow
 Sequence:
 
 ```text
-staging / deploy=false / smoke_mode=readonly
-staging / deploy=true / smoke_mode=both
-production / deploy=false / smoke_mode=readonly
-production / deploy=true / smoke_mode=both
+staging / smoke_mode=readonly
+staging / smoke_mode=both
+production / smoke_mode=readonly
+production / smoke_mode=both
 ```
 
-Required GitHub environment/repository secrets:
+This workflow is smoke-only and never deploys.
+
+Required protected-environment values:
 
 ```text
-FIREBASE_TOKEN
+ASSET_FACTORY_BASE_URL
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
+ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
+
+Production deployment is separate and additionally requires the verified dedicated project/site/WIF variables. Long-lived `FIREBASE_TOKEN` deployment is prohibited.
 
 ## Manual smoke commands
 
@@ -152,7 +157,7 @@ npm --prefix assetfactory-studio run e2e
 Staging smoke, once deployed:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_STAGING_BASE_URL \
 ASSET_FACTORY_API_KEY=$STAGING_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$STAGING_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=smoke-tenant-a \
@@ -177,7 +182,7 @@ npm run smoke:prod
 
 1. Run the GitHub Actions workflow for staging read-only smoke.
 2. Fix every failing named step before proceeding.
-3. Run staging deploy plus authenticated smoke with secrets.
+3. Deploy to the verified protected staging target through the governed deployment path, then run authenticated smoke.
 4. Run production read-only smoke.
 5. Run production deploy plus authenticated smoke with secrets.
 6. Attach workflow artifacts/logs to issue #63.
