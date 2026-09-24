@@ -99,9 +99,6 @@ importers:
       stripe:
         specifier: ^20.3.1
         version: 20.3.1(@types/node@22.20.0)
-      uuid:
-        specifier: 9.0.1
-        version: 9.0.1
     devDependencies:
       depcheck:
         specifier: 1.4.7
