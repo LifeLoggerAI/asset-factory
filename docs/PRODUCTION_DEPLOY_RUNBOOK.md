@@ -1,130 +1,123 @@
-# Production Deploy Runbook
+# Asset Factory Production Deploy Runbook
 
-This runbook is the canonical terminal flow for taking Asset Factory from verified local code to live Firebase production.
+This is the canonical production flow for Asset Factory after the 2026-09-24 authority correction.
 
-## Current Production Target
+## Current status
 
-- Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Firebase config: `firebase.json`
-- Deployed Functions source: `life-map-pipeline/functions`
-- Runtime: Node 20
+**Deployment is intentionally blocked until a dedicated Asset Factory Firebase/GCP target is verified.**
 
-## One-Time Local Setup
+Do not use:
 
-```bash
-git checkout main
-git pull origin main
-npm run install:all
+- `urai-4dc1d`;
+- `asset-factory-dev-id`;
+- `urai.app`;
+- their legacy Firebase Hosting origins
+
+as final Asset Factory production authority.
+
+## Required protected environment variables
+
+```text
+ASSET_FACTORY_FIREBASE_PROJECT_ID
+ASSET_FACTORY_FIREBASE_HOSTING_SITE
+ASSET_FACTORY_BASE_URL
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ```
 
-## Local Verification Gate
+Values must come from provider/admin readback. Do not invent project or site IDs.
+
+## Provider/admin prerequisite
+
+1. Inventory authorized Firebase Hosting/App Hosting projects and sites.
+2. If a dedicated Asset Factory target exists, verify:
+   - exact project ID;
+   - exact Hosting/App Hosting site/backend;
+   - ownership/billing;
+   - WIF provider;
+   - least-privilege service account;
+   - current deployed revision, if any.
+3. If none exists, create a dedicated target through authorized Firebase/GCP administration.
+4. Record provider-generated IDs in the protected GitHub environment.
+5. Keep long-lived service-account JSON keys prohibited.
+
+## Source gate
+
+Use the final reviewed main SHA only.
+
+Before deployment:
 
 ```bash
+npm run doctor
+npm run test:launch-readiness
+npm run test:completion-lock
+npm run check:deploy-workflow
+npm run audit:all
+npm run validate:production-target
 npm run verify:local
 ```
 
-This runs:
+`validate:production-target` must fail if any required authority variable is missing or points to a legacy/shared target.
 
-```bash
-npm run build
-npm test --if-present
-npm run test:launch-readiness --if-present
-```
+## Production deployment
 
-Expected result:
+Production deployment is dispatch-only through:
 
-- `life-map-pipeline/functions` TypeScript build passes.
-- Legacy `functions/index.js` syntax check passes.
-- Engine tests pass.
-- Deploy Functions test/build passes.
-- Launch readiness static checks pass.
+**GitHub Actions → Asset Factory Production Readiness**
 
-## Firebase Auth Gate
-
-If deploy fails with `Authentication Error: Your credentials are no longer valid`, reauthenticate before retrying:
-
-```bash
-firebase login --reauth
-firebase use urai-4dc1d
-```
-
-For a headless CI session, use a repository secret/service account as described in `docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md`.
-
-## Production Deploy
-
-```bash
-npm run deploy:firebase
-```
-
-Equivalent raw command:
-
-```bash
-firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
-```
-
-## Live Smoke Test
-
-```bash
-npm run deploy:verify
-```
-
-Equivalent raw command:
-
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
-```
-
-The smoke test must pass:
-
-- `GET /api/health`
-- `POST /api/assets`
-- `GET /api/assets/{assetId}`
-- `POST /api/lifemap/events`
-
-## Full Combined Command
-
-Use this only after Firebase auth and project access are confirmed:
-
-```bash
-npm run deploy:production
-```
-
-## Current Known Deploy Failure and Fix
-
-Observed failure:
+Required confirmation:
 
 ```text
-Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
-Error: Assertion failed: resolving hosting target of a site with no site name or target name.
+deploy=true
+confirm=DEPLOY_ASSET_FACTORY
 ```
 
-Repo-side fix applied:
+The deploy job:
 
-- `firebase.json` now sets the explicit Hosting site: `urai-4dc1d`.
+1. checks out the exact main SHA;
+2. verifies a clean tree;
+3. validates dedicated project/site/base URL;
+4. authenticates with WIF;
+5. scopes the ephemeral credential to deployment only;
+6. deploys the bounded Firebase targets through `scripts/run-dedicated-firebase-deploy.mjs`;
+7. removes the ephemeral credential;
+8. runs read-only smoke without deployment credentials.
 
-Operator-side fix required:
+## Staging and deployed-target smoke
 
-```bash
-firebase login --reauth
-git pull origin main
-npm run deploy:production
+Use the separate smoke-only workflow:
+
+**GitHub Actions → Verify Deployed Asset Factory**
+
+It does not deploy.
+
+The selected protected environment supplies its own `ASSET_FACTORY_BASE_URL`.
+
+Run:
+
+```text
+staging / smoke_mode=readonly
+staging / smoke_mode=both
+production / smoke_mode=readonly
+production / smoke_mode=both
 ```
 
-## Final Lock Procedure
+## Custom domain
 
-Only after local verification, Firebase deploy, and live smoke tests pass:
+Do not attach `uraiassetfactory.com` until the dedicated provider-assigned origin passes smoke.
 
-1. Update `docs/PRODUCTION_VERIFICATION_REPORT.md` with:
-   - deployed commit hash
-   - deploy timestamp
-   - Firebase deploy output summary
-   - hosting URL
-   - health response
-   - asset intake/status smoke output
-   - Life Map ingestion smoke output
-2. Update `LOCK.md` to `STATUS: PRODUCTION VERIFIED`.
-3. Close Issue #53.
+Then:
 
-Do not update `LOCK.md` before live smoke tests pass.
+1. attach apex to the verified dedicated target;
+2. configure www redirect/parity;
+3. apply only provider-generated DNS records;
+4. verify TLS;
+5. verify Asset Factory API identity;
+6. verify auth boundaries;
+7. verify robots/noindex policy;
+8. rerun readonly and authenticated smoke;
+9. record exact deployed and rollback revisions.
+
+## Lock rule
+
+Do not update `LOCK.md` to production locked until the complete current release-evidence packet exists. Historical `urai-4dc1d` smoke remains historical only.
