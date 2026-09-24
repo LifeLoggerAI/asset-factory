@@ -136,6 +136,7 @@ jobs:
         run: npm test
 
       - name: Validate production assets
+        id: production_asset_validation
         working-directory: assetfactory-studio
         shell: bash
         run: |
@@ -143,7 +144,7 @@ jobs:
           npm run validate:assets 2>&1 | tee ../asset-factory-production-validation.log
 
       - name: Upload production validation diagnostic
-        if: always()
+        if: ${{ steps.production_asset_validation.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: asset-factory-production-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
@@ -176,6 +177,7 @@ jobs:
         run: python -m unittest discover -s image_asset_generator -p 'test_production_visual_gate.py' -v
 
       - name: Run offline image asset mechanical proof
+        id: offline_image_proof
         env:
           ASSET_RENDERER_MODE: offline
           ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS: "0"
@@ -253,7 +255,7 @@ jobs:
           PY
 
       - name: Upload image pipeline mechanical proof
-        if: always()
+        if: ${{ steps.offline_image_proof.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: asset-factory-image-mechanical-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
