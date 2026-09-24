@@ -89,6 +89,7 @@ jobs:
           npm --prefix assetfactory-studio install --package-lock-only --ignore-scripts
           npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts
           npm --prefix engine install --package-lock-only --ignore-scripts
+          npm --prefix engine audit fix --package-lock-only --omit=dev --ignore-scripts
 
       - name: Run blocking production dependency security audit
         shell: bash
