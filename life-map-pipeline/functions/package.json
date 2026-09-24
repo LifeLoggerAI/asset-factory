@@ -19,5 +19,8 @@
   "devDependencies": {
     "typescript": "^5.3.3",
     "@types/node": "^22.10.0"
+  },
+  "overrides": {
+    "protobufjs": "7.6.6"
   }
 }
