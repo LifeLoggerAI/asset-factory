@@ -1,6 +1,5 @@
 import * as functions from 'firebase-functions/v1';
 import type {Request} from 'firebase-functions/v1/https';
-import type {Response} from 'express';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, type Transaction } from 'firebase-admin/firestore';
@@ -8,7 +7,7 @@ import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, Enri
 import { deterministicHash } from './hash';
 
 type HttpsRequest = Request;
-type HttpsResponse = Response;
+type HttpsResponse = Parameters<typeof functions.https.onRequest>[0] extends (req: any, res: infer Res) => any ? Res : never;
 type FirestoreTransaction = Transaction;
 type LifeMapEventSnapshot = functions.firestore.QueryDocumentSnapshot;
 type LifeMapEventContext = functions.EventContext<{ eventId: string }>;
