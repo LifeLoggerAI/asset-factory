@@ -7,7 +7,7 @@ import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, Enri
 import { deterministicHash } from './hash';
 
 type HttpsRequest = Request;
-type HttpsResponse = Parameters<typeof functions.https.onRequest>[0] extends (req: any, res: infer Res) => any ? Res : never;
+type HttpsResponse = Parameters<Parameters<typeof functions.https.onRequest>[0]>[1];
 type FirestoreTransaction = Transaction;
 type LifeMapEventSnapshot = functions.firestore.QueryDocumentSnapshot;
 type LifeMapEventContext = functions.EventContext<{ eventId: string }>;
