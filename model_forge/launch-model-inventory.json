@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1296,
-    "recoveredSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
+    "recoveredSpatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,7 +13,7 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Directly reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head 9844228d0f83eef8778f9fa8b570ccad89e9f7f8. Current Ground already owns authored canopy (visible authority v26 / composition v33), canonical root network, scanned rock/fern geology and physical terrain. Current Replay already carries replay-memory-environment-v1 as a fail-closed candidate with promotion=false and visualProofVerified=false. Provider manufacture is therefore challenger-only and requires a specific current-head literal-pixel gap before spend."
+    "successorReconciliation": "Directly re-reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head 56281a4ab6881fa6e5649f0a9e0a66fb70494ecf. Six successor commits since 9844228d... changed Ground canopy composition/tests, Life Map/test contracts and proof code. Ground V34 strengthens the existing authored small-leaf broadleaf crown while preserving the canonical root network, scanned rock/fern geology and physical terrain. Replay provider-target ownership did not gain a new missing-asset requirement. Provider manufacture remains challenger-only and requires a specific current-head literal-pixel gap before spend."
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
@@ -26,16 +26,16 @@
       "id": "ground-authored-canopy-v20",
       "route": "/ground",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "runtime-authored-canopy-v26 / composition-v33 on Spatial #1296",
+      "currentAuthority": "runtime-authored-canopy-v26 / composition-v34 on Spatial #1296",
       "providerAction": "challenger-only",
-      "reason": "Tracking ID retained for continuity. Current #1296 runtime already authors the visible canopy and uses the governed ground-natural-canopy-v3 provenance input; provider replacement is allowed only after a specific literal-pixel gap is proven.",
+      "reason": "Tracking ID retained for continuity. Current #1296 V34 separates the authored small-leaf broadleaf crown from scanned fern understory while retaining the governed canopy provenance input; provider replacement remains challenger-only after a specific literal-pixel gap is proven.",
       "candidateSpec": "model_forge/specs/ground-hero-tree.json"
     },
     {
       "id": "ground-hero-root-system-01",
       "route": "/ground",
       "class": "hero_close_camera",
-      "currentAuthority": "GroundRootNetwork + founder-locked physical Ground canon on Spatial #1296",
+      "currentAuthority": "GroundRootNetwork v14 + founder-locked physical Ground canon on Spatial #1296",
       "providerAction": "challenger-only",
       "candidateSpec": "model_forge/specs/ground-hero-root-system.json",
       "reason": "Current #1296 already renders a canonical root network. A provider root system is not a missing launch asset and may be manufactured only to address a specifically accepted visual gap."
@@ -44,7 +44,7 @@
       "id": "ground-sanctuary-geology-01",
       "route": "/ground",
       "class": "generated_cleaned_environmental",
-      "currentAuthority": "current scanned rock/fern geology + authored terrain on Spatial #1296",
+      "currentAuthority": "current scanned rock/fern geology + authored terrain on Spatial #1296 V34",
       "providerAction": "challenger-only",
       "candidateSpec": "model_forge/specs/ground-sanctuary-geology.json",
       "reason": "Current #1296 already renders scanned geology and authored terrain. Provider geology is challenger-only after a current-head literal gap is documented."
@@ -173,7 +173,7 @@
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof",
     "spatialPr": 1296,
-    "spatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
-    "rule": "Do not execute a paid Model Forge wave until current #1296 route pixels identify a specific asset gap that cannot be closed by the existing runtime/candidate authority. Dry-run/tooling proof remains authorized."
+    "spatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf",
+    "rule": "Do not execute a paid Model Forge wave until current Spatial #1296 head 56281a4ab6881fa6e5649f0a9e0a66fb70494ecf route pixels identify a specific asset gap that cannot be closed by the existing runtime/candidate authority. Dry-run/tooling proof remains authorized."
   }
 }
