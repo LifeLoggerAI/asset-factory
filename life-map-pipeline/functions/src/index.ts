@@ -1,16 +1,18 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions/v1';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, type Transaction } from 'firebase-admin/firestore';
 import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
 import { deterministicHash } from './hash';
 
 type HttpsRequest = Parameters<typeof functions.https.onRequest>[0] extends (req: infer Req, res: any) => any ? Req : never;
 type HttpsResponse = Parameters<typeof functions.https.onRequest>[0] extends (req: any, res: infer Res) => any ? Res : never;
-type FirestoreTransaction = FirebaseFirestore.Transaction;
+type FirestoreTransaction = Transaction;
 type LifeMapEventSnapshot = functions.firestore.QueryDocumentSnapshot;
 type LifeMapEventContext = functions.EventContext<{ eventId: string }>;
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
 const VERSION = process.env.K_REVISION || process.env.GIT_SHA || 'dev';
 
 function now(): number { return Date.now(); }
@@ -100,7 +102,7 @@ function bearerToken(req: HttpsRequest): string | undefined {
 async function authenticatedUid(req: HttpsRequest): Promise<string | undefined> {
   const token = bearerToken(req);
   if (!token) return undefined;
-  const decoded = await admin.auth().verifyIdToken(token);
+  const decoded = await getAuth().verifyIdToken(token);
   return decoded.uid;
 }
 
