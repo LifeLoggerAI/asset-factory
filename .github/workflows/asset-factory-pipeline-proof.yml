@@ -83,9 +83,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          corepack enable
-          corepack prepare pnpm@9.15.9 --activate
-          pnpm audit --audit-level=high
+          npm --prefix assetfactory-studio audit --audit-level=high
           npm --prefix life-map-pipeline/functions audit --audit-level=high
 
       - name: Lint Studio
