@@ -2,16 +2,18 @@
   "schemaVersion": "urai-model-forge-launch-inventory-v1",
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
-    "spatialPr": 1237,
-    "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
+    "spatialPr": 1296,
+    "recoveredSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
       "operations/visual/urai-visual-gold-master-manifest.v1.json",
-      "operations/assets/launch-critical-assets.json"
+      "operations/assets/launch-critical-assets.json",
+      "docs/reference/URAI_SOURCE_VERIFIED_CANON_AUDIT_2026-09-22.md",
+      "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Compared from 6e1fbd11258436eeaad7e17ae4af04353524ae70: four successor commits touched Life Map composition/tests only; Ground/Replay/model-target authority unchanged."
+    "successorReconciliation": "Directly reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head 9844228d0f83eef8778f9fa8b570ccad89e9f7f8. Current Ground already owns authored canopy (visible authority v26 / composition v33), canonical root network, scanned rock/fern geology and physical terrain. Current Replay already carries replay-memory-environment-v1 as a fail-closed candidate with promotion=false and visualProofVerified=false. Provider manufacture is therefore challenger-only and requires a specific current-head literal-pixel gap before spend."
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
@@ -24,26 +26,28 @@
       "id": "ground-authored-canopy-v20",
       "route": "/ground",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "runtime-authored-canopy-v20",
+      "currentAuthority": "runtime-authored-canopy-v26 / composition-v33 on Spatial #1296",
       "providerAction": "challenger-only",
-      "reason": "Current runtime explicitly supersedes ground-natural-canopy-v3 low-poly silhouette.",
+      "reason": "Tracking ID retained for continuity. Current #1296 runtime already authors the visible canopy and uses the governed ground-natural-canopy-v3 provenance input; provider replacement is allowed only after a specific literal-pixel gap is proven.",
       "candidateSpec": "model_forge/specs/ground-hero-tree.json"
     },
     {
       "id": "ground-hero-root-system-01",
       "route": "/ground",
       "class": "hero_close_camera",
-      "currentAuthority": "physical-ground-canon",
-      "providerAction": "generate-and-compare",
-      "candidateSpec": "model_forge/specs/ground-hero-root-system.json"
+      "currentAuthority": "GroundRootNetwork + founder-locked physical Ground canon on Spatial #1296",
+      "providerAction": "challenger-only",
+      "candidateSpec": "model_forge/specs/ground-hero-root-system.json",
+      "reason": "Current #1296 already renders a canonical root network. A provider root system is not a missing launch asset and may be manufactured only to address a specifically accepted visual gap."
     },
     {
       "id": "ground-sanctuary-geology-01",
       "route": "/ground",
       "class": "generated_cleaned_environmental",
-      "currentAuthority": "scanned-rock-plus-authored-terrain",
-      "providerAction": "generate-and-compare",
-      "candidateSpec": "model_forge/specs/ground-sanctuary-geology.json"
+      "currentAuthority": "current scanned rock/fern geology + authored terrain on Spatial #1296",
+      "providerAction": "challenger-only",
+      "candidateSpec": "model_forge/specs/ground-sanctuary-geology.json",
+      "reason": "Current #1296 already renders scanned geology and authored terrain. Provider geology is challenger-only after a current-head literal gap is documented."
     },
     {
       "id": "ground-understory-support-01",
@@ -65,9 +69,10 @@
       "id": "replay-memory-environment-v1",
       "route": "/replay",
       "class": "hero_close_camera",
-      "currentAuthority": "truthful-non-demo-memory-environment",
-      "providerAction": "generate-support-candidate",
-      "candidateSpec": "model_forge/specs/replay-memory-geology.json"
+      "currentAuthority": "existing replay-memory-environment-v1 candidate on Spatial #1296; promotion=false / visualProofVerified=false",
+      "providerAction": "challenger-only",
+      "candidateSpec": "model_forge/specs/replay-memory-geology.json",
+      "reason": "The current Replay candidate already exists and must be compressed, rendered, performance-checked and literally accepted or rejected before any replacement generation is authorized."
     },
     {
       "id": "replay-demo-valley-v241",
@@ -150,13 +155,12 @@
       "candidateSpec": null
     }
   ],
-  "productionTargets": [
+  "productionTargets": [],
+  "challengerTargets": [
+    "ground-authored-canopy-v20",
     "ground-hero-root-system-01",
     "ground-sanctuary-geology-01",
     "replay-memory-environment-v1"
-  ],
-  "challengerTargets": [
-    "ground-authored-canopy-v20"
   ],
   "forbiddenGenericGeneration": [
     "Orb",
@@ -165,5 +169,11 @@
     "invented Avatar likeness",
     "generic fantasy Ground",
     "fabricated personal memory environment"
-  ]
+  ],
+  "providerExecutionBoundary": {
+    "status": "blocked-pending-current-head-gap-proof",
+    "spatialPr": 1296,
+    "spatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
+    "rule": "Do not execute a paid Model Forge wave until current #1296 route pixels identify a specific asset gap that cannot be closed by the existing runtime/candidate authority. Dry-run/tooling proof remains authorized."
+  }
 }
