@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "b6df26e82ebe10505cab36d974e97b88bcf7e3f3",
+  "recoveredSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -102,6 +102,15 @@
     {
       "name": "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
       "use": "Ground physical-world/negative canon"
+    },
+    {
+      "name": "URAI Final Asset Lock Master — 2026-08-11",
+      "driveId": "10l8UZ0mi_DrrhZU-fgAfiv2i4F0Vuqd3bvEKriudp1Y",
+      "use": "current cross-system asset lock; names Spatial PR #1296 and current exact head at use"
+    },
+    {
+      "name": "docs/reference/URAI_SOURCE_VERIFIED_CANON_AUDIT_2026-09-22.md",
+      "use": "current #1296 source/runtime canon and open visual-acceptance boundary"
     }
   ],
   "generationPolicy": {
@@ -112,7 +121,12 @@
     "productionAcceptanceStillRequiresLiteralScenePixels": true,
     "resolvedAuthorityFiles": 7,
     "unresolvedCriticalFiles": [],
-    "providerMaterializationBoundary": "Library reference bytes are resolved and hashed, but paid provider execution must use a governed upload/materialization path; do not replace them with public lookalikes or historical storyboards."
+    "providerMaterializationBoundary": "Library reference bytes are resolved and hashed, but paid provider execution must use a governed upload/materialization path; do not replace them with public lookalikes or historical storyboards.",
+    "currentProductionProviderTargetsAuthorized": false,
+    "currentGapProofRequiredBeforeProviderSpend": true,
+    "currentSpatialPr": 1296,
+    "currentSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8"
   },
-  "successorReconciliation": "Four commits since prior audited head changed Life Map composition/tests only; environmental model-generation targets and Ground/Replay authority remain unchanged."
+  "successorReconciliation": "Direct reconciliation completed against Spatial PR #1296 exact head 9844228d0f83eef8778f9fa8b570ccad89e9f7f8. The seven hashed reference files remain valid reference inputs, but #1296 source truth now shows existing authored Ground canopy/root/geology and an existing Replay environment candidate. No paid 3D production target is authorized until current-head literal route evidence proves a specific gap.",
+  "spatialPr": 1296
 }
