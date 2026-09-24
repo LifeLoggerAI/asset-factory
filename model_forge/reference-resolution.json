@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8",
+  "recoveredSpatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,8 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "9844228d0f83eef8778f9fa8b570ccad89e9f7f8"
+    "currentSpatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf"
   },
-  "successorReconciliation": "Direct reconciliation completed against Spatial PR #1296 exact head 9844228d0f83eef8778f9fa8b570ccad89e9f7f8. The seven hashed reference files remain valid reference inputs, but #1296 source truth now shows existing authored Ground canopy/root/geology and an existing Replay environment candidate. No paid 3D production target is authorized until current-head literal route evidence proves a specific gap.",
+  "successorReconciliation": "Direct reconciliation refreshed against Spatial PR #1296 exact head 56281a4ab6881fa6e5649f0a9e0a66fb70494ecf. Compared with 9844228d..., the successor changes Ground canopy composition/tests plus Life Map/proof contracts. Ground V34 remains authored/runtime-owned and keeps canonical roots, scanned geology and physical terrain. The seven hashed reference files remain valid inputs. No paid 3D production target is authorized until literal current-head route evidence proves a specific gap.",
   "spatialPr": 1296
 }
