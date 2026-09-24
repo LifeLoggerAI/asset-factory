@@ -26,7 +26,7 @@ function requireText(source, label, text) {
 const firebaseConfig = readJson('firebase.json');
 const functionsSource = firebaseConfig.functions?.source;
 if (!functionsSource) errors.push('firebase.json missing functions.source');
-if (!firebaseConfig.hosting?.site) errors.push('firebase.json missing hosting.site');
+if (firebaseConfig.hosting?.site) errors.push('firebase.json must remain target-neutral; production Hosting site is injected only by the guarded deploy wrapper');
 if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
   errors.push('firebase.json missing /api/health hosting rewrite');
 }
