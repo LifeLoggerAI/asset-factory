@@ -118,7 +118,9 @@ jobs:
       contents: read
       id-token: write
     env:
-      ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app
+      ASSET_FACTORY_FIREBASE_PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      ASSET_FACTORY_FIREBASE_HOSTING_SITE: ${{ vars.ASSET_FACTORY_FIREBASE_HOSTING_SITE }}
+      ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}
       ASSET_FACTORY_SMOKE_READONLY: 'true'
     steps:
       - name: Require WIF deployment identity
@@ -161,17 +163,19 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-          npm --prefix functions install
           npm --prefix life-map-pipeline/functions install
 
       - name: Build
         run: npm run build
 
+      - name: Validate dedicated production target
+        run: npm run validate:production-target
+
       - name: Authenticate to Google Cloud with WIF
         id: google_auth
         uses: google-github-actions/auth@v2
         with:
-          project_id: urai-4dc1d
+          project_id: ${{ env.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
@@ -189,7 +193,7 @@ jobs:
       - name: Deploy
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
-        run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
+        run: node scripts/run-dedicated-firebase-deploy.mjs --only hosting,functions,firestore,storage
 
       - name: Remove ephemeral deployment credential
         shell: bash
