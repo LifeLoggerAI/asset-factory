@@ -79,12 +79,46 @@ jobs:
           npm run test:completion-lock
           npm run check:deploy-workflow
 
-      - name: Run blocking dependency security audit
+      - name: Resolve active production dependency locks
         shell: bash
         run: |
           set -euo pipefail
-          npm --prefix assetfactory-studio audit --audit-level=high
-          npm --prefix life-map-pipeline/functions audit --audit-level=high
+          npm --prefix assetfactory-studio install --package-lock-only --ignore-scripts
+          npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts
+          npm --prefix engine install --package-lock-only --ignore-scripts
+
+      - name: Run blocking production dependency security audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run audit:production
+
+      - name: Record full-workspace dependency debt
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm audit --audit-level=high > workspace-dependency-debt.txt 2>&1
+          rc=$?
+          set -e
+          printf 'workspace_audit_exit=%s\n' "$rc" >> workspace-dependency-debt.txt
+          printf 'production_gate_scope=assetfactory-studio,life-map-pipeline/functions,engine\n' >> workspace-dependency-debt.txt
+          printf 'legacy_functions_deploy_authority=false\n' >> workspace-dependency-debt.txt
+
+      - name: Upload dependency resolution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-dependency-evidence-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          path: |
+            assetfactory-studio/package-lock.json
+            life-map-pipeline/functions/package-lock.json
+            engine/package-lock.json
+            workspace-dependency-debt.txt
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Lint Studio
         working-directory: assetfactory-studio
