@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf",
+  "recoveredSpatialHead": "e4bddd9aaf9f773c9184efaa086a7744f169906a",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,8 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "56281a4ab6881fa6e5649f0a9e0a66fb70494ecf"
+    "currentSpatialHead": "e4bddd9aaf9f773c9184efaa086a7744f169906a"
   },
-  "successorReconciliation": "Direct reconciliation refreshed against Spatial PR #1296 exact head 56281a4ab6881fa6e5649f0a9e0a66fb70494ecf. Compared with 9844228d..., the successor changes Ground canopy composition/tests plus Life Map/proof contracts. Ground V34 remains authored/runtime-owned and keeps canonical roots, scanned geology and physical terrain. The seven hashed reference files remain valid inputs. No paid 3D production target is authorized until literal current-head route evidence proves a specific gap.",
+  "successorReconciliation": "Direct reconciliation refreshed against Spatial PR #1296 exact head e4bddd9aaf9f773c9184efaa086a7744f169906a. Compared with 56281a4a..., the successor changes Focus/Life Map proof and selected-memory contracts only. Focus V388 preserves the selected memory star, explicitly rejects terrain ownership, and does not create a new Model Forge production-asset requirement. The seven hashed reference files remain valid inputs; no paid 3D production target is authorized until literal current-head route evidence proves a specific gap.",
   "spatialPr": 1296
 }
