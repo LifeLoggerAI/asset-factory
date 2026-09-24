@@ -84,11 +84,11 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 
 PR #279 is the Model Forge child of Asset Factory PR #278. Do not hard-code its mutable source head in this README: every source edit creates a successor. Recover the live PR head and fresh workflow state from GitHub before execution.
 
-The model inventory and reference-resolution receipts are currently reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `9844228d0f83eef8778f9fa8b570ccad89e9f7f8`. If Spatial moves, those receipts become historical until re-reconciled.
+The model inventory and reference-resolution receipts are currently reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `56281a4ab6881fa6e5649f0a9e0a66fb70494ecf`. If Spatial moves, those receipts become historical until re-reconciled.
 
 Current production boundary:
 - all seven named canonical reference files are resolved and SHA-256 bound;
-- current #1296 already owns authored Ground canopy, canonical roots, scanned geology/terrain, and an existing Replay environment candidate;
+- current #1296 V34 already owns an authored small-leaf broadleaf Ground canopy, canonical roots, scanned geology/terrain, and an existing Replay environment candidate;
 - therefore there are **zero currently authorized paid Model Forge production targets**; provider manufacture is challenger-only after a specific current-head literal-pixel gap is proven;
 - ordinary Actions secrets for Meshy / Tripo / Rodin / Replicate were absent at the last provider-presence proof;
 - Replicate retains a protected Google WIF/OIDC → Secret Manager path, and the paid Replicate wave remains main-only and production-environment gated;
