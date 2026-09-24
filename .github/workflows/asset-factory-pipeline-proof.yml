@@ -79,6 +79,15 @@ jobs:
           npm run test:completion-lock
           npm run check:deploy-workflow
 
+      - name: Run blocking dependency security audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm audit --audit-level=high
+          npm --prefix life-map-pipeline/functions audit --audit-level=high
+
       - name: Lint Studio
         working-directory: assetfactory-studio
         run: npm run lint
