@@ -67,8 +67,8 @@ const assetTypes: { value: AssetType; label: string; description: string }[] = [
 ];
 
 const cardStyle = {
-  background: '#1f2937',
-  border: '1px solid #374151',
+  background: '#12161b',
+  border: '1px solid #2a3139',
   borderRadius: 12,
   padding: '1.25rem',
 } as const;
@@ -76,8 +76,8 @@ const cardStyle = {
 const inputStyle = {
   width: '100%',
   padding: '0.8rem',
-  background: '#111827',
-  border: '1px solid #374151',
+  background: '#0b0d10',
+  border: '1px solid #2a3139',
   borderRadius: 8,
   color: 'white',
 } as const;
@@ -273,15 +273,15 @@ export default function StudioPage() {
   return (
     <AppShell>
       <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gap: '1.25rem' }}>
-        <section style={{ ...cardStyle, background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
-          <p style={{ color: '#93c5fd', margin: 0, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <section style={{ ...cardStyle, background: '#12161b' }}>
+          <p style={{ color: '#d6b76f', margin: 0, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Asset Factory Studio
           </p>
           <h1 style={{ fontSize: 'clamp(2.25rem, 6vw, 4.75rem)', lineHeight: 0.95, margin: '0.5rem 0', letterSpacing: '-0.06em' }}>
             Generate graphics, models, sounds, and bundles.
           </h1>
-          <p style={{ color: '#cbd5e1', maxWidth: 780, lineHeight: 1.6 }}>
-            Queue, render, persist, review, and publish assets through the generate → materialize → fetch → publish flow with governed production storage.
+          <p style={{ color: '#c8ced5', maxWidth: 780, lineHeight: 1.6 }}>
+            Create governed candidates, inspect their job and artifact evidence, materialize outputs, and promote only after review. Generation alone never makes an asset authoritative.
           </p>
         </section>
 
@@ -306,7 +306,7 @@ export default function StudioPage() {
                   style={{
                     ...cardStyle,
                     cursor: 'pointer',
-                    borderColor: assetType === type.value ? '#38bdf8' : '#374151',
+                    borderColor: assetType === type.value ? '#d6b76f' : '#2a3139',
                   }}
                 >
                   <input
@@ -318,7 +318,7 @@ export default function StudioPage() {
                     style={{ marginRight: 8 }}
                   />
                   <strong>{type.label}</strong>
-                  <p style={{ color: '#9ca3af', fontSize: '0.9rem', lineHeight: 1.4 }}>
+                  <p style={{ color: '#9aa3ad', fontSize: '0.9rem', lineHeight: 1.4 }}>
                     {type.description}
                   </p>
                 </label>
@@ -394,7 +394,7 @@ export default function StudioPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
               <h2 style={{ margin: 0 }}>Job history</h2>
-              <p style={{ color: '#9ca3af', margin: '0.25rem 0 0' }}>
+              <p style={{ color: '#9aa3ad', margin: '0.25rem 0 0' }}>
                 Latest queued, materialized, and published assets.
               </p>
             </div>
@@ -404,7 +404,7 @@ export default function StudioPage() {
           </div>
 
           {jobs.length === 0 ? (
-            <p style={{ color: '#9ca3af' }}>
+            <p style={{ color: '#9aa3ad' }}>
               {tenantId.trim() ? 'No jobs yet. Create a graphic, 3D model, sound, or bundle.' : 'Enter a tenant ID to view job history.'}
             </p>
           ) : (
@@ -413,20 +413,20 @@ export default function StudioPage() {
                 const asset = assets[job.jobId];
 
                 return (
-                  <article key={job.jobId} style={{ ...cardStyle, background: '#111827' }}>
+                  <article key={job.jobId} style={{ ...cardStyle, background: '#171c22' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                       <div>
                         <h3 style={{ margin: 0 }}>{job.canonicalType ?? job.type ?? 'asset'}</h3>
-                        <p style={{ color: '#9ca3af', margin: '0.35rem 0', maxWidth: 760 }}>
+                        <p style={{ color: '#9aa3ad', margin: '0.35rem 0', maxWidth: 760 }}>
                           {job.prompt ?? 'No prompt'}
                         </p>
-                        <code style={{ color: '#7dd3fc' }}>{job.jobId}</code>
-                        <p style={{ color: '#64748b', margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+                        <code style={{ color: '#93c5d5' }}>{job.jobId}</code>
+                        <p style={{ color: '#7f8994', margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
                           {job.status ?? 'unknown'} · {job.queueStatus ?? 'no queue status'} ·{' '}
                           {job.createdAt ? new Date(job.createdAt).toLocaleString() : 'no date'}
                         </p>
                         {typeof job.estimatedUnits === 'number' && (
-                          <p style={{ color: '#64748b', margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
+                          <p style={{ color: '#7f8994', margin: '0.35rem 0 0', fontSize: '0.9rem' }}>
                             Estimated {job.estimatedUnits} unit(s)
                             {typeof job.estimatedCostCents === 'number'
                               ? ` · ${job.estimatedCostCents}¢`
@@ -448,12 +448,12 @@ export default function StudioPage() {
                           </Button>
                         )}
                         {asset && (
-                          <a href={`/api/generated-assets/${asset.fileName}`} style={{ color: '#38bdf8' }}>
+                          <a href={`/api/generated-assets/${asset.fileName}`} style={{ color: '#93c5d5' }}>
                             Open asset
                           </a>
                         )}
                         {asset && (
-                          <a href={`/api/generated-assets/${asset.manifestFile}`} style={{ color: '#38bdf8' }}>
+                          <a href={`/api/generated-assets/${asset.manifestFile}`} style={{ color: '#93c5d5' }}>
                             Manifest
                           </a>
                         )}

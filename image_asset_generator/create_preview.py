@@ -36,23 +36,30 @@ def build_html(entries: list[Dict[str, Any]]) -> str:
         "    figure{margin:0;text-align:center}",
         "    img{background:linear-gradient(45deg,#eee 25%,transparent 25%),linear-gradient(-45deg,#eee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eee 75%),linear-gradient(-45deg,transparent 75%,#eee 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;border:1px solid #ccc;max-width:220px;height:auto}",
         "    figcaption{font-size:12px;color:#444;margin-top:6px}",
+        "    .authority{border:2px solid #8b5e00;background:#fff3cd;color:#5f3d00;padding:14px 16px;margin:16px 0;font-weight:700}",
+        "    .proof{color:#8b1e1e;font-weight:800}",
         "  </style>",
         "</head>",
         "<body>",
         "  <h1>URAI Image Asset Preview</h1>",
         "  <p>Generated from image_asset_generator/manifest.json.</p>",
+        "  <p class=\"authority\">Pipeline proof only. Generated output is not production visual authority. Every asset remains unreviewed and non-promotable until an explicit inspect → accept/reject → promote decision.</p>",
     ]
 
     for entry in entries:
         name = html.escape(str(entry.get("name", "unnamed")))
         category = html.escape(str(entry.get("category", "uncategorized")))
         status = html.escape(str(entry.get("status", "unknown")))
+        authority = html.escape(str(entry.get("authority", "not-declared")))
+        acceptance = html.escape(str(entry.get("acceptance", "not-reviewed")))
+        promotion = "yes" if entry.get("promotion_eligible") is True else "no"
         prompt = html.escape(str(entry.get("prompt", "")))
         template = str(entry.get("path_template", ""))
         lines.extend([
             "  <section class=\"asset\">",
             f"    <h2>{name}</h2>",
             f"    <div class=\"meta\">Category: {category} | Status: {status}</div>",
+            f"    <div class=\"meta proof\">Authority: {authority} | Acceptance: {acceptance} | Promotion eligible: {promotion}</div>",
             f"    <div class=\"meta\">Prompt: {prompt}</div>",
             "    <div class=\"grid\">",
         ])
