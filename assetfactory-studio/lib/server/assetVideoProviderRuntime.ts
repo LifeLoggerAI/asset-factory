@@ -75,7 +75,7 @@ function trustedProviderUrl(value: unknown, expectedHostname: string): string | 
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<JsonRecord> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, { ...init, redirect: 'error' });
   const text = await response.text();
   let body: unknown = text;
   try { body = text ? JSON.parse(text) : {}; } catch {}
@@ -104,7 +104,7 @@ async function downloadVideo(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS));
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { redirect: 'error', signal: controller.signal });
     if (!response.ok) throw new Error(`Video artifact fetch failed ${response.status}`);
     const contentLength = Number(response.headers.get('content-length') ?? 0);
     const maxBytes = numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES);
