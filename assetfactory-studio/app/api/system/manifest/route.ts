@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
 import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
 import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
+import { getIntelligenceProviderRegistry } from '@/lib/server/intelligenceProviderRouter';
 import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
 import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
@@ -32,6 +33,11 @@ const requiredProductionEnv = [
   'ASSET_FACTORY_STT_PROVIDER',
   'ASSET_FACTORY_VIDEO_PROVIDER',
   'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
+  'ASSET_FACTORY_INTELLIGENCE_CLOUD_PROCESSING_AUTHORIZED',
+  'ASSET_FACTORY_INTELLIGENCE_PROVIDER_ORDER',
+  'ASSET_FACTORY_OPENAI_REASONING_MODEL',
+  'ASSET_FACTORY_ANTHROPIC_REASONING_MODEL',
+  'ASSET_FACTORY_GEMINI_REASONING_MODEL',
   'ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS',
   'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
   'ASSET_FACTORY_PROVIDER_MAX_BYTES',
@@ -50,6 +56,7 @@ export async function GET(req: NextRequest) {
   const diagnostics = getStoreDiagnostics();
   const supportedAssetTypes = listAssetTypeDefinitions();
   const providers = getProviderDiagnostics();
+  const intelligenceProviders = getIntelligenceProviderRegistry();
   const queue = getQueueDiagnostics();
   const fullDiagnostics = new URL(req.url).searchParams.get('full') === 'true';
 
@@ -195,6 +202,20 @@ export async function GET(req: NextRequest) {
       activeExternalProviderNames,
       externalCredentialAvailable,
       providerSpendAuthorized,
+      intelligenceRouting: {
+        cloudProcessingAuthorized: enabled('ASSET_FACTORY_INTELLIGENCE_CLOUD_PROCESSING_AUTHORIZED'),
+        providerOrder: process.env.ASSET_FACTORY_INTELLIGENCE_PROVIDER_ORDER || 'openai,anthropic,gemini',
+        providers: intelligenceProviders.map((provider) => ({
+          name: provider.name,
+          capabilities: provider.capabilities,
+          configured: provider.configured,
+          modelConfigured: Boolean(provider.model),
+          healthy: provider.healthy,
+          qualityTier: provider.qualityTier,
+          latencyTier: provider.latencyTier,
+          dataHandling: provider.dataHandling,
+        })),
+      },
       replicateCredentialVisible,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
