@@ -39,6 +39,11 @@ env:
     availability:
       - RUNTIME
 
+  - variable: ASSET_FACTORY_STT_MAX_BYTES
+    value: "52428800"
+    availability:
+      - RUNTIME
+
   - variable: ASSET_FACTORY_VIDEO_PROVIDER
     value: local-proof
     availability:

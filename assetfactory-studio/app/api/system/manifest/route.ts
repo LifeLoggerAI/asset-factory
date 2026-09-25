@@ -37,6 +37,7 @@ const requiredProductionEnv = [
   'ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS',
   'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
   'ASSET_FACTORY_PROVIDER_MAX_BYTES',
+  'ASSET_FACTORY_STT_MAX_BYTES',
 ];
 
 function enabled(name: string) {
