@@ -50,7 +50,16 @@ export async function GET(req: NextRequest) {
     if (authError) return authError;
   }
 
-  const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const externalProviderConfigured = providers.adapters.some((provider) => provider.name !== 'local-proof' && provider.configured);
+  const modalityRouting = {
+    image: process.env.ASSET_FACTORY_IMAGE_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    model3d: process.env.ASSET_FACTORY_MODEL3D_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    audio: process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    sfx: process.env.ASSET_FACTORY_SFX_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    music: process.env.ASSET_FACTORY_MUSIC_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    stt: process.env.ASSET_FACTORY_STT_PROVIDER || 'local-proof',
+    video: process.env.ASSET_FACTORY_VIDEO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  };
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
@@ -86,7 +95,7 @@ export async function GET(req: NextRequest) {
       approvals: true,
       versioningWorkflow: true,
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providerConfigured,
+      providerBackedRendering: providerConfigured: externalProviderConfigured,
       replicateCredentialVisible,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
@@ -111,11 +120,11 @@ export async function GET(req: NextRequest) {
       legacyHeaderAuthDisabled,
       productionAuthReady,
       durableQueueConfigured,
-      providerConfigured,
+      providerConfigured: externalProviderConfigured,
       replicateRegistryConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
+      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && externalProviderConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
         ? 'ready-for-smoke'
         : 'not-ready-for-smoke',
     },
