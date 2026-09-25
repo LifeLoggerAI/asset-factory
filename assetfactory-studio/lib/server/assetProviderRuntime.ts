@@ -219,6 +219,20 @@ function firstUrl(value: unknown): string | null {
   return null;
 }
 
+function assertGlbBinary(buffer: Buffer, label: string) {
+  if (buffer.byteLength < 12 || buffer.toString('ascii', 0, 4) !== 'glTF') {
+    throw new Error(`${label} did not return a valid GLB header`);
+  }
+  const version = buffer.readUInt32LE(4);
+  const declaredLength = buffer.readUInt32LE(8);
+  if (version !== 2) {
+    throw new Error(`${label} returned unsupported GLB version ${version}`);
+  }
+  if (declaredLength !== buffer.byteLength) {
+    throw new Error(`${label} GLB declared length ${declaredLength} does not match downloaded bytes ${buffer.byteLength}`);
+  }
+}
+
 function extensionFromMime(mimeType: string, fallback: string) {
   if (mimeType.includes('png')) return 'png';
   if (mimeType.includes('webp')) return 'webp';
@@ -670,15 +684,19 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
   const outputUrl = firstUrl(current.output);
   if (!outputUrl) throw new Error('Replicate prediction did not return a downloadable output URL');
   const binary = await fetchBinary(outputUrl);
+  if (selection.lane === 'model3d') assertGlbBinary(binary.buffer, 'Replicate model3d');
   return {
     assetBuffer: binary.buffer,
-    assetMimeType: binary.mimeType,
-    extension: extensionFromMime(binary.mimeType, definition.extension),
+    assetMimeType: selection.lane === 'model3d' && binary.mimeType === 'application/octet-stream'
+      ? 'model/gltf-binary'
+      : binary.mimeType,
+    extension: selection.lane === 'model3d' ? 'glb' : extensionFromMime(binary.mimeType, definition.extension),
     metadata: {
       provider: 'replicate',
       providerModel: selection.model,
       replicateLane: selection.lane,
       predictionId: current.id,
+      ...(selection.lane === 'model3d' ? { glbValidated: true } : {}),
     },
   };
 }
@@ -794,6 +812,7 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
   const outputUrl = meshyModelUrl(task);
   if (!outputUrl) throw new Error('Meshy task did not return a GLB artifact URL');
   const binary = await fetchBinary(outputUrl);
+  assertGlbBinary(binary.buffer, 'Meshy model3d');
   return {
     assetBuffer: binary.buffer,
     assetMimeType: binary.mimeType === 'application/octet-stream' ? 'model/gltf-binary' : binary.mimeType,
@@ -804,6 +823,7 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
       providerTaskId: task.id ?? taskId,
       generationMode: endpoint.includes('multi-image') ? 'multi-image-to-3d' : endpoint.includes('image-to-3d') ? 'image-to-3d' : 'text-to-3d',
       pbrRequested: true,
+      glbValidated: true,
       canonicalCandidateOnly: true,
     },
   };
