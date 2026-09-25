@@ -30,3 +30,17 @@ Provider spend remains disabled. No provider credential, production deployment, 
 - The governed workflow regenerated locks, verified active lock roots against package manifests, and committed only generated lock outputs.
 
 This receipt preserves the generated locks while restoring a repository-owner-authored exact head for subsequent pull-request verification. It does not substitute for the dependency audit or transfer any prior green result.
+
+
+## Governed active-lock regeneration — 2026-09-25
+
+- Source verifier head: `4a8000f264d36a81aae36de2a57bc72f2814a69d`
+- Governed lock regeneration commit: `cee77b4445328f24022ff6eb1274b1f9f4e373a9`
+- Regenerated files:
+  - `life-map-pipeline/functions/package-lock.json`
+  - `pnpm-lock.yaml`
+- `engine/npm-shrinkwrap.json` was already current and remained unchanged.
+- Regeneration was performed by the repository's governed lock-repair workflow after successful package resolution and lock verification.
+- The regenerated active Functions lock now reflects the hardened package manifest rather than the stale Firebase/Functions Framework dependency ranges that caused production audit failure.
+
+As before, the bot-authored lock commit is retained. This receipt restores a repository-owner-authored successor head for exact-head verification; it does not transfer or bypass CI evidence.
