@@ -104,6 +104,9 @@ assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLU
 assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION", 'Meshy text geometry resolution');
 assertIncludes(providerRuntime, "rawImageUrls.map((value) => assertPublicProviderUrl(value))", 'Meshy multi-image public URL validation');
 assertIncludes(providerRuntime, "rawSourceImageUrl ? assertPublicProviderUrl(rawSourceImageUrl) : null", 'Meshy single-image public URL validation');
+assertIncludes(providerRuntime, "function assertGlbBinary", 'provider GLB structural validation helper');
+assertIncludes(providerRuntime, "assertGlbBinary(binary.buffer, 'Meshy model3d')", 'Meshy GLB structural validation');
+assertIncludes(providerRuntime, "assertGlbBinary(binary.buffer, 'Replicate model3d')", 'Replicate GLB structural validation');
 assertIncludes(providerRuntime, "ai_model: textModel", 'Meshy text-to-3D model pinning');
 assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image supported resolution boundary');
 assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
