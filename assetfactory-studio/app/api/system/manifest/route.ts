@@ -131,7 +131,8 @@ export async function GET(req: NextRequest) {
       if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')) blockers.push('provider-endpoint-not-configured');
     }
 
-    return { ready: blockers.length === 0, blockers };
+    if (!enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')) blockers.push('provider-spend-not-authorized');
+    return { ready: blockers.length === 0, blockers: [...new Set(blockers)] };
   }
 
   const modalityReadiness = Object.fromEntries(

@@ -1,51 +1,142 @@
 #!/usr/bin/env node
+import process from 'node:process';
 
 const strict = process.env.URAI_PROVIDER_STRICT === 'true';
+const spendAuthorized = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED === 'true';
 
-const providers = [
-  {
-    name: 'Firebase project',
-    env: ['FIREBASE_PROJECT_ID'],
-    requiredFor: ['hosting deploy', 'functions deploy', 'storage export'],
-  },
-  {
-    name: 'Image generation provider',
-    env: ['URAI_IMAGE_PROVIDER', 'URAI_IMAGE_API_KEY'],
-    requiredFor: ['provider-backed production art beyond deterministic fallback'],
-  },
-  {
-    name: 'Spatial asset publish target',
-    env: ['URAI_SPATIAL_ASSET_BASE_URL'],
-    requiredFor: ['copying generated art into URAI Spatial public assets'],
-  },
-  {
-    name: 'Studio callback',
-    env: ['URAI_STUDIO_BASE_URL'],
-    requiredFor: ['Studio render job handoff and completion callbacks'],
-  },
-];
+const modalityRouting = {
+  image: process.env.ASSET_FACTORY_IMAGE_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  model3d: process.env.ASSET_FACTORY_MODEL3D_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  audio: process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  sfx: process.env.ASSET_FACTORY_SFX_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  music: process.env.ASSET_FACTORY_MUSIC_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  stt: process.env.ASSET_FACTORY_STT_PROVIDER || 'local-proof',
+  video: process.env.ASSET_FACTORY_VIDEO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+};
 
-const providersWithStatus = providers.map((provider) => {
-  const missing = provider.env.filter((key) => !process.env[key]);
-  return {
-    ...provider,
-    missing,
-    status: missing.length === 0 ? 'ready' : strict ? 'blocked' : 'not-configured',
-  };
+const credentialEnv = {
+  openai: ['OPENAI_API_KEY'],
+  replicate: ['REPLICATE_API_TOKEN'],
+  fal: ['FAL_KEY'],
+  elevenlabs: ['ELEVENLABS_API_KEY'],
+  stability: ['STABILITY_API_KEY'],
+  runway: ['RUNWAYML_API_SECRET', 'RUNWAY_API_KEY'],
+  meshy: ['MESHY_API_KEY'],
+};
+
+function configured(name) {
+  return Boolean(process.env[name]);
+}
+
+function credentialConfigured(provider) {
+  const names = credentialEnv[provider] ?? [];
+  return names.some(configured);
+}
+
+function statusFor(modality, provider) {
+  const blockers = [];
+  if (provider === 'local-proof') {
+    blockers.push('external-provider-not-selected');
+    return { provider, external: false, ready: false, blockers };
+  }
+  if (!credentialEnv[provider]) {
+    blockers.push('unsupported-provider-selection');
+    return { provider, external: true, ready: false, blockers };
+  }
+  if (!credentialConfigured(provider)) blockers.push('provider-credential-not-configured');
+
+  if (provider === 'openai') {
+    if (modality === 'image' && !configured('ASSET_FACTORY_OPENAI_IMAGE_MODEL')) blockers.push('provider-model-not-configured');
+    if (modality === 'audio') {
+      if (!configured('ASSET_FACTORY_OPENAI_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+      if (!configured('ASSET_FACTORY_OPENAI_VOICE')) blockers.push('approved-voice-not-configured');
+    }
+  }
+
+  if (provider === 'elevenlabs') {
+    if (modality === 'audio') {
+      if (!configured('ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+      if (!configured('ELEVENLABS_VOICE_ID')) blockers.push('approved-voice-not-configured');
+    }
+    if (modality === 'sfx' && !configured('ASSET_FACTORY_ELEVENLABS_SFX_MODEL')) blockers.push('provider-model-not-configured');
+    if (modality === 'music' && !configured('ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL')) blockers.push('provider-model-not-configured');
+    if (modality === 'stt' && !configured('ASSET_FACTORY_ELEVENLABS_STT_MODEL')) blockers.push('provider-model-not-configured');
+  }
+
+  if (provider === 'meshy' && modality === 'model3d' && !configured('ASSET_FACTORY_MESHY_MODEL')) blockers.push('provider-model-not-configured');
+  if (provider === 'stability' && modality === 'image' && !configured('ASSET_FACTORY_STABILITY_IMAGE_SERVICE')) blockers.push('provider-model-not-configured');
+
+  if (provider === 'runway' && modality === 'video') {
+    if (!configured('ASSET_FACTORY_RUNWAY_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
+    if (process.env.ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY !== 'true') blockers.push('provider-account-capability-not-certified');
+  }
+
+  if (provider === 'replicate') {
+    if (modality === 'image' && !(configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL'))) blockers.push('provider-model-not-configured');
+    if (modality === 'model3d' && !(configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL'))) blockers.push('provider-model-not-configured');
+    if (modality === 'audio') {
+      if (!(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
+      if (configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') && !configured('ASSET_FACTORY_REPLICATE_SPEECH_VOICE')) blockers.push('approved-voice-not-configured');
+    }
+    if (modality === 'video' && !configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
+  }
+
+  if (provider === 'fal') {
+    if (modality === 'image' && !configured('ASSET_FACTORY_GRAPHICS_MODEL')) blockers.push('provider-model-not-configured');
+    if (modality === 'model3d' && !configured('ASSET_FACTORY_MODEL3D_MODEL')) blockers.push('provider-model-not-configured');
+    if ((modality === 'audio' || modality === 'sfx' || modality === 'music') && !configured('ASSET_FACTORY_AUDIO_MODEL')) blockers.push('provider-model-not-configured');
+    if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')) blockers.push('provider-endpoint-not-configured');
+  }
+
+  if (!spendAuthorized) blockers.push('provider-spend-not-authorized');
+  return { provider, external: true, ready: blockers.length === 0, blockers: [...new Set(blockers)] };
+}
+
+const modalityReadiness = Object.fromEntries(
+  Object.entries(modalityRouting).map(([modality, provider]) => [modality, statusFor(modality, provider)])
+);
+
+const providerCredentials = Object.fromEntries(
+  Object.entries(credentialEnv).map(([provider, names]) => [
+    provider,
+    {
+      configured: names.some(configured),
+      acceptedEnvironmentNames: names,
+      missingEnvironmentNames: names.some(configured) ? [] : names,
+    },
+  ])
+);
+
+const operationalDependencies = [
+  { name: 'Firebase project', environment: ['FIREBASE_PROJECT_ID'], requiredFor: ['hosting deploy', 'functions deploy', 'storage export'] },
+  { name: 'Spatial asset publish target', environment: ['URAI_SPATIAL_ASSET_BASE_URL'], requiredFor: ['copying governed assets into UrAi Spatial'] },
+  { name: 'Studio callback', environment: ['URAI_STUDIO_BASE_URL'], requiredFor: ['Studio render handoff and completion callbacks'] },
+].map((dependency) => {
+  const missingEnvironmentNames = dependency.environment.filter((name) => !configured(name));
+  return { ...dependency, configured: missingEnvironmentNames.length === 0, missingEnvironmentNames };
 });
 
+const notReady = Object.entries(modalityReadiness)
+  .filter(([, status]) => !status.ready)
+  .map(([modality, status]) => ({ modality, ...status }));
+
 const payload = {
+  schemaVersion: 'urai-provider-readiness-v2',
   checkedAt: new Date().toISOString(),
   strict,
-  providers: providersWithStatus,
-  ready: providersWithStatus.filter((provider) => provider.status === 'ready').map((provider) => provider.name),
-  blocked: providersWithStatus.filter((provider) => provider.status === 'blocked'),
-  notConfigured: providersWithStatus.filter((provider) => provider.status === 'not-configured'),
+  spendAuthorized,
+  modalityRouting,
+  modalityReadiness,
+  providerCredentials,
+  operationalDependencies,
+  ready: Object.entries(modalityReadiness).filter(([, status]) => status.ready).map(([modality]) => modality),
+  blocked: strict ? notReady : [],
+  notConfigured: strict ? [] : notReady,
 };
 
 console.log(JSON.stringify(payload, null, 2));
 
-if (payload.blocked.length > 0) {
-  console.error('Asset Factory provider readiness failed in strict mode. Configure missing provider environment variables or run non-strict local fallback checks.');
+if (strict && (notReady.length > 0 || operationalDependencies.some((dependency) => !dependency.configured))) {
+  console.error('Asset Factory provider readiness failed in strict mode. External provider activation remains fail-closed until every selected route and required operational dependency is explicitly configured.');
   process.exit(1);
 }

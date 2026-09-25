@@ -41,6 +41,7 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
+const providerReadiness = read('scripts/provider-readiness.mjs');
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -157,6 +158,14 @@ for (const variable of [
   assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting provider registry for ${variable}`);
 }
 
+for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_VIDEO_PROVIDER', 'provider-spend-not-authorized', 'provider-credential-not-configured', 'approved-voice-not-configured', 'provider-account-capability-not-certified']) {
+  assertIncludes(providerReadiness, marker, `truthful provider readiness marker ${marker}`);
+}
+if (providerReadiness.includes('URAI_IMAGE_PROVIDER') || providerReadiness.includes('URAI_IMAGE_API_KEY')) {
+  console.error('Legacy image-provider readiness variables must not remain authoritative');
+  process.exit(1);
+}
+
 assertIncludes(providerRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'provider runtime provider spend kill switch');
 assertIncludes(videoProviderRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'video runtime provider spend kill switch');
 assertIncludes(transcriptionRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'transcription runtime provider spend kill switch');
@@ -173,6 +182,7 @@ assertIncludes(manifestRoute, "approved-voice-not-configured", 'speech identity 
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_OPENAI_VOICE')", 'approved OpenAI voice readiness requirement');
 assertIncludes(manifestRoute, "configured('ELEVENLABS_VOICE_ID')", 'approved ElevenLabs voice readiness requirement');
 assertIncludes(manifestRoute, "provider-account-capability-not-certified", 'Runway account capability readiness blocker');
+assertIncludes(manifestRoute, "provider-spend-not-authorized", 'provider spend authorization readiness blocker');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')", 'Replicate video model readiness requirement');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')", 'fal video endpoint readiness requirement');
 assertIncludes(validation, 'metadata.durationSeconds', 'video duration validation');

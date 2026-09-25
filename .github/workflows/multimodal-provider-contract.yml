@@ -23,6 +23,7 @@ env:
   ASSET_FACTORY_MUSIC_PROVIDER: local-proof
   ASSET_FACTORY_STT_PROVIDER: local-proof
   ASSET_FACTORY_VIDEO_PROVIDER: local-proof
+  ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED: "false"
 
 jobs:
   provider-contract:
@@ -81,6 +82,27 @@ jobs:
       - name: Run multimodal static contract
         run: node scripts/test-asset-factory-multimodal.mjs
 
+      - name: Prove truthful no-spend readiness reporting
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/provider-contract
+          node scripts/provider-readiness.mjs > artifacts/provider-contract/provider-readiness-local-proof.json
+          ASSET_FACTORY_IMAGE_PROVIDER=openai node scripts/provider-readiness.mjs > artifacts/provider-contract/provider-readiness-external-blocked.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const local=JSON.parse(fs.readFileSync('artifacts/provider-contract/provider-readiness-local-proof.json','utf8'))
+          const external=JSON.parse(fs.readFileSync('artifacts/provider-contract/provider-readiness-external-blocked.json','utf8'))
+          assert.equal(local.spendAuthorized,false)
+          assert.equal(local.modalityReadiness.image.provider,'local-proof')
+          assert.ok(local.modalityReadiness.image.blockers.includes('external-provider-not-selected'))
+          assert.equal(external.modalityReadiness.image.provider,'openai')
+          assert.ok(external.modalityReadiness.image.blockers.includes('provider-credential-not-configured'))
+          assert.ok(external.modalityReadiness.image.blockers.includes('provider-spend-not-authorized'))
+          console.log('PASS truthful no-spend readiness reporting')
+          NODE
+
       - name: Write exact-head provider receipt
         shell: bash
         run: |
@@ -116,7 +138,7 @@ jobs:
           import assert from 'node:assert/strict'
           const receipt=JSON.parse(fs.readFileSync('artifacts/provider-contract/receipt.json','utf8'))
           assert.equal(receipt.headSha,process.env.TARGET_SHA)
-          assert.equal(receipt.spatialHead,'28cdf3354720e32b26fe94799810f5afb4098181')
+          assert.equal(receipt.spatialHead,'6d0fe27f9afa40345c0d87b21de07b828a7369bc')
           assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
           assert.deepEqual(receipt.modelForgeProductionTargets,[])
           assert.equal(receipt.noSpend,true)
@@ -128,6 +150,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: multimodal-provider-contract
-          path: artifacts/provider-contract/receipt.json
+          path: artifacts/provider-contract/
           if-no-files-found: error
           retention-days: 30

@@ -2,7 +2,7 @@
 
 Status date: 2026-09-25
 Authority branch: `converge/asset-factory-production-multimodal-20260925`
-Unified authority: draft PR #284, stacked on production-hardening PR #281. PR #284 carries the complete Model Forge and multimodal file surfaces previously split across PRs #279 and #282.
+Unified authority: PR #284, stacked on production-hardening PR #281. PR #284 carries the complete Model Forge and multimodal file surfaces previously split across PRs #279 and #282.
 
 ## Canonical rule
 
@@ -64,7 +64,7 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Direct Runway video API path exists with server-only key support, version header, bounded polling, output download, and provenance.
 - Text-to-video and image-to-video both use the verified `POST /v1/image_to_video` endpoint; text-only generation omits `promptImage`, while image-conditioned generation supplies it.
 - Runtime readiness also requires `ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY=true`; it defaults false so a credential/model string alone cannot falsely certify account capability.
-- Connected Runway workspace was authenticated on 2026-09-25 but exposed no available video models and only 2 purchased credits.
+- Connected Runway workspace was re-checked directly on 2026-09-25: authenticated workspace `Life`, Free plan, zero eligible video models, and 2 purchased credits.
 - No Runway generation was executed and no credits were spent.
 - Runtime activation therefore remains external-blocked by account plan/model availability plus production secret binding.
 

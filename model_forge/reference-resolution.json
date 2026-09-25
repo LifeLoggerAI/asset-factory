@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "28cdf3354720e32b26fe94799810f5afb4098181",
+  "recoveredSpatialHead": "6d0fe27f9afa40345c0d87b21de07b828a7369bc",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,8 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "28cdf3354720e32b26fe94799810f5afb4098181"
+    "currentSpatialHead": "6d0fe27f9afa40345c0d87b21de07b828a7369bc"
   },
-  "successorReconciliation": "Reconciled against Spatial PR #1296 exact head 28cdf3354720e32b26fe94799810f5afb4098181. The seven hashed reference files remain valid reference inputs. Current source authority adds the pinned CC0 ground-polyhaven-jacaranda-web-v1 candidate, still fail-closed pending human/exact-head visual acceptance; Focus remains selected-memory-star authority with focus-memory-chamber-v1 non-runtime supporting only; Replay-memory-environment-v1 remains runtime-supporting geometry without visual-authority promotion. No paid 3D production target is authorized until literal current-head evidence proves a remaining gap after the CC0 Ground candidate is accepted or rejected.",
+  "successorReconciliation": "Reconciled against Spatial PR #1296 exact head 6d0fe27f9afa40345c0d87b21de07b828a7369bc. The seven hashed reference files remain valid reference inputs. Current source authority adds the pinned CC0 ground-polyhaven-jacaranda-web-v1 candidate, still fail-closed pending human/exact-head visual acceptance; Focus remains selected-memory-star authority with focus-memory-chamber-v1 non-runtime supporting only; Replay-memory-environment-v1 remains runtime-supporting geometry without visual-authority promotion. No paid 3D production target is authorized until literal current-head evidence proves a remaining gap after the CC0 Ground candidate is accepted or rejected.",
   "spatialPr": 1296
 }
