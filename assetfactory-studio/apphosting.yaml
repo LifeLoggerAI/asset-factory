@@ -44,6 +44,11 @@ env:
     availability:
       - RUNTIME
 
+  - variable: ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED
+    value: "false"
+    availability:
+      - RUNTIME
+
   - variable: ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS
     value: "500"
     availability:
