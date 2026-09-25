@@ -76,8 +76,7 @@ for (const required of [
   'firebase apphosting:backends:get assetfactory-studio',
   "jq -r '.result.uri // empty'",
   'firebase apphosting:rollouts:create assetfactory-studio',
-  '--git-commit "$GITHUB_SHA"',
-  '--force',
+  '--git_commit "$GITHUB_SHA"',
 ]) {
   if (!grant.includes(required)) fail(`grant workflow missing stable App Hosting verification contract ${JSON.stringify(required)}`);
 }
@@ -107,8 +106,11 @@ if (!grant.includes('projects/952723774155/*)')) {
 if (!grant.includes(historicalServiceAccount)) {
   fail('grant workflow must explicitly reject the historical urai-4dc1d deploy service account');
 }
-if (grant.includes('--git_commit')) {
-  fail('grant workflow must use the current Firebase --git-commit rollout flag');
+if (grant.includes('--git-commit')) {
+  fail('grant workflow must not use the obsolete hyphenated Firebase rollout flag');
+}
+if (grant.includes('apphosting:rollouts:create assetfactory-studio') && grant.includes('\n            --force')) {
+  fail('grant workflow must not pass undocumented --force to apphosting:rollouts:create');
 }
 for (const forbidden of ['REPLICATE_API_TOKEN=%', 'https://api.replicate.com/v1/predictions', 'workflow_run:']) {
   if (grant.includes(forbidden)) fail(`no-spend grant workflow contains paid/provider execution capability ${JSON.stringify(forbidden)}`);
