@@ -172,7 +172,7 @@
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof-and-cc0-canopy-review",
     "spatialPr": 1296,
-    "spatialHead": "873822c09a113669617d952b220a1f484063cd55",
-    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 873822c09a113669617d952b220a1f484063cd55 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
+    "spatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529",
+    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
   }
 }
