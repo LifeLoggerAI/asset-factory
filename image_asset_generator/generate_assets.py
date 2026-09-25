@@ -199,6 +199,7 @@ def main() -> None:
 
     for entry in entries:
         entry_created = False
+        entry_renderers: list[str] = []
         for size, output_path in iter_outputs(entry):
             exists = output_path.exists()
             if exists and not force and entry["name"] not in feedback:
@@ -214,6 +215,7 @@ def main() -> None:
             result.image.save(output_path, format="PNG", optimize=True)
             write_render_metadata(output_path, entry, result)
             renderers[result.renderer] = renderers.get(result.renderer, 0) + 1
+            entry_renderers.append(result.renderer)
             if exists:
                 replaced_count += 1
             else:
@@ -221,8 +223,18 @@ def main() -> None:
             entry_created = True
 
         if entry_created:
+            unique_entry_renderers = set(entry_renderers)
+            if unique_entry_renderers == {"provider"}:
+                entry_renderer = "provider"
+            elif len(unique_entry_renderers) == 1:
+                entry_renderer = next(iter(unique_entry_renderers))
+            else:
+                entry_renderer = "mixed"
             entry["status"] = "generated"
-            entry["renderer"] = "provider" if renderers.get("provider") else "offline-safe"
+            entry["renderer"] = entry_renderer
+            entry["authority"] = "candidate" if entry_renderer == "provider" else "proof-only"
+            entry["acceptance"] = "unreviewed"
+            entry["promotion_eligible"] = False
             entry.setdefault("prompt_version", "v1")
             manifest_changed = True
 
