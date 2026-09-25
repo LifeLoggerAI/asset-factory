@@ -107,6 +107,12 @@ if ((appHostingConfig.match(/value: local-proof/g) ?? []).length < 8) {
   console.error('App Hosting must keep all multimodal provider selectors fail-closed at local-proof');
   process.exit(1);
 }
+assertIncludes(appHostingConfig, 'variable: ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'App Hosting provider spend kill switch');
+assertIncludes(appHostingConfig, 'value: "false"', 'App Hosting provider spend kill switch default false');
+
+assertIncludes(providerRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'provider runtime provider spend kill switch');
+assertIncludes(videoProviderRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'video runtime provider spend kill switch');
+assertIncludes(transcriptionRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'transcription runtime provider spend kill switch');
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
 assertIncludes(renderer, 'identity-continuity', 'video identity QA gate');
@@ -114,6 +120,8 @@ assertIncludes(renderer, 'temporal-flicker', 'video temporal QA gate');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(manifestRoute, 'modalityReadiness', 'modality-aware provider readiness');
+assertIncludes(manifestRoute, 'providerSpendAuthorized', 'provider spend authorization readiness');
+assertIncludes(manifestRoute, "enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')", 'provider spend kill switch readiness');
 assertIncludes(manifestRoute, "modality === 'audio' && providerName === 'elevenlabs'", 'ElevenLabs speech readiness boundary');
 assertIncludes(manifestRoute, "configured('ELEVENLABS_VOICE_ID')", 'approved ElevenLabs voice readiness requirement');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')", 'Replicate video model readiness requirement');
