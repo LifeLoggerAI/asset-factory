@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - converge/asset-factory-production-multimodal-20260925
+      - feature/multimodel-intelligence-router-20260925
   workflow_dispatch:
 
 permissions:
@@ -24,6 +25,7 @@ env:
   ASSET_FACTORY_STT_PROVIDER: local-proof
   ASSET_FACTORY_VIDEO_PROVIDER: local-proof
   ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED: "false"
+  ASSET_FACTORY_INTELLIGENCE_CLOUD_PROCESSING_AUTHORIZED: "false"
 
 jobs:
   provider-contract:
@@ -62,6 +64,8 @@ jobs:
         run: |
           set -euo pipefail
           test -z "${OPENAI_API_KEY:-}"
+          test -z "${ANTHROPIC_API_KEY:-}"
+          test -z "${GEMINI_API_KEY:-}"
           test -z "${REPLICATE_API_TOKEN:-}"
           test -z "${ELEVENLABS_API_KEY:-}"
           test -z "${RUNWAYML_API_SECRET:-}"
@@ -75,6 +79,9 @@ jobs:
 
       - name: Run provider routing contract
         run: node scripts/test-provider-routing-contract.mjs
+
+      - name: Run governed intelligence routing contract
+        run: node scripts/test-intelligence-provider-router.mjs
 
       - name: Run Replicate registry contract
         run: node scripts/test-replicate-model-registry.mjs
