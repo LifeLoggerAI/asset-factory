@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStoreDiagnostics } from '@/lib/server/assetFactoryStore';
 import { listAssetTypeDefinitions } from '@/lib/server/assetTypeCatalog';
 import { getProviderDiagnostics } from '@/lib/server/assetProviderAdapters';
+import { providerSupportsModality } from '@/lib/server/assetProviderCapabilities.mjs';
 import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
 import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
@@ -80,6 +81,10 @@ export async function GET(req: NextRequest) {
       blockers.push('external-provider-not-selected');
       return { ready: false, blockers };
     }
+    if (!providerSupportsModality(providerName, modality)) {
+      blockers.push('unsupported-provider-modality');
+      return { ready: false, blockers };
+    }
     if (!providerConfigured(providerName)) blockers.push('provider-credential-not-configured');
 
     if (providerName === 'openai') {
@@ -120,6 +125,7 @@ export async function GET(req: NextRequest) {
         if (!(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
         if (configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') && !configured('ASSET_FACTORY_REPLICATE_SPEECH_VOICE')) blockers.push('approved-voice-not-configured');
       }
+      if ((modality === 'sfx' || modality === 'music') && !(configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
       if (modality === 'video' && !configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
     }
 

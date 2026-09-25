@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import process from 'node:process';
+import { providerSupportsModality } from '../assetfactory-studio/lib/server/assetProviderCapabilities.mjs';
 
 const strict = process.env.URAI_PROVIDER_STRICT === 'true';
 const spendAuthorized = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED === 'true';
@@ -83,6 +84,10 @@ function statusFor(modality, provider) {
     blockers.push('unsupported-provider-selection');
     return { provider, external: true, ready: false, blockers };
   }
+  if (!providerSupportsModality(provider, modality)) {
+    blockers.push('unsupported-provider-modality');
+    return { provider, external: true, ready: false, blockers };
+  }
   if (!credentialConfigured(provider)) blockers.push('provider-credential-not-configured');
 
   if (provider === 'openai') {
@@ -118,6 +123,7 @@ function statusFor(modality, provider) {
       if (!(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
       if (configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') && !configured('ASSET_FACTORY_REPLICATE_SPEECH_VOICE')) blockers.push('approved-voice-not-configured');
     }
+    if ((modality === 'sfx' || modality === 'music') && !(configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
     if (modality === 'video' && !configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
   }
 
@@ -125,7 +131,7 @@ function statusFor(modality, provider) {
     if (modality === 'image' && !configured('ASSET_FACTORY_GRAPHICS_MODEL')) blockers.push('provider-model-not-configured');
     if (modality === 'model3d' && !configured('ASSET_FACTORY_MODEL3D_MODEL')) blockers.push('provider-model-not-configured');
     if ((modality === 'audio' || modality === 'sfx' || modality === 'music') && !configured('ASSET_FACTORY_AUDIO_MODEL')) blockers.push('provider-model-not-configured');
-    if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')) blockers.push('provider-endpoint-not-configured');
+    if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_MODEL')) blockers.push('provider-endpoint-not-configured');
   }
 
   if (!spendAuthorized) blockers.push('provider-spend-not-authorized');

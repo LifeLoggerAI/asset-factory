@@ -76,6 +76,9 @@ jobs:
       - name: Run provider routing contract
         run: node scripts/test-provider-routing-contract.mjs
 
+      - name: Run provider readiness behavior
+        run: node --test scripts/test-provider-readiness.mjs
+
       - name: Run Replicate registry contract
         run: node scripts/test-replicate-model-registry.mjs
 
