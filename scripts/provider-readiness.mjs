@@ -33,6 +33,46 @@ function credentialConfigured(provider) {
   return names.some(configured);
 }
 
+function dedicatedProductionTargetStatus() {
+  const projectId = process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '';
+  const hostingSite = process.env.ASSET_FACTORY_FIREBASE_HOSTING_SITE || '';
+  const baseUrl = process.env.ASSET_FACTORY_BASE_URL || '';
+  const historical = new Set(['urai-4dc1d', 'asset-factory-dev-id']);
+  const blockers = [];
+  if (!projectId || historical.has(projectId)) blockers.push('dedicated-production-target-not-configured');
+  if (!hostingSite || !baseUrl) blockers.push('dedicated-production-target-not-configured');
+  return {
+    configured: blockers.length === 0,
+    projectConfigured: Boolean(projectId) && !historical.has(projectId),
+    hostingSiteConfigured: Boolean(hostingSite),
+    baseUrlConfigured: Boolean(baseUrl),
+    blockers: [...new Set(blockers)],
+  };
+}
+
+function wifStatus() {
+  const provider = process.env.GCP_WIF_PROVIDER || '';
+  const serviceAccount = process.env.GCP_DEPLOY_SERVICE_ACCOUNT || '';
+  const historicalProvider = provider.startsWith('projects/952723774155/');
+  const historicalServiceAccount = serviceAccount === 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com';
+  const blockers = [];
+  if (!provider || !serviceAccount || historicalProvider || historicalServiceAccount) blockers.push('wif-not-configured');
+  return {
+    configured: blockers.length === 0,
+    providerConfigured: Boolean(provider) && !historicalProvider,
+    serviceAccountConfigured: Boolean(serviceAccount) && !historicalServiceAccount,
+    blockers,
+  };
+}
+
+function liveSmokeStatus() {
+  const certified = process.env.ASSET_FACTORY_PROVIDER_LIVE_SMOKE_CERTIFIED === 'true';
+  return {
+    certified,
+    blockers: certified ? [] : ['provider-live-smoke-not-certified'],
+  };
+}
+
 function statusFor(modality, provider) {
   const blockers = [];
   if (provider === 'local-proof') {
@@ -120,8 +160,20 @@ const notReady = Object.entries(modalityReadiness)
   .filter(([, status]) => !status.ready)
   .map(([modality, status]) => ({ modality, ...status }));
 
+const deploymentReadiness = {
+  dedicatedProductionTarget: dedicatedProductionTargetStatus(),
+  wif: wifStatus(),
+  providerLiveSmoke: liveSmokeStatus(),
+};
+
+const deploymentBlockers = [
+  ...deploymentReadiness.dedicatedProductionTarget.blockers,
+  ...deploymentReadiness.wif.blockers,
+  ...deploymentReadiness.providerLiveSmoke.blockers,
+];
+
 const payload = {
-  schemaVersion: 'urai-provider-readiness-v2',
+  schemaVersion: 'urai-provider-readiness-v3',
   checkedAt: new Date().toISOString(),
   strict,
   spendAuthorized,
@@ -129,14 +181,19 @@ const payload = {
   modalityReadiness,
   providerCredentials,
   operationalDependencies,
+  deploymentReadiness,
   ready: Object.entries(modalityReadiness).filter(([, status]) => status.ready).map(([modality]) => modality),
-  blocked: strict ? notReady : [],
-  notConfigured: strict ? [] : notReady,
+  blocked: strict ? [...notReady, ...deploymentBlockers.map((blocker) => ({ blocker }))] : [],
+  notConfigured: strict ? [] : [...notReady, ...deploymentBlockers.map((blocker) => ({ blocker }))],
 };
 
 console.log(JSON.stringify(payload, null, 2));
 
-if (strict && (notReady.length > 0 || operationalDependencies.some((dependency) => !dependency.configured))) {
-  console.error('Asset Factory provider readiness failed in strict mode. External provider activation remains fail-closed until every selected route and required operational dependency is explicitly configured.');
+if (strict && (
+  notReady.length > 0 ||
+  operationalDependencies.some((dependency) => !dependency.configured) ||
+  deploymentBlockers.length > 0
+)) {
+  console.error('Asset Factory provider readiness failed in strict mode. External provider activation remains fail-closed until every selected route, operational dependency, dedicated production target, WIF identity, and retained live-smoke receipt is explicitly configured.');
   process.exit(1);
 }
