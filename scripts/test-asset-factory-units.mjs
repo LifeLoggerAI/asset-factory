@@ -505,7 +505,7 @@ async function testOpenAiImagePreflightAndFormat() {
         { jobId: 'openai-invalid-size', tenantId: 'tenant-a', prompt: 'invalid size', type: 'graphic', size: { width: 1000, height: 1000 } },
         resolveAssetType('graphic')
       ),
-      /violates GPT Image 2.5 bounds/
+      /violates configured OpenAI image bounds/
     );
     assert.equal(fetchCalls, 0);
 
