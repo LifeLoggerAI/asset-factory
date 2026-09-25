@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+  "recoveredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,11 +125,15 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b"
+    "currentSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66"
   },
-  "successorReconciliation": "Active Spatial dependency reconciled from 8015397b649f69c8cf76d3afc35f50e34203052b to d60ebdecbdb038fc905ea6569b313c8655c3fd2b (1 commit / 1 changed file). The delta only hardens canonical journey proof input mechanics; all seven reference identities and SHA-256 values remain unchanged. This record admits source lineage only; current exact-head proof remains required, no predecessor evidence transfers, and paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval.",
+  "successorReconciliation": "Active Spatial dependency reconciled from d60ebdecbdb038fc905ea6569b313c8655c3fd2b to 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66 (1 commit / 2 changed files). The delta only widens bounded localization proof cold-start readiness from 45s to 90s and updates its unit-test ceiling; all seven reference identities and SHA-256 values remain unchanged. No predecessor evidence transfers and paid production targets remain unauthorized.",
   "spatialPr": 1296,
   "dependencyReconciliationHistory": [
+    {
+      "spatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+      "successorReconciliation": "Active Spatial dependency reconciled from 8015397b649f69c8cf76d3afc35f50e34203052b to d60ebdecbdb038fc905ea6569b313c8655c3fd2b (1 commit / 1 changed file). The delta only hardens canonical journey proof input mechanics; all seven reference identities and SHA-256 values remain unchanged. This record admits source lineage only; current exact-head proof remains required, no predecessor evidence transfers, and paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval."
+    },
     {
       "spatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b",
       "successorReconciliation": "Active Spatial dependency reconciled from 6a6a8564014cf88502aac638b03270300ac3f971 to 8015397b649f69c8cf76d3afc35f50e34203052b (4 commits / 26 changed files). All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval."

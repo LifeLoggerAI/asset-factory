@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1296,
-    "recoveredSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+    "recoveredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,28 +13,47 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Active dependency pointer reconciled to Spatial PR #1296 at d60ebdecbdb038fc905ea6569b313c8655c3fd2b. This successor changes only the canonical journey proof harness input mechanics; runtime art, provider authority, reference bytes, paid targets and product behavior are unchanged. Fresh exact-head proof remains required and no predecessor evidence transfers.",
+    "successorReconciliation": "Active dependency pointer reconciled to Spatial PR #1296 at 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66. This successor changes only localization proof-harness cold-start readiness timing and its unit-test bound; runtime art, product behavior, provider authority, paid targets and reference bytes are unchanged. Fresh exact-head proof remains required and no predecessor evidence transfers.",
     "dependencyReconciliation": {
-      "previousDeclaredSpatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b",
-      "admittedSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+      "previousDeclaredSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+      "admittedSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
       "comparisonStatus": "ahead",
       "comparisonCommits": 1,
       "scope": "active-dependency-pointer-only",
       "reviewedChangeFamilies": [
-        "canonical journey proof pointer coordinates on the intentionally aria-hidden WebGL render surface",
-        "bounded keyboard focus-and-Enter proof path without locator-evaluate flake"
+        "bounded localization Home cold-start asset-readiness timeout and matching unit-test ceiling"
       ],
       "currentExactHeadProofStatus": "required-pending",
       "predecessorEvidenceTransferred": false,
       "paidProductionTargetsAuthorized": false,
       "referenceBytesChanged": false,
       "rule": "Current source reconciliation does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
-      "comparisonChangedFiles": 1,
+      "comparisonChangedFiles": 2,
       "preservedConcurrentSpatialHeads": [
-        "8015397b649f69c8cf76d3afc35f50e34203052b"
+        "d60ebdecbdb038fc905ea6569b313c8655c3fd2b"
       ]
     },
     "dependencyReconciliationHistory": [
+      {
+        "previousDeclaredSpatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b",
+        "admittedSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
+        "comparisonStatus": "ahead",
+        "comparisonCommits": 1,
+        "scope": "active-dependency-pointer-only",
+        "reviewedChangeFamilies": [
+          "canonical journey proof pointer coordinates on the intentionally aria-hidden WebGL render surface",
+          "bounded keyboard focus-and-Enter proof path without locator-evaluate flake"
+        ],
+        "currentExactHeadProofStatus": "required-pending",
+        "predecessorEvidenceTransferred": false,
+        "paidProductionTargetsAuthorized": false,
+        "referenceBytesChanged": false,
+        "rule": "Current source reconciliation does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
+        "comparisonChangedFiles": 1,
+        "preservedConcurrentSpatialHeads": [
+          "8015397b649f69c8cf76d3afc35f50e34203052b"
+        ]
+      },
       {
         "previousDeclaredSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
         "admittedSpatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b",
@@ -239,7 +258,7 @@
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof-and-cc0-canopy-review",
     "spatialPr": 1296,
-    "spatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
-    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head d60ebdecbdb038fc905ea6569b313c8655c3fd2b route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
+    "spatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
+    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
   }
 }
