@@ -76,10 +76,8 @@ jobs:
               ;;
           esac
           case "$GCP_WIF_PROVIDER" in
-            projects/952723774155/*)
-              echo '::error::Historical urai-4dc1d WIF authority is not valid final Asset Factory production authority.'
-              exit 74
-              ;;
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *) echo '::error::GCP_WIF_PROVIDER is not a full protected Workload Identity Provider resource name.'; exit 74 ;;
           esac
           test "$GCP_DEPLOY_SERVICE_ACCOUNT" != 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com' || {
             echo '::error::Historical urai-4dc1d deploy service account is not valid final Asset Factory production authority.'
