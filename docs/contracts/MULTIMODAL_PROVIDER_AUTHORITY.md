@@ -31,6 +31,8 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Runtime adapter exists.
 - Default model: `gpt-image-2.5-sunburst`.
 - Current Image API request shape is used.
+- PNG/JPEG/WebP output format is explicitly validated and provenance/MIME follow the actual requested format.
+- Optional OpenAI TTS fallback uses `gpt-4o-mini-tts`, but speech voice identity is fail-closed until `ASSET_FACTORY_OPENAI_VOICE` is explicitly approved.
 - Credential is server-only: `OPENAI_API_KEY`.
 - Activation remains off by default.
 - Live artifact smoke is not claimed by this branch.
@@ -52,7 +54,8 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - First-class model3d adapter exists.
 - Text-to-3D preview/refine, image-to-3D, and multi-image-to-3D paths exist.
 - GLB/PBR candidates are downloaded into UrAi's artifact flow.
-- Default image/multi-image model registry: `meshy-7.1`.
+- Default image/multi-image model registry: `meshy-7.1`; text-to-3D is now explicitly model-pinned instead of being mislabeled while relying on a server default.
+- Image/text geometry may use up to 4k where supported; multi-image is isolated to its documented `standard|2k` geometry-resolution boundary so a shared 4k default cannot invalidate requests.
 - Generated geometry is stamped candidate-only and still requires QA/promotion.
 - Live artifact smoke is not claimed by this branch.
 
@@ -60,6 +63,7 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 
 - Direct Runway video API path exists with server-only key support, version header, bounded polling, output download, and provenance.
 - Text-to-video and image-to-video both use the verified `POST /v1/image_to_video` endpoint; text-only generation omits `promptImage`, while image-conditioned generation supplies it.
+- Runtime readiness also requires `ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY=true`; it defaults false so a credential/model string alone cannot falsely certify account capability.
 - Connected Runway workspace was authenticated on 2026-09-25 but exposed no available video models and only 2 purchased credits.
 - No Runway generation was executed and no credits were spent.
 - Runtime activation therefore remains external-blocked by account plan/model availability plus production secret binding.
@@ -78,6 +82,8 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 ### Stability
 
 - Existing image adapter remains optional/fallback.
+- Current Stable Image Core/Ultra routing uses `/v2beta/stable-image/generate/core|ultra`; legacy `stable-image-core` naming is normalized rather than embedded as an invalid endpoint path.
+- Service selection is allowlisted to `core` or `ultra`.
 - It is not required for core launch authority.
 
 ## Provenance
@@ -94,6 +100,8 @@ Provider-backed manifests now record:
 - candidate-only state
 
 Provider generation never changes `approvalStatus` from draft by itself.
+
+Provider-returned artifact URLs are rejected when they resolve syntactically to loopback, RFC1918/private IPv4, link-local IPv4, IPv6 loopback/unspecified, IPv6 unique-local, or IPv6 link-local host literals. Video and non-video provider downloaders enforce the same boundary.
 
 ## Real-world identity assets
 
