@@ -86,6 +86,11 @@ for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', 'loopbackHostname', "hos
 }
 assertIncludes(videoProviderRuntime, "redirect: 'error'", 'video provider redirect rejection');
 assertIncludes(providerRuntime, "redirect: 'error'", 'generic provider redirect rejection');
+assertIncludes(providerRuntime, "body: JSON.stringify(body),\n    redirect: 'error'", 'authenticated JSON POST redirect rejection');
+assertIncludes(providerRuntime, "OpenAI audio request failed", 'OpenAI TTS response boundary');
+assertIncludes(providerRuntime, "const buffer = await readBinaryWithLimit(response, providerMaxBytes());", 'bounded direct provider binary responses');
+assertIncludes(providerRuntime, "ElevenLabs sound-effects", 'ElevenLabs direct response boundary');
+assertIncludes(providerRuntime, "Stability image request failed", 'Stability direct response boundary');
 assertIncludes(videoProviderRuntime, "parsed.protocol !== 'https:'", 'video provider HTTPS-only transport');
 assertIncludes(providerRuntime, "Provider artifact URL must use HTTPS", 'generic provider HTTPS-only transport');
 
