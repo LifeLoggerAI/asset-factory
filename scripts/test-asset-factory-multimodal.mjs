@@ -77,6 +77,10 @@ if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
   process.exit(1);
 }
 
+for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', "host.endsWith('.localhost')", "host.endsWith('.local')"]) {
+  assertIncludes(videoProviderRuntime, marker, `video provider private-network guard for ${marker}`);
+}
+
 for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
   assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
 }
@@ -123,6 +127,26 @@ if ((appHostingConfig.match(/value: local-proof/g) ?? []).length < 8) {
 }
 assertIncludes(appHostingConfig, 'variable: ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'App Hosting provider spend kill switch');
 assertIncludes(appHostingConfig, 'value: "false"', 'App Hosting provider spend kill switch default false');
+
+for (const variable of [
+  'ASSET_FACTORY_PROVIDER_MAX_BYTES',
+  'ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS',
+  'ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES',
+  'ASSET_FACTORY_ALLOW_VIDEO_INPUT_OVERRIDES',
+  'ASSET_FACTORY_OPENAI_IMAGE_MODEL',
+  'ASSET_FACTORY_OPENAI_SPEECH_MODEL',
+  'ASSET_FACTORY_STABILITY_IMAGE_SERVICE',
+  'ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_SFX_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_STT_MODEL',
+  'ASSET_FACTORY_MESHY_MODEL',
+  'ASSET_FACTORY_MESHY_TEXT_MODEL',
+  'ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION',
+  'ASSET_FACTORY_RUNWAY_VIDEO_MODEL',
+]) {
+  assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting provider registry for ${variable}`);
+}
 
 assertIncludes(providerRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'provider runtime provider spend kill switch');
 assertIncludes(videoProviderRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'video runtime provider spend kill switch');
