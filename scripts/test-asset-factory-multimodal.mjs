@@ -71,6 +71,12 @@ for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_V
   assertIncludes(videoProviderRuntime, marker, `video runtime support for ${marker}`);
 }
 
+assertIncludes(videoProviderRuntime, 'if (meta.referenceImageUrl) payload.promptImage = meta.referenceImageUrl;', 'Runway optional image conditioning on unified endpoint');
+if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
+  console.error('Runway text-to-video must use the verified image_to_video endpoint with promptImage omitted');
+  process.exit(1);
+}
+
 for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
   assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
 }
