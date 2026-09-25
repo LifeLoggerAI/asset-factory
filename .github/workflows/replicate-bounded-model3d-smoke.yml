@@ -17,15 +17,16 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT_ID: urai-4dc1d
-  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
-  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
   MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       issues: read
@@ -60,14 +61,30 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify pinned WIF identity contract
+      - name: Verify protected dedicated-target identity contract
         if: steps.preflight.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test -n "$PROJECT_ID" || { echo '::error::ASSET_FACTORY_FIREBASE_PROJECT_ID is required.'; exit 70; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required.'; exit 71; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required.'; exit 72; }
+          case "$PROJECT_ID" in
+            urai-4dc1d|asset-factory-dev-id)
+              echo '::error::Historical/shared Firebase targets are not valid final Asset Factory production authority.'
+              exit 73
+              ;;
+          esac
+          case "$GCP_WIF_PROVIDER" in
+            projects/952723774155/*)
+              echo '::error::Historical urai-4dc1d WIF authority is not valid final Asset Factory production authority.'
+              exit 74
+              ;;
+          esac
+          test "$GCP_DEPLOY_SERVICE_ACCOUNT" != 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com' || {
+            echo '::error::Historical urai-4dc1d deploy service account is not valid final Asset Factory production authority.'
+            exit 75
+          }
 
       - name: Authenticate to Google Cloud with WIF
         id: google_auth
