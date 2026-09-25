@@ -30,6 +30,7 @@ const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntim
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
 const transcriptionRuntime = read('assetfactory-studio/lib/server/assetTranscriptionRuntime.ts');
 const transcriptionRoute = read('assetfactory-studio/app/api/assets/transcribe/route.ts');
+const appHostingConfig = read('assetfactory-studio/apphosting.yaml');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -88,6 +89,23 @@ for (const marker of ['ASSET_FACTORY_STT_PROVIDER', 'ELEVENLABS_API_KEY', 'scrib
 }
 for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES']) {
   assertIncludes(transcriptionRoute, marker, `transcription route guard for ${marker}`);
+}
+
+for (const variable of [
+  'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_SFX_PROVIDER',
+  'ASSET_FACTORY_MUSIC_PROVIDER',
+  'ASSET_FACTORY_STT_PROVIDER',
+  'ASSET_FACTORY_VIDEO_PROVIDER',
+]) {
+  assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting fail-closed modality ${variable}`);
+}
+if ((appHostingConfig.match(/value: local-proof/g) ?? []).length < 8) {
+  console.error('App Hosting must keep all multimodal provider selectors fail-closed at local-proof');
+  process.exit(1);
 }
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
