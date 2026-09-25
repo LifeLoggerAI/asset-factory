@@ -10,7 +10,9 @@ Canonical live tracker: GitHub issue #63.
 
 ## Current release position
 
-Status: **unified repo-side convergence in progress on PR #284; live evidence required before production lock**.
+Status: **repo-side hardening complete for current pass; live evidence required before production lock**.
+
+Unified convergence note: draft PR #284 carries production hardening, Model Forge, and multimodal provider work as the forward integration lane stacked on PR #281.
 
 The repo contains a functional local proof pipeline, the Studio/Firebase deploy path has been aligned, smoke-health compatibility has been fixed, CI/runtime drift has been fixed, and runbooks/evidence/lock docs have been synced. It is still not locked until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow with local fallback disabled.
 
