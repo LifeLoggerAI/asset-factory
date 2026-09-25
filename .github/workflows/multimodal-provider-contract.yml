@@ -155,7 +155,7 @@ jobs:
           assert.equal(receipt.headSha,process.env.TARGET_SHA)
           const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
           assert.equal(receipt.spatialHead,inventory.providerExecutionBoundary.spatialHead)
-          assert.equal(receipt.spatialHead,'6a6a8564014cf88502aac638b03270300ac3f971')
+          assert.equal(receipt.spatialHead,'8015397b649f69c8cf76d3afc35f50e34203052b')
           assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
           assert.deepEqual(receipt.modelForgeProductionTargets,[])
           assert.equal(receipt.noSpend,true)
