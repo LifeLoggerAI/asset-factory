@@ -85,6 +85,8 @@ for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', 'loopbackHostname', "hos
 }
 assertIncludes(videoProviderRuntime, "redirect: 'error'", 'video provider redirect rejection');
 assertIncludes(providerRuntime, "redirect: 'error'", 'generic provider redirect rejection');
+assertIncludes(videoProviderRuntime, "parsed.protocol !== 'https:'", 'video provider HTTPS-only transport');
+assertIncludes(providerRuntime, "Provider artifact URL must use HTTPS", 'generic provider HTTPS-only transport');
 
 for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
   assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
