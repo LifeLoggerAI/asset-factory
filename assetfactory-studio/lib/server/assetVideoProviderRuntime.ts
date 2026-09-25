@@ -23,13 +23,44 @@ function numberEnv(name: string, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function isPrivateIpv4(hostname: string) {
+  const parts = hostname.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254) ||
+    a === 0
+  );
+}
+
+function isPrivateIpv6(hostname: string) {
+  const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return (
+    normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    /^fe[89ab]/.test(normalized)
+  );
+}
+
 function publicUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   try {
     const parsed = new URL(value);
     if (!['https:', 'http:'].includes(parsed.protocol)) return null;
     const host = parsed.hostname.toLowerCase();
-    if (host === loopbackHostname || host === '::1' || host.endsWith('.local') || host.startsWith('127.')) return null;
+    if (
+      host === loopbackHostname ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.local') ||
+      isPrivateIpv4(host) ||
+      isPrivateIpv6(host)
+    ) return null;
     return parsed.toString();
   } catch {
     return null;
