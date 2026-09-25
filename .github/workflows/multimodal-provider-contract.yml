@@ -97,6 +97,9 @@ jobs:
           assert.equal(local.spendAuthorized,false)
           assert.equal(local.modalityReadiness.image.provider,'local-proof')
           assert.ok(local.modalityReadiness.image.blockers.includes('external-provider-not-selected'))
+          assert.ok(local.deploymentReadiness.dedicatedProductionTarget.blockers.includes('dedicated-production-target-not-configured'))
+          assert.ok(local.deploymentReadiness.wif.blockers.includes('wif-not-configured'))
+          assert.ok(local.deploymentReadiness.providerLiveSmoke.blockers.includes('provider-live-smoke-not-certified'))
           assert.equal(external.modalityReadiness.image.provider,'openai')
           assert.ok(external.modalityReadiness.image.blockers.includes('provider-credential-not-configured'))
           assert.ok(external.modalityReadiness.image.blockers.includes('provider-spend-not-authorized'))
@@ -111,6 +114,10 @@ jobs:
           spatial_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
           model_forge_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
           production_targets="$(node -p "JSON.stringify(JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).productionTargets)")"
+          readiness_file="artifacts/provider-contract/provider-readiness-local-proof.json"
+          dedicated_target_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.dedicatedProductionTarget.configured")"
+          wif_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.wif.configured")"
+          live_smoke_certified="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.providerLiveSmoke.certified")"
           cat > artifacts/provider-contract/receipt.json <<EOF
           {
             "schemaVersion": 1,
@@ -119,6 +126,11 @@ jobs:
             "modelForgeExecutionBoundary": "$model_forge_status",
             "modelForgeProductionTargets": $production_targets,
             "noSpend": true,
+            "deploymentReadiness": {
+              "dedicatedProductionTargetConfigured": $dedicated_target_configured,
+              "wifConfigured": $wif_configured,
+              "providerLiveSmokeCertified": $live_smoke_certified
+            },
             "selectors": {
               "media": "local-proof",
               "image": "local-proof",
@@ -144,6 +156,9 @@ jobs:
           assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
           assert.deepEqual(receipt.modelForgeProductionTargets,[])
           assert.equal(receipt.noSpend,true)
+          assert.equal(receipt.deploymentReadiness.dedicatedProductionTargetConfigured,false)
+          assert.equal(receipt.deploymentReadiness.wifConfigured,false)
+          assert.equal(receipt.deploymentReadiness.providerLiveSmokeCertified,false)
           assert.equal(receipt.providerSecretsInjected,false)
           console.log('PASS exact-head no-spend provider receipt')
           NODE
