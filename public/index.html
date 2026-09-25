@@ -23,13 +23,13 @@
   </head>
   <body>
     <main>
-      <div class="eyebrow">URAI / LifeLogger System of Systems</div>
+      <div class="eyebrow">URAI System of Systems</div>
       <h1>Asset Factory production surface.</h1>
       <p>
         This deployment hosts the URAI asset generation control plane: request intake, durable metadata,
         queue records, Life Map event ingestion, Firestore and Storage rules, Firebase Functions, and live readiness checks.
       </p>
-      <div class="status"><span class="dot"></span><span>Hosting shell live. Verify Functions at <code>/api/health</code>.</span></div>
+      <div class="status"><span class="dot"></span><span>Hosting shell present. Verify the deployed Functions boundary at <code>/api/health</code> before treating runtime status as live.</span></div>
       <section class="grid" aria-label="Asset Factory subsystems">
         <div class="card"><h2>Asset Intake</h2><p>POST <code>/api/assets</code> to create queued asset requests with metadata, tags, format, dimensions, and lifecycle state.</p></div>
         <div class="card"><h2>Asset Status</h2><p>GET <code>/api/assets/{assetId}</code> to read current request status and storage manifest path.</p></div>
