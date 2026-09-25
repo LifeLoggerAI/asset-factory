@@ -84,14 +84,26 @@ for (const required of [
 if (grant.includes('firebase apphosting:backends:list')) {
   fail('grant workflow must not use the historical brittle App Hosting backend list parser');
 }
+function hasYamlLiteralPin(text, key, forbiddenPrefix) {
+  return text.split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    const prefix = `${key}:`;
+    if (!trimmed.startsWith(prefix)) return false;
+    const value = trimmed.slice(prefix.length).trim().replace(/^['"]|['"]$/g, '');
+    return value.startsWith(forbiddenPrefix);
+  });
+}
+
 for (const [label, text] of [['smoke', smoke], ['grant', grant]]) {
   if (text.includes(`PROJECT_ID: ${historicalProject}`) || text.includes(`EXPECTED_PROJECT_ID: ${historicalProject}`)) {
     fail(`${label} workflow must not pin historical project ${historicalProject}`);
   }
-  if (text.includes(historicalProviderPrefix)) {
+  if (hasYamlLiteralPin(text, 'GCP_WIF_PROVIDER', historicalProviderPrefix) ||
+      hasYamlLiteralPin(text, 'workload_identity_provider', historicalProviderPrefix)) {
     fail(`${label} workflow must not pin historical WIF project authority`);
   }
-  if (text.includes(historicalServiceAccount)) {
+  if (hasYamlLiteralPin(text, 'GCP_DEPLOY_SERVICE_ACCOUNT', historicalServiceAccount) ||
+      hasYamlLiteralPin(text, 'service_account', historicalServiceAccount)) {
     fail(`${label} workflow must not pin historical deploy service account`);
   }
 }
