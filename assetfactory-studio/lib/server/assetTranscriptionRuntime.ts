@@ -52,7 +52,7 @@ export async function transcribeAssetFile(input: {
   if (process.env.ELEVENLABS_ZERO_RETENTION === 'true') endpoint.searchParams.set('enable_logging', 'false');
 
   const form = new FormData();
-  form.set('file', new Blob([input.bytes], { type: input.mimeType || 'application/octet-stream' }), input.filename || 'source-audio');
+  form.set('file', new Blob([new Uint8Array(input.bytes)], { type: input.mimeType || 'application/octet-stream' }), input.filename || 'source-audio');
   form.set('model_id', modelId);
   form.set('diarize', 'true');
   form.set('tag_audio_events', 'true');
