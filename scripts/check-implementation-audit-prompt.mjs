@@ -30,6 +30,7 @@ const requiredPromptPhrases = [
   'Never update completion-lock status to locked unless every P0 gate is proven with linked evidence',
   'ASSET_FACTORY_FORCE_LOCAL=false',
   'provider-backed generation',
+  'human approval',
   'Durable queue/worker',
   'Stripe webhook',
   'Observability',
@@ -52,7 +53,9 @@ const requiredLaunchPhrases = [
   'Real provider-backed generation using production credentials and selected model IDs; current repo authority proves contracts/no-spend boundaries, not live provider activation.',
   'Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.',
   'Production Stripe webhook proof that verified events persist idempotent tenant quota/plan records.',
-  'Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.'
+  'Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.',
+  'Modality-specific governed provider broker for image, 3D, speech, SFX, music, STT, and video, defaulting to no-spend `local-proof`.',
+  'Provider-backed outputs remain draft candidates with provider/model/task provenance and cannot self-promote to canonical/Gold Master.'
 ];
 
 const missingLaunchPhrases = requiredLaunchPhrases.filter((phrase) => !launch.includes(phrase));
