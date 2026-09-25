@@ -48,8 +48,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Studio dependencies
-        run: npm --prefix assetfactory-studio install
+      - name: Install Studio dependencies from lock
+        run: npm --prefix assetfactory-studio ci
 
       - name: Prove paid-provider secrets are absent
         shell: bash
@@ -75,3 +75,37 @@ jobs:
 
       - name: Run multimodal static contract
         run: node scripts/test-asset-factory-multimodal.mjs
+
+      - name: Write exact-head provider receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/provider-contract
+          cat > artifacts/provider-contract/receipt.json <<EOF
+          {
+            "schemaVersion": 1,
+            "headSha": "$TARGET_SHA",
+            "noSpend": true,
+            "selectors": {
+              "media": "local-proof",
+              "image": "local-proof",
+              "model3d": "local-proof",
+              "audio": "local-proof",
+              "sfx": "local-proof",
+              "music": "local-proof",
+              "stt": "local-proof",
+              "video": "local-proof"
+            },
+            "providerSecretsInjected": false,
+            "result": "contracts-passed"
+          }
+          EOF
+          node -e "JSON.parse(require('fs').readFileSync('artifacts/provider-contract/receipt.json','utf8'))"
+
+      - name: Retain provider contract receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: multimodal-provider-contract
+          path: artifacts/provider-contract/receipt.json
+          if-no-files-found: error
+          retention-days: 30
