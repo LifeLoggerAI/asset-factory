@@ -98,6 +98,13 @@ try {
     /Invalid ASSET_FACTORY_IMAGE_PROVIDER provider/
   );
 
+  delete process.env.ASSET_FACTORY_IMAGE_PROVIDER;
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'not-a-provider';
+  assert.throws(
+    () => configuredProviderForRequest({ jobId:'legacy-bad', prompt:'bad', type:'graphic' }, definition('graphic')),
+    /Invalid ASSET_FACTORY_MEDIA_PROVIDER provider/
+  );
+
   console.log('PASS modality-specific provider routing contract tests');
 } finally {
   for (const key of keys) {
