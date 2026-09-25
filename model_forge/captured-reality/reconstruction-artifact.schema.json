@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://urai.app/schemas/captured-reality-reconstruction-artifact-v1.json",
+  "title": "URAI Captured Reality Reconstruction Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "assetId",
+    "classification",
+    "sourceAuthority",
+    "reconstruction",
+    "artifacts",
+    "truth",
+    "qa",
+    "governance"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "urai-captured-reality-reconstruction-artifact-v1"
+    },
+    "assetId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "classification": {
+      "enum": [
+        "private-source-backed-reconstruction",
+        "interpretive-reconstruction"
+      ]
+    },
+    "sourceAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceReceiptRefs",
+        "sourceCount",
+        "immutableOriginalsVerified",
+        "locationConsentPurpose"
+      ],
+      "properties": {
+        "sourceReceiptRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "sourceCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "immutableOriginalsVerified": {
+          "const": true
+        },
+        "locationConsentPurpose": {
+          "const": "location.context"
+        },
+        "containsThirdPartyPeople": {
+          "type": "boolean"
+        },
+        "containsRecognizableLikeness": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "cameraSolveReceiptRef",
+        "trainingReceiptRef",
+        "providerSpendAuthorized"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "3dgs",
+            "photogrammetry",
+            "nerf-derived",
+            "hybrid"
+          ]
+        },
+        "cameraSolveReceiptRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trainingReceiptRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "providerSpendAuthorized": {
+          "type": "boolean"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "archival",
+        "runtime",
+        "collision"
+      ],
+      "properties": {
+        "archival": {
+          "$ref": "#/$defs/artifact"
+        },
+        "runtime": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "const": "splat"
+                }
+              }
+            }
+          ]
+        },
+        "collision": {
+          "$ref": "#/$defs/collisionArtifact"
+        }
+      }
+    },
+    "truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truthClass",
+        "generatedFillCountsAsRecordedTruth",
+        "runtimeTruthLabel"
+      ],
+      "properties": {
+        "truthClass": {
+          "enum": [
+            "spatially-reconstructable",
+            "interpretive",
+            "unknown"
+          ]
+        },
+        "generatedFillCountsAsRecordedTruth": {
+          "const": false
+        },
+        "runtimeTruthLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      }
+    },
+    "qa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceVsReconstructionReviewed",
+        "heldOutViewCount",
+        "knownArtifactCount",
+        "reviewState"
+      ],
+      "properties": {
+        "sourceVsReconstructionReviewed": {
+          "type": "boolean"
+        },
+        "heldOutViewCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "knownArtifactCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reviewState": {
+          "enum": [
+            "unreviewed",
+            "rejected",
+            "accepted"
+          ]
+        },
+        "receiptRef": {
+          "type": "string"
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "promotionAllowed",
+        "humanReviewApproved",
+        "spatialExactHead",
+        "publicReleaseAuthorized",
+        "xrCertified"
+      ],
+      "properties": {
+        "promotionAllowed": {
+          "type": "boolean"
+        },
+        "humanReviewApproved": {
+          "type": "boolean"
+        },
+        "spatialExactHead": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "publicReleaseAuthorized": {
+          "const": false
+        },
+        "xrCertified": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "format",
+        "sha256",
+        "byteSize"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "format": {
+          "enum": [
+            "ply-3dgs",
+            "compressed-ply-3dgs",
+            "spz",
+            "sog",
+            "splat",
+            "glb"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "collisionArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "format",
+        "sha256",
+        "byteSize",
+        "independentFromVisualSplat"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "format": {
+          "enum": [
+            "glb",
+            "navmesh-json"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "independentFromVisualSplat": {
+          "const": true
+        }
+      }
+    }
+  }
+}
