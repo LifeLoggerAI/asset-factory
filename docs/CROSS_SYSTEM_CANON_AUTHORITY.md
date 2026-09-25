@@ -9,7 +9,7 @@ Repository role: **asset generation, Model Forge and governed provider execution
 Current cross-system canon candidate:
 - Repository: `LifeLoggerAI/urai-labs-llc`
 - PR: `#102`
-- - Canon path: `docs/canon/`
+- Canon path: `docs/canon/`
 
 PR #102 is the current main-target consolidated canon candidate. Labs #107 is a sibling rebase onto the Labs convergence branch and does not replace #102 as downstream mainline authority.
 
