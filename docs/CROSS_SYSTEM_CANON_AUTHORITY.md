@@ -8,15 +8,14 @@ Repository role: **asset generation, Model Forge and governed provider execution
 
 Current cross-system canon candidate:
 - Repository: `LifeLoggerAI/urai-labs-llc`
-- PR: `#107`
-- Exact head observed at reconciliation: `e100bbfa2336358b4eb949d2411fe786baddfc3d`
-- Canon path: `docs/canon/`
+- PR: `#102`
+- - Canon path: `docs/canon/`
 
-PR #107 is the current zero-ambiguity canon successor. Earlier Labs canon candidates, including #101 and #102, are provenance only where superseded.
+PR #102 is the current main-target consolidated canon candidate. Labs #107 is a sibling rebase onto the Labs convergence branch and does not replace #102 as downstream mainline authority.
 
-Until #107 is legitimately merged, current merged local contracts and this repository's exact candidate govern implementation facts. This file transfers no certification, review, deployment, provider, legal, financial, Gold-Master, runtime, or exact-head evidence.
+Until #102 is legitimately merged, current merged local contracts and this repository's exact candidate govern implementation facts. This file transfers no certification, review, deployment, provider, legal, financial, Gold-Master, runtime, or exact-head evidence.
 
-Authority regression guard: any later reintroduction of Labs #101/#102 as current Asset Factory canon authority is stale and must fail review rather than silently supersede this line.
+Authority regression guard: reintroduction of closed/superseded Labs #101 or sibling #107 as downstream mainline authority must fail review unless #102 itself is explicitly superseded by a newer main-target canon PR.
 
 ## Local invariants
 
@@ -40,4 +39,4 @@ Verified runtime -> merged implementation -> exact-head release evidence -> loca
 
 ## Required adoption action
 
-After upstream PR #107 merges, reconcile local contracts against the merged canon and classify conflicts as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with provenance retained.
+After upstream PR #102 merges, reconcile local contracts against the merged canon and classify conflicts as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with provenance retained.
