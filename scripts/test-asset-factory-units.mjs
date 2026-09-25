@@ -324,12 +324,14 @@ async function testRejectsNonRequeueableStatus() {
 async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
   const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
   const calls = [];
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
   process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '1024';
@@ -372,6 +374,8 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
     process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
@@ -381,10 +385,12 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
 async function testProviderArtifactRejectsPrivateUrls() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
 
@@ -416,6 +422,8 @@ async function testProviderArtifactRejectsPrivateUrls() {
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
   }
@@ -424,11 +432,13 @@ async function testProviderArtifactRejectsPrivateUrls() {
 async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
   const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
   process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '3';
@@ -467,6 +477,8 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
     process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
