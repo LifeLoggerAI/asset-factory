@@ -266,6 +266,11 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
       ? `${input.size.width}x${input.size.height}`
       : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
     const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2.5-sunburst';
+    const configuredFormat = (env('ASSET_FACTORY_OPENAI_IMAGE_FORMAT') || env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png').toLowerCase();
+    const outputFormat = configuredFormat === 'jpg' ? 'jpeg' : configuredFormat;
+    if (!['png', 'jpeg', 'webp'].includes(outputFormat)) {
+      throw new Error(`Invalid OpenAI image output format: ${configuredFormat}`);
+    }
     const payload = await postJson(
       'https://api.openai.com/v1/images/generations',
       { authorization: `Bearer ${apiKey}` },
@@ -274,18 +279,19 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
         prompt: input.prompt,
         size,
         quality: env('ASSET_FACTORY_OPENAI_IMAGE_QUALITY') || 'high',
-        output_format: env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png',
+        output_format: outputFormat,
       }
     );
     const data = Array.isArray(payload.data) ? payload.data[0] as JsonRecord | undefined : undefined;
     const b64 = stringValue(data?.b64_json);
     const url = stringValue(data?.url);
     if (b64) {
+      const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : `image/${outputFormat}`;
       return {
         assetBuffer: Buffer.from(b64, 'base64'),
-        assetMimeType: 'image/png',
-        extension: 'png',
-        metadata: { provider: 'openai', providerModel: model, providerOutput: 'b64_json' },
+        assetMimeType: mimeType,
+        extension: outputFormat === 'jpeg' ? 'jpg' : outputFormat,
+        metadata: { provider: 'openai', providerModel: model, providerOutput: 'b64_json', outputFormat },
       };
     }
     if (url) {
@@ -293,15 +299,15 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
       return {
         assetBuffer: binary.buffer,
         assetMimeType: binary.mimeType,
-        extension: extensionFromMime(binary.mimeType, 'png'),
-        metadata: { provider: 'openai', providerModel: model, providerOutput: 'url' },
+        extension: extensionFromMime(binary.mimeType, outputFormat === 'jpeg' ? 'jpg' : outputFormat),
+        metadata: { provider: 'openai', providerModel: model, providerOutput: 'url', outputFormat },
       };
     }
     throw new Error('OpenAI image response did not include b64_json or url');
   }
 
   if (definition.canonicalType === 'audio') {
-    const model = env('ASSET_FACTORY_AUDIO_MODEL') || 'gpt-4o-mini-tts';
+    const model = env('ASSET_FACTORY_OPENAI_SPEECH_MODEL') || env('ASSET_FACTORY_AUDIO_MODEL') || 'gpt-4o-mini-tts';
     const voice = env('ASSET_FACTORY_OPENAI_VOICE') || 'alloy';
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
@@ -428,8 +434,16 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
 async function renderStability(input: GenerateRequest): Promise<ProviderRenderResult | null> {
   const apiKey = env('STABILITY_API_KEY');
   if (!apiKey) return null;
-  const engine = env('ASSET_FACTORY_GRAPHICS_MODEL') || 'stable-image-core';
-  const response = await fetch(`https://api.stability.ai/v2beta/stable-image/generate/${engine}`, {
+  const configuredService = (env('ASSET_FACTORY_STABILITY_IMAGE_SERVICE') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'core').toLowerCase();
+  const service = configuredService === 'stable-image-core'
+    ? 'core'
+    : configuredService === 'stable-image-ultra'
+      ? 'ultra'
+      : configuredService;
+  if (!['core', 'ultra'].includes(service)) {
+    throw new Error(`Invalid Stability image service: ${configuredService}; expected core or ultra`);
+  }
+  const response = await fetch(`https://api.stability.ai/v2beta/stable-image/generate/${service}`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${apiKey}`,
@@ -439,6 +453,7 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
       const form = new FormData();
       form.set('prompt', input.prompt);
       form.set('output_format', env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png');
+      if (input.aspectRatio) form.set('aspect_ratio', input.aspectRatio);
       return form;
     })(),
     signal: providerAbortSignal(),
@@ -449,7 +464,7 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
     assetBuffer: Buffer.from(await response.arrayBuffer()),
     assetMimeType: mimeType,
     extension: extensionFromMime(mimeType, 'png'),
-    metadata: { provider: 'stability', providerModel: engine },
+    metadata: { provider: 'stability', providerModel: `stable-image-${service}`, providerService: service },
   };
 }
 
@@ -524,11 +539,12 @@ function replicateInput(input: GenerateRequest, selection: ReplicateModelSelecti
     const negativePrompt = stringValue(input.metadata?.negativePrompt);
     if (negativePrompt) modelInput.negative_prompt = negativePrompt;
   } else if (selection.lane === 'model3d' && modelName === 'tencent/hunyuan-3d-3.1') {
+    const generateType = input.metadata?.generateType === 'Geometry' ? 'Geometry' : 'Normal';
     modelInput = {
       prompt: input.prompt,
-      enable_pbr: input.metadata?.enablePbr === true,
+      enable_pbr: generateType === 'Normal' && input.metadata?.enablePbr !== false,
       face_count: 40000,
-      generate_type: input.metadata?.generateType === 'Normal' ? 'Normal' : 'Geometry',
+      generate_type: generateType,
     };
   } else {
     modelInput = { prompt: input.prompt };
@@ -638,6 +654,14 @@ function meshyModelUrl(task: JsonRecord) {
   return stringValue((urls as JsonRecord).glb) || firstUrl(urls);
 }
 
+function meshyResolution(name: string, fallback: string, allowed: string[]) {
+  const value = env(name) || fallback;
+  if (!allowed.includes(value)) {
+    throw new Error(`Invalid ${name}: ${value}; expected ${allowed.join(', ')}`);
+  }
+  return value;
+}
+
 async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
   if (definition.canonicalType !== 'model3d') return null;
   const apiKey = env('MESHY_API_KEY');
@@ -648,7 +672,8 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
     ? metadata.sourceImageUrls.filter((value): value is string => typeof value === 'string' && value.startsWith('https://')).slice(0, 4)
     : [];
   const sourceImageUrl = stringValue(metadata.sourceImageUrl);
-  const model = env('ASSET_FACTORY_MESHY_MODEL') || 'meshy-7.1';
+  const imageModel = env('ASSET_FACTORY_MESHY_MODEL') || 'meshy-7.1';
+  let selectedModel = imageModel;
   let endpoint = 'https://api.meshy.ai/openapi/v2/text-to-3d';
   let createBody: JsonRecord;
 
@@ -656,8 +681,8 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
     endpoint = 'https://api.meshy.ai/openapi/v1/multi-image-to-3d';
     createBody = {
       image_urls: imageUrls,
-      ai_model: model,
-      geometry_resolution: env('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION') || '2k',
+      ai_model: imageModel,
+      geometry_resolution: meshyResolution('ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION', '2k', ['standard', '2k']),
       should_texture: true,
       enable_pbr: true,
       target_formats: ['glb'],
@@ -666,16 +691,24 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
     endpoint = 'https://api.meshy.ai/openapi/v1/image-to-3d';
     createBody = {
       image_url: sourceImageUrl || imageUrls[0],
-      ai_model: model,
-      geometry_resolution: env('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION') || '4k',
+      ai_model: imageModel,
+      geometry_resolution: meshyResolution('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION', '4k', ['standard', '2k', '4k']),
       should_texture: true,
       enable_pbr: true,
       target_formats: ['glb'],
     };
   } else {
+    const textModel = env('ASSET_FACTORY_MESHY_TEXT_MODEL') || imageModel;
+    selectedModel = textModel;
     createBody = {
       mode: 'preview',
       prompt: String(input.prompt).slice(0, 800),
+      ai_model: textModel,
+      geometry_resolution: meshyResolution(
+        'ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION',
+        env('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION') || '4k',
+        ['standard', '2k', '4k']
+      ),
       model_type: env('ASSET_FACTORY_MESHY_MODEL_TYPE') || 'standard',
       should_remesh: false,
       moderation: true,
@@ -711,7 +744,7 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
     extension: 'glb',
     metadata: {
       provider: 'meshy',
-      providerModel: model,
+      providerModel: selectedModel,
       providerTaskId: task.id ?? taskId,
       generationMode: endpoint.includes('multi-image') ? 'multi-image-to-3d' : endpoint.includes('image-to-3d') ? 'image-to-3d' : 'text-to-3d',
       pbrRequested: true,
