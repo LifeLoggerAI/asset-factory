@@ -30,6 +30,11 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Require exact bounded authorization
         env:
           CONFIRM_PAID_WAVE: ${{ inputs.confirm_paid_wave }}
@@ -50,8 +55,6 @@ jobs:
           boundary_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
           test "$boundary_status" = 'authorized-current-head-gap-proof' || { echo "::error::Paid Model Forge execution is source-blocked: $boundary_status"; exit 71; }
           test -n "$boundary_head" || { echo '::error::Authorized Model Forge execution must name the reconciled Spatial exact head.'; exit 72; }
-
-      - uses: actions/checkout@v4
 
       - uses: google-github-actions/auth@v3
         id: google_auth
