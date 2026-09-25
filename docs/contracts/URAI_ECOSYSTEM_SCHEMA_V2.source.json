@@ -1,0 +1,10 @@
+{
+  "contract": "urai://contracts/ecosystem-schema-v2",
+  "state": "draft-sync-only",
+  "authorityRepository": "LifeLoggerAI/urai-content",
+  "authorityPath": "docs/contracts/URAI_ECOSYSTEM_SCHEMA_V2.json",
+  "authorityBlobSha": "88525d5edb80ded5c44861602398f5548b4d1b44",
+  "authorityCandidatePr": 84,
+  "consumerRuntimeAuthority": "LifeLoggerAI/urai-spatial",
+  "rule": "Compatibility only; local runtime authority and CI/review remain independent."
+}
