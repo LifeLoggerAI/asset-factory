@@ -321,6 +321,43 @@ async function testRejectsNonRequeueableStatus() {
   assert.equal(db.store.assetFactoryQueue.job_completed.status, 'completed');
 }
 
+
+async function testExternalProviderRequiresExplicitSpendAuthorization() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
+  let fetchCalled = false;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+  process.env.REPLICATE_API_TOKEN = 'test-token';
+  process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error('provider fetch must not execute without explicit spend authorization');
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'spend-kill-switch-test', tenantId: 'tenant-a', prompt: 'must stay local', type: 'graphic' },
+        resolveAssetType('graphic')
+      ),
+      /ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED is not true/
+    );
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
+    process.env.REPLICATE_API_TOKEN = originalToken;
+    process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+  }
+}
+
 async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
@@ -493,6 +530,7 @@ try {
   await testRequeueDeadLetteredJob();
   await testRejectsTenantMismatch();
   await testRejectsNonRequeueableStatus();
+  await testExternalProviderRequiresExplicitSpendAuthorization();
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
   await testProviderArtifactRejectsChunkedOverLimitDownload();
