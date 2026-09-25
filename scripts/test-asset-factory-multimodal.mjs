@@ -94,6 +94,7 @@ assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image support
 assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_IMAGE_FORMAT", 'OpenAI image format authority');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_SPEECH_MODEL", 'OpenAI speech model authority');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_VOICE must be explicitly configured", 'fail-closed OpenAI voice identity');
 assertIncludes(providerRuntime, "https://api.stability.ai/v2beta/stable-image/generate/${service}", 'current Stability image endpoint');
 assertIncludes(providerRuntime, "expected core or ultra", 'Stability service allowlist');
 assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configured", 'fail-closed ElevenLabs voice identity');
@@ -160,8 +161,10 @@ assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics
 assertIncludes(manifestRoute, 'modalityReadiness', 'modality-aware provider readiness');
 assertIncludes(manifestRoute, 'providerSpendAuthorized', 'provider spend authorization readiness');
 assertIncludes(manifestRoute, "enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')", 'provider spend kill switch readiness');
-assertIncludes(manifestRoute, "modality === 'audio' && providerName === 'elevenlabs'", 'ElevenLabs speech readiness boundary');
+assertIncludes(manifestRoute, "approved-voice-not-configured", 'speech identity readiness blocker');
+assertIncludes(manifestRoute, "configured('ASSET_FACTORY_OPENAI_VOICE')", 'approved OpenAI voice readiness requirement');
 assertIncludes(manifestRoute, "configured('ELEVENLABS_VOICE_ID')", 'approved ElevenLabs voice readiness requirement');
+assertIncludes(manifestRoute, "provider-account-capability-not-certified", 'Runway account capability readiness blocker');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')", 'Replicate video model readiness requirement');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')", 'fal video endpoint readiness requirement');
 assertIncludes(validation, 'metadata.durationSeconds', 'video duration validation');
