@@ -59,6 +59,17 @@ function buildManifest(input: GenerateRequest & Record<string, unknown>, extra: 
     provenance: {
       engine: 'assetfactory-studio',
       rendererContract: extra.rendererContract ?? 'deterministic-local-v1',
+      sourceType: extra.metadata?.provider ? 'ai-generated' : 'procedural-proof',
+      provider: extra.metadata?.provider ?? null,
+      providerModel: extra.metadata?.providerModel ?? null,
+      providerJobId: extra.metadata?.providerJobId ?? extra.metadata?.providerTaskId ?? extra.metadata?.predictionId ?? null,
+      promptHash: stableHash(input.prompt ?? ''),
+      referenceHash: stableHash({
+        sourceImageUrl: (input.metadata as Record<string, unknown> | undefined)?.sourceImageUrl ?? null,
+        sourceImageUrls: (input.metadata as Record<string, unknown> | undefined)?.sourceImageUrls ?? null,
+        referenceImageUrl: (input.metadata as Record<string, unknown> | undefined)?.referenceImageUrl ?? null,
+        referenceVideoUrl: (input.metadata as Record<string, unknown> | undefined)?.referenceVideoUrl ?? null,
+      }),
       inputHash: stableHash({
         prompt: input.prompt,
         type: input.type,
@@ -68,6 +79,7 @@ function buildManifest(input: GenerateRequest & Record<string, unknown>, extra: 
         size: input.size ?? null,
         metadata: input.metadata ?? null,
       }),
+      canonicalCandidateOnly: extra.metadata?.provider ? true : false,
     },
     approvalStatus: 'draft',
     version: 1,
