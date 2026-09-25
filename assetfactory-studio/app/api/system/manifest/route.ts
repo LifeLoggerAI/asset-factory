@@ -75,35 +75,72 @@ export async function GET(req: NextRequest) {
     return providers.adapters.some((provider) => provider.name === providerName && provider.configured);
   }
 
-  function modalityProviderReady(modality: keyof typeof modalityRouting, providerName: string) {
-    if (providerName === 'local-proof' || !providerConfigured(providerName)) return false;
-    if (modality === 'audio' && providerName === 'elevenlabs') {
-      return configured('ELEVENLABS_VOICE_ID');
+  function modalityProviderStatus(modality: keyof typeof modalityRouting, providerName: string) {
+    const blockers: string[] = [];
+    if (providerName === 'local-proof') {
+      blockers.push('external-provider-not-selected');
+      return { ready: false, blockers };
     }
+    if (!providerConfigured(providerName)) blockers.push('provider-credential-not-configured');
+
+    if (providerName === 'openai') {
+      if (modality === 'image' && !configured('ASSET_FACTORY_OPENAI_IMAGE_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'audio' && !configured('ASSET_FACTORY_OPENAI_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+    }
+
+    if (providerName === 'elevenlabs') {
+      if (modality === 'audio') {
+        if (!configured('ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+        if (!configured('ELEVENLABS_VOICE_ID')) blockers.push('approved-voice-not-configured');
+      }
+      if (modality === 'sfx' && !configured('ASSET_FACTORY_ELEVENLABS_SFX_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'music' && !configured('ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'stt' && !configured('ASSET_FACTORY_ELEVENLABS_STT_MODEL')) blockers.push('provider-model-not-configured');
+    }
+
+    if (providerName === 'meshy' && modality === 'model3d' && !configured('ASSET_FACTORY_MESHY_MODEL')) {
+      blockers.push('provider-model-not-configured');
+    }
+
+    if (providerName === 'stability' && modality === 'image' && !configured('ASSET_FACTORY_STABILITY_IMAGE_SERVICE')) {
+      blockers.push('provider-model-not-configured');
+    }
+
+    if (providerName === 'runway' && modality === 'video') {
+      if (!configured('ASSET_FACTORY_RUNWAY_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
+      if (!enabled('ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY')) blockers.push('provider-account-capability-not-certified');
+    }
+
     if (providerName === 'replicate') {
-      if (modality === 'image') return configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
-      if (modality === 'model3d') return configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL');
-      if (modality === 'audio') return configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL');
-      if (modality === 'video') return configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL');
+      if (modality === 'image' && !(configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL'))) blockers.push('provider-model-not-configured');
+      if (modality === 'model3d' && !(configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL'))) blockers.push('provider-model-not-configured');
+      if (modality === 'audio' && !(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
+      if (modality === 'video' && !configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
     }
+
     if (providerName === 'fal') {
-      if (modality === 'image') return configured('ASSET_FACTORY_GRAPHICS_MODEL');
-      if (modality === 'model3d') return configured('ASSET_FACTORY_MODEL3D_MODEL');
-      if (modality === 'audio' || modality === 'sfx' || modality === 'music') return configured('ASSET_FACTORY_AUDIO_MODEL');
-      if (modality === 'video') return configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT');
+      if (modality === 'image' && !configured('ASSET_FACTORY_GRAPHICS_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'model3d' && !configured('ASSET_FACTORY_MODEL3D_MODEL')) blockers.push('provider-model-not-configured');
+      if ((modality === 'audio' || modality === 'sfx' || modality === 'music') && !configured('ASSET_FACTORY_AUDIO_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')) blockers.push('provider-endpoint-not-configured');
     }
-    return true;
+
+    return { ready: blockers.length === 0, blockers };
   }
 
   const modalityReadiness = Object.fromEntries(
-    Object.entries(modalityRouting).map(([modality, providerName]) => [
-      modality,
-      {
-        provider: providerName,
-        external: providerName !== 'local-proof',
-        ready: modalityProviderReady(modality as keyof typeof modalityRouting, providerName),
-      },
-    ])
+    Object.entries(modalityRouting).map(([modality, providerName]) => {
+      const status = modalityProviderStatus(modality as keyof typeof modalityRouting, providerName);
+      return [
+        modality,
+        {
+          provider: providerName,
+          external: providerName !== 'local-proof',
+          ready: status.ready,
+          blockers: status.blockers,
+        },
+      ];
+    })
   );
   const activeExternalRoutes = Object.values(modalityReadiness).filter((route) => route.external);
   const providerSpendAuthorized = enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED');
