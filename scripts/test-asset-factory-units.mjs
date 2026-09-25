@@ -45,18 +45,46 @@ fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), '
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
-compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
-compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
+const validationModulePath = compileTsModule('lib/server/assetFactoryValidation.ts', [
+  ["import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"],
+  ["import { validateSpatialModelContract } from './assetSpatialContract';", "const validateSpatialModelContract = () => null;"],
+]);
+compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
-  ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
-  ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };"] ,
-  ["import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';"],
+  ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; aspectRatio?: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
+  ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; extension: string };"] ,
+  ["import { configuredProviderName, isAssetProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName, isAssetProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway' | 'meshy';"],
 ]);
 
 const { buildStripeEntitlement } = await import(pathToFileURL(stripeModulePath).href);
 const { requeueAssetQueueJob } = await import(pathToFileURL(queueModulePath).href);
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
+const { validateGenerateRequest } = await import(pathToFileURL(validationModulePath).href);
 const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+
+
+function testRejectsPrivateProviderReferenceUrls() {
+  assert.equal(validateGenerateRequest({
+    jobId: 'video-private-ref',
+    prompt: 'animate',
+    type: 'video',
+    metadata: { referenceImageUrl: 'https://127.0.0.1/private.png' },
+  }), 'invalid metadata.referenceImageUrl');
+
+  assert.equal(validateGenerateRequest({
+    jobId: 'model-private-ref',
+    prompt: 'reconstruct',
+    type: 'model3d',
+    metadata: { sourceImageUrl: 'https://192.168.1.5/private.png' },
+  }), 'invalid metadata.sourceImageUrl');
+
+  assert.equal(validateGenerateRequest({
+    jobId: 'model-public-ref',
+    prompt: 'reconstruct',
+    type: 'model3d',
+    metadata: { sourceImageUrls: ['https://assets.example.com/a.png', 'https://assets.example.com/b.png'] },
+  }), null);
+}
 
 function testStripeEntitlementFromCheckoutSession() {
   const entitlement = buildStripeEntitlement({
@@ -449,6 +477,7 @@ try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
   testStripeEntitlementRequiresTenant();
+  testRejectsPrivateProviderReferenceUrls();
   await testRequeueDeadLetteredJob();
   await testRejectsTenantMismatch();
   await testRejectsNonRequeueableStatus();
