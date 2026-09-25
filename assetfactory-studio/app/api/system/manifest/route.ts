@@ -54,6 +54,10 @@ export async function GET(req: NextRequest) {
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
+  const falCredentialVisible = providers.adapters.some(
+    (provider) => provider.name === 'fal' && provider.configured
+  );
+  const falGraphicsConfigured = configured('ASSET_FACTORY_FAL_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
   const replicateGraphicsConfigured = configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
   const replicateModel3dConfigured = configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL');
   const replicateAudioConfigured = configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL');
@@ -88,6 +92,8 @@ export async function GET(req: NextRequest) {
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       providerBackedRendering: providerConfigured,
       replicateCredentialVisible,
+      falCredentialVisible,
+      falGraphicsConfigured,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
       replicateAudioConfigured,
@@ -112,6 +118,7 @@ export async function GET(req: NextRequest) {
       productionAuthReady,
       durableQueueConfigured,
       providerConfigured,
+      falGraphicsConfigured,
       replicateRegistryConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),

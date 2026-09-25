@@ -484,10 +484,10 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
 async function renderFal(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
   const apiKey = env('FAL_KEY');
   const model = definition.canonicalType === 'model3d'
-    ? env('ASSET_FACTORY_MODEL3D_MODEL')
+    ? env('ASSET_FACTORY_FAL_MODEL3D_MODEL') || env('ASSET_FACTORY_MODEL3D_MODEL')
     : definition.canonicalType === 'audio'
-      ? env('ASSET_FACTORY_AUDIO_MODEL')
-      : env('ASSET_FACTORY_GRAPHICS_MODEL');
+      ? env('ASSET_FACTORY_FAL_AUDIO_MODEL') || env('ASSET_FACTORY_AUDIO_MODEL')
+      : env('ASSET_FACTORY_FAL_GRAPHICS_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL');
   if (!apiKey || !model) return null;
 
   const payload = await postJson(
