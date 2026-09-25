@@ -260,7 +260,13 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
     const payload = await postJson(
       'https://api.openai.com/v1/images/generations',
       { authorization: `Bearer ${apiKey}` },
-      { model, prompt: input.prompt, size, response_format: 'b64_json' }
+      {
+        model,
+        prompt: input.prompt,
+        size,
+        quality: env('ASSET_FACTORY_OPENAI_IMAGE_QUALITY') || 'high',
+        output_format: env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png',
+      }
     );
     const data = Array.isArray(payload.data) ? payload.data[0] as JsonRecord | undefined : undefined;
     const b64 = stringValue(data?.b64_json);
