@@ -48,8 +48,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Studio dependencies from lock
-        run: npm --prefix assetfactory-studio ci
+      - name: Install dependencies from frozen root lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
 
       - name: Prove paid-provider secrets are absent
         shell: bash
