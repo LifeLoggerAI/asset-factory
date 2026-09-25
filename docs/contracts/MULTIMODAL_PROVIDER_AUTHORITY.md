@@ -74,11 +74,17 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Server-pinned model registry remains the fallback/model-lab authority.
 - MiniMax speech no longer has a stock `Friendly_Person` fallback; `ASSET_FACTORY_REPLICATE_SPEECH_VOICE` must be explicitly approved/configured before speech can run.
 - Request-level model/input overrides stay fail-closed by default.
+- Protected App Hosting verification and the one-time paid smoke consume the dedicated `asset-factory-production` environment variables rather than historical shared-project authority.
+- `urai-4dc1d`, project-number WIF authority under `952723774155`, the historical deploy service account, and `asset-factory-dev-id` are explicitly rejected as final production authority.
+- The paid smoke remains main-only, manual-only, exact-confirmation gated, one-prediction maximum, and separately classified from source/WIF/App Hosting verification.
 
 ### fal
 
 - Existing media adapter remains an optional low-latency fallback.
 - Video endpoint remains server-pinned and fail-closed until explicitly configured.
+- Direct REST authentication uses `Authorization: Key ...`.
+- Authenticated video endpoints are pinned to `fal.run` before the credential is attached.
+- Video REST fields use the provider contract naming such as `aspect_ratio`; request-level provider input overrides remain disabled unless explicitly enabled.
 
 ### Stability
 
@@ -104,7 +110,9 @@ Provider generation never changes `approvalStatus` from draft by itself.
 
 Speech identity is fail-closed across ElevenLabs, OpenAI TTS, and Replicate/MiniMax. No stock voice is treated as the UrAi voice merely because a provider supplies one.
 
-Provider-returned artifact URLs are rejected when they resolve syntactically to loopback, RFC1918/private IPv4, link-local IPv4, IPv6 loopback/unspecified, IPv6 unique-local, or IPv6 link-local host literals. Video and non-video provider downloaders enforce the same boundary.
+Provider-returned artifact URLs and provider-supplied reference URLs are rejected when they resolve syntactically to loopback, RFC1918/private IPv4, link-local IPv4, IPv6 loopback/unspecified, IPv6 unique-local, or IPv6 link-local host literals. Video and non-video provider downloaders enforce the same boundary. Meshy image and multi-image reference URLs use the same public-URL guard.
+
+Supported production provider transport is HTTPS-only. Provider JSON/artifact requests reject redirects rather than following them across a trust boundary. Direct binary provider responses are governed by the configured maximum-byte ceiling; authenticated JSON POSTs reject redirects as well.
 
 ## Real-world identity assets
 
@@ -160,14 +168,18 @@ No automated Substance API is claimed by this repository unless one is actually 
 
 A lane is not LIVE VERIFIED until all of these are true:
 
-1. credential exists in approved secret storage;
-2. deployed runtime is bound to that secret;
-3. server-side modality selector enables the provider;
-4. budget ceiling is active;
-5. real minimal smoke succeeds;
-6. artifact is captured into UrAi storage;
-7. provenance is recorded;
-8. consuming system successfully uses it;
-9. exact-head evidence is retained.
+1. dedicated Asset Factory production target/site/base URL are provider-generated and verified;
+2. short-lived GitHub OIDC/WIF deployment identity is configured for that dedicated target;
+3. credential exists in approved secret storage;
+4. deployed runtime is bound to that secret;
+5. server-side modality selector enables the provider;
+6. budget ceiling and spend authorization are active;
+7. real minimal governed smoke succeeds;
+8. artifact is captured into UrAi storage;
+9. provenance is recorded;
+10. consuming system successfully uses it;
+11. exact-head evidence is retained.
+
+The no-spend readiness surface reports explicit blockers including `dedicated-production-target-not-configured`, `wif-not-configured`, `provider-live-smoke-not-certified`, provider credential/model/endpoint blockers, approved-voice blockers, account-capability blockers, and provider-spend authorization.
 
 Code presence alone is not live-provider certification.
