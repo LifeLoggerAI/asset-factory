@@ -26,6 +26,14 @@ const requiredProductionEnv = [
   'STRIPE_WEBHOOK_SECRET',
   'CRON_SECRET',
   'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_SFX_PROVIDER',
+  'ASSET_FACTORY_MUSIC_PROVIDER',
+  'ASSET_FACTORY_STT_PROVIDER',
+  'ASSET_FACTORY_VIDEO_PROVIDER',
+  'ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS',
   'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
   'ASSET_FACTORY_PROVIDER_MAX_BYTES',
 ];
@@ -50,7 +58,20 @@ export async function GET(req: NextRequest) {
     if (authError) return authError;
   }
 
-  const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const externalCredentialAvailable = providers.adapters.some((provider) => provider.name !== 'local-proof' && provider.configured);
+  const modalityRouting = {
+    image: process.env.ASSET_FACTORY_IMAGE_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    model3d: process.env.ASSET_FACTORY_MODEL3D_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    audio: process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    sfx: process.env.ASSET_FACTORY_SFX_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    music: process.env.ASSET_FACTORY_MUSIC_PROVIDER || process.env.ASSET_FACTORY_AUDIO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+    stt: process.env.ASSET_FACTORY_STT_PROVIDER || 'local-proof',
+    video: process.env.ASSET_FACTORY_VIDEO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
+  };
+  const activeExternalProviderNames = [...new Set(Object.values(modalityRouting).filter((name) => name !== 'local-proof'))];
+  const activeExternalProvidersConfigured = activeExternalProviderNames.length > 0 && activeExternalProviderNames.every(
+    (name) => providers.adapters.some((provider) => provider.name === name && provider.configured)
+  );
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
@@ -86,7 +107,10 @@ export async function GET(req: NextRequest) {
       approvals: true,
       versioningWorkflow: true,
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providerConfigured,
+      providerBackedRendering: activeExternalProvidersConfigured,
+      modalityRouting,
+      activeExternalProviderNames,
+      externalCredentialAvailable,
       replicateCredentialVisible,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
@@ -111,11 +135,11 @@ export async function GET(req: NextRequest) {
       legacyHeaderAuthDisabled,
       productionAuthReady,
       durableQueueConfigured,
-      providerConfigured,
+      providerConfigured: activeExternalProvidersConfigured,
       replicateRegistryConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
+      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && activeExternalProvidersConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
         ? 'ready-for-smoke'
         : 'not-ready-for-smoke',
     },
