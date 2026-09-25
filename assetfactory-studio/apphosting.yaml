@@ -1,7 +1,7 @@
 # Asset Factory App Hosting runtime configuration.
 # Secret values live in Google Cloud Secret Manager and must never be committed.
-# Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER is explicitly selected
-# for an authorized provider-backed generation run.
+# External providers remain dormant until a modality selector is explicitly changed
+# from local-proof and the independent spend kill switch is deliberately authorized.
 env:
   # Explicit launch-safe routing. Credentials may exist without authorizing spend.
   - variable: ASSET_FACTORY_MEDIA_PROVIDER
@@ -100,5 +100,111 @@ env:
   # Allow enough time for production-quality 3D predictions to complete.
   - variable: ASSET_FACTORY_PROVIDER_TIMEOUT_MS
     value: "300000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_PROVIDER_MAX_BYTES
+    value: "104857600"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS
+    value: "900000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS
+    value: "5000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES
+    value: "536870912"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ALLOW_VIDEO_INPUT_OVERRIDES
+    value: "false"
+    availability:
+      - RUNTIME
+
+  # Provider model/config registry only. These values do not activate provider calls.
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_MODEL
+    value: gpt-image-2.5-sunburst
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_FORMAT
+    value: png
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_SPEECH_MODEL
+    value: gpt-4o-mini-tts
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STABILITY_IMAGE_SERVICE
+    value: core
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL
+    value: eleven_v3
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_SFX_MODEL
+    value: eleven_text_to_sound_v2
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL
+    value: music_v2_5
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_STT_MODEL
+    value: scribe_v2
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MODEL
+    value: meshy-7.1
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXT_MODEL
+    value: meshy-7.1
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION
+    value: 2k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXTURE_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_VIDEO_MODEL
+    value: gen4.5
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_API_VERSION
+    value: "2024-11-06"
     availability:
       - RUNTIME
