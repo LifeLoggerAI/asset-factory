@@ -47,7 +47,7 @@
   },
   "sceneIntegration": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
-    "spatialPr": 1307,
+    "spatialPr": 1312,
     "exactHead": "",
     "replayBindingVerified": false,
     "publicRouteMounted": false
