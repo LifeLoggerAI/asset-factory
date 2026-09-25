@@ -319,7 +319,8 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 
   if (definition.canonicalType === 'audio') {
     const model = env('ASSET_FACTORY_OPENAI_SPEECH_MODEL') || env('ASSET_FACTORY_AUDIO_MODEL') || 'gpt-4o-mini-tts';
-    const voice = env('ASSET_FACTORY_OPENAI_VOICE') || 'alloy';
+    const voice = env('ASSET_FACTORY_OPENAI_VOICE');
+    if (!voice) throw new Error('ASSET_FACTORY_OPENAI_VOICE must be explicitly configured; stock voice fallback is prohibited');
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
