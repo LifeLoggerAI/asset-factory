@@ -3,7 +3,7 @@ name: Multimodal Provider Contract
 on:
   push:
     branches:
-      - converge/multimodal-provider-broker-20260925
+      - converge/asset-factory-production-multimodal-20260925
   workflow_dispatch:
 
 permissions:
