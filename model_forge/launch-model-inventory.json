@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1296,
-    "recoveredSpatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529",
+    "recoveredSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,7 +13,27 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Re-reconciled against LifeLoggerAI/urai-spatial PR #1296 exact head 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529. Current Spatial authority remains ahead of the prior recovered checkpoint without changing the Model Forge paid-execution boundary: existing runtime/candidate authority must be accepted or rejected by literal exact-head route evidence before any paid provider wave, and any remaining asset gap must be specifically documented."
+    "successorReconciliation": "Active dependency pointer reconciled to Spatial PR #1296 at 6a6a8564014cf88502aac638b03270300ac3f971. This is source-lineage admission only: current exact-head visual/runtime proof and independent approval remain required. Historical asset/proof receipts retain their original identities; no predecessor evidence transfers.",
+    "dependencyReconciliation": {
+      "previousDeclaredSpatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529",
+      "admittedSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
+      "comparisonStatus": "ahead",
+      "comparisonCommits": 61,
+      "scope": "active-dependency-pointer-only",
+      "reviewedChangeFamilies": [
+        "supporting asset authority retirement and legacy layer quarantine",
+        "governed GLB metadata/geometry repair and candidate receipt synchronization",
+        "environment sensor registry expansion with real ingestion hard-off",
+        "Home arrival and accessibility repairs",
+        "journey and visible-canvas proof capture repairs"
+      ],
+      "currentExactHeadProofStatus": "required-pending",
+      "predecessorEvidenceTransferred": false,
+      "paidProductionTargetsAuthorized": false,
+      "referenceBytesChanged": false,
+      "rule": "Current source reconciliation does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
+      "comparisonChangedFiles": 74
+    }
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
@@ -172,7 +192,7 @@
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof-and-cc0-canopy-review",
     "spatialPr": 1296,
-    "spatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529",
-    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
+    "spatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
+    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 6a6a8564014cf88502aac638b03270300ac3f971 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
   }
 }

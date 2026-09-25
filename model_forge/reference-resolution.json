@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529",
+  "recoveredSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,8 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529"
+    "currentSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971"
   },
-  "successorReconciliation": "Reconciled against Spatial PR #1296 exact head 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529. The seven hashed reference files remain valid reference inputs. Current source authority still requires literal exact-head scene evidence before any paid provider wave; no paid 3D production target is authorized merely because reference inputs resolve. Existing runtime/candidate authority must be accepted or rejected first, and any remaining asset gap must be specifically documented.",
+  "successorReconciliation": "Active Spatial dependency reconciled from 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 to 6a6a8564014cf88502aac638b03270300ac3f971. All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval.",
   "spatialPr": 1296
 }
