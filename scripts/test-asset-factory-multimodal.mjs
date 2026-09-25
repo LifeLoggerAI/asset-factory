@@ -28,6 +28,8 @@ const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.t
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
+const transcriptionRuntime = read('assetfactory-studio/lib/server/assetTranscriptionRuntime.ts');
+const transcriptionRoute = read('assetfactory-studio/app/api/assets/transcribe/route.ts');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -79,6 +81,13 @@ assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configur
 if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
   console.error('Stock ElevenLabs voice fallback must not exist in Asset Factory runtime');
   process.exit(1);
+}
+
+for (const marker of ['ASSET_FACTORY_STT_PROVIDER', 'ELEVENLABS_API_KEY', 'scribe_v2', '/v1/speech-to-text', 'sourceSha256']) {
+  assertIncludes(transcriptionRuntime, marker, `transcription runtime support for ${marker}`);
+}
+for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES']) {
+  assertIncludes(transcriptionRoute, marker, `transcription route guard for ${marker}`);
 }
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
