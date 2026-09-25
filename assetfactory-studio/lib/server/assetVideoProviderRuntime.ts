@@ -202,12 +202,30 @@ async function renderConfiguredFal(input: GenerateRequest): Promise<VideoProvide
   const endpoint = env('ASSET_FACTORY_FAL_VIDEO_ENDPOINT');
   const apiKey = env('FAL_KEY');
   if (!endpoint || !apiKey) throw new Error('fal video runtime requires an approved endpoint and API key');
-  const safeEndpoint = publicUrl(endpoint);
-  if (!safeEndpoint) throw new Error('fal video endpoint must be a public HTTP(S) URL');
+  const safeEndpoint = trustedProviderUrl(endpoint, 'fal.run');
+  if (!safeEndpoint) throw new Error('fal video endpoint must remain on fal.run');
+
+  const meta = videoMetadata(input);
+  const providerInput: JsonRecord = {
+    prompt: input.prompt,
+    aspect_ratio: input.aspectRatio || '9:16',
+    duration: String(meta.durationSeconds),
+  };
+  if (meta.referenceImageUrl) providerInput.image_url = meta.referenceImageUrl;
+  if (meta.referenceVideoUrl) providerInput.video_url = meta.referenceVideoUrl;
+  if (
+    process.env.ASSET_FACTORY_ALLOW_VIDEO_INPUT_OVERRIDES === 'true' &&
+    input.metadata?.providerInput &&
+    typeof input.metadata.providerInput === 'object' &&
+    !Array.isArray(input.metadata.providerInput)
+  ) {
+    Object.assign(providerInput, input.metadata.providerInput as JsonRecord);
+  }
+
   const result = await fetchJson(safeEndpoint, {
     method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ prompt: input.prompt, aspectRatio: input.aspectRatio || '9:16', ...videoMetadata(input) }),
+    headers: { authorization: `Key ${apiKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify(providerInput),
   });
   const artifactUrl = firstArtifactUrl(result.output ?? result.video ?? result.url);
   if (!artifactUrl) throw new Error('fal video endpoint did not return an artifact URL');
@@ -216,7 +234,7 @@ async function renderConfiguredFal(input: GenerateRequest): Promise<VideoProvide
     assetBuffer: artifact.buffer,
     assetMimeType: artifact.mime,
     extension: artifact.mime.includes('webm') ? 'webm' : 'mp4',
-    metadata: { provider: 'fal', providerModel: result.model ?? null, providerJobId: result.id ?? null, video: videoMetadata(input) },
+    metadata: { provider: 'fal', providerModel: result.model ?? null, providerJobId: result.id ?? result.request_id ?? null, video: meta },
   };
 }
 
