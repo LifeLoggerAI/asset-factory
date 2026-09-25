@@ -159,7 +159,19 @@ for (const variable of [
   assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting provider registry for ${variable}`);
 }
 
-for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_VIDEO_PROVIDER', 'provider-spend-not-authorized', 'provider-credential-not-configured', 'approved-voice-not-configured', 'provider-account-capability-not-certified']) {
+for (const marker of [
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_VIDEO_PROVIDER',
+  'provider-spend-not-authorized',
+  'provider-credential-not-configured',
+  'approved-voice-not-configured',
+  'provider-account-capability-not-certified',
+  'dedicated-production-target-not-configured',
+  'wif-not-configured',
+  'provider-live-smoke-not-certified',
+]) {
   assertIncludes(providerReadiness, marker, `truthful provider readiness marker ${marker}`);
 }
 if (providerReadiness.includes('URAI_IMAGE_PROVIDER') || providerReadiness.includes('URAI_IMAGE_API_KEY')) {
