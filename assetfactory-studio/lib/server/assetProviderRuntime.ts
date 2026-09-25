@@ -89,6 +89,15 @@ function assertPublicProviderUrl(url: string) {
   return parsed.toString();
 }
 
+function assertTrustedProviderHost(url: string, expectedHostname: string) {
+  const safeUrl = assertPublicProviderUrl(url);
+  const parsed = new URL(safeUrl);
+  if (parsed.hostname.toLowerCase() !== expectedHostname.toLowerCase()) {
+    throw new Error(`Provider authenticated URL must remain on ${expectedHostname}`);
+  }
+  return parsed.toString();
+}
+
 async function readProviderPayload(response: Response) {
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json')
@@ -585,7 +594,7 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
       throw new Error(`Replicate prediction timed out after ${providerTimeoutMs()}ms`);
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    current = await getJson(getUrl, { authorization: `Bearer ${apiKey}` });
+    current = await getJson(assertTrustedProviderHost(getUrl, 'api.replicate.com'), { authorization: `Bearer ${apiKey}` });
   }
 
   const outputUrl = firstUrl(current.output);
