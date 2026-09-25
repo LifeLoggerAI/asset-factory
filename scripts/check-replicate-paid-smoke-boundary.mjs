@@ -20,8 +20,9 @@ for (const file of [smokePath, grantPath]) {
 
 const smoke = fs.readFileSync(smokePath, 'utf8');
 const grant = fs.readFileSync(grantPath, 'utf8');
-const exactProvider = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github';
-const exactServiceAccount = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com';
+const historicalProject = 'urai-4dc1d';
+const historicalProviderPrefix = 'projects/952723774155/';
+const historicalServiceAccount = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com';
 const exactConfirmation = 'RUN_ONE_REPLICATE_MODEL3D_SMOKE';
 
 for (const required of [
@@ -30,8 +31,9 @@ for (const required of [
   exactConfirmation,
   "test \"$GITHUB_REF\" = 'refs/heads/main'",
   'environment: asset-factory-production',
-  exactProvider,
-  exactServiceAccount,
+  'PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}',
+  'GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}',
+  'GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
   'REPLICATE_MODEL3D_SMOKE_COMPLETED=',
   'https://api.replicate.com/v1/predictions',
   'Automatic prediction retries: **0**',
@@ -62,8 +64,13 @@ if (smoke.indexOf('Remove ephemeral Google credential') > smoke.indexOf('Run exa
   fail('Google credential cleanup must precede the Replicate provider call');
 }
 
-for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@v3']) {
-  if (!grant.includes(required)) fail(`grant workflow missing pinned WIF contract ${JSON.stringify(required)}`);
+for (const required of [
+  'EXPECTED_PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}',
+  'GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}',
+  'GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
+  'google-github-actions/auth@v3',
+]) {
+  if (!grant.includes(required)) fail(`grant workflow missing protected dedicated-target contract ${JSON.stringify(required)}`);
 }
 for (const required of [
   'firebase apphosting:backends:get assetfactory-studio',
@@ -76,6 +83,17 @@ for (const required of [
 }
 if (grant.includes('firebase apphosting:backends:list')) {
   fail('grant workflow must not use the historical brittle App Hosting backend list parser');
+}
+for (const [label, text] of [['smoke', smoke], ['grant', grant]]) {
+  if (text.includes(`PROJECT_ID: ${historicalProject}`) || text.includes(`EXPECTED_PROJECT_ID: ${historicalProject}`)) {
+    fail(`${label} workflow must not pin historical project ${historicalProject}`);
+  }
+  if (text.includes(historicalProviderPrefix)) {
+    fail(`${label} workflow must not pin historical WIF project authority`);
+  }
+  if (text.includes(historicalServiceAccount)) {
+    fail(`${label} workflow must not pin historical deploy service account`);
+  }
 }
 if (grant.includes('--git_commit')) {
   fail('grant workflow must use the current Firebase --git-commit rollout flag');
