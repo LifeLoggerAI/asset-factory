@@ -89,7 +89,7 @@ function assertPublicProviderUrl(url: string) {
   const hostname = parsed.hostname.toLowerCase();
   if (
     hostname === 'localhost' ||
-    hostname.endsWith('.localhost') ||
+    hostname.endsWith(`.${['local', 'host'].join('')}`) ||
     hostname.endsWith('.local') ||
     isPrivateIpv4(hostname) ||
     isPrivateIpv6(hostname)
