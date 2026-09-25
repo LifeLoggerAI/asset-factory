@@ -23,6 +23,10 @@ function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
   for (const [from, to] of patches) source = source.replace(from, to);
+  source = source.replace(
+    /from ['"]\.\/assetProviderAdapters['"];?/,
+    "from './assetProviderAdapters.mjs';"
+  );
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -35,7 +39,14 @@ function compileTsModule(relativePath, patches = []) {
   }).outputText;
   const outputPath = path.join(compiledDir, relativePath.replace(/\.ts$/, '.mjs'));
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, output);
+  const normalizedOutput = output.replace(
+    /from ['"]\.\/assetProviderAdapters['"];?/,
+    "from './assetProviderAdapters.mjs';"
+  );
+  if (relativePath.endsWith('assetProviderRuntime.ts') && !normalizedOutput.includes("./assetProviderAdapters.mjs")) {
+    throw new Error('Replicate registry harness failed to rewrite assetProviderAdapters import');
+  }
+  fs.writeFileSync(outputPath, normalizedOutput);
   return outputPath;
 }
 
