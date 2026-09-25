@@ -1,0 +1,77 @@
+name: Multimodal Provider Contract
+
+on:
+  push:
+    branches:
+      - converge/multimodal-provider-broker-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multimodal-provider-contract-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+env:
+  TARGET_SHA: ${{ github.sha }}
+  ASSET_FACTORY_MEDIA_PROVIDER: local-proof
+  ASSET_FACTORY_IMAGE_PROVIDER: local-proof
+  ASSET_FACTORY_MODEL3D_PROVIDER: local-proof
+  ASSET_FACTORY_AUDIO_PROVIDER: local-proof
+  ASSET_FACTORY_SFX_PROVIDER: local-proof
+  ASSET_FACTORY_MUSIC_PROVIDER: local-proof
+  ASSET_FACTORY_STT_PROVIDER: local-proof
+  ASSET_FACTORY_VIDEO_PROVIDER: local-proof
+
+jobs:
+  provider-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Studio dependencies
+        run: npm --prefix assetfactory-studio install
+
+      - name: Prove paid-provider secrets are absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${REPLICATE_API_TOKEN:-}"
+          test -z "${ELEVENLABS_API_KEY:-}"
+          test -z "${RUNWAYML_API_SECRET:-}"
+          test -z "${RUNWAY_API_KEY:-}"
+          test -z "${MESHY_API_KEY:-}"
+          test -z "${FAL_KEY:-}"
+          test -z "${STABILITY_API_KEY:-}"
+
+      - name: Typecheck provider surface
+        run: npm --prefix assetfactory-studio run typecheck
+
+      - name: Run provider routing contract
+        run: node scripts/test-provider-routing-contract.mjs
+
+      - name: Run Replicate registry contract
+        run: node scripts/test-replicate-model-registry.mjs
+
+      - name: Run multimodal static contract
+        run: node scripts/test-asset-factory-multimodal.mjs
