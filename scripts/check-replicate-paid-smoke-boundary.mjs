@@ -54,6 +54,9 @@ for (const forbidden of [
 if (!smoke.includes(`test \"$CONFIRM_PAID_SMOKE\" = '${exactConfirmation}'`)) {
   fail('smoke workflow does not enforce the exact paid-smoke confirmation phrase');
 }
+if (!smoke.includes('projects/952723774155/*)')) {
+  fail('smoke workflow must explicitly reject the historical urai-4dc1d WIF provider');
+}
 if (!smoke.includes('count="$(gh issue view 63')) fail('smoke workflow lost the issue #63 one-time marker guard');
 if (!smoke.includes('if [ "$count" -gt 0 ]')) fail('smoke workflow does not refuse a second completed paid smoke');
 if (!smoke.includes('create_credentials_file: true') || !smoke.includes('export_environment_variables: false')) {
@@ -76,12 +79,16 @@ for (const required of [
   'firebase apphosting:backends:get assetfactory-studio',
   "jq -r '.result.uri // empty'",
   'firebase apphosting:rollouts:create assetfactory-studio',
-  '--git_commit "$GITHUB_SHA"',
+  '--git-commit "$GITHUB_SHA"',
+  '--force',
 ]) {
   if (!grant.includes(required)) fail(`grant workflow missing stable App Hosting verification contract ${JSON.stringify(required)}`);
 }
 if (grant.includes('firebase apphosting:backends:list')) {
   fail('grant workflow must not use the historical brittle App Hosting backend list parser');
+}
+if (grant.includes('--git_commit')) {
+  fail('grant workflow must use the current Firebase --git-commit rollout flag');
 }
 for (const [label, text] of [['smoke', smoke], ['grant', grant]]) {
   if (text.includes(`PROJECT_ID: ${historicalProject}`) || text.includes(`EXPECTED_PROJECT_ID: ${historicalProject}`)) {
