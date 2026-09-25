@@ -69,9 +69,43 @@ export async function GET(req: NextRequest) {
     video: process.env.ASSET_FACTORY_VIDEO_PROVIDER || process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof',
   };
   const activeExternalProviderNames = [...new Set(Object.values(modalityRouting).filter((name) => name !== 'local-proof'))];
-  const activeExternalProvidersConfigured = activeExternalProviderNames.length > 0 && activeExternalProviderNames.every(
-    (name) => providers.adapters.some((provider) => provider.name === name && provider.configured)
+
+  function providerConfigured(providerName: string) {
+    return providers.adapters.some((provider) => provider.name === providerName && provider.configured);
+  }
+
+  function modalityProviderReady(modality: keyof typeof modalityRouting, providerName: string) {
+    if (providerName === 'local-proof' || !providerConfigured(providerName)) return false;
+    if (modality === 'audio' && providerName === 'elevenlabs') {
+      return configured('ELEVENLABS_VOICE_ID');
+    }
+    if (providerName === 'replicate') {
+      if (modality === 'image') return configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
+      if (modality === 'model3d') return configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL');
+      if (modality === 'audio') return configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL');
+      if (modality === 'video') return configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL');
+    }
+    if (providerName === 'fal') {
+      if (modality === 'image') return configured('ASSET_FACTORY_GRAPHICS_MODEL');
+      if (modality === 'model3d') return configured('ASSET_FACTORY_MODEL3D_MODEL');
+      if (modality === 'audio' || modality === 'sfx' || modality === 'music') return configured('ASSET_FACTORY_AUDIO_MODEL');
+      if (modality === 'video') return configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT');
+    }
+    return true;
+  }
+
+  const modalityReadiness = Object.fromEntries(
+    Object.entries(modalityRouting).map(([modality, providerName]) => [
+      modality,
+      {
+        provider: providerName,
+        external: providerName !== 'local-proof',
+        ready: modalityProviderReady(modality as keyof typeof modalityRouting, providerName),
+      },
+    ])
   );
+  const activeExternalRoutes = Object.values(modalityReadiness).filter((route) => route.external);
+  const activeExternalProvidersConfigured = activeExternalRoutes.length > 0 && activeExternalRoutes.every((route) => route.ready);
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
@@ -109,6 +143,7 @@ export async function GET(req: NextRequest) {
       stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       providerBackedRendering: activeExternalProvidersConfigured,
       modalityRouting,
+      modalityReadiness,
       activeExternalProviderNames,
       externalCredentialAvailable,
       replicateCredentialVisible,
