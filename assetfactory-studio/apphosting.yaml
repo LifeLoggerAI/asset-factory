@@ -3,6 +3,52 @@
 # Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER is explicitly selected
 # for an authorized provider-backed generation run.
 env:
+  # Explicit launch-safe routing. Credentials may exist without authorizing spend.
+  - variable: ASSET_FACTORY_MEDIA_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_IMAGE_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MODEL3D_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_AUDIO_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_SFX_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MUSIC_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STT_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS
+    value: "500"
+    availability:
+      - RUNTIME
+
   - variable: REPLICATE_API_TOKEN
     secret: REPLICATE_API_TOKEN
     availability:
