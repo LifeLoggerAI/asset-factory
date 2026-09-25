@@ -53,8 +53,27 @@ jobs:
           grep -q "google-github-actions/auth@v3" .github/workflows/model-forge-replicate-wave.yml
           grep -q "RUN_ONE_URAI_REPLICATE_MODEL_WAVE" .github/workflows/model-forge-replicate-wave.yml
           grep -q "ASSET_FACTORY_FIREBASE_PROJECT_ID" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "authorized-current-head-gap-proof" .github/workflows/model-forge-replicate-wave.yml
           ! grep -q "PROJECT_ID: urai-4dc1d" .github/workflows/model-forge-replicate-wave.yml
           ! grep -q "asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com" .github/workflows/model-forge-replicate-wave.yml
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const expectedHead='28cdf3354720e32b26fe94799810f5afb4098181'
+          const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
+          const refs=JSON.parse(fs.readFileSync('model_forge/reference-resolution.json','utf8'))
+          assert.equal(inventory.authority.recoveredSpatialHead,expectedHead)
+          assert.equal(inventory.providerExecutionBoundary.spatialHead,expectedHead)
+          assert.match(inventory.providerExecutionBoundary.status,/^blocked-/)
+          assert.deepEqual(inventory.productionTargets,[])
+          assert.equal(refs.recoveredSpatialHead,expectedHead)
+          assert.equal(refs.generationPolicy.currentSpatialHead,expectedHead)
+          assert.equal(refs.generationPolicy.currentProductionProviderTargetsAuthorized,false)
+          const canopy=inventory.assets.find((asset)=>asset.id==='ground-authored-canopy-v20')
+          assert.ok(canopy)
+          assert.equal(canopy.providerAction,'hold-paid-bakeoff-pending-cc0-visual-acceptance')
+          console.log('PASS Model Forge current Spatial authority lock')
+          NODE
           node model_forge/provider-preflight.mjs > provider-preflight-dry.json
           grep -q '"live": false' provider-preflight-dry.json
           node model_forge/verify-inventory.mjs
