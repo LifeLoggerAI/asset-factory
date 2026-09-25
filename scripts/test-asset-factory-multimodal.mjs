@@ -87,7 +87,7 @@ if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
 for (const marker of ['ASSET_FACTORY_STT_PROVIDER', 'ELEVENLABS_API_KEY', 'scribe_v2', '/v1/speech-to-text', 'sourceSha256']) {
   assertIncludes(transcriptionRuntime, marker, `transcription runtime support for ${marker}`);
 }
-for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES']) {
+for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES', 'Number.isFinite(configuredMaxBytes)', '50 * 1024 * 1024']) {
   assertIncludes(transcriptionRoute, marker, `transcription route guard for ${marker}`);
 }
 
