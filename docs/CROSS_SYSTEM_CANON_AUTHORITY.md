@@ -4,9 +4,19 @@ Status: ADOPTION CANDIDATE — becomes binding cross-system authority only after
 
 Repository role: **asset generation, Model Forge and governed provider execution**
 
-Upstream candidate: `LifeLoggerAI/urai-labs-llc#102`, path `docs/canon/`.
+## Upstream authority
 
-Until that merge, current merged local contracts and this repository's exact candidate govern implementation facts. This file transfers no certification, review, deployment, provider, legal, financial, Gold-Master, or exact-head evidence.
+Current cross-system canon candidate:
+- Repository: `LifeLoggerAI/urai-labs-llc`
+- PR: `#107`
+- Exact head observed at reconciliation: `e100bbfa2336358b4eb949d2411fe786baddfc3d`
+- Canon path: `docs/canon/`
+
+PR #107 is the current zero-ambiguity canon successor. Earlier Labs canon candidates, including #101 and #102, are provenance only where superseded.
+
+Until #107 is legitimately merged, current merged local contracts and this repository's exact candidate govern implementation facts. This file transfers no certification, review, deployment, provider, legal, financial, Gold-Master, runtime, or exact-head evidence.
+
+Authority regression guard: any later reintroduction of Labs #101/#102 as current Asset Factory canon authority is stale and must fail review rather than silently supersede this line.
 
 ## Local invariants
 
@@ -14,6 +24,7 @@ Until that merge, current merged local contracts and this repository's exact can
 - Generated assets/media do not auto-promote to canonical or Gold Master.
 - Provenance, consent, truth labeling and release-state controls remain explicit.
 - Hard-off/future capability may exist in source only behind the repository's governed fail-closed boundary.
+- Canon adoption cannot silently enable paid providers, production targets, promotion, or deployment.
 
 ## Evidence integrity
 
@@ -29,4 +40,4 @@ Verified runtime -> merged implementation -> exact-head release evidence -> loca
 
 ## Required adoption action
 
-After upstream PR #102 merges, reconcile local contracts against the merged canon and classify conflicts as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with provenance retained.
+After upstream PR #107 merges, reconcile local contracts against the merged canon and classify conflicts as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with provenance retained.
