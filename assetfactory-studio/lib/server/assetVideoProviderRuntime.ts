@@ -252,6 +252,9 @@ async function renderRunway(input: GenerateRequest): Promise<VideoProviderRender
 export async function renderVideoWithConfiguredProvider(input: GenerateRequest): Promise<VideoProviderRenderResult | null> {
   const provider = env('ASSET_FACTORY_VIDEO_PROVIDER') || env('ASSET_FACTORY_MEDIA_PROVIDER') || 'local-proof';
   if (provider === 'local-proof') return null;
+  if (process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED !== 'true') {
+    throw new Error(`External video provider ${provider} is selected but ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED is not true`);
+  }
   if (provider === 'replicate') return renderReplicate(input);
   if (provider === 'fal') return renderConfiguredFal(input);
   if (provider === 'runway') return renderRunway(input);
