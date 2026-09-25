@@ -130,6 +130,17 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Provider-returned image URLs are accepted only over HTTPS and downgrade redirects fail closed.
 - A specific vendor behind this adapter must still satisfy the normal credential, budget, provenance, smoke, and promotion gates before being considered LIVE VERIFIED.
 
+
+### HeyGen founder voice / avatar lane
+
+- HeyGen is a separate connected provider lane for founder voice/avatar work; it is not part of the unified Asset Factory modality router.
+- Live account readback on 2026-09-25 reports subscription plan `free`.
+- Live `list_model_audio_voices` returns zero model-backed voices.
+- The connected voice catalog contains public/preset voices; none is accepted as the UrAi founder voice.
+- Drive retains a prepared founder enrollment corpus/sample and earlier clone attempt receipts, but no verified private founder voice/model ID exists.
+- Historical clone attempt result is plan-blocked; account eligibility must change before a private founder clone can be created and evaluated.
+- No public/preset HeyGen voice may be promoted as founder identity merely to unblock launch.
+
 ## Provenance
 
 Provider-backed manifests now record:
