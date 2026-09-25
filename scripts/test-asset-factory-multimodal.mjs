@@ -72,6 +72,9 @@ for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_V
 }
 
 assertIncludes(videoProviderRuntime, 'if (meta.referenceImageUrl) payload.promptImage = meta.referenceImageUrl;', 'Runway optional image conditioning on unified endpoint');
+assertIncludes(videoProviderRuntime, "trustedProviderUrl(endpoint, 'fal.run')", 'fal video endpoint host pin');
+assertIncludes(videoProviderRuntime, "authorization: `Key ${apiKey}`", 'fal video Key authentication');
+assertIncludes(videoProviderRuntime, "aspect_ratio: input.aspectRatio || '9:16'", 'fal video REST aspect ratio contract');
 if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
   console.error('Runway text-to-video must use the verified image_to_video endpoint with promptImage omitted');
   process.exit(1);
