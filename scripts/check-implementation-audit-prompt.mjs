@@ -49,7 +49,7 @@ const requiredLaunchPhrases = [
   'Status: **repo-side hardening complete for current pass; live evidence required before production lock**.',
   'Do not call Asset Factory production-ready until every P0 gate below is complete and linked to evidence.',
   'Live staging workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.',
-  'Real provider-backed generation using production credentials and selected model IDs.',
+  'Real provider-backed generation using production credentials and selected model IDs; current repo authority proves contracts/no-spend boundaries, not live provider activation.',
   'Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.',
   'Production Stripe webhook proof that verified events persist idempotent tenant quota/plan records.',
   'Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.'
