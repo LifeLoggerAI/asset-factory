@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
+  "recoveredSpatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,14 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "6a6a8564014cf88502aac638b03270300ac3f971"
+    "currentSpatialHead": "8015397b649f69c8cf76d3afc35f50e34203052b"
   },
-  "successorReconciliation": "Active Spatial dependency reconciled from 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 to 6a6a8564014cf88502aac638b03270300ac3f971. All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval.",
-  "spatialPr": 1296
+  "successorReconciliation": "Active Spatial dependency reconciled from 6a6a8564014cf88502aac638b03270300ac3f971 to 8015397b649f69c8cf76d3afc35f50e34203052b (4 commits / 26 changed files). All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval.",
+  "spatialPr": 1296,
+  "dependencyReconciliationHistory": [
+    {
+      "spatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
+      "successorReconciliation": "Active Spatial dependency reconciled from 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 to 6a6a8564014cf88502aac638b03270300ac3f971. All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval."
+    }
+  ]
 }
