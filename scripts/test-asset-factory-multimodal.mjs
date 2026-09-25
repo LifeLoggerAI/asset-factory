@@ -83,6 +83,8 @@ if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
 for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', 'loopbackHostname', "host.endsWith('.local')"]) {
   assertIncludes(videoProviderRuntime, marker, `video provider private-network guard for ${marker}`);
 }
+assertIncludes(videoProviderRuntime, "redirect: 'error'", 'video provider redirect rejection');
+assertIncludes(providerRuntime, "redirect: 'error'", 'generic provider redirect rejection');
 
 for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
   assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
