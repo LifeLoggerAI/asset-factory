@@ -81,11 +81,6 @@ env:
     availability:
       - RUNTIME
 
-  - variable: ASSET_FACTORY_REPLICATE_SPEECH_VOICE
-    value: Friendly_Person
-    availability:
-      - RUNTIME
-
   # Request-level model/input overrides stay fail-closed in production.
   - variable: ASSET_FACTORY_ALLOW_REPLICATE_MODEL_OVERRIDE
     value: "false"
