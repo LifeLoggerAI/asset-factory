@@ -88,12 +88,24 @@ for (const [label, text] of [['smoke', smoke], ['grant', grant]]) {
   if (text.includes(`PROJECT_ID: ${historicalProject}`) || text.includes(`EXPECTED_PROJECT_ID: ${historicalProject}`)) {
     fail(`${label} workflow must not pin historical project ${historicalProject}`);
   }
-  if (text.includes(historicalProviderPrefix)) {
-    fail(`${label} workflow must not pin historical WIF project authority`);
+  const historicalProviderConfigured =
+    text.includes(`GCP_WIF_PROVIDER: ${historicalProviderPrefix}`) ||
+    text.includes(`workload_identity_provider: ${historicalProviderPrefix}`);
+  if (historicalProviderConfigured) {
+    fail(`${label} workflow must not configure historical WIF project authority`);
   }
-  if (text.includes(historicalServiceAccount)) {
-    fail(`${label} workflow must not pin historical deploy service account`);
+  const historicalServiceAccountConfigured =
+    text.includes(`GCP_DEPLOY_SERVICE_ACCOUNT: ${historicalServiceAccount}`) ||
+    text.includes(`service_account: ${historicalServiceAccount}`);
+  if (historicalServiceAccountConfigured) {
+    fail(`${label} workflow must not configure historical deploy service account`);
   }
+}
+if (!grant.includes('projects/952723774155/*)')) {
+  fail('grant workflow must explicitly reject the historical urai-4dc1d WIF provider');
+}
+if (!grant.includes(historicalServiceAccount)) {
+  fail('grant workflow must explicitly reject the historical urai-4dc1d deploy service account');
 }
 if (grant.includes('--git_commit')) {
   fail('grant workflow must use the current Firebase --git-commit rollout flag');
