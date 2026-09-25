@@ -319,7 +319,7 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 
   if (definition.canonicalType === 'graphic') {
     const size = openAiImageSize(input);
-    const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2';
+    const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2.5-sunburst';
     const configuredFormat = (env('ASSET_FACTORY_OPENAI_IMAGE_FORMAT') || env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png').toLowerCase();
     const outputFormat = configuredFormat === 'jpg' ? 'jpeg' : configuredFormat;
     if (!['png', 'jpeg', 'webp'].includes(outputFormat)) {
