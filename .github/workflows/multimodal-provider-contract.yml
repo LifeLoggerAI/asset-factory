@@ -81,7 +81,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/provider-contract
-          cat > artifacts/provider-contract/receipt.json <<EOF
           spatial_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
           model_forge_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
           production_targets="$(node -p "JSON.stringify(JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).productionTargets)")"
@@ -106,7 +105,6 @@ jobs:
             "providerSecretsInjected": false,
             "result": "contracts-passed"
           }
-          EOF
           EOF
           node --input-type=module <<'NODE'
           import fs from 'node:fs'
