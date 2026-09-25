@@ -421,6 +421,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
     const modelId = env('ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL') || 'music_v2_5';
     const endpoint = new URL('https://api.elevenlabs.io/v1/music');
     endpoint.searchParams.set('output_format', env('ELEVENLABS_MUSIC_OUTPUT_FORMAT') || 'auto');
+    if (zeroRetention) endpoint.searchParams.set('enable_logging', 'false');
     const requestedDuration = Number(input.metadata?.durationSeconds ?? 30);
     const musicLengthMs = Math.round(Math.max(3, Math.min(600, requestedDuration)) * 1000);
     const response = await fetch(endpoint, {
@@ -441,6 +442,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
       elevenLabsLane: 'music',
       musicLengthMs,
       forceInstrumental: input.metadata?.forceInstrumental !== false,
+      zeroRetention,
     });
   }
 
