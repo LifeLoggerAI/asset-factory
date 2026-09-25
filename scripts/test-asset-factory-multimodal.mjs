@@ -122,7 +122,16 @@ if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
   process.exit(1);
 }
 
-for (const marker of ['ASSET_FACTORY_STT_PROVIDER', 'ELEVENLABS_API_KEY', 'scribe_v2', '/v1/speech-to-text', 'sourceSha256']) {
+for (const marker of [
+  'ASSET_FACTORY_STT_PROVIDER',
+  'ELEVENLABS_API_KEY',
+  'scribe_v2',
+  '/v1/speech-to-text',
+  'sourceSha256',
+  'ASSET_FACTORY_STT_MAX_RESPONSE_BYTES',
+  "redirect: 'error'",
+  'readResponseTextWithLimit',
+]) {
   assertIncludes(transcriptionRuntime, marker, `transcription runtime support for ${marker}`);
 }
 for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES', 'Number.isFinite(configuredMaxBytes)', '50 * 1024 * 1024']) {
@@ -161,6 +170,7 @@ for (const variable of [
   'ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL',
   'ASSET_FACTORY_ELEVENLABS_STT_MODEL',
   'ASSET_FACTORY_STT_MAX_BYTES',
+  'ASSET_FACTORY_STT_MAX_RESPONSE_BYTES',
   'ASSET_FACTORY_MESHY_MODEL',
   'ASSET_FACTORY_MESHY_TEXT_MODEL',
   'ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION',
