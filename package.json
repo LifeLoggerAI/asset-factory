@@ -79,7 +79,7 @@
     "finish:custom-domain": "node scripts/finish-custom-domain-production.mjs",
     "validate:production-target": "node scripts/run-dedicated-firebase-deploy.mjs --check-only",
     "test:production-target-boundary": "node scripts/test-production-target-boundary.mjs",
-    "audit:production": "npm --prefix assetfactory-studio audit --audit-level=high --omit=dev && npm --prefix life-map-pipeline/functions audit --audit-level=high --omit=dev && npm --prefix engine audit --audit-level=high --omit=dev",
+    "audit:production": "pnpm audit --audit-level=high --prod && npm --prefix life-map-pipeline/functions audit --audit-level=high --omit=dev && npm --prefix engine audit --audit-level=high --omit=dev",
     "audit:workspace-debt": "pnpm audit --audit-level=high"
   }
 }
