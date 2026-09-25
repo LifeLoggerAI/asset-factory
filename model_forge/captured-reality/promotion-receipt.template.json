@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "urai-captured-reality-promotion-receipt-v1",
+  "assetId": "",
+  "sourceAuthority": {
+    "sourceReceiptRefs": [],
+    "immutableOriginalsVerified": false,
+    "locationConsentPurpose": "location.context",
+    "privacyScreenPassed": false,
+    "thirdPartyAuthorityResolved": false
+  },
+  "reconstruction": {
+    "method": "",
+    "cameraSolveReceiptRef": "",
+    "trainingReceiptRef": "",
+    "sourceVsReconstructionReceiptRef": "",
+    "generatedFillUsed": false,
+    "generatedFillTruthClass": "interpretive",
+    "providerSpendAuthorized": false
+  },
+  "artifacts": {
+    "archival": {
+      "artifactId": "",
+      "format": "",
+      "sha256": "",
+      "byteSize": 0
+    },
+    "runtime": {
+      "artifactId": "",
+      "format": "splat",
+      "sha256": "",
+      "byteSize": 0
+    },
+    "collision": {
+      "artifactId": "",
+      "format": "glb",
+      "sha256": "",
+      "byteSize": 0,
+      "independentFromVisualSplat": true
+    }
+  },
+  "browserEvidence": {
+    "desktopPerformancePassed": false,
+    "mobilePerformancePassed": false,
+    "fallbackPassed": false,
+    "revocationPassed": false,
+    "proofRefs": []
+  },
+  "sceneIntegration": {
+    "spatialRepository": "LifeLoggerAI/urai-spatial",
+    "spatialPr": 1307,
+    "exactHead": "",
+    "replayBindingVerified": false,
+    "publicRouteMounted": false
+  },
+  "xrEvidence": {
+    "physicalDeviceTested": false,
+    "certified": false,
+    "proofRefs": []
+  },
+  "explicitApproval": {
+    "approved": false,
+    "reviewer": "",
+    "reviewedAt": ""
+  },
+  "governance": {
+    "promotionAllowed": false,
+    "publicReleaseAuthorized": false,
+    "reason": "fail-closed until source, reconstruction, privacy, browser and review evidence are complete"
+  },
+  "promoted": false
+}
