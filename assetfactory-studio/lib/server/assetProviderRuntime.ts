@@ -83,8 +83,8 @@ function assertPublicProviderUrl(url: string) {
     throw new Error('Provider returned an invalid artifact URL');
   }
 
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    throw new Error(`Provider artifact URL uses unsupported protocol: ${parsed.protocol}`);
+  if (parsed.protocol !== 'https:') {
+    throw new Error(`Provider artifact URL must use HTTPS: ${parsed.protocol}`);
   }
 
   const hostname = parsed.hostname.toLowerCase();
