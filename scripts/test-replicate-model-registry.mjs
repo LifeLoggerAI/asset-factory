@@ -75,6 +75,9 @@ const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRunt
 
 const trackedEnv = [
   'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
   'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
   'REPLICATE_API_TOKEN',
   'ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL',
@@ -100,6 +103,9 @@ function restoreEnv() {
 
 function configureRegistry() {
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_IMAGE_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_MODEL3D_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_AUDIO_PROVIDER = 'replicate';
   process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = '1';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL = 'black-forest-labs/flux-schnell';
