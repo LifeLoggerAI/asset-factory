@@ -117,7 +117,10 @@ export async function GET(req: NextRequest) {
     if (providerName === 'replicate') {
       if (modality === 'image' && !(configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL'))) blockers.push('provider-model-not-configured');
       if (modality === 'model3d' && !(configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL'))) blockers.push('provider-model-not-configured');
-      if (modality === 'audio' && !(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
+      if (modality === 'audio') {
+        if (!(configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') || configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL'))) blockers.push('provider-model-not-configured');
+        if (configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL') && !configured('ASSET_FACTORY_REPLICATE_SPEECH_VOICE')) blockers.push('approved-voice-not-configured');
+      }
       if (modality === 'video' && !configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')) blockers.push('provider-model-not-configured');
     }
 
