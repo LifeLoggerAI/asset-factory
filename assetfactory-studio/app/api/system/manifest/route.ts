@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       if (modality === 'image' && !configured('ASSET_FACTORY_GRAPHICS_MODEL')) blockers.push('provider-model-not-configured');
       if (modality === 'model3d' && !configured('ASSET_FACTORY_MODEL3D_MODEL')) blockers.push('provider-model-not-configured');
       if ((modality === 'audio' || modality === 'sfx' || modality === 'music') && !configured('ASSET_FACTORY_AUDIO_MODEL')) blockers.push('provider-model-not-configured');
-      if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')) blockers.push('provider-endpoint-not-configured');
+      if (modality === 'video' && !configured('ASSET_FACTORY_FAL_VIDEO_MODEL')) blockers.push('provider-endpoint-not-configured');
     }
 
     if (!enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')) blockers.push('provider-spend-not-authorized');

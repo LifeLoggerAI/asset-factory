@@ -73,7 +73,10 @@ for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_V
 }
 
 assertIncludes(videoProviderRuntime, 'if (meta.referenceImageUrl) payload.promptImage = meta.referenceImageUrl;', 'Runway optional image conditioning on unified endpoint');
-assertIncludes(videoProviderRuntime, "trustedProviderUrl(endpoint, 'fal.run')", 'fal video endpoint host pin');
+assertIncludes(videoProviderRuntime, "https://queue.fal.run/${model}", 'fal queue submit origin');
+assertIncludes(videoProviderRuntime, "trustedProviderUrl(submission.status_url, 'queue.fal.run')", 'fal queue status host pin');
+assertIncludes(videoProviderRuntime, "trustedProviderUrl(submission.response_url, 'queue.fal.run')", 'fal queue result host pin');
+assertIncludes(videoProviderRuntime, "status !== 'COMPLETED'", 'fal bounded queue polling');
 assertIncludes(videoProviderRuntime, "authorization: `Key ${apiKey}`", 'fal video Key authentication');
 assertIncludes(videoProviderRuntime, "aspect_ratio: input.aspectRatio || '9:16'", 'fal video REST aspect ratio contract');
 if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
@@ -225,7 +228,7 @@ assertIncludes(manifestRoute, "configured('ELEVENLABS_VOICE_ID')", 'approved Ele
 assertIncludes(manifestRoute, "provider-account-capability-not-certified", 'Runway account capability readiness blocker');
 assertIncludes(manifestRoute, "provider-spend-not-authorized", 'provider spend authorization readiness blocker');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')", 'Replicate video model readiness requirement');
-assertIncludes(manifestRoute, "configured('ASSET_FACTORY_FAL_VIDEO_ENDPOINT')", 'fal video endpoint readiness requirement');
+assertIncludes(manifestRoute, "configured('ASSET_FACTORY_FAL_VIDEO_MODEL')", 'fal video endpoint readiness requirement');
 assertIncludes(validation, 'metadata.durationSeconds', 'video duration validation');
 assertIncludes(validation, 'metadata.fps', 'video fps validation');
 assertIncludes(policy, "canonicalType === 'video'", 'video cost policy');

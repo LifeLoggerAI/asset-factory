@@ -81,9 +81,10 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 ### fal
 
 - Existing media adapter remains an optional low-latency fallback.
-- Video endpoint remains server-pinned and fail-closed until explicitly configured.
+- Video model id remains server-pinned and fail-closed until explicitly configured through `ASSET_FACTORY_FAL_VIDEO_MODEL`.
 - Direct REST authentication uses `Authorization: Key ...`.
-- Authenticated video endpoints are pinned to `fal.run` before the credential is attached.
+- Long-running video uses fal's queue protocol: submit to `queue.fal.run/{model}`, validate provider-returned status/result URLs back to `queue.fal.run`, poll with the governed timeout, then fetch the completed result.
+- Queue failure, cancellation, unexpected status, timeout, redirect, or untrusted provider URL fails closed.
 - Video REST fields use the provider contract naming such as `aspect_ratio`; request-level provider input overrides remain disabled unless explicitly enabled.
 
 ### Stability

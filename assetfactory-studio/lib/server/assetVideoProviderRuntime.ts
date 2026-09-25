@@ -199,11 +199,15 @@ async function renderReplicate(input: GenerateRequest): Promise<VideoProviderRen
 }
 
 async function renderConfiguredFal(input: GenerateRequest): Promise<VideoProviderRenderResult> {
-  const endpoint = env('ASSET_FACTORY_FAL_VIDEO_ENDPOINT');
+  const model = env('ASSET_FACTORY_FAL_VIDEO_MODEL');
   const apiKey = env('FAL_KEY');
-  if (!endpoint || !apiKey) throw new Error('fal video runtime requires an approved endpoint and API key');
-  const safeEndpoint = trustedProviderUrl(endpoint, 'fal.run');
-  if (!safeEndpoint) throw new Error('fal video endpoint must remain on fal.run');
+  if (!model || !apiKey) throw new Error('fal video runtime requires an approved model and API key');
+
+  const modelParts = model.split('/');
+  const safeModelPart = /^[a-zA-Z0-9_.-]+$/;
+  if (modelParts.length < 2 || modelParts.some((part) => !part || !safeModelPart.test(part))) {
+    throw new Error('ASSET_FACTORY_FAL_VIDEO_MODEL must be a server-approved fal model id');
+  }
 
   const meta = videoMetadata(input);
   const providerInput: JsonRecord = {
@@ -222,19 +226,49 @@ async function renderConfiguredFal(input: GenerateRequest): Promise<VideoProvide
     Object.assign(providerInput, input.metadata.providerInput as JsonRecord);
   }
 
-  const result = await fetchJson(safeEndpoint, {
+  const headers = { authorization: `Key ${apiKey}`, 'content-type': 'application/json' };
+  const submission = await fetchJson(`https://queue.fal.run/${model}`, {
     method: 'POST',
-    headers: { authorization: `Key ${apiKey}`, 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(providerInput),
   });
-  const artifactUrl = firstArtifactUrl(result.output ?? result.video ?? result.url);
-  if (!artifactUrl) throw new Error('fal video endpoint did not return an artifact URL');
+  const requestId = String(submission.request_id ?? '').trim();
+  const statusUrl = trustedProviderUrl(submission.status_url, 'queue.fal.run');
+  const responseUrl = trustedProviderUrl(submission.response_url, 'queue.fal.run');
+  if (!requestId || !statusUrl || !responseUrl) {
+    throw new Error('fal queue submission missing trusted request/status/result authority');
+  }
+
+  const deadline = Date.now() + numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS);
+  let status = '';
+  while (status !== 'COMPLETED') {
+    if (Date.now() > deadline) throw new Error('fal video polling timed out');
+    await new Promise((resolve) => setTimeout(resolve, numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS', DEFAULT_POLL_MS)));
+    const state = await fetchJson(statusUrl, { headers: { authorization: `Key ${apiKey}` } });
+    status = String(state.status ?? '').toUpperCase();
+    if (status === 'FAILED' || status === 'CANCELED' || status === 'CANCELLED' || state.error) {
+      throw new Error(`fal video request ${status || 'failed'}: ${JSON.stringify(state.error ?? '')}`);
+    }
+    if (!['IN_QUEUE', 'IN_PROGRESS', 'COMPLETED'].includes(status)) {
+      throw new Error(`fal video returned unexpected queue status: ${status || 'missing'}`);
+    }
+  }
+
+  const result = await fetchJson(responseUrl, { headers: { authorization: `Key ${apiKey}` } });
+  const artifactUrl = firstArtifactUrl(result.output ?? result.video ?? result);
+  if (!artifactUrl) throw new Error('fal video result did not return an artifact URL');
   const artifact = await downloadVideo(artifactUrl);
   return {
     assetBuffer: artifact.buffer,
     assetMimeType: artifact.mime,
     extension: artifact.mime.includes('webm') ? 'webm' : 'mp4',
-    metadata: { provider: 'fal', providerModel: result.model ?? null, providerJobId: result.id ?? result.request_id ?? null, video: meta },
+    metadata: {
+      provider: 'fal',
+      providerModel: model,
+      providerJobId: requestId,
+      video: meta,
+      canonicalCandidateOnly: true,
+    },
   };
 }
 
