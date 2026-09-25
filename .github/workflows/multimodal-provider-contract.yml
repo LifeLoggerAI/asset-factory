@@ -82,9 +82,16 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/provider-contract
           cat > artifacts/provider-contract/receipt.json <<EOF
+          spatial_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
+          model_forge_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
+          production_targets="$(node -p "JSON.stringify(JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).productionTargets)")"
+          cat > artifacts/provider-contract/receipt.json <<EOF
           {
             "schemaVersion": 1,
             "headSha": "$TARGET_SHA",
+            "spatialHead": "$spatial_head",
+            "modelForgeExecutionBoundary": "$model_forge_status",
+            "modelForgeProductionTargets": $production_targets,
             "noSpend": true,
             "selectors": {
               "media": "local-proof",
@@ -100,7 +107,19 @@ jobs:
             "result": "contracts-passed"
           }
           EOF
-          node -e "JSON.parse(require('fs').readFileSync('artifacts/provider-contract/receipt.json','utf8'))"
+          EOF
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const receipt=JSON.parse(fs.readFileSync('artifacts/provider-contract/receipt.json','utf8'))
+          assert.equal(receipt.headSha,process.env.TARGET_SHA)
+          assert.equal(receipt.spatialHead,'28cdf3354720e32b26fe94799810f5afb4098181')
+          assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
+          assert.deepEqual(receipt.modelForgeProductionTargets,[])
+          assert.equal(receipt.noSpend,true)
+          assert.equal(receipt.providerSecretsInjected,false)
+          console.log('PASS exact-head no-spend provider receipt')
+          NODE
 
       - name: Retain provider contract receipt
         uses: actions/upload-artifact@v4
