@@ -85,7 +85,10 @@ export async function GET(req: NextRequest) {
 
     if (providerName === 'openai') {
       if (modality === 'image' && !configured('ASSET_FACTORY_OPENAI_IMAGE_MODEL')) blockers.push('provider-model-not-configured');
-      if (modality === 'audio' && !configured('ASSET_FACTORY_OPENAI_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+      if (modality === 'audio') {
+        if (!configured('ASSET_FACTORY_OPENAI_SPEECH_MODEL')) blockers.push('provider-model-not-configured');
+        if (!configured('ASSET_FACTORY_OPENAI_VOICE')) blockers.push('approved-voice-not-configured');
+      }
     }
 
     if (providerName === 'elevenlabs') {
