@@ -445,6 +445,57 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   }
 }
 
+
+async function testFalProviderUsesPinnedModelAndKeyAuth() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalKey = process.env.FAL_KEY;
+  const originalModel = process.env.ASSET_FACTORY_FAL_GRAPHICS_MODEL;
+  const calls = [];
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'fal';
+  process.env.FAL_KEY = 'test-fal-key';
+  process.env.ASSET_FACTORY_FAL_GRAPHICS_MODEL = 'fal-ai/flux/schnell';
+
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), method: options.method ?? 'GET' });
+    if (String(url) === 'https://fal.run/fal-ai/flux/schnell') {
+      assert.equal(options.method, 'POST');
+      assert.equal(options.headers.authorization, 'Key test-fal-key');
+      assert.deepEqual(JSON.parse(options.body), { prompt: 'governed fal smoke' });
+      return new Response(JSON.stringify({ images: [{ url: 'https://cdn.example.com/fal.webp' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    if (String(url) === 'https://cdn.example.com/fal.webp') {
+      return new Response(new Uint8Array([82, 73, 70, 70]), {
+        status: 200,
+        headers: { 'content-type': 'image/webp', 'content-length': '4' },
+      });
+    }
+    throw new Error(`Unexpected fetch URL: ${url}`);
+  };
+
+  try {
+    const result = await renderWithConfiguredProvider(
+      { jobId: 'fal-provider-test', tenantId: 'tenant-a', prompt: 'governed fal smoke', type: 'graphic' },
+      resolveAssetType('graphic')
+    );
+    assert.equal(result.extension, 'webp');
+    assert.equal(result.assetMimeType, 'image/webp');
+    assert.equal(result.assetBuffer.byteLength, 4);
+    assert.equal(result.metadata.provider, 'fal');
+    assert.equal(result.metadata.providerModel, 'fal-ai/flux/schnell');
+    assert.deepEqual(calls.map((call) => call.method), ['POST', 'GET']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    process.env.FAL_KEY = originalKey;
+    process.env.ASSET_FACTORY_FAL_GRAPHICS_MODEL = originalModel;
+  }
+}
+
 try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
@@ -455,6 +506,7 @@ try {
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
   await testProviderArtifactRejectsChunkedOverLimitDownload();
+  await testFalProviderUsesPinnedModelAndKeyAuth();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
   delete globalThis.__ASSET_FACTORY_TEST_DB__;
