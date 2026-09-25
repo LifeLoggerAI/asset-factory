@@ -166,7 +166,7 @@ async function testGraphicLane() {
 async function testModel3dLaneUsesPinnedVersionRoute() {
   const version = 'a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854';
   await runCase({
-    request: { jobId: 'model3d', tenantId: 'tenant', prompt: 'glass memory shrine', type: 'model3d', metadata: { enablePbr: true, generateType: 'Normal' } },
+    request: { jobId: 'model3d', tenantId: 'tenant', prompt: 'glass memory shrine', type: 'model3d', metadata: {} },
     typeName: 'model3d',
     expectedUrl: 'https://api.replicate.com/v1/predictions',
     expectedBody: { version, input: { prompt: 'glass memory shrine', enable_pbr: true, face_count: 40000, generate_type: 'Normal' } },
