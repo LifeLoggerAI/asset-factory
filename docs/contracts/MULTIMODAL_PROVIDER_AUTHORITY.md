@@ -72,6 +72,7 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 
 - Existing image, 3D, audio, speech, and video adapters remain.
 - Server-pinned model registry remains the fallback/model-lab authority.
+- MiniMax speech no longer has a stock `Friendly_Person` fallback; `ASSET_FACTORY_REPLICATE_SPEECH_VOICE` must be explicitly approved/configured before speech can run.
 - Request-level model/input overrides stay fail-closed by default.
 
 ### fal
@@ -100,6 +101,8 @@ Provider-backed manifests now record:
 - candidate-only state
 
 Provider generation never changes `approvalStatus` from draft by itself.
+
+Speech identity is fail-closed across ElevenLabs, OpenAI TTS, and Replicate/MiniMax. No stock voice is treated as the UrAi voice merely because a provider supplies one.
 
 Provider-returned artifact URLs are rejected when they resolve syntactically to loopback, RFC1918/private IPv4, link-local IPv4, IPv6 loopback/unspecified, IPv6 unique-local, or IPv6 link-local host literals. Video and non-video provider downloaders enforce the same boundary.
 
