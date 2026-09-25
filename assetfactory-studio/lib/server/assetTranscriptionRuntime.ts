@@ -41,6 +41,9 @@ export async function transcribeAssetFile(input: {
   const provider = env('ASSET_FACTORY_STT_PROVIDER') || 'local-proof';
   if (provider === 'local-proof') throw new Error('STT provider is not activated');
   if (provider !== 'elevenlabs') throw new Error(`Unsupported STT provider: ${provider}`);
+  if (process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED !== 'true') {
+    throw new Error('External STT provider is selected but ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED is not true');
+  }
 
   const apiKey = env('ELEVENLABS_API_KEY');
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY is required for STT');
