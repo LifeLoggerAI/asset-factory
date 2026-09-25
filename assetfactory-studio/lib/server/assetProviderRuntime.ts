@@ -340,9 +340,17 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
     const b64 = stringValue(data?.b64_json);
     const url = stringValue(data?.url);
     if (b64) {
+      const estimatedBytes = Math.floor((b64.length * 3) / 4);
+      if (estimatedBytes > providerMaxBytes()) {
+        throw new Error(`OpenAI image b64_json exceeds ASSET_FACTORY_PROVIDER_MAX_BYTES: estimated ${estimatedBytes}`);
+      }
+      const buffer = Buffer.from(b64, 'base64');
+      if (!buffer.byteLength || buffer.byteLength > providerMaxBytes()) {
+        throw new Error(`OpenAI image b64_json decoded size is invalid: ${buffer.byteLength}`);
+      }
       const mimeType = outputFormat === 'jpeg' ? 'image/jpeg' : `image/${outputFormat}`;
       return {
-        assetBuffer: Buffer.from(b64, 'base64'),
+        assetBuffer: buffer,
         assetMimeType: mimeType,
         extension: outputFormat === 'jpeg' ? 'jpg' : outputFormat,
         metadata: { provider: 'openai', providerModel: model, providerOutput: 'b64_json', outputFormat },
