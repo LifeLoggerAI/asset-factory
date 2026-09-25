@@ -42,6 +42,10 @@ const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
 const providerReadiness = read('scripts/provider-readiness.mjs');
+const legacyProviderRenderer = read('image_asset_generator/provider_renderer.py');
+const paidWorkflowBoundary = read('scripts/check-paid-workflow-boundary-current.py');
+const openAiSoraWorkflow = read('.github/workflows/one-time-finite-time-openai-physics-validation.yml');
+const modelForge = read('model_forge/forge.mjs');
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -64,6 +68,19 @@ for (const extension of ['svg', 'gltf', 'wav', 'mp4', 'webm', 'json']) {
 for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway', 'meshy']) {
   assertIncludes(providers, provider, `${provider} provider adapter diagnostic`);
 }
+
+for (const provider of ['meshy', 'tripo', 'rodin', 'replicate']) {
+  assertIncludes(modelForge, `provider === '${provider}'`, `${provider} Model Forge provider lane`);
+}
+assertIncludes(legacyProviderRenderer, 'ASSET_RENDERER_PROVIDER', 'legacy provider-neutral image adapter');
+assertIncludes(legacyProviderRenderer, 'ASSET_RENDERER_ENDPOINT must use HTTPS', 'legacy custom renderer HTTPS-only transport');
+if (legacyProviderRenderer.includes('ASSET_RENDERER_ALLOW_HTTP')) {
+  console.error('Legacy custom renderer must not retain an HTTP transport escape hatch');
+  process.exit(1);
+}
+assertIncludes(paidWorkflowBoundary, 'one-time-finite-time-openai-physics-validation.yml', 'governed OpenAI Sora video lane');
+assertIncludes(openAiSoraWorkflow, "assert m['model']=='sora-2'", 'OpenAI Sora model authority');
+assertIncludes(openAiSoraWorkflow, 'environment: paid-asset-generation', 'OpenAI Sora protected paid environment');
 
 for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'MESHY_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
