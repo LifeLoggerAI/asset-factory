@@ -106,7 +106,7 @@ function configureRegistry() {
   process.env.ASSET_FACTORY_IMAGE_PROVIDER = 'replicate';
   process.env.ASSET_FACTORY_MODEL3D_PROVIDER = 'replicate';
   process.env.ASSET_FACTORY_AUDIO_PROVIDER = 'replicate';
-  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = '1';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL = 'black-forest-labs/flux-schnell';
   process.env.ASSET_FACTORY_REPLICATE_MODEL3D_MODEL = 'tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854';
