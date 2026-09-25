@@ -1,0 +1,359 @@
+{
+  "schemaVersion": "urai-digital-human-aaa-readiness-v1",
+  "status": "prepared-no-spend",
+  "authority": {
+    "assetFactoryPr": 284,
+    "studioDigitalHumanContract": "LifeLoggerAI/urai-studio:apps/studio/lib/studio/digital-human.ts",
+    "spatialAuthorityPr": 1296,
+    "rule": "Prepare all required asset classes and validation gates now; do not generate or purchase likeness/voice-bearing assets until consent, rights, exact-head authority, budget, provider, and human-review gates are satisfied."
+  },
+  "globalGates": {
+    "providerSpendAuthorized": false,
+    "publicReleaseAuthorized": false,
+    "likenessGenerationAuthorized": false,
+    "voiceCloneAuthorized": false,
+    "finalHumanPerformanceCertified": false,
+    "requiredReceipts": [
+      "source-provenance",
+      "subject-consent",
+      "voice-rights",
+      "likeness-rights",
+      "provider-model-version",
+      "commercial-license",
+      "generation-job",
+      "artifact-hash",
+      "technical-qc",
+      "visual-qc",
+      "accessibility",
+      "performance",
+      "human-approval",
+      "promotion",
+      "deployment"
+    ]
+  },
+  "assetFamilies": [
+    {
+      "id": "identity-head-face",
+      "priority": "P0",
+      "qualityClass": "hero-close-camera",
+      "variants": [
+        "neutral",
+        "warm",
+        "serious",
+        "smile",
+        "speaking",
+        "listening"
+      ],
+      "requirements": [
+        "identity-anchor",
+        "face-topology",
+        "FACS-or-compatible-blendshapes",
+        "jaw",
+        "cheeks",
+        "brows",
+        "eyelids",
+        "nose",
+        "ears",
+        "skin-detail",
+        "asymmetry-preservation"
+      ],
+      "launchState": "spec-required-provider-or-custom-source-pending",
+      "paidAction": "hold-until-identity-consent-and-literal-gap-proof"
+    },
+    {
+      "id": "eyes-mouth-dental",
+      "priority": "P0",
+      "qualityClass": "hero-close-camera",
+      "variants": [
+        "neutral-gaze",
+        "near-focus",
+        "far-focus",
+        "blink",
+        "speech-open-close"
+      ],
+      "requirements": [
+        "cornea",
+        "sclera",
+        "iris",
+        "pupil",
+        "tearline",
+        "eyelashes",
+        "teeth",
+        "gums",
+        "tongue",
+        "inner-mouth",
+        "jaw-collision"
+      ],
+      "launchState": "spec-required",
+      "paidAction": "prepare-candidate-lanes-no-spend"
+    },
+    {
+      "id": "hair-facial-hair",
+      "priority": "P0",
+      "qualityClass": "hero-close-camera",
+      "variants": [
+        "canonical-style",
+        "motion-safe-lod",
+        "reduced-simulation",
+        "mobile-lod"
+      ],
+      "requirements": [
+        "strand-or-card-authority",
+        "hairline",
+        "brows",
+        "lashes",
+        "facial-hair-if-applicable",
+        "baked-physics-fallback",
+        "runtime-simulation-optional"
+      ],
+      "launchState": "spec-required",
+      "paidAction": "prepare-candidate-lanes-no-spend"
+    },
+    {
+      "id": "body-hands-clothing",
+      "priority": "P0",
+      "qualityClass": "hero-close-camera",
+      "variants": [
+        "standing",
+        "seated",
+        "walking",
+        "conversation",
+        "close-hand-gesture",
+        "mobile-lod"
+      ],
+      "requirements": [
+        "anatomy",
+        "hands",
+        "fingers",
+        "nails",
+        "shoulders",
+        "neck",
+        "body-rig",
+        "IK",
+        "foot-contact",
+        "cloth",
+        "collision",
+        "LOD"
+      ],
+      "launchState": "partial-runtime-evidence-not-final-likeness",
+      "paidAction": "challenger-only-until-runtime-gap-proof"
+    },
+    {
+      "id": "facial-performance",
+      "priority": "P0",
+      "qualityClass": "performance",
+      "variants": [
+        "listening",
+        "thinking",
+        "speaking",
+        "micro-smile",
+        "concern",
+        "joy",
+        "silence"
+      ],
+      "requirements": [
+        "FACS-map",
+        "microexpressions",
+        "blink-model",
+        "saccades",
+        "gaze-targeting",
+        "head-motion",
+        "breathing",
+        "idle-continuity"
+      ],
+      "launchState": "contracted-not-production-certified",
+      "paidAction": "prepare-capture-or-provider-bakeoff-no-spend"
+    },
+    {
+      "id": "lip-viseme-performance",
+      "priority": "P0",
+      "qualityClass": "performance",
+      "variants": [
+        "offline-timed",
+        "streaming",
+        "multilingual"
+      ],
+      "requirements": [
+        "phoneme-viseme-map",
+        "jaw-tongue-cheek-coarticulation",
+        "timing-track",
+        "latency-measurement",
+        "audio-alignment",
+        "fallback-neutral-mouth"
+      ],
+      "launchState": "contracted-not-production-certified",
+      "paidAction": "prepare-provider-and-runtime-tests-no-spend"
+    },
+    {
+      "id": "voice-identity",
+      "priority": "P0",
+      "qualityClass": "identity-audio",
+      "variants": [
+        "recorded-source",
+        "authorized-synthetic",
+        "authorized-voice-clone",
+        "provider-neutral-tts-fallback"
+      ],
+      "requirements": [
+        "clean-source-corpus",
+        "consent",
+        "rights",
+        "revocation",
+        "speaker-continuity",
+        "pronunciation",
+        "prosody",
+        "emotion-range",
+        "latency",
+        "watermark-or-disclosure-where-required"
+      ],
+      "launchState": "provider-lanes-exist-private-identity-not-certified",
+      "paidAction": "hold-clone-until-explicit-authorization-and-eligible-account"
+    },
+    {
+      "id": "voice-dialogue-runtime",
+      "priority": "P0",
+      "qualityClass": "realtime",
+      "variants": [
+        "normal",
+        "quiet",
+        "urgent",
+        "interruptible",
+        "multilingual"
+      ],
+      "requirements": [
+        "STT",
+        "turn-taking",
+        "barge-in",
+        "backchannel",
+        "TTS-streaming",
+        "response-latency",
+        "audio-device-fallback",
+        "captions",
+        "transcript"
+      ],
+      "launchState": "architecture-partial-provider-execution-hard-off",
+      "paidAction": "prepare-tests-no-spend"
+    },
+    {
+      "id": "motion-body-performance",
+      "priority": "P0",
+      "qualityClass": "performance",
+      "variants": [
+        "idle",
+        "standing-conversation",
+        "seated-conversation",
+        "walk",
+        "turn",
+        "approach",
+        "retreat",
+        "object-interaction",
+        "gesture-pack"
+      ],
+      "requirements": [
+        "root-motion",
+        "IK",
+        "foot-lock",
+        "personal-space",
+        "gesture-timing",
+        "emotion-body-coupling",
+        "reduced-motion-equivalent"
+      ],
+      "launchState": "motion-authority-exists-final-human-performance-not-certified",
+      "paidAction": "prepare-mocap-animation-bakeoff-no-spend"
+    },
+    {
+      "id": "clothing-wardrobe",
+      "priority": "P1",
+      "qualityClass": "hero-support",
+      "variants": [
+        "canonical",
+        "casual",
+        "formal",
+        "weather",
+        "regional",
+        "accessibility-safe"
+      ],
+      "requirements": [
+        "identity-appropriate",
+        "cloth-fallback",
+        "LOD",
+        "collision",
+        "commercial-rights",
+        "variant-consistency"
+      ],
+      "launchState": "variant-program-required",
+      "paidAction": "prepare-license-and-generation-shortlist-no-spend"
+    },
+    {
+      "id": "scene-light-camera",
+      "priority": "P0",
+      "qualityClass": "cinematic",
+      "variants": [
+        "day",
+        "dusk",
+        "night",
+        "interior-warm",
+        "low-stimulation",
+        "mobile"
+      ],
+      "requirements": [
+        "camera-blocking",
+        "focal-language",
+        "key-fill-rim",
+        "eye-light",
+        "skin-tone-response",
+        "contact-shadow",
+        "reflection",
+        "HDR",
+        "exposure-adaptation"
+      ],
+      "launchState": "studio-direction-authority-exists-character-proof-required",
+      "paidAction": "use-existing-scene-authority-first"
+    },
+    {
+      "id": "accessibility-derivatives",
+      "priority": "P0",
+      "qualityClass": "required",
+      "variants": [
+        "captions",
+        "transcript",
+        "audio-description",
+        "reduced-motion",
+        "non-audio-state",
+        "low-stimulation"
+      ],
+      "requirements": [
+        "synchronized-captions",
+        "readable-transcript",
+        "visual-equivalent",
+        "haptic-equivalent-where-used",
+        "no-audio-only-meaning"
+      ],
+      "launchState": "required-before-promotion",
+      "paidAction": "no-provider-promotion-without-derivatives"
+    }
+  ],
+  "minimumVariantPolicy": {
+    "rule": "No single bare-bones hero asset satisfies the digital-human launch requirement.",
+    "requiredDimensions": [
+      "identity-state",
+      "performance-state",
+      "device-tier",
+      "reduced-motion",
+      "lighting",
+      "language-or-voice-mode-where-applicable"
+    ],
+    "mobileFallbackRequired": true,
+    "nonPhotorealFallbackRequired": true
+  },
+  "promotionGate": {
+    "allP0FamiliesRequired": true,
+    "exactHeadProofRequired": true,
+    "literalPixelReviewRequiredForVisualFamilies": true,
+    "audioListeningReviewRequiredForVoiceFamilies": true,
+    "latencyEvidenceRequiredForRealtimeFamilies": true,
+    "accessibilityDerivativesRequired": true,
+    "licenseAndRightsReceiptsRequired": true,
+    "humanApprovalRequired": true
+  }
+}
