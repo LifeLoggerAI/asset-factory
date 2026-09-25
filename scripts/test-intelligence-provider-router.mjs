@@ -52,6 +52,18 @@ const keys = [
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 
+const routeSource = fs.readFileSync(path.join(studioRoot, 'app/api/system/intelligence/route.ts'), 'utf8');
+for (const required of [
+  'requireConfiguredAssetFactoryApiKey(req)',
+  "authorizeAssetRequest(req, tenantId, 'operator')",
+  "authorizeAssetRequest(req, undefined, 'operator')",
+  "prompt is required and must be <= 32000 characters",
+  'sensitiveCloudConsent: body.sensitiveCloudConsent === true',
+]) {
+  assert.ok(routeSource.includes(required), `intelligence route missing governed boundary: ${required}`);
+}
+assert.ok(!routeSource.includes('console.log(prompt)'), 'intelligence route must not log prompt content');
+
 function restore() {
   for (const key of keys) {
     if (original[key] === undefined) delete process.env[key];
