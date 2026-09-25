@@ -63,6 +63,17 @@ function isPrivateIpv4(hostname: string) {
   );
 }
 
+function isPrivateIpv6(hostname: string) {
+  const normalized = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  return (
+    normalized === '::' ||
+    normalized === '::1' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    /^fe[89ab]/.test(normalized)
+  );
+}
+
 function assertPublicProviderUrl(url: string) {
   let parsed: URL;
   try {
@@ -78,10 +89,10 @@ function assertPublicProviderUrl(url: string) {
   const hostname = parsed.hostname.toLowerCase();
   if (
     hostname === 'localhost' ||
-    hostname === '::1' ||
     hostname.endsWith('.localhost') ||
     hostname.endsWith('.local') ||
-    isPrivateIpv4(hostname)
+    isPrivateIpv4(hostname) ||
+    isPrivateIpv6(hostname)
   ) {
     throw new Error('Provider artifact URL points to a private or local host');
   }
