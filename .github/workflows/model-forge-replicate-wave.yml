@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT_ID: urai-4dc1d
-  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
-  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+  PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
   URAI_REPLICATE_MODEL: tencent/hunyuan-3d-3.1
   URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'
 
@@ -37,6 +37,15 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/main' || { echo '::error::Paid model wave may only run from main.'; exit 64; }
           test "$CONFIRM_PAID_WAVE" = 'RUN_ONE_URAI_REPLICATE_MODEL_WAVE' || { echo '::error::Exact authorization phrase missing.'; exit 65; }
+          test -n "$PROJECT_ID" || { echo '::error::ASSET_FACTORY_FIREBASE_PROJECT_ID environment variable is required.'; exit 66; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER environment variable is required.'; exit 67; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT environment variable is required.'; exit 68; }
+          case "$PROJECT_ID" in
+            urai-4dc1d|asset-factory-dev-id) echo '::error::Shared or development Firebase authority is prohibited for paid Model Forge execution.'; exit 69 ;;
+          esac
+          case "$GCP_DEPLOY_SERVICE_ACCOUNT" in
+            *@urai-4dc1d.iam.gserviceaccount.com) echo '::error::Legacy shared-project deploy identity is prohibited.'; exit 70 ;;
+          esac
 
       - uses: actions/checkout@v4
 
