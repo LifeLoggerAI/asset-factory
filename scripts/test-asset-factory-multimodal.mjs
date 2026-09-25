@@ -83,7 +83,15 @@ for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PRO
 assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v2/text-to-3d', 'Meshy text-to-3D runtime');
 assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/image-to-3d', 'Meshy image-to-3D runtime');
 assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/multi-image-to-3d', 'Meshy multi-image-to-3D runtime');
+assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION", 'Meshy multi-image resolution isolation');
+assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION", 'Meshy text geometry resolution');
+assertIncludes(providerRuntime, "ai_model: textModel", 'Meshy text-to-3D model pinning');
+assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image supported resolution boundary');
 assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_IMAGE_FORMAT", 'OpenAI image format authority');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_SPEECH_MODEL", 'OpenAI speech model authority');
+assertIncludes(providerRuntime, "https://api.stability.ai/v2beta/stable-image/generate/${service}", 'current Stability image endpoint');
+assertIncludes(providerRuntime, "expected core or ultra", 'Stability service allowlist');
 assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configured", 'fail-closed ElevenLabs voice identity');
 if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
   console.error('Stock ElevenLabs voice fallback must not exist in Asset Factory runtime');
