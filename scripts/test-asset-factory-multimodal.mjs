@@ -249,6 +249,11 @@ assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
 assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
 assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
+assertIncludes(store, "approvalStatus !== 'approved'", 'store-level approval gate before publication');
+assertIncludes(store, 'Asset approval is required before publication', 'fail-closed publish error');
+const publishRoute = read('assetfactory-studio/app/api/jobs/[jobId]/publish/route.ts');
+assertIncludes(publishRoute, "status = message === 'Asset approval is required before publication' ? 409 : 500", 'publish route approval conflict status');
+assertIncludes(e2e, 'unapproved publish must fail closed', 'E2E proves draft candidates cannot publish');
 
 if (!fs.existsSync(studio)) {
   console.error(`Missing studio directory: ${studio}`);

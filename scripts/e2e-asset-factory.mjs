@@ -94,8 +94,11 @@ async function exerciseCase(testCase) {
   const fetched = await request(`/api/generated-assets/${asset.fileName}`);
   if (!fetched.body) throw new Error(`${testCase.type} generated asset fetch returned empty body`);
 
-  const published = await requestJson(`/api/jobs/${jobId}/publish`, { method: 'POST' });
-  if (!published?.asset?.published) throw new Error(`${testCase.type} publish failed`);
+  const rejectedPublish = await fetch(`${base}/api/jobs/${jobId}/publish`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (rejectedPublish.status !== 409) throw new Error(`${testCase.type} unapproved publish must fail closed`);
 
   const approved = await requestJson(`/api/jobs/${jobId}/approve`, {
     method: 'POST',
@@ -103,6 +106,9 @@ async function exerciseCase(testCase) {
     body: JSON.stringify({ status: 'approved', approvedBy: 'e2e-smoke' }),
   });
   if (approved?.asset?.approvalStatus !== 'approved') throw new Error(`${testCase.type} approve failed`);
+
+  const published = await requestJson(`/api/jobs/${jobId}/publish`, { method: 'POST' });
+  if (!published?.asset?.published) throw new Error(`${testCase.type} publish failed`);
 
   return jobId;
 }
