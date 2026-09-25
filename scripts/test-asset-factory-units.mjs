@@ -440,7 +440,7 @@ async function testProviderArtifactRejectsPrivateUrls() {
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-2') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-2', status: 'succeeded', output: 'http://127.0.0.1/internal.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-2', status: 'succeeded', output: 'https://127.0.0.1/internal.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
