@@ -1,6 +1,6 @@
 import type { GenerateRequest } from './assetFactoryValidation';
 import type { AssetTypeDefinition } from './assetTypeCatalog';
-import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';
+import { configuredProviderName, isAssetProviderName, type AssetProviderName } from './assetProviderAdapters';
 
 type ProviderRenderResult = {
   assetBuffer: Buffer;
@@ -203,9 +203,49 @@ function extensionFromMime(mimeType: string, fallback: string) {
   if (mimeType.includes('mpeg')) return 'mp3';
   if (mimeType.includes('wav')) return 'wav';
   if (mimeType.includes('flac')) return 'flac';
+  if (mimeType.includes('gltf-binary')) return 'glb';
   if (mimeType.includes('gltf')) return 'gltf';
   if (mimeType.includes('glb')) return 'glb';
   return fallback;
+}
+
+function providerFromEnv(name: string): AssetProviderName | null {
+  const value = env(name).toLowerCase();
+  if (!value) return null;
+  if (!isAssetProviderName(value)) throw new Error(`Invalid ${name} provider: ${value}`);
+  return value;
+}
+
+function audioLane(input: GenerateRequest): 'speech' | 'sfx' | 'music' | 'audio' {
+  const raw = String(input.type ?? '').trim().toLowerCase();
+  if (raw === 'music') return 'music';
+  if (['sfx', 'sound', 'ambience'].includes(raw)) return 'sfx';
+  if (['voice', 'speech', 'tts', 'narration', 'narrator'].includes(raw)) return 'speech';
+  return 'audio';
+}
+
+export function configuredProviderForRequest(
+  input: GenerateRequest,
+  definition: AssetTypeDefinition
+): AssetProviderName {
+  if (definition.canonicalType === 'graphic') {
+    return providerFromEnv('ASSET_FACTORY_IMAGE_PROVIDER') ?? configuredProviderName();
+  }
+  if (definition.canonicalType === 'model3d') {
+    return providerFromEnv('ASSET_FACTORY_MODEL3D_PROVIDER') ?? configuredProviderName();
+  }
+  if (definition.canonicalType === 'audio') {
+    const lane = audioLane(input);
+    const laneVariable = lane === 'music'
+      ? 'ASSET_FACTORY_MUSIC_PROVIDER'
+      : lane === 'sfx'
+        ? 'ASSET_FACTORY_SFX_PROVIDER'
+        : 'ASSET_FACTORY_AUDIO_PROVIDER';
+    return providerFromEnv(laneVariable)
+      ?? providerFromEnv('ASSET_FACTORY_AUDIO_PROVIDER')
+      ?? configuredProviderName();
+  }
+  return configuredProviderName();
 }
 
 async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
@@ -216,7 +256,7 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
     const size = input.size?.width && input.size?.height
       ? `${input.size.width}x${input.size.height}`
       : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
-    const model = env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-1';
+    const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2.5-sunburst';
     const payload = await postJson(
       'https://api.openai.com/v1/images/generations',
       { authorization: `Bearer ${apiKey}` },
@@ -272,9 +312,16 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderResult | null> {
   const apiKey = env('ELEVENLABS_API_KEY');
   if (!apiKey) return null;
-  const voiceId = env('ELEVENLABS_VOICE_ID') || '21m00Tcm4TlvDq8ikWAM';
-  const modelId = env('ASSET_FACTORY_AUDIO_MODEL') || 'eleven_multilingual_v2';
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+  const voiceId = env('ELEVENLABS_VOICE_ID');
+  if (!voiceId) throw new Error('ELEVENLABS_VOICE_ID must be explicitly configured; stock voice fallback is prohibited');
+  const lane = audioLane(input);
+  if (lane !== 'speech' && lane !== 'audio') return null;
+  const modelId = env('ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL') || env('ASSET_FACTORY_AUDIO_MODEL') || 'eleven_v3';
+  const zeroRetention = enabled('ELEVENLABS_ZERO_RETENTION');
+  const endpoint = new URL(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`);
+  endpoint.searchParams.set('output_format', env('ELEVENLABS_OUTPUT_FORMAT') || 'mp3_44100_128');
+  if (zeroRetention) endpoint.searchParams.set('enable_logging', 'false');
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'xi-api-key': apiKey,
@@ -289,7 +336,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
     assetBuffer: Buffer.from(await response.arrayBuffer()),
     assetMimeType: response.headers.get('content-type') ?? 'audio/mpeg',
     extension: 'mp3',
-    metadata: { provider: 'elevenlabs', providerModel: modelId, voiceId },
+    metadata: { provider: 'elevenlabs', providerModel: modelId, voiceId, zeroRetention },
   };
 }
 
@@ -481,6 +528,113 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
   };
 }
 
+
+async function pollMeshyTask(
+  endpoint: string,
+  apiKey: string,
+  taskId: string
+): Promise<JsonRecord> {
+  const deadline = Date.now() + providerTimeoutMs();
+  while (true) {
+    if (Date.now() >= deadline) throw new Error(`Meshy task timed out after ${providerTimeoutMs()}ms`);
+    const task = await getJson(`${endpoint}/${encodeURIComponent(taskId)}`, { authorization: `Bearer ${apiKey}` });
+    const status = stringValue(task.status).toUpperCase();
+    if (status === 'SUCCEEDED') return task;
+    if (['FAILED', 'CANCELED', 'CANCELLED', 'EXPIRED'].includes(status)) {
+      throw new Error(`Meshy task ${status.toLowerCase()}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, numberFromEnv('ASSET_FACTORY_MESHY_POLL_MS', 3000)));
+  }
+}
+
+function meshyModelUrl(task: JsonRecord) {
+  const urls = task.model_urls;
+  if (!urls || typeof urls !== 'object' || Array.isArray(urls)) return null;
+  return stringValue((urls as JsonRecord).glb) || firstUrl(urls);
+}
+
+async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
+  if (definition.canonicalType !== 'model3d') return null;
+  const apiKey = env('MESHY_API_KEY');
+  if (!apiKey) return null;
+
+  const metadata = input.metadata ?? {};
+  const imageUrls = Array.isArray(metadata.sourceImageUrls)
+    ? metadata.sourceImageUrls.filter((value): value is string => typeof value === 'string' && value.startsWith('https://')).slice(0, 4)
+    : [];
+  const sourceImageUrl = stringValue(metadata.sourceImageUrl);
+  const model = env('ASSET_FACTORY_MESHY_MODEL') || 'meshy-7.1';
+  let endpoint = 'https://api.meshy.ai/openapi/v2/text-to-3d';
+  let createBody: JsonRecord;
+
+  if (imageUrls.length > 1) {
+    endpoint = 'https://api.meshy.ai/openapi/v1/multi-image-to-3d';
+    createBody = {
+      image_urls: imageUrls,
+      ai_model: model,
+      geometry_resolution: env('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION') || '2k',
+      should_texture: true,
+      enable_pbr: true,
+      target_formats: ['glb'],
+    };
+  } else if (sourceImageUrl || imageUrls[0]) {
+    endpoint = 'https://api.meshy.ai/openapi/v1/image-to-3d';
+    createBody = {
+      image_url: sourceImageUrl || imageUrls[0],
+      ai_model: model,
+      geometry_resolution: env('ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION') || '4k',
+      should_texture: true,
+      enable_pbr: true,
+      target_formats: ['glb'],
+    };
+  } else {
+    createBody = {
+      mode: 'preview',
+      prompt: String(input.prompt).slice(0, 800),
+      model_type: env('ASSET_FACTORY_MESHY_MODEL_TYPE') || 'standard',
+      should_remesh: false,
+      moderation: true,
+      target_formats: ['glb'],
+    };
+  }
+
+  const created = await postJson(endpoint, { authorization: `Bearer ${apiKey}` }, createBody);
+  const taskId = stringValue(created.result);
+  if (!taskId) throw new Error('Meshy create response did not include a task id');
+  let task = await pollMeshyTask(endpoint, apiKey, taskId);
+
+  if (endpoint.endsWith('/text-to-3d')) {
+    const refine = await postJson(endpoint, { authorization: `Bearer ${apiKey}` }, {
+      mode: 'refine',
+      preview_task_id: taskId,
+      enable_pbr: true,
+      texture_resolution: env('ASSET_FACTORY_MESHY_TEXTURE_RESOLUTION') || '4k',
+      target_formats: ['glb'],
+      auto_size: enabled('ASSET_FACTORY_MESHY_AUTO_SIZE'),
+    });
+    const refineId = stringValue(refine.result);
+    if (!refineId) throw new Error('Meshy refine response did not include a task id');
+    task = await pollMeshyTask(endpoint, apiKey, refineId);
+  }
+
+  const outputUrl = meshyModelUrl(task);
+  if (!outputUrl) throw new Error('Meshy task did not return a GLB artifact URL');
+  const binary = await fetchBinary(outputUrl);
+  return {
+    assetBuffer: binary.buffer,
+    assetMimeType: binary.mimeType === 'application/octet-stream' ? 'model/gltf-binary' : binary.mimeType,
+    extension: 'glb',
+    metadata: {
+      provider: 'meshy',
+      providerModel: model,
+      providerTaskId: task.id ?? taskId,
+      generationMode: endpoint.includes('multi-image') ? 'multi-image-to-3d' : endpoint.includes('image-to-3d') ? 'image-to-3d' : 'text-to-3d',
+      pbrRequested: true,
+      canonicalCandidateOnly: true,
+    },
+  };
+}
+
 async function renderFal(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
   const apiKey = env('FAL_KEY');
   const model = definition.canonicalType === 'model3d'
@@ -510,7 +664,7 @@ export async function renderWithConfiguredProvider(
   input: GenerateRequest,
   definition: AssetTypeDefinition
 ): Promise<ProviderRenderResult | null> {
-  const provider = configuredProviderName();
+  const provider = configuredProviderForRequest(input, definition);
   if (provider === 'local-proof') return null;
 
   const result = await renderProvider(provider, input, definition);
@@ -530,5 +684,6 @@ async function renderProvider(
   if (provider === 'stability' && definition.canonicalType === 'graphic') return renderStability(input);
   if (provider === 'replicate') return renderReplicate(input, definition);
   if (provider === 'fal') return renderFal(input, definition);
+  if (provider === 'meshy') return renderMeshy(input, definition);
   return null;
 }
