@@ -82,16 +82,17 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 
 ## Authority discipline — current convergence
 
-PR #279 is the Model Forge child of Asset Factory PR #278. Do not hard-code its mutable source head in this README: every source edit creates a successor. Recover the live PR head and fresh workflow state from GitHub before execution.
+Draft PR #284 is the unified Asset Factory production + Model Forge + multimodal successor stacked on production-hardening PR #281. PR #279 remains historical predecessor evidence after its file surface was converged into #284. Recover the live #284 head and fresh workflow state from GitHub before execution.
 
-The model inventory and reference-resolution receipts are currently reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `4d48679155d53010536ed642d5be55063d300052`. If Spatial moves, those receipts become historical until re-reconciled.
+The model inventory and reference-resolution receipts are reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `28cdf3354720e32b26fe94799810f5afb4098181`. If Spatial moves, those receipts become historical until re-reconciled.
 
 Current production boundary:
 - all seven named canonical reference files are resolved and SHA-256 bound;
-- current #1296 retains the authored Ground canopy, canonical roots, scanned geology/terrain, existing Replay environment candidate, and Focus V389 selected-memory-star authority with stellar-photosphere / contained-memory / no-Orb treatment and terrain ownership explicitly false;
-- therefore there are **zero currently authorized paid Model Forge production targets**; provider manufacture is challenger-only after a specific current-head literal-pixel gap is proven;
-- ordinary Actions secrets for Meshy / Tripo / Rodin / Replicate were absent at the last provider-presence proof;
-- Replicate retains a protected Google WIF/OIDC → Secret Manager path, and the paid Replicate wave remains main-only and production-environment gated;
+- current #1296 includes pinned CC0 `ground-polyhaven-jacaranda-web-v1` as an integrated Ground canopy candidate replacing the procedural/unapproved canopy, but its receipt remains `humanReviewApproved=false`, `visualProofVerified=false`, `exactHeadChecksPassed=false`, and fail-closed until proof;
+- canonical Ground roots/terrain/geology remain existing runtime authority unless current-head literal pixels prove a specific unresolved gap;
+- Replay's retained GLB remains runtime-supporting geometry but not Replay visual authority; Focus's retained chamber remains non-runtime supporting reference while the selected Memory Star remains Focus authority;
+- therefore there are **zero currently authorized paid Model Forge production targets**; even the canopy bake-off is source-blocked until the current CC0 candidate is accepted or rejected and a specific remaining gap is proven;
+- the paid Replicate wave resolves dedicated production project/WIF/service-account values from the protected production environment and explicitly rejects the historical shared `urai-4dc1d` authority;
 - Blender cleanup/LOD/review rendering is runtime-proven with deterministic smoke material, but a smoke fixture is not production art;
 - PR workflows must explicitly checkout and verify the pull-request branch head; GitHub's synthetic merge ref is not accepted as exact-head proof.
 
