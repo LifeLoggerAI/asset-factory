@@ -36,6 +36,13 @@ function publicUrl(value: unknown): string | null {
   }
 }
 
+function trustedProviderUrl(value: unknown, expectedHostname: string): string | null {
+  const safeUrl = publicUrl(value);
+  if (!safeUrl) return null;
+  const parsed = new URL(safeUrl);
+  return parsed.hostname.toLowerCase() === expectedHostname.toLowerCase() ? parsed.toString() : null;
+}
+
 async function fetchJson(url: string, init?: RequestInit): Promise<JsonRecord> {
   const response = await fetch(url, init);
   const text = await response.text();
@@ -136,8 +143,9 @@ async function renderReplicate(input: GenerateRequest): Promise<VideoProviderRen
   const deadline = Date.now() + numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS);
   while (!['succeeded', 'failed', 'canceled'].includes(String(prediction.status ?? ''))) {
     if (Date.now() > deadline) throw new Error('Video provider polling timed out');
-    const getUrl = publicUrl((prediction.urls as JsonRecord | undefined)?.get);
-    if (!getUrl) throw new Error('Video provider response missing prediction polling URL');
+    const rawGetUrl = (prediction.urls as JsonRecord | undefined)?.get;
+    const getUrl = trustedProviderUrl(rawGetUrl, 'api.replicate.com');
+    if (!getUrl) throw new Error('Replicate video polling URL must remain on api.replicate.com');
     await new Promise((resolve) => setTimeout(resolve, numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS', DEFAULT_POLL_MS)));
     prediction = await fetchJson(getUrl, { headers: { authorization: `Bearer ${token}` } });
   }
