@@ -9,8 +9,9 @@ Historical Asset Factory deployments and smoke evidence exist for Firebase proje
 ## Current source authority
 
 - Core convergence parent: PR #278.
-- Model Forge child: PR #279.
-- Dedicated production-authority hardening: draft PR #281.
+- Dedicated production-authority hardening parent: draft PR #281.
+- Unified production + Model Forge + multimodal successor: draft PR #284, stacked on #281.
+- PR #284 carries the complete file surface of prior Model Forge PR #279 and multimodal provider PR #282; those sibling lanes are no longer the intended forward integration path once #284 earns exact-head gates.
 - Active Firebase Functions source: `life-map-pipeline/functions`.
 - Active Functions runtime: Node 22.
 - Root `functions/`: historical Node 18 tree, non-deployable.
