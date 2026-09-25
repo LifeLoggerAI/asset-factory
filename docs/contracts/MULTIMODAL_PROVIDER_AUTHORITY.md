@@ -14,7 +14,7 @@ All paid provider selectors default to `local-proof`. This branch does not autho
 
 | Modality | Primary target | Fallback/lab | Activation variable |
 | --- | --- | --- | --- |
-| Image | OpenAI GPT Image 2.5 Sunburst | Replicate / Stability / fal | `ASSET_FACTORY_IMAGE_PROVIDER` |
+| Image | OpenAI GPT-Image-2 | Replicate / Stability / fal | `ASSET_FACTORY_IMAGE_PROVIDER` |
 | 3D | Meshy | Replicate / fal | `ASSET_FACTORY_MODEL3D_PROVIDER` |
 | Speech | ElevenLabs | OpenAI / Replicate | `ASSET_FACTORY_AUDIO_PROVIDER` |
 | SFX | ElevenLabs | Replicate / fal | `ASSET_FACTORY_SFX_PROVIDER` |
@@ -29,7 +29,7 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 ### OpenAI image
 
 - Runtime adapter exists.
-- Default model: `gpt-image-2.5-sunburst`.
+- Default model: `gpt-image-2`.
 - Current Image API request shape is used.
 - PNG/JPEG/WebP output format is explicitly validated and provenance/MIME follow the actual requested format.
 - Optional OpenAI TTS fallback uses `gpt-4o-mini-tts`, but speech voice identity is fail-closed until `ASSET_FACTORY_OPENAI_VOICE` is explicitly approved.

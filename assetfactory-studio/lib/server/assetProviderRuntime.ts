@@ -275,7 +275,7 @@ function openAiImageSize(input: GenerateRequest) {
     pixels > 8_294_400
   ) {
     throw new Error(
-      `OpenAI image size ${requested} violates GPT Image 2.5 bounds: edges must be multiples of 16, max edge 3840, aspect ratio <= 3:1, total pixels 655360..8294400`
+      `OpenAI image size ${requested} violates configured OpenAI image bounds: edges must be multiples of 16, max edge 3840, aspect ratio <= 3:1, total pixels 655360..8294400`
     );
   }
   return requested;
@@ -319,7 +319,7 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 
   if (definition.canonicalType === 'graphic') {
     const size = openAiImageSize(input);
-    const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2.5-sunburst';
+    const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2';
     const configuredFormat = (env('ASSET_FACTORY_OPENAI_IMAGE_FORMAT') || env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png').toLowerCase();
     const outputFormat = configuredFormat === 'jpg' ? 'jpeg' : configuredFormat;
     if (!['png', 'jpeg', 'webp'].includes(outputFormat)) {
