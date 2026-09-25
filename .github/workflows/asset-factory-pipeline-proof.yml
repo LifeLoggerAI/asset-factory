@@ -56,10 +56,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}
+  group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -74,7 +74,7 @@ jobs:
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify exact clean candidate identity
         shell: bash
