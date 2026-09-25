@@ -1,0 +1,47 @@
+name: Repair PR281 pnpm lock
+
+on:
+  push:
+    branches:
+      - hardening/asset-factory-production-authority-20260924
+    paths:
+      - package.json
+      - .github/workflows/repair-pr281-pnpm-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: hardening/asset-factory-production-authority-20260924
+          fetch-depth: 0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Regenerate governed workspace lock
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+
+      - name: Commit exact generated lock if changed
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml already matches package.json"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "security: regenerate pnpm lock for patched overrides"
+          git push origin HEAD:hardening/asset-factory-production-authority-20260924
