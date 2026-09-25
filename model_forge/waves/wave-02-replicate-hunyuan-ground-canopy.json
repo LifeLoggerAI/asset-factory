@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "urai-model-forge-wave-v1",
+  "id": "wave-02-replicate-hunyuan-ground-canopy",
+  "purpose": "One protected Replicate/Hunyuan Ground canopy challenger using existing WIF + Secret Manager boundary.",
+  "spendAuthorizationRequired": true,
+  "productionAuthority": false,
+  "maxCandidateGenerations": 1,
+  "entries": [
+    {
+      "spec": "model_forge/specs/ground-canopy-challenger.json",
+      "providers": [
+        "replicate"
+      ],
+      "maxAttemptsPerProvider": 1
+    }
+  ],
+  "acceptance": "Provider success is candidate creation only. No promotion without structural validation, Blender cleanup/LODs, standardized review renders, real /ground integration, literal desktop/portrait/reduced-motion review, and governance."
+}
