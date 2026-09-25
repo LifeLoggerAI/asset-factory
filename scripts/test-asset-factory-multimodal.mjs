@@ -57,15 +57,28 @@ for (const extension of ['svg', 'gltf', 'wav', 'mp4', 'webm', 'json']) {
   assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
 }
 
-for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway']) {
+for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway', 'meshy']) {
   assertIncludes(providers, provider, `${provider} provider adapter diagnostic`);
 }
 
-for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
+for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'MESHY_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
-for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAY_API_KEY', 'FAL_KEY', 'referenceImageUrl', 'referenceVideoUrl']) {
+for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAYML_API_SECRET', 'FAL_KEY', 'referenceImageUrl', 'referenceVideoUrl', 'api.dev.runwayml.com/v1/image_to_video', 'api.dev.runwayml.com/v1/tasks/']) {
   assertIncludes(videoProviderRuntime, marker, `video runtime support for ${marker}`);
+}
+
+for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
+  assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
+}
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v2/text-to-3d', 'Meshy text-to-3D runtime');
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/image-to-3d', 'Meshy image-to-3D runtime');
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/multi-image-to-3d', 'Meshy multi-image-to-3D runtime');
+assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
+assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configured", 'fail-closed ElevenLabs voice identity');
+if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
+  console.error('Stock ElevenLabs voice fallback must not exist in Asset Factory runtime');
+  process.exit(1);
 }
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
