@@ -190,6 +190,23 @@ async function testMusicLane() {
   });
 }
 
+async function testSpeechLaneRequiresApprovedVoice() {
+  const original = process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+  delete process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'speech-no-voice', tenantId: 'tenant', prompt: 'hello', type: 'speech', metadata: {} },
+        resolveAssetType('speech')
+      ),
+      /ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured/
+    );
+  } finally {
+    if (original === undefined) delete process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+    else process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE = original;
+  }
+}
+
 async function testSpeechLane() {
   await runCase({
     request: { jobId: 'speech', tenantId: 'tenant', prompt: 'Welcome back, Adam.', type: 'speech', metadata: { voiceId: 'Friendly_Person', emotion: 'auto', languageBoost: 'English' } },
@@ -226,6 +243,7 @@ try {
   await testGraphicLane();
   await testModel3dLaneUsesPinnedVersionRoute();
   await testMusicLane();
+  await testSpeechLaneRequiresApprovedVoice();
   await testSpeechLane();
   await testRequestOverridesRemainFailClosed();
   console.log('PASS Replicate four-lane model registry contract tests');
