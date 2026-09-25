@@ -141,6 +141,7 @@ async function getJson(url: string, headers: Record<string, string>) {
   const response = await fetch(assertPublicProviderUrl(url), {
     method: 'GET',
     headers,
+    redirect: 'error',
     signal: providerAbortSignal(),
   });
 
@@ -182,7 +183,7 @@ async function readBinaryWithLimit(response: Response, maxBytes: number) {
 
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
   const safeUrl = assertPublicProviderUrl(url);
-  const response = await fetch(safeUrl, { headers, signal: providerAbortSignal() });
+  const response = await fetch(safeUrl, { headers, redirect: 'error', signal: providerAbortSignal() });
   if (!response.ok) throw new Error(`Provider artifact fetch failed ${response.status}`);
 
   const contentLengthHeader = response.headers.get('content-length');
