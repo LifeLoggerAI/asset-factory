@@ -29,6 +29,8 @@ export type IntelligenceAttemptReceipt = {
   outcome: 'success' | 'failed';
   latencyMs: number;
   failureClass?: string;
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 export type IntelligenceExecutionReceipt = {
@@ -229,7 +231,12 @@ async function executeOpenAi(input: IntelligenceRouteRequest, model: string) {
       max_output_tokens: boundedMaxTokens(input.maxOutputTokens),
     }),
   });
-  return extractOpenAiText(payload);
+  const usage = payload.usage && typeof payload.usage === 'object' ? payload.usage as Record<string, unknown> : {};
+  return {
+    text: extractOpenAiText(payload),
+    inputTokens: typeof usage.input_tokens === 'number' ? usage.input_tokens : undefined,
+    outputTokens: typeof usage.output_tokens === 'number' ? usage.output_tokens : undefined,
+  };
 }
 
 async function executeAnthropic(input: IntelligenceRouteRequest, model: string) {
@@ -253,7 +260,12 @@ async function executeAnthropic(input: IntelligenceRouteRequest, model: string) 
     .filter(Boolean)
     .join('\n');
   if (!text) throw new Error('Anthropic response contained no text output');
-  return text;
+  const usage = payload.usage && typeof payload.usage === 'object' ? payload.usage as Record<string, unknown> : {};
+  return {
+    text,
+    inputTokens: typeof usage.input_tokens === 'number' ? usage.input_tokens : undefined,
+    outputTokens: typeof usage.output_tokens === 'number' ? usage.output_tokens : undefined,
+  };
 }
 
 async function executeGemini(input: IntelligenceRouteRequest, model: string) {
@@ -288,7 +300,12 @@ async function executeGemini(input: IntelligenceRouteRequest, model: string) {
     }
   }
   if (!text.length) throw new Error('Gemini response contained no text output');
-  return text.join('\n');
+  const usage = payload.usageMetadata && typeof payload.usageMetadata === 'object' ? payload.usageMetadata as Record<string, unknown> : {};
+  return {
+    text: text.join('\n'),
+    inputTokens: typeof usage.promptTokenCount === 'number' ? usage.promptTokenCount : undefined,
+    outputTokens: typeof usage.candidatesTokenCount === 'number' ? usage.candidatesTokenCount : undefined,
+  };
 }
 
 async function executeProvider(provider: IntelligenceProviderName, input: IntelligenceRouteRequest, model: string) {
@@ -308,11 +325,18 @@ export async function executeIntelligenceTask(input: IntelligenceRouteRequest): 
     const model = env(provider.modelEnv);
     const startedAt = Date.now();
     try {
-      const text = await executeProvider(providerName, input, model);
+      const result = await executeProvider(providerName, input, model);
       failures.delete(providerName);
-      attempts.push({ provider: providerName, model, outcome: 'success', latencyMs: Date.now() - startedAt });
+      attempts.push({
+        provider: providerName,
+        model,
+        outcome: 'success',
+        latencyMs: Date.now() - startedAt,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+      });
       return {
-        text,
+        text: result.text,
         receipt: {
           schemaVersion: 'urai-intelligence-execution-receipt-1',
           task: input.task,
