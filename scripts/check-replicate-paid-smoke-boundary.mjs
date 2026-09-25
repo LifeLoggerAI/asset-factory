@@ -68,11 +68,17 @@ for (const required of [exactProvider, exactServiceAccount, 'google-github-actio
 for (const required of [
   'firebase apphosting:backends:get assetfactory-studio',
   "jq -r '.result.uri // empty'",
+  'firebase apphosting:rollouts:create assetfactory-studio',
+  '--git-commit "$GITHUB_SHA"',
+  '--force',
 ]) {
-  if (!grant.includes(required)) fail(`grant workflow missing stable App Hosting backend lookup ${JSON.stringify(required)}`);
+  if (!grant.includes(required)) fail(`grant workflow missing stable App Hosting verification contract ${JSON.stringify(required)}`);
 }
 if (grant.includes('firebase apphosting:backends:list')) {
   fail('grant workflow must not use the historical brittle App Hosting backend list parser');
+}
+if (grant.includes('--git_commit')) {
+  fail('grant workflow must use the current Firebase --git-commit rollout flag');
 }
 for (const forbidden of ['REPLICATE_API_TOKEN=%', 'https://api.replicate.com/v1/predictions', 'workflow_run:']) {
   if (grant.includes(forbidden)) fail(`no-spend grant workflow contains paid/provider execution capability ${JSON.stringify(forbidden)}`);
