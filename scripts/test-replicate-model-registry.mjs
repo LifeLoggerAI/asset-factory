@@ -93,6 +93,14 @@ const trackedEnv = [
 const originalEnv = Object.fromEntries(trackedEnv.map((key) => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 
+function validGlbFixture() {
+  const buffer = Buffer.alloc(12);
+  buffer.write('glTF', 0, 'ascii');
+  buffer.writeUInt32LE(2, 4);
+  buffer.writeUInt32LE(buffer.byteLength, 8);
+  return buffer;
+}
+
 function restoreEnv() {
   for (const key of trackedEnv) {
     const value = originalEnv[key];
@@ -133,9 +141,10 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
       });
     }
     if (urlString === artifactUrl) {
-      return new Response(new Uint8Array([1, 2, 3, 4]), {
+      const bytes = expectedLane === 'model3d' ? validGlbFixture() : Buffer.from([1, 2, 3, 4]);
+      return new Response(bytes, {
         status: 200,
-        headers: { 'content-type': mimeType, 'content-length': '4' },
+        headers: { 'content-type': mimeType, 'content-length': String(bytes.byteLength) },
       });
     }
     throw new Error(`Unexpected fetch URL: ${urlString}`);
@@ -146,7 +155,8 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
   assert.equal(result.metadata.providerModel, expectedModel);
   assert.equal(result.metadata.replicateLane, expectedLane);
   assert.equal(result.assetMimeType, mimeType);
-  assert.equal(result.assetBuffer.byteLength, 4);
+  assert.equal(result.assetBuffer.byteLength, expectedLane === 'model3d' ? 12 : 4);
+  if (expectedLane === 'model3d') assert.equal(result.metadata.glbValidated, true);
   assert.deepEqual(calls.map(({ method }) => method), ['POST', 'GET']);
 }
 
