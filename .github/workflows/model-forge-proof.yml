@@ -62,15 +62,15 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs'
           import assert from 'node:assert/strict'
-          const expectedHead='28cdf3354720e32b26fe94799810f5afb4098181'
           const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
           const refs=JSON.parse(fs.readFileSync('model_forge/reference-resolution.json','utf8'))
+          const expectedHead=refs.generationPolicy.currentSpatialHead
+          assert.equal(refs.recoveredSpatialHead,expectedHead)
           assert.equal(inventory.authority.recoveredSpatialHead,expectedHead)
           assert.equal(inventory.providerExecutionBoundary.spatialHead,expectedHead)
+          assert.equal(inventory.authority.spatialPr,refs.generationPolicy.currentSpatialPr)
           assert.match(inventory.providerExecutionBoundary.status,/^blocked-/)
           assert.deepEqual(inventory.productionTargets,[])
-          assert.equal(refs.recoveredSpatialHead,expectedHead)
-          assert.equal(refs.generationPolicy.currentSpatialHead,expectedHead)
           assert.equal(refs.generationPolicy.currentProductionProviderTargetsAuthorized,false)
           const canopy=inventory.assets.find((asset)=>asset.id==='ground-authored-canopy-v20')
           assert.ok(canopy)
