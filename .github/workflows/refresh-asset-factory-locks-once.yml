@@ -1,0 +1,54 @@
+name: Refresh Asset Factory Locks Once
+
+on:
+  push:
+    branches:
+      - hardening/asset-factory-production-authority-20260924
+    paths:
+      - '.github/workflows/refresh-asset-factory-locks-once.yml'
+      - 'package.json'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-locks:
+    if: ${{ github.event.head_commit.message != 'chore: remove one-time lock refresher' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: hardening/asset-factory-production-authority-20260924
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Regenerate active production dependency locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --lockfile-only --no-frozen-lockfile
+          npm --prefix assetfactory-studio install --package-lock-only --ignore-scripts
+          npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts
+          npm --prefix engine install --package-lock-only --ignore-scripts
+          npm --prefix engine audit fix --package-lock-only --omit=dev --ignore-scripts
+
+      - name: Commit exact generated locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml assetfactory-studio/package-lock.json life-map-pipeline/functions/package-lock.json engine/npm-shrinkwrap.json
+          if git diff --cached --quiet; then
+            echo "Lock files already current."
+            exit 0
+          fi
+          git commit -m "chore: refresh production dependency locks"
+          git push origin HEAD:hardening/asset-factory-production-authority-20260924
