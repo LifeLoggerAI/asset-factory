@@ -236,6 +236,34 @@ function providerFromEnv(name: string): AssetProviderName | null {
   return value;
 }
 
+function openAiImageSize(input: GenerateRequest) {
+  const requested = input.size?.width && input.size?.height
+    ? `${input.size.width}x${input.size.height}`
+    : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
+  if (requested === 'auto') return requested;
+
+  const match = /^(\d+)x(\d+)$/.exec(requested);
+  if (!match) throw new Error(`Invalid OpenAI image size: ${requested}`);
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  const longEdge = Math.max(width, height);
+  const shortEdge = Math.min(width, height);
+  const pixels = width * height;
+  if (
+    width % 16 !== 0 ||
+    height % 16 !== 0 ||
+    longEdge > 3840 ||
+    longEdge / shortEdge > 3 ||
+    pixels < 655_360 ||
+    pixels > 8_294_400
+  ) {
+    throw new Error(
+      `OpenAI image size ${requested} violates GPT Image 2.5 bounds: edges must be multiples of 16, max edge 3840, aspect ratio <= 3:1, total pixels 655360..8294400`
+    );
+  }
+  return requested;
+}
+
 function audioLane(input: GenerateRequest): 'speech' | 'sfx' | 'music' | 'audio' {
   const raw = String(input.type ?? '').trim().toLowerCase();
   if (raw === 'music') return 'music';
@@ -273,9 +301,7 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
   if (!apiKey) return null;
 
   if (definition.canonicalType === 'graphic') {
-    const size = input.size?.width && input.size?.height
-      ? `${input.size.width}x${input.size.height}`
-      : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
+    const size = openAiImageSize(input);
     const model = env('ASSET_FACTORY_OPENAI_IMAGE_MODEL') || env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-2.5-sunburst';
     const configuredFormat = (env('ASSET_FACTORY_OPENAI_IMAGE_FORMAT') || env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png').toLowerCase();
     const outputFormat = configuredFormat === 'jpg' ? 'jpeg' : configuredFormat;
