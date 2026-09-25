@@ -69,9 +69,10 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Direct Runway video API path exists with server-only key support, version header, bounded polling, output download, and provenance.
 - Text-to-video and image-to-video both use the verified `POST /v1/image_to_video` endpoint; text-only generation omits `promptImage`, while image-conditioned generation supplies it.
 - Runtime readiness also requires `ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY=true`; it defaults false so a credential/model string alone cannot falsely certify account capability.
-- Connected Runway workspace was re-checked directly on 2026-09-25: authenticated workspace `Life`, Free plan, zero eligible video models, and 2 purchased credits.
-- No Runway generation was executed and no credits were spent.
-- Runtime activation therefore remains external-blocked by account plan/model availability plus production secret binding.
+- Connected Runway workspace was re-checked directly on 2026-09-25 after the account upgrade: authenticated workspace `Life`, paid plan credit allocation 9,500 plus 2 purchased credits (9,502 total), with an eligible video-model catalog that includes `gen-4.5`.
+- Account plan/model availability is therefore no longer the current Runway blocker.
+- No Runway generation was executed and no credits were spent by this verification readback.
+- Runtime activation remains fail-closed pending protected production secret binding, server-side Runway selector/model/account-ready configuration, explicit provider-spend authorization, one minimal governed live smoke, retained artifact/provenance receipt, and consuming-system proof.
 
 ### Replicate
 

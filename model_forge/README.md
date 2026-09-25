@@ -82,9 +82,9 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 
 ## Authority discipline — current convergence
 
-Draft PR #284 is the unified Asset Factory production + Model Forge + multimodal successor stacked on production-hardening PR #281. PR #279 remains historical predecessor evidence after its file surface was converged into #284. Recover the live #284 head and fresh workflow state from GitHub before execution.
+PR #284 is the unified Asset Factory production + Model Forge + multimodal successor, open and non-draft at the 2026-09-25 readback. Its current base is PR #278's `converge/asset-factory-terminal-design-security-20260922` branch. Production-hardening PR #281 and Model Forge PR #279 are predecessor lineage incorporated into #284, not its current base. Recover the live #284 base, head, and fresh workflow state from GitHub before execution.
 
-The model inventory and reference-resolution receipts are reconciled against `LifeLoggerAI/urai-spatial` PR #1296 at exact head `28cdf3354720e32b26fe94799810f5afb4098181`. If Spatial moves, those receipts become historical until re-reconciled.
+The model inventory and reference-resolution records carry their own explicit recovered Spatial #1296 checkpoint. That checkpoint is historical whenever the live Spatial head differs; do not infer current reconciliation from this README or relabel old proof. Compare the declared dependency checkpoint with live GitHub and inspect the intervening lineage before renewing it. The September 17 Drive Gold Master manifest is historical provenance only, as classified by Final Asset Lock Master RCL-031.
 
 Current production boundary:
 - all seven named canonical reference files are resolved and SHA-256 bound;
