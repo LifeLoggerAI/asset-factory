@@ -3,6 +3,28 @@
 # External providers remain dormant until a modality selector is explicitly changed
 # from local-proof and the independent spend kill switch is deliberately authorized.
 env:
+  # Production request security defaults. Secret material is not invented here:
+  # if matching secret material is absent, runtime auth fails closed.
+  - variable: ASSET_FACTORY_REQUIRE_API_KEY
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REQUIRE_AUTH
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REQUIRE_JWT_SIGNATURE
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH
+    value: "false"
+    availability:
+      - RUNTIME
+
   # Explicit launch-safe routing. Credentials may exist without authorizing spend.
   - variable: ASSET_FACTORY_MEDIA_PROVIDER
     value: local-proof
