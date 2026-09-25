@@ -46,6 +46,10 @@ jobs:
           case "$GCP_DEPLOY_SERVICE_ACCOUNT" in
             *@urai-4dc1d.iam.gserviceaccount.com) echo '::error::Legacy shared-project deploy identity is prohibited.'; exit 70 ;;
           esac
+          boundary_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
+          boundary_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
+          test "$boundary_status" = 'authorized-current-head-gap-proof' || { echo "::error::Paid Model Forge execution is source-blocked: $boundary_status"; exit 71; }
+          test -n "$boundary_head" || { echo '::error::Authorized Model Forge execution must name the reconciled Spatial exact head.'; exit 72; }
 
       - uses: actions/checkout@v4
 
