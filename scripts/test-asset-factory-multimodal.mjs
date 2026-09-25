@@ -192,6 +192,13 @@ assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported 
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(manifestRoute, 'modalityReadiness', 'modality-aware provider readiness');
 assertIncludes(manifestRoute, 'providerSpendAuthorized', 'provider spend authorization readiness');
+
+for (const forbiddenCredential of ['FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT_KEY', 'GOOGLE_APPLICATION_CREDENTIALS_JSON']) {
+  if (manifestRoute.match(new RegExp(`requiredProductionEnv[\\s\\S]*['"]${forbiddenCredential}['"]`))) {
+    console.error(`Long-lived Firebase credential ${forbiddenCredential} must not be required by the ADC/WIF production manifest`);
+    process.exit(1);
+  }
+}
 assertIncludes(manifestRoute, "enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')", 'provider spend kill switch readiness');
 assertIncludes(manifestRoute, "approved-voice-not-configured", 'speech identity readiness blocker');
 assertIncludes(manifestRoute, "configured('ASSET_FACTORY_OPENAI_VOICE')", 'approved OpenAI voice readiness requirement');

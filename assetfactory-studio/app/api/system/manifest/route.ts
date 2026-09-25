@@ -7,8 +7,6 @@ import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
 const requiredProductionEnv = [
   'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
   'FIREBASE_STORAGE_BUCKET',
   'ASSET_FACTORY_API_KEY',
   'ASSET_FACTORY_REQUIRE_API_KEY',
