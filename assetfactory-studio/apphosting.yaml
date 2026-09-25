@@ -139,6 +139,16 @@ env:
     availability:
       - RUNTIME
 
+  - variable: ASSET_FACTORY_GRAPHICS_SIZE
+    value: 1024x1024
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_QUALITY
+    value: high
+    availability:
+      - RUNTIME
+
   - variable: ASSET_FACTORY_OPENAI_SPEECH_MODEL
     value: gpt-4o-mini-tts
     availability:
@@ -169,6 +179,21 @@ env:
     availability:
       - RUNTIME
 
+  - variable: ELEVENLABS_OUTPUT_FORMAT
+    value: mp3_44100_128
+    availability:
+      - RUNTIME
+
+  - variable: ELEVENLABS_MUSIC_OUTPUT_FORMAT
+    value: auto
+    availability:
+      - RUNTIME
+
+  - variable: ELEVENLABS_ZERO_RETENTION
+    value: "false"
+    availability:
+      - RUNTIME
+
   - variable: ASSET_FACTORY_MESHY_MODEL
     value: meshy-7.1
     availability:
@@ -196,6 +221,16 @@ env:
 
   - variable: ASSET_FACTORY_MESHY_TEXTURE_RESOLUTION
     value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MODEL_TYPE
+    value: standard
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_POLL_MS
+    value: "3000"
     availability:
       - RUNTIME
 
