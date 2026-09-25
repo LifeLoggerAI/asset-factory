@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "3c8098682d0f28c16b518979b2176dcbf7827918",
+  "recoveredSpatialHead": "873822c09a113669617d952b220a1f484063cd55",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,8 +125,8 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1296,
-    "currentSpatialHead": "3c8098682d0f28c16b518979b2176dcbf7827918"
+    "currentSpatialHead": "873822c09a113669617d952b220a1f484063cd55"
   },
-  "successorReconciliation": "Reconciled against Spatial PR #1296 exact head 3c8098682d0f28c16b518979b2176dcbf7827918. The seven hashed reference files remain valid reference inputs. Current source authority still requires literal exact-head scene evidence before any paid provider wave; no paid 3D production target is authorized merely because reference inputs resolve. Existing runtime/candidate authority must be accepted or rejected first, and any remaining asset gap must be specifically documented.",
+  "successorReconciliation": "Reconciled against Spatial PR #1296 exact head 873822c09a113669617d952b220a1f484063cd55. The seven hashed reference files remain valid reference inputs. Current source authority still requires literal exact-head scene evidence before any paid provider wave; no paid 3D production target is authorized merely because reference inputs resolve. Existing runtime/candidate authority must be accepted or rejected first, and any remaining asset gap must be specifically documented.",
   "spatialPr": 1296
 }
