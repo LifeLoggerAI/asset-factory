@@ -742,6 +742,9 @@ export async function renderWithConfiguredProvider(
 ): Promise<ProviderRenderResult | null> {
   const provider = configuredProviderForRequest(input, definition);
   if (provider === 'local-proof') return null;
+  if (!enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')) {
+    throw new Error(`External provider ${provider} is selected but ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED is not true`);
+  }
 
   const result = await renderProvider(provider, input, definition);
   if (!result) {
