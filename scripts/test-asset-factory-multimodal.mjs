@@ -77,7 +77,7 @@ if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
   process.exit(1);
 }
 
-for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', "host.endsWith('.localhost')", "host.endsWith('.local')"]) {
+for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', 'loopbackHostname', "host.endsWith('.local')"]) {
   assertIncludes(videoProviderRuntime, marker, `video provider private-network guard for ${marker}`);
 }
 
