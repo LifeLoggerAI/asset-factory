@@ -1,8 +1,8 @@
 # URAI Multimodal Provider Authority
 
 Status date: 2026-09-25
-Authority branch: `converge/multimodal-provider-broker-20260925`
-Base authority: PR #279 (`converge/model-forge-on-terminal-278-20260922`)
+Authority branch: `converge/asset-factory-production-multimodal-20260925`
+Unified authority: draft PR #284, stacked on production-hardening PR #281. PR #284 carries the complete Model Forge and multimodal file surfaces previously split across PRs #279 and #282.
 
 ## Canonical rule
 
