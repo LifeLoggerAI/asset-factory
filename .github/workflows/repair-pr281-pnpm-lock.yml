@@ -53,16 +53,22 @@ jobs:
           const engineLock=require('./engine/npm-shrinkwrap.json')
           const fnRoot=fnLock.packages?.[''] ?? {}
           const engineRoot=engineLock.packages?.[''] ?? {}
-          if (JSON.stringify(fnRoot.dependencies ?? {}) !== JSON.stringify(fnPkg.dependencies ?? {})) {
-            throw new Error('Functions package-lock root dependencies do not match package.json')
+          const stable=(value)=>Object.fromEntries(Object.entries(value ?? {}).sort(([a],[b])=>a.localeCompare(b)))
+          const assertMap=(label,actual,expected)=>{
+            const a=JSON.stringify(stable(actual))
+            const e=JSON.stringify(stable(expected))
+            if(a!==e){
+              console.error(label,'actual=',a)
+              console.error(label,'expected=',e)
+              throw new Error(`${label} do not match`)
+            }
           }
-          if (JSON.stringify(fnRoot.overrides ?? {}) !== JSON.stringify(fnPkg.overrides ?? {})) {
+          assertMap('Functions package-lock root dependencies',fnRoot.dependencies,fnPkg.dependencies)
+          if (JSON.stringify(stable(fnRoot.overrides ?? {})) !== JSON.stringify(stable(fnPkg.overrides ?? {}))) {
             // npm lock v3 may not serialize overrides in the root package object; dependency identity below remains authoritative.
             console.log('Functions lock root does not serialize overrides; continuing with resolved lock verification.')
           }
-          if (JSON.stringify(engineRoot.dependencies ?? {}) !== JSON.stringify(enginePkg.dependencies ?? {})) {
-            throw new Error('Engine shrinkwrap root dependencies do not match package.json')
-          }
+          assertMap('Engine shrinkwrap root dependencies',engineRoot.dependencies,enginePkg.dependencies)
           console.log('PASS active lock roots match package manifests')
           NODE
 
