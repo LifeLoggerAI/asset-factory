@@ -33,6 +33,7 @@ const requiredProductionEnv = [
   'ASSET_FACTORY_MUSIC_PROVIDER',
   'ASSET_FACTORY_STT_PROVIDER',
   'ASSET_FACTORY_VIDEO_PROVIDER',
+  'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
   'ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS',
   'ASSET_FACTORY_PROVIDER_TIMEOUT_MS',
   'ASSET_FACTORY_PROVIDER_MAX_BYTES',
@@ -105,7 +106,11 @@ export async function GET(req: NextRequest) {
     ])
   );
   const activeExternalRoutes = Object.values(modalityReadiness).filter((route) => route.external);
-  const activeExternalProvidersConfigured = activeExternalRoutes.length > 0 && activeExternalRoutes.every((route) => route.ready);
+  const providerSpendAuthorized = enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED');
+  const activeExternalProvidersConfigured =
+    providerSpendAuthorized &&
+    activeExternalRoutes.length > 0 &&
+    activeExternalRoutes.every((route) => route.ready);
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
@@ -146,6 +151,7 @@ export async function GET(req: NextRequest) {
       modalityReadiness,
       activeExternalProviderNames,
       externalCredentialAvailable,
+      providerSpendAuthorized,
       replicateCredentialVisible,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
