@@ -159,25 +159,93 @@ async function renderReplicate(input: GenerateRequest): Promise<VideoProviderRen
   };
 }
 
-async function renderConfiguredHttpProvider(input: GenerateRequest, provider: 'fal' | 'runway'): Promise<VideoProviderRenderResult> {
-  const endpoint = env(`ASSET_FACTORY_${provider.toUpperCase()}_VIDEO_ENDPOINT`);
-  const apiKey = provider === 'fal' ? env('FAL_KEY') : env('RUNWAY_API_KEY');
-  if (!endpoint || !apiKey) throw new Error(`${provider} video runtime requires an approved endpoint and API key`);
+async function renderConfiguredFal(input: GenerateRequest): Promise<VideoProviderRenderResult> {
+  const endpoint = env('ASSET_FACTORY_FAL_VIDEO_ENDPOINT');
+  const apiKey = env('FAL_KEY');
+  if (!endpoint || !apiKey) throw new Error('fal video runtime requires an approved endpoint and API key');
   const safeEndpoint = publicUrl(endpoint);
-  if (!safeEndpoint) throw new Error(`${provider} video endpoint must be a public HTTP(S) URL`);
+  if (!safeEndpoint) throw new Error('fal video endpoint must be a public HTTP(S) URL');
   const result = await fetchJson(safeEndpoint, {
     method: 'POST',
     headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({ prompt: input.prompt, aspectRatio: input.aspectRatio || '9:16', ...videoMetadata(input) }),
   });
   const artifactUrl = firstArtifactUrl(result.output ?? result.video ?? result.url);
-  if (!artifactUrl) throw new Error(`${provider} video endpoint did not return an artifact URL`);
+  if (!artifactUrl) throw new Error('fal video endpoint did not return an artifact URL');
   const artifact = await downloadVideo(artifactUrl);
   return {
     assetBuffer: artifact.buffer,
     assetMimeType: artifact.mime,
     extension: artifact.mime.includes('webm') ? 'webm' : 'mp4',
-    metadata: { provider, providerModel: result.model ?? null, providerJobId: result.id ?? null, video: videoMetadata(input) },
+    metadata: { provider: 'fal', providerModel: result.model ?? null, providerJobId: result.id ?? null, video: videoMetadata(input) },
+  };
+}
+
+async function renderRunway(input: GenerateRequest): Promise<VideoProviderRenderResult> {
+  const apiKey = env('RUNWAYML_API_SECRET') || env('RUNWAY_API_KEY');
+  if (!apiKey) throw new Error('RUNWAYML_API_SECRET is required for Runway video rendering');
+  const meta = videoMetadata(input);
+  const model = env('ASSET_FACTORY_RUNWAY_VIDEO_MODEL') || 'gen4.5';
+  const apiVersion = env('ASSET_FACTORY_RUNWAY_API_VERSION') || '2024-11-06';
+  const headers = {
+    authorization: `Bearer ${apiKey}`,
+    'content-type': 'application/json',
+    'X-Runway-Version': apiVersion,
+  };
+
+  let createUrl = '';
+  let payload: JsonRecord;
+  if (meta.referenceImageUrl) {
+    createUrl = 'https://api.dev.runwayml.com/v1/image_to_video';
+    payload = {
+      promptImage: meta.referenceImageUrl,
+      promptText: input.prompt,
+      model,
+      ratio: input.aspectRatio === '16:9' ? '1280:720' : input.aspectRatio === '9:16' ? '720:1280' : '1280:720',
+      duration: meta.durationSeconds,
+    };
+  } else {
+    const configuredEndpoint = publicUrl(env('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT'));
+    if (!configuredEndpoint) {
+      throw new Error('Runway text-to-video is fail-closed until ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT is pinned; provide referenceImageUrl for the verified image-to-video lane');
+    }
+    createUrl = configuredEndpoint;
+    payload = {
+      promptText: input.prompt,
+      model,
+      ratio: input.aspectRatio || '16:9',
+      duration: meta.durationSeconds,
+    };
+  }
+
+  let task = await fetchJson(createUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
+  const taskId = String(task.id ?? '').trim();
+  if (!taskId) throw new Error('Runway create response missing task id');
+
+  const deadline = Date.now() + numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS);
+  while (!['SUCCEEDED', 'FAILED', 'CANCELED', 'CANCELLED'].includes(String(task.status ?? '').toUpperCase())) {
+    if (Date.now() > deadline) throw new Error('Runway video polling timed out');
+    await new Promise((resolve) => setTimeout(resolve, Math.max(5000, numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS', 5000))));
+    task = await fetchJson(`https://api.dev.runwayml.com/v1/tasks/${encodeURIComponent(taskId)}`, { headers });
+  }
+  const status = String(task.status ?? '').toUpperCase();
+  if (status !== 'SUCCEEDED') throw new Error(`Runway task ${status.toLowerCase()}: ${JSON.stringify(task.failure ?? task.error ?? '')}`);
+
+  const artifactUrl = firstArtifactUrl(task.output);
+  if (!artifactUrl) throw new Error('Runway task did not return a downloadable artifact URL');
+  const artifact = await downloadVideo(artifactUrl);
+  return {
+    assetBuffer: artifact.buffer,
+    assetMimeType: artifact.mime,
+    extension: artifact.mime.includes('webm') ? 'webm' : 'mp4',
+    metadata: {
+      provider: 'runway',
+      providerModel: model,
+      providerTaskId: taskId,
+      runwayApiVersion: apiVersion,
+      video: meta,
+      canonicalCandidateOnly: true,
+    },
   };
 }
 
@@ -185,7 +253,7 @@ export async function renderVideoWithConfiguredProvider(input: GenerateRequest):
   const provider = env('ASSET_FACTORY_VIDEO_PROVIDER') || env('ASSET_FACTORY_MEDIA_PROVIDER') || 'local-proof';
   if (provider === 'local-proof') return null;
   if (provider === 'replicate') return renderReplicate(input);
-  if (provider === 'fal') return renderConfiguredHttpProvider(input, 'fal');
-  if (provider === 'runway') return renderConfiguredHttpProvider(input, 'runway');
+  if (provider === 'fal') return renderConfiguredFal(input);
+  if (provider === 'runway') return renderRunway(input);
   throw new Error(`Configured provider ${provider} does not support canonical video rendering`);
 }
