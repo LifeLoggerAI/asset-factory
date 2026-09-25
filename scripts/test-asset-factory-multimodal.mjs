@@ -111,6 +111,7 @@ assertIncludes(providerRuntime, "ai_model: textModel", 'Meshy text-to-3D model p
 assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image supported resolution boundary');
 assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_IMAGE_FORMAT", 'OpenAI image format authority');
+assertIncludes(providerRuntime, "OpenAI image b64_json exceeds ASSET_FACTORY_PROVIDER_MAX_BYTES", 'OpenAI base64 image size ceiling');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_SPEECH_MODEL", 'OpenAI speech model authority');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_VOICE must be explicitly configured", 'fail-closed OpenAI voice identity');
 assertIncludes(providerRuntime, "ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured", 'fail-closed Replicate voice identity');
