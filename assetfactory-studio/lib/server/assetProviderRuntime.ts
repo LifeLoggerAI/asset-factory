@@ -714,10 +714,12 @@ async function renderMeshy(input: GenerateRequest, definition: AssetTypeDefiniti
   if (!apiKey) return null;
 
   const metadata = input.metadata ?? {};
-  const imageUrls = Array.isArray(metadata.sourceImageUrls)
-    ? metadata.sourceImageUrls.filter((value): value is string => typeof value === 'string' && value.startsWith('https://')).slice(0, 4)
+  const rawImageUrls = Array.isArray(metadata.sourceImageUrls)
+    ? metadata.sourceImageUrls.filter((value): value is string => typeof value === 'string').slice(0, 4)
     : [];
-  const sourceImageUrl = stringValue(metadata.sourceImageUrl);
+  const imageUrls = rawImageUrls.map((value) => assertPublicProviderUrl(value));
+  const rawSourceImageUrl = stringValue(metadata.sourceImageUrl);
+  const sourceImageUrl = rawSourceImageUrl ? assertPublicProviderUrl(rawSourceImageUrl) : null;
   const imageModel = env('ASSET_FACTORY_MESHY_MODEL') || 'meshy-7.1';
   let selectedModel = imageModel;
   let endpoint = 'https://api.meshy.ai/openapi/v2/text-to-3d';
