@@ -10,7 +10,7 @@ Canonical live tracker: GitHub issue #63.
 
 ## Current release position
 
-Status: **repo-side hardening complete for current pass; live evidence required before production lock**.
+Status: **unified repo-side convergence in progress on PR #284; live evidence required before production lock**.
 
 The repo contains a functional local proof pipeline, the Studio/Firebase deploy path has been aligned, smoke-health compatibility has been fixed, CI/runtime drift has been fixed, and runbooks/evidence/lock docs have been synced. It is still not locked until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow with local fallback disabled.
 
@@ -23,7 +23,9 @@ The repo contains a functional local proof pipeline, the Studio/Firebase deploy 
 - Local multimodal E2E coverage for generate -> materialize -> generated asset fetch -> publish -> approve.
 - Optional Firebase Admin / Firestore / Cloud Storage production backend seams.
 - Optional API-key, signed HS256 bearer/JWT, tenant, and role guardrails.
-- Provider runtime seams for external media providers.
+- Modality-specific governed provider broker for image, 3D, speech, SFX, music, STT, and video, defaulting to no-spend `local-proof`.
+- Model Forge source authority for candidate 3D generation, Blender cleanup/review, GLB validation, promotion receipts, and launch model inventory.
+- Provider-backed outputs remain draft candidates with provider/model/task provenance and cannot self-promote to canonical/Gold Master.
 - Stripe webhook dependency, signature-verification path, and entitlement persistence seam.
 - Public-safe system contract and diagnostic route separation.
 - Durable queue/operator surfaces for worker leases, retries, dead-letter visibility, and controlled requeue.
@@ -38,7 +40,7 @@ The repo contains a functional local proof pipeline, the Studio/Firebase deploy 
 - Live production workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.
 - Production Firebase project, service account, Firestore rules, indexes, storage bucket, IAM, and signed/private access policy.
 - Production auth provider issuing HS256 bearer tokens with the configured issuer, audience, tenant claim, and role claim.
-- Real provider-backed generation using production credentials and selected model IDs.
+- Real provider-backed generation using production credentials and selected model IDs; current repo authority proves contracts/no-spend boundaries, not live provider activation.
 - Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.
 - Production Stripe webhook proof that verified events persist idempotent tenant quota/plan records.
 - Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.
