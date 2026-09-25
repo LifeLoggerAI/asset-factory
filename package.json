@@ -20,7 +20,7 @@
     "verify:local": "corepack enable && corepack prepare pnpm@9.15.9 --activate && npm run image:install && npm run build && npm test --if-present && npm run test:launch-readiness --if-present && npm run test:completion-lock --if-present && npm run image:check:version-contract && npm run image:check",
     "verify:production": "npm run verify:local && npm run deploy:verify",
     "verify:launch": "node scripts/verify-asset-factory-launch.mjs",
-    "test:launch-readiness": "npm run check:chaos-credential-boundary && npm run test:studio-deploy-readiness && npm run test:hs256-production-readiness && npm run test:privacy-safety-readiness && npm run test:support-smoke-readiness && npm run test:production-target-boundary && npm run test:route-guards && npm run check:paid-workflow-boundary && npm run check:replicate-paid-smoke-boundary && npm run check:smoke-readonly-boundary",
+    "test:launch-readiness": "npm run check:chaos-credential-boundary && npm run test:studio-deploy-readiness && npm run test:hs256-production-readiness && npm run test:privacy-safety-readiness && npm run test:support-smoke-readiness && npm run test:production-target-boundary && npm run test:route-guards && npm run check:paid-workflow-boundary && npm run check:replicate-paid-smoke-boundary && npm run check:replicate-rollout-manual-only && npm run check:smoke-readonly-boundary",
     "test:studio-deploy-readiness": "node scripts/test-studio-deploy-readiness.mjs",
     "test:hs256-production-readiness": "node scripts/test-hs256-production-readiness.mjs",
     "test:privacy-safety-readiness": "node scripts/test-privacy-safety-readiness.mjs",
@@ -80,7 +80,8 @@
     "validate:production-target": "node scripts/run-dedicated-firebase-deploy.mjs --check-only",
     "test:production-target-boundary": "node scripts/test-production-target-boundary.mjs",
     "audit:production": "pnpm audit --audit-level=high --prod && npm --prefix life-map-pipeline/functions audit --audit-level=high --omit=dev && npm --prefix engine audit --audit-level=high --omit=dev",
-    "audit:workspace-debt": "pnpm audit --audit-level=high"
+    "audit:workspace-debt": "pnpm audit --audit-level=high",
+    "check:replicate-rollout-manual-only": "node scripts/check-replicate-rollout-manual-only.mjs"
   },
   "pnpm": {
     "overrides": {
