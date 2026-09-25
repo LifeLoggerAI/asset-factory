@@ -466,6 +466,66 @@ async function testProviderArtifactRejectsPrivateUrls() {
   }
 }
 
+async function testOpenAiImagePreflightAndFormat() {
+  const originalFetch = globalThis.fetch;
+  const keys = [
+    'ASSET_FACTORY_MEDIA_PROVIDER',
+    'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
+    'OPENAI_API_KEY',
+    'ASSET_FACTORY_OPENAI_IMAGE_MODEL',
+    'ASSET_FACTORY_OPENAI_IMAGE_FORMAT',
+    'ASSET_FACTORY_GRAPHICS_SIZE',
+  ];
+  const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  let fetchCalls = 0;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'openai';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
+  process.env.OPENAI_API_KEY = 'test-openai-key';
+  process.env.ASSET_FACTORY_OPENAI_IMAGE_MODEL = 'gpt-image-2.5-sunburst';
+  process.env.ASSET_FACTORY_OPENAI_IMAGE_FORMAT = 'webp';
+  delete process.env.ASSET_FACTORY_GRAPHICS_SIZE;
+
+  globalThis.fetch = async (url, options = {}) => {
+    fetchCalls += 1;
+    assert.equal(String(url), 'https://api.openai.com/v1/images/generations');
+    assert.equal(options.method, 'POST');
+    const body = JSON.parse(String(options.body));
+    assert.equal(body.size, '1536x864');
+    assert.equal(body.output_format, 'webp');
+    return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from([1, 2, 3]).toString('base64') }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'openai-invalid-size', tenantId: 'tenant-a', prompt: 'invalid size', type: 'graphic', size: { width: 1000, height: 1000 } },
+        resolveAssetType('graphic')
+      ),
+      /violates GPT Image 2.5 bounds/
+    );
+    assert.equal(fetchCalls, 0);
+
+    const result = await renderWithConfiguredProvider(
+      { jobId: 'openai-valid-size', tenantId: 'tenant-a', prompt: 'valid size', type: 'graphic', size: { width: 1536, height: 864 } },
+      resolveAssetType('graphic')
+    );
+    assert.equal(fetchCalls, 1);
+    assert.equal(result.assetMimeType, 'image/webp');
+    assert.equal(result.extension, 'webp');
+    assert.equal(result.metadata.outputFormat, 'webp');
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const key of keys) {
+      if (original[key] === undefined) delete process.env[key];
+      else process.env[key] = original[key];
+    }
+  }
+}
+
 async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
@@ -534,6 +594,7 @@ try {
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
   await testProviderArtifactRejectsChunkedOverLimitDownload();
+  await testOpenAiImagePreflightAndFormat();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
   delete globalThis.__ASSET_FACTORY_TEST_DB__;
