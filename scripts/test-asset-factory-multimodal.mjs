@@ -97,6 +97,8 @@ assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/image-to-3d', 'Meshy im
 assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/multi-image-to-3d', 'Meshy multi-image-to-3D runtime');
 assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION", 'Meshy multi-image resolution isolation');
 assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION", 'Meshy text geometry resolution');
+assertIncludes(providerRuntime, "rawImageUrls.map((value) => assertPublicProviderUrl(value))", 'Meshy multi-image public URL validation');
+assertIncludes(providerRuntime, "rawSourceImageUrl ? assertPublicProviderUrl(rawSourceImageUrl) : null", 'Meshy single-image public URL validation');
 assertIncludes(providerRuntime, "ai_model: textModel", 'Meshy text-to-3D model pinning');
 assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image supported resolution boundary');
 assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
