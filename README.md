@@ -2,18 +2,20 @@
 
 Production-oriented monorepo for deterministic asset generation and Firebase processing pipelines.
 
-The current canonical Studio path supports a local proof pipeline for four core modalities:
+The canonical Studio path uses deterministic local proof plus a governed multimodal provider broker:
 
-- `graphic` -> SVG proof assets
-- `model3d` -> GLTF proof meshes
-- `audio` -> WAV proof sounds
+- `graphic` -> local SVG proof or approved image provider candidate
+- `model3d` -> local GLTF proof or approved 3D provider candidate
+- `audio` -> local WAV proof or governed speech / SFX / music provider candidate
+- `video` -> provider-backed candidate only; fake local motion cannot be promoted as canonical video
 - `bundle` -> JSON bundle manifests
+- STT -> separate authenticated audio/video upload route producing transcript provenance
 
-These local proof renderers are intentionally deterministic so API contracts, manifests, usage metrics, storage paths, and E2E tests can run without external provider credentials. Production provider adapters can be swapped in behind the same renderer contract.
+Local proof remains intentionally deterministic so API contracts, manifests, usage metrics, storage paths, and E2E tests can run without external provider credentials. Paid provider selectors remain `local-proof` by default. Provider output is always a candidate until UrAi QA/promotion gates pass.
 
 ## Launch status
 
-Asset Factory repo-side hardening is complete for the current pass, but the system is **not production-locked until `LAUNCH_READINESS.md` gates pass in staging and production with live evidence**.
+Asset Factory's production hardening, Model Forge, and multimodal provider work are converging through draft PR #284. The system is **not production-locked until `LAUNCH_READINESS.md` gates pass in staging and production with live evidence**.
 
 Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, required secrets, staging/prod smoke commands, and definition of readiness. Use `docs/OPERATIONS_RUNBOOK.md` for deploy, smoke-test, monitoring, incident-response, rollback, and release-evidence procedures. Use issue #63 as the live production-lock tracker. Older historical lock/final-report documents are context only when they conflict with the launch-readiness checklist.
 
@@ -41,7 +43,9 @@ Do not use `uraiassetfactory.com` or `www.uraiassetfactory.com` as production pr
 - `engine/`: sealed headless V1 engine API/runtime.
 - `functions/`: historical Node 18 Cloud Functions tree; non-deployable forensic history.
 - `life-map-pipeline/functions/`: TypeScript Firebase Functions for LifeMap ingestion.
-- `assetfactory-studio/`: web/studio app and canonical multimodal API surface.
+- `assetfactory-studio/`: web/studio app and canonical multimodal API/provider-broker surface.
+- `model_forge/`: governed 3D candidate generation, Blender cleanup/review, GLB validation, inventories, wave manifests, and promotion receipts.
+- `tools/blender/`: deterministic GLB finishing utilities that emit receipts without auto-promoting assets.
 - `image_asset_generator/`: manifest-driven image asset loop for generate, validate, preview, and export.
 - `docs/MULTIMODAL_ASSET_WIRING.md`: asset type, renderer, storage, provider, and E2E contract.
 - `docs/OPERATIONS_RUNBOOK.md`: staging/production deploy, smoke, incident, rollback, and release evidence runbook.
