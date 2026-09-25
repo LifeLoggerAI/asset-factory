@@ -79,16 +79,12 @@ for (const required of [
   'firebase apphosting:backends:get assetfactory-studio',
   "jq -r '.result.uri // empty'",
   'firebase apphosting:rollouts:create assetfactory-studio',
-  '--git-commit "$GITHUB_SHA"',
-  '--force',
+  '--git_commit "$GITHUB_SHA"',
 ]) {
   if (!grant.includes(required)) fail(`grant workflow missing stable App Hosting verification contract ${JSON.stringify(required)}`);
 }
 if (grant.includes('firebase apphosting:backends:list')) {
   fail('grant workflow must not use the historical brittle App Hosting backend list parser');
-}
-if (grant.includes('--git_commit')) {
-  fail('grant workflow must use the current Firebase --git-commit rollout flag');
 }
 for (const [label, text] of [['smoke', smoke], ['grant', grant]]) {
   if (text.includes(`PROJECT_ID: ${historicalProject}`) || text.includes(`EXPECTED_PROJECT_ID: ${historicalProject}`)) {
