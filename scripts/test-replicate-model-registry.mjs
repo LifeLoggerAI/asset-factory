@@ -42,7 +42,7 @@ function compileTsModule(relativePath, patches = []) {
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
-  "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
+  "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
@@ -51,11 +51,11 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
   ],
   [
     "import type { AssetTypeDefinition } from './assetTypeCatalog';",
-    "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };",
+    "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; extension: string };",
   ],
   [
-    "import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';",
-    "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';",
+    "import { configuredProviderName, isAssetProviderName, type AssetProviderName } from './assetProviderAdapters';",
+    "import { configuredProviderName, isAssetProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway' | 'meshy';",
   ],
 ]);
 
@@ -64,6 +64,7 @@ const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRunt
 
 const trackedEnv = [
   'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
   'REPLICATE_API_TOKEN',
   'ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL',
   'ASSET_FACTORY_REPLICATE_MODEL3D_MODEL',
@@ -88,6 +89,7 @@ function restoreEnv() {
 
 function configureRegistry() {
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = '1';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL = 'black-forest-labs/flux-schnell';
   process.env.ASSET_FACTORY_REPLICATE_MODEL3D_MODEL = 'tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854';
