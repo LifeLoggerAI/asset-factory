@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: urai-model-forge-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   URAI_MODEL_FORGE_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
 
