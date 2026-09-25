@@ -52,8 +52,11 @@ export function isAssetProviderName(value: unknown): value is AssetProviderName 
 }
 
 export function configuredProviderName(): AssetProviderName {
-  const value = String(process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof').toLowerCase();
-  return isAssetProviderName(value) ? value : 'local-proof';
+  const value = String(process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof').trim().toLowerCase();
+  if (!isAssetProviderName(value)) {
+    throw new Error(`Invalid ASSET_FACTORY_MEDIA_PROVIDER provider: ${value}`);
+  }
+  return value;
 }
 
 export function getProviderAdapters(): AssetProviderAdapter[] {
