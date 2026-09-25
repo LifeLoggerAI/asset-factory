@@ -52,7 +52,7 @@ function publicUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   try {
     const parsed = new URL(value);
-    if (!['https:', 'http:'].includes(parsed.protocol)) return null;
+    if (parsed.protocol !== 'https:') return null;
     const host = parsed.hostname.toLowerCase();
     if (
       host === loopbackHostname ||
