@@ -8,7 +8,7 @@ Repository role: **asset governance and production authority**
 
 Cross-system canon candidate:
 - Repository: `LifeLoggerAI/urai-labs-llc`
-- PR: `#101`
+- PR: `#102`
 - Canon path: `docs/canon/`
 
 Until that PR is merged, this repository's current merged runtime/release contracts remain authoritative for implementation facts. This adoption file does not transfer certification, review, deployment, provider or exact-head evidence between repositories.
@@ -42,4 +42,4 @@ If runtime conflicts with product canon because runtime is defective, record a d
 
 ## Required adoption action
 
-After upstream PR #101 merges, reconcile this repository's local docs/contracts against the merged canon and classify every conflict as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with preserved historical provenance.
+After upstream PR #102 merges, reconcile this repository's local docs/contracts against the merged canon and classify every conflict as RESOLVED, DEFERRED with an external blocker, or SUPERSEDED with preserved historical provenance.
