@@ -22,6 +22,7 @@ export type AssetTranscriptionResult = {
 };
 
 const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
+const DEFAULT_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 function env(name: string) {
   return String(process.env[name] ?? '').trim();
@@ -30,6 +31,47 @@ function env(name: string) {
 function configuredMaxBytes() {
   const value = Number(process.env.ASSET_FACTORY_STT_MAX_BYTES);
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_MAX_BYTES;
+}
+
+function configuredMaxResponseBytes() {
+  const value = Number(process.env.ASSET_FACTORY_STT_MAX_RESPONSE_BYTES);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : DEFAULT_MAX_RESPONSE_BYTES;
+}
+
+async function readResponseTextWithLimit(response: Response) {
+  const maxBytes = configuredMaxResponseBytes();
+  const contentLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error(`ElevenLabs STT response exceeds ASSET_FACTORY_STT_MAX_RESPONSE_BYTES before download: ${contentLength}`);
+  }
+
+  if (!response.body) {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new Error(`ElevenLabs STT response exceeds ASSET_FACTORY_STT_MAX_RESPONSE_BYTES: ${bytes.byteLength}`);
+    }
+    return bytes.toString('utf8');
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        reader.cancel('STT response exceeds configured maximum').catch(() => {});
+        throw new Error(`ElevenLabs STT response exceeds ASSET_FACTORY_STT_MAX_RESPONSE_BYTES: ${total}`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+  return Buffer.concat(chunks, total).toString('utf8');
 }
 
 export async function transcribeAssetFile(input: {
@@ -65,10 +107,11 @@ export async function transcribeAssetFile(input: {
     method: 'POST',
     headers: { 'xi-api-key': apiKey },
     body: form,
+    redirect: 'error',
     signal: AbortSignal.timeout(120_000),
   });
 
-  const raw = await response.text();
+  const raw = await readResponseTextWithLimit(response);
   if (!response.ok) throw new Error(`ElevenLabs STT request failed ${response.status}: ${raw.slice(0, 1000)}`);
 
   let payload: Record<string, unknown>;
