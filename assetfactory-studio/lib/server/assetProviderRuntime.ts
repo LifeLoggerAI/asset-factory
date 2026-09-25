@@ -131,6 +131,7 @@ async function postJson(url: string, headers: Record<string, string>, body: Json
       ...headers,
     },
     body: JSON.stringify(body),
+    redirect: 'error',
     signal: providerAbortSignal(),
   });
 
@@ -356,11 +357,13 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
         'content-type': 'application/json',
       },
       body: JSON.stringify({ model, voice, input: input.prompt, response_format: 'wav' }),
+      redirect: 'error',
       signal: providerAbortSignal(),
     });
     if (!response.ok) throw new Error(`OpenAI audio request failed ${response.status}: ${await response.text()}`);
+    const buffer = await readBinaryWithLimit(response, providerMaxBytes());
     return {
-      assetBuffer: Buffer.from(await response.arrayBuffer()),
+      assetBuffer: buffer,
       assetMimeType: response.headers.get('content-type') ?? 'audio/wav',
       extension: 'wav',
       metadata: { provider: 'openai', providerModel: model, voice },
@@ -408,6 +411,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
         loop: input.metadata?.loop === true,
         prompt_influence: Math.max(0, Math.min(1, Number(input.metadata?.promptInfluence ?? 0.3))),
       }),
+      redirect: 'error',
       signal: providerAbortSignal(),
     });
     return readAudioResponse(response, 'ElevenLabs sound-effects', {
@@ -436,6 +440,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
         force_instrumental: input.metadata?.forceInstrumental !== false,
         sign_with_c2pa: input.metadata?.signWithC2pa === true,
       }),
+      redirect: 'error',
       signal: providerAbortSignal(),
     });
     return readAudioResponse(response, 'ElevenLabs music', {
@@ -462,6 +467,7 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
       accept: 'audio/mpeg',
     },
     body: JSON.stringify({ text: input.prompt, model_id: modelId }),
+    redirect: 'error',
     signal: providerAbortSignal(),
   });
   return readAudioResponse(response, 'ElevenLabs speech', {
@@ -498,12 +504,14 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
       if (input.aspectRatio) form.set('aspect_ratio', input.aspectRatio);
       return form;
     })(),
+    redirect: 'error',
     signal: providerAbortSignal(),
   });
   if (!response.ok) throw new Error(`Stability image request failed ${response.status}: ${await response.text()}`);
   const mimeType = response.headers.get('content-type') ?? 'image/png';
+  const buffer = await readBinaryWithLimit(response, providerMaxBytes());
   return {
-    assetBuffer: Buffer.from(await response.arrayBuffer()),
+    assetBuffer: buffer,
     assetMimeType: mimeType,
     extension: extensionFromMime(mimeType, 'png'),
     metadata: { provider: 'stability', providerModel: `stable-image-${service}`, providerService: service },
