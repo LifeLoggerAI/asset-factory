@@ -7,7 +7,7 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 
 | Area | Status | Evidence / action required |
 | --- | --- | --- |
-| Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, `docs/OPERATIONS_RUNBOOK.md`, and issue #63 are the current evidence spine. |
+| Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `LOCK.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, `docs/contracts/MULTIMODAL_PROVIDER_AUTHORITY.md`, `docs/OPERATIONS_RUNBOOK.md`, and issue #63 are the current evidence spine. Draft PR #284 is the unified forward convergence lane. |
 | Current commit identified | Verified | Use the release evidence file for the exact inspected `HEAD` SHA; do not hardcode a mutable branch SHA here. |
 | Repo-side hardening | Complete for current pass | README, launch readiness, completion lock, privacy/safety, operations runbook, deploy workflow, smoke compatibility, and evidence validator have been synced. |
 | Historical shared Firebase slice | Historical evidence only | `$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL` has prior smoke evidence but is not valid final Asset Factory production authority. Dedicated provider-origin evidence is required before lock. |
@@ -21,7 +21,7 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 | Production smoke | Needs current dedicated-target proof | Historical shared-project smoke exists, but final production smoke must run against the verified dedicated provider origin and then the attached custom domain. |
 | Auth/JWT/API-key enforcement | Needs live proof | Must prove issuer/audience/tenant/role enforcement. |
 | Tenant isolation | Needs live proof | Must prove Tenant A cannot read/list/download Tenant B data. |
-| Provider-backed generation | Needs live proof | Must prove real provider generation for launch asset types. |
+| Provider-backed generation | Repo contracts complete / live proof pending | PR #284 contains modality routing, no-spend gates, provenance, provider contracts, STT, Model Forge, and spend ceilings. Must still prove real provider generation for each selected launch lane on the dedicated runtime. |
 | Durable worker queue | Needs live proof | Must prove leases, retries, idempotency, DLQ, cleanup/retention. |
 | Stripe billing/entitlements | Needs live proof | Must prove signed webhook verification and idempotent entitlement persistence. |
 | Diagnostics redaction | Needs live proof | Public health/manifest must be redacted; full diagnostics must require API key. |
