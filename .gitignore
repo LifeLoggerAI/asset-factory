@@ -53,3 +53,6 @@ Thumbs.db
 # Misc
 *.log
 *.tsbuildinfo
+
+# URAI Model Forge generated provider candidates and cleanup outputs
+model_forge/runs/
