@@ -1,0 +1,33 @@
+{
+  "id": "ground-hero-root-system-01",
+  "prompt": "Photoreal exposed broadleaf root system integrated into believable temperate or woodland ground at human eye level. Thick irregular buttress roots break naturally into smaller roots, dark mineral soil, leaf litter, moss and moisture traces. Mature organic asymmetry, weathered bark, physically plausible branching and ground penetration. No pedestal, no magical glow, no fantasy portal, no collectible object, no text, no game-prop silhouette. Designed as close-camera UrAi Ground physical-world support.",
+  "providers": [
+    "meshy",
+    "tripo",
+    "rodin"
+  ],
+  "referenceImages": [],
+  "generation": {
+    "maxProviderAttempts": 1,
+    "seed": 240917
+  },
+  "target": {
+    "meters": 4.5,
+    "hero": true,
+    "maxTriangles": 140000,
+    "textureResolution": "4k",
+    "pbr": true
+  },
+  "authority": {
+    "route": "/ground",
+    "source": "URAI Ground Definitive Canon V1 + 2026-09-19 Reference Authority Ledger",
+    "requiredRead": "surface reveals vegetation, organic debris, roots, mineral, stone, dark soil and moisture",
+    "negativeCanon": [
+      "fantasy glow",
+      "portal",
+      "game prop",
+      "floating roots",
+      "clean pedestal"
+    ]
+  }
+}

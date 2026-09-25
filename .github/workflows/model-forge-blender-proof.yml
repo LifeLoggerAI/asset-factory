@@ -1,0 +1,94 @@
+name: URAI Model Forge Blender Runtime Proof
+
+on:
+  push:
+    branches:
+      - converge/asset-factory-production-multimodal-20260925
+  pull_request:
+    paths:
+      - 'model_forge/**'
+      - '.github/workflows/model-forge-blender-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: urai-model-forge-blender-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  URAI_MODEL_FORGE_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  blender-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$URAI_MODEL_FORGE_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Install Blender
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy libegl1 libgl1
+          blender --version | head -n 2
+      - name: Build deterministic smoke fixture
+        run: |
+          set -euo pipefail
+          mkdir -p blender-smoke
+          blender --background --python model_forge/blender/make-smoke-fixture.py --             --output blender-smoke/input.glb
+          test -s blender-smoke/input.glb
+      - name: Run cleanup and LOD pipeline
+        run: |
+          set -euo pipefail
+          blender --background --python model_forge/blender/clean-export.py --             --input blender-smoke/input.glb             --output-dir blender-smoke/cleaned             --target-meters 4             --max-lod0-triangles 100000
+          test -s blender-smoke/cleaned/lod0.glb
+          test -s blender-smoke/cleaned/lod1.glb
+          test -s blender-smoke/cleaned/lod2.glb
+          test -s blender-smoke/cleaned/cleanup-receipt.json
+      - name: Run standardized literal-review render pipeline
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          EGL_PLATFORM: surfaceless
+        run: |
+          set -euo pipefail
+          blender --background --python model_forge/blender/render-review.py --             --input blender-smoke/cleaned/lod0.glb             --output-dir blender-smoke/review             --resolution 512
+          for image in front.png front-three-quarter.png side.png back.png; do
+            test -s "blender-smoke/review/$image"
+          done
+          test -s blender-smoke/review/review-receipt.json
+      - name: Validate cleaned GLBs and receipts
+        run: |
+          set -euo pipefail
+          node model_forge/validate-glb.mjs blender-smoke/cleaned/lod0.glb 100000 > blender-smoke/lod0-validation.json
+          node model_forge/validate-glb.mjs blender-smoke/cleaned/lod1.glb 100000 > blender-smoke/lod1-validation.json
+          node model_forge/validate-glb.mjs blender-smoke/cleaned/lod2.glb 100000 > blender-smoke/lod2-validation.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("blender-smoke/cleaned/cleanup-receipt.json").read_text())
+          assert r["schemaVersion"]=="urai-blender-cleanup-v2"
+          assert r["productionAuthority"] is False
+          assert r["promotionAllowed"] is False
+          tris=[r["outputs"][x]["triangles"] for x in ("lod0","lod1","lod2")]
+          assert tris[0] >= tris[1] >= tris[2] > 0, tris
+          for x in ("lod0","lod1","lod2"):
+              assert len(r["outputs"][x]["sha256"])==64
+          review=json.loads(Path("blender-smoke/review/review-receipt.json").read_text())
+          assert review["verdict"]=="review-required-not-production-authority"
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-forge-blender-smoke-${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          path: blender-smoke/
+          if-no-files-found: error
+          retention-days: 14

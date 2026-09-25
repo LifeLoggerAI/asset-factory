@@ -42,8 +42,10 @@ release:
   local_proof_run: <url-or-docs/release-evidence/path>
   staging_smoke_run: <url-or-docs/release-evidence/path>
   production_smoke_run: <url-or-docs/release-evidence/path>
-  firebase_project: urai-4dc1d
-  staging_url: https://staging.uraiassetfactory.com
+  firebase_project: <provider-generated-dedicated-project-id>
+  firebase_hosting_site: <provider-generated-dedicated-hosting-site>
+  provider_origin: <verified-dedicated-provider-origin>
+  staging_url: <verified-staging-url>
   production_url: https://www.uraiassetfactory.com
   fallback_disabled: true
   auth_required: true
@@ -85,14 +87,16 @@ Use the manual workflow unless debugging a failed run locally:
 Actions -> Deploy Asset Factory -> Run workflow
 ```
 
-Required sequence:
+Required smoke sequence:
 
 ```text
-staging / deploy=false / smoke_mode=readonly
-staging / deploy=true / smoke_mode=both
-production / deploy=false / smoke_mode=readonly
-production / deploy=true / smoke_mode=both
+staging / smoke_mode=readonly
+staging / smoke_mode=both
+production / smoke_mode=readonly
+production / smoke_mode=both
 ```
+
+Deployment is a separate explicitly confirmed workflow and is never performed by the smoke workflow.
 
 Required environment/repository secrets are documented in `docs/OPERATIONS_RUNBOOK.md` and issue #63.
 

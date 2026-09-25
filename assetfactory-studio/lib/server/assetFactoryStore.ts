@@ -253,6 +253,13 @@ export async function publishAsset(jobId: string) {
     return null;
   }
 
+  const assetRecord = asset as GenericRecord;
+  const manifest = assetRecord.manifest as GenericRecord | undefined;
+  const approvalStatus = String(assetRecord.approvalStatus ?? manifest?.approvalStatus ?? '').toLowerCase();
+  if (approvalStatus !== 'approved') {
+    throw new Error('Asset approval is required before publication');
+  }
+
   const publishedAt = new Date().toISOString();
 
   const updated = {

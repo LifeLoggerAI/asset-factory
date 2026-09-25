@@ -26,7 +26,7 @@ function requireText(source, label, text) {
 const firebaseConfig = readJson('firebase.json');
 const functionsSource = firebaseConfig.functions?.source;
 if (!functionsSource) errors.push('firebase.json missing functions.source');
-if (!firebaseConfig.hosting?.site) errors.push('firebase.json missing hosting.site');
+if (firebaseConfig.hosting?.site) errors.push('firebase.json must remain target-neutral; production Hosting site is injected only by the guarded deploy wrapper');
 if (!firebaseConfig.hosting?.rewrites?.some((rewrite) => rewrite.source === '/api/health')) {
   errors.push('firebase.json missing /api/health hosting rewrite');
 }
@@ -38,7 +38,9 @@ if (functionsSource) {
   const packageJson = readJson(packagePath);
   const source = readText(sourcePath);
 
-  requireText(source, sourcePath, 'admin.auth().verifyIdToken');
+  if (!source.includes('getAuth().verifyIdToken') && !source.includes('admin.auth().verifyIdToken')) {
+    errors.push(`${sourcePath} missing Firebase ID-token verification`);
+  }
   requireText(source, sourcePath, 'await assertUserAccess(req, userId);');
   requireText(source, sourcePath, 'await assertUserAccess(req, asset.userId);');
   requireText(source, sourcePath, 'assertAnonymousSessionAccess(asset.anonymousSessionId');

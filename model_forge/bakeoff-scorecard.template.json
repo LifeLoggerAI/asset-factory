@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "urai-model-bakeoff-scorecard-v1",
+  "assetId": "",
+  "authorityReferences": [],
+  "candidates": [],
+  "dimensions": [
+    "silhouette",
+    "structuralRealism",
+    "proportions",
+    "topologyArtifacts",
+    "organicCredibility",
+    "surfaceDetail",
+    "materialCredibility",
+    "uvTexturing",
+    "generatorArtifacts",
+    "groundContact",
+    "sceneLightingFit",
+    "closeCameraFit",
+    "performanceHeadroom"
+  ],
+  "scoringRule": "Scores are diagnostic only. No aggregate score can override a material literal-pixel rejection.",
+  "selectedCandidate": null,
+  "selectedReason": "",
+  "rejectedCandidates": [],
+  "finalVerdict": "review-required"
+}

@@ -1,0 +1,181 @@
+name: URAI Model Forge Proof
+
+on:
+  push:
+    branches:
+      - converge/asset-factory-production-multimodal-20260925
+  pull_request:
+    paths:
+      - 'model_forge/**'
+      - '.github/workflows/model-forge-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: urai-model-forge-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  URAI_MODEL_FORGE_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  no-spend-proof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact clean candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$URAI_MODEL_FORGE_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove source parses
+        run: |
+          node --check model_forge/forge.mjs
+          node --check model_forge/validate-glb.mjs
+          node --check model_forge/verify-inventory.mjs
+          python -m py_compile model_forge/blender/clean-export.py model_forge/blender/render-review.py
+          node --check model_forge/verify-promotion.mjs
+          node --check model_forge/run-wave.mjs
+          node --check model_forge/provider-preflight.mjs
+          grep -q "tencent/hunyuan-3d-3.1" model_forge/forge.mjs
+          grep -q "REPLICATE_API_TOKEN" model_forge/forge.mjs
+          grep -q "refs/heads/main" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "google-github-actions/auth@v3" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "RUN_ONE_URAI_REPLICATE_MODEL_WAVE" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "ASSET_FACTORY_FIREBASE_PROJECT_ID" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "authorized-current-head-gap-proof" .github/workflows/model-forge-replicate-wave.yml
+          ! grep -q "PROJECT_ID: urai-4dc1d" .github/workflows/model-forge-replicate-wave.yml
+          ! grep -q "asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com" .github/workflows/model-forge-replicate-wave.yml
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
+          const refs=JSON.parse(fs.readFileSync('model_forge/reference-resolution.json','utf8'))
+          const expectedHead=refs.generationPolicy.currentSpatialHead
+          assert.equal(refs.recoveredSpatialHead,expectedHead)
+          assert.equal(inventory.authority.recoveredSpatialHead,expectedHead)
+          assert.equal(inventory.providerExecutionBoundary.spatialHead,expectedHead)
+          assert.equal(inventory.authority.spatialPr,refs.generationPolicy.currentSpatialPr)
+          assert.match(inventory.providerExecutionBoundary.status,/^blocked-/)
+          assert.deepEqual(inventory.productionTargets,[])
+          assert.equal(refs.generationPolicy.currentProductionProviderTargetsAuthorized,false)
+          const canopy=inventory.assets.find((asset)=>asset.id==='ground-authored-canopy-v20')
+          assert.ok(canopy)
+          assert.equal(canopy.providerAction,'hold-paid-bakeoff-pending-cc0-visual-acceptance')
+          console.log('PASS Model Forge current Spatial authority lock')
+          NODE
+          node model_forge/provider-preflight.mjs > provider-preflight-dry.json
+          grep -q '"live": false' provider-preflight-dry.json
+          node model_forge/verify-inventory.mjs
+          set +e
+          node model_forge/verify-promotion.mjs model_forge/promotion-receipt.template.json > promotion-negative.log 2>&1
+          promotion_rc=$?
+          set -e
+          test "$promotion_rc" -ne 0
+          grep -q 'URAI_MODEL_PROMOTION=BLOCKED' promotion-negative.log
+      - name: Prove no-spend dry run
+        env:
+          URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+          MESHY_API_KEY: ''
+          TRIPO_API_KEY: ''
+          RODIN_API_KEY: ''
+          REPLICATE_API_TOKEN: ''
+        run: |
+          : > model-forge-dry-run.json
+          for spec in \
+            model_forge/specs/ground-hero-tree.json \
+            model_forge/specs/ground-canopy-challenger.json \
+            model_forge/specs/ground-hero-root-system.json \
+            model_forge/specs/ground-sanctuary-geology.json \
+            model_forge/specs/replay-memory-geology.json
+          do
+            node model_forge/forge.mjs \
+              --spec "$spec" \
+              --providers meshy,tripo,rodin \
+              --dry-run >> model-forge-dry-run.json
+          done
+          test "$(grep -c '"dryRun": true' model-forge-dry-run.json)" -eq 5
+          test "$(grep -c '"spendAuthorized": false' model-forge-dry-run.json)" -eq 5
+          test "$(grep -c '"maxProviderAttempts": 1' model-forge-dry-run.json)" -eq 5
+          node model_forge/forge.mjs             --spec model_forge/specs/ground-canopy-challenger.json             --providers replicate             --dry-run > model-forge-replicate-dry-run.json
+          grep -q '"provider": "replicate"' model-forge-replicate-dry-run.json
+          grep -q '"requiredEnv": "REPLICATE_API_TOKEN"' model-forge-replicate-dry-run.json
+      - name: Prove live execution fails closed without spend authorization
+        run: |
+          set +e
+          node model_forge/forge.mjs \
+            --spec model_forge/specs/ground-hero-tree.json \
+            --providers meshy > fail-closed.log 2>&1
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          grep -q 'Provider execution is fail-closed' fail-closed.log
+      - name: Prove first provider wave remains bounded and no-spend
+        env:
+          URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+          MESHY_API_KEY: ''
+          TRIPO_API_KEY: ''
+          RODIN_API_KEY: ''
+          REPLICATE_API_TOKEN: ''
+        run: |
+          node model_forge/run-wave.mjs \
+            --wave model_forge/waves/wave-01-ground-canopy-bakeoff.json > wave-plan.json
+          grep -q '"execute": false' wave-plan.json
+          grep -q '"plannedCandidateAttempts": 3' wave-plan.json
+          test "$(grep -c '"status": "planned"' wave-plan.json)" -eq 3
+          node model_forge/run-wave.mjs             --wave model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json > replicate-wave-plan.json
+          grep -q '"plannedCandidateAttempts": 1' replicate-wave-plan.json
+          test "$(grep -c '"status": "planned"' replicate-wave-plan.json)" -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-forge-no-spend-proof-${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          path: |
+            model-forge-dry-run.json
+            model-forge-replicate-dry-run.json
+            wave-plan.json
+            replicate-wave-plan.json
+            provider-preflight-dry.json
+          if-no-files-found: error
+
+  provider-credential-presence:
+    runs-on: ubuntu-latest
+    env:
+      MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
+      TRIPO_API_KEY: ${{ secrets.TRIPO_API_KEY }}
+      RODIN_API_KEY: ${{ secrets.RODIN_API_KEY }}
+      REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+    steps:
+      - name: Record credential presence without exposing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const names = ['MESHY_API_KEY','TRIPO_API_KEY','RODIN_API_KEY','REPLICATE_API_TOKEN']
+          const providers = Object.fromEntries(names.map((name) => [name, Boolean(process.env[name])]))
+          fs.writeFileSync('model-forge-provider-presence.json', JSON.stringify({
+            schemaVersion: 'urai-model-forge-provider-presence-v1',
+            exactHead: process.env.URAI_MODEL_FORGE_EXACT_HEAD,
+            providers
+          }, null, 2) + '\n')
+          console.log('MODEL_FORGE_PROVIDER_PRESENCE_RECORDED')
+          for (const [name, configured] of Object.entries(providers)) console.log(`${name}=${configured ? 'configured' : 'absent'}`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-forge-provider-presence-${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
+          path: model-forge-provider-presence.json
+          if-no-files-found: error

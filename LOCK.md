@@ -1,58 +1,64 @@
 # Asset Factory Production Lock
 
-STATUS: PRODUCTION VERIFIED
+STATUS: **NOT PRODUCTION LOCKED**
 
-Asset Factory has passed local verification, Firebase Functions deployment, and live production smoke testing for Firebase project `urai-4dc1d`.
+Current authority date: 2026-09-24.
 
-## Verified Production Surface
+Historical Asset Factory deployments and smoke evidence exist for Firebase project/site `urai-4dc1d`. That evidence is preserved for history, but `urai-4dc1d` is shared consumer infrastructure and is **not valid final Asset Factory production authority**.
 
-- Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Functions source: `life-map-pipeline/functions`
-- Runtime: Node 22
+## Current source authority
 
-## Verified Functions
+- Core convergence parent: PR #278.
+- Dedicated production-authority hardening parent: draft PR #281.
+- Unified production + Model Forge + multimodal successor: draft PR #284, stacked on #281.
+- PR #284 carries the complete file surface of prior Model Forge PR #279 and multimodal provider PR #282; those sibling lanes are no longer the intended forward integration path once #284 earns exact-head gates.
+- Active Firebase Functions source: `life-map-pipeline/functions`.
+- Active Functions runtime: Node 22.
+- Root `functions/`: historical Node 18 tree, non-deployable.
 
-- `assetFactoryHealth`
-- `createAssetRequest`
-- `getAssetStatus`
-- `ingestLifeMapEvent`
-- `processLifeMapEvent`
+## Required dedicated production authority
 
-## Verified Live Smoke Tests
-
-Command:
-
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
-```
-
-Passed:
-
-1. `GET /api/health`
-2. `POST /api/assets`
-3. `GET /api/assets/{assetId}`
-4. `POST /api/lifemap/events`
-5. Full `PASS production finalization smoke`
-
-Smoke evidence:
-
-- `assetId=1K2r0m8Dle87cIIBgU0J`
-- `queueId=krebIOgHF2wOmGLwu9U7`
-- `eventId=2MZ90nqWzvrG3wLs9JUV`
-
-## Verification Report
-
-See:
+Production cannot unlock until the protected environment contains provider-generated, verified values for:
 
 ```text
-docs/PRODUCTION_VERIFICATION_REPORT.md
+ASSET_FACTORY_FIREBASE_PROJECT_ID
+ASSET_FACTORY_FIREBASE_HOSTING_SITE
+ASSET_FACTORY_BASE_URL
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ```
 
-## Non-Blocking Follow-Ups
+The guarded production path must reject:
 
-- Triage `npm audit` findings separately.
-- Refresh lockfiles and confirm Firebase SDK warning disappears.
-- Verify custom domain `assetfactory.app` if/when DNS is configured.
-- Configure `FIREBASE_SERVICE_ACCOUNT` if GitHub Actions deployment should run from CI.
+- `urai-4dc1d`;
+- `asset-factory-dev-id`;
+- their legacy Firebase Hosting origins;
+- `urai.app` / `www.urai.app`.
+
+## Historical evidence boundary
+
+Older files under `docs/release-evidence/` and `docs/PRODUCTION_VERIFICATION_REPORT.md` may prove that an earlier Asset Factory surface ran on shared Firebase infrastructure. They do **not** prove the current exact source is deployed to the final dedicated production target.
+
+## Production-lock requirements
+
+Do not change this status to production locked until all mandatory receipts exist for the same approved release:
+
+1. exact merged source SHA;
+2. eligible independent approval;
+3. dedicated Firebase/GCP project and Hosting site;
+4. WIF/least-privilege deploy identity;
+5. protected staging with local fallback disabled;
+6. auth and cross-tenant denial;
+7. durable worker/retry/DLQ proof;
+8. Stripe TEST signature + idempotent entitlement proof;
+9. provider generation where actually required;
+10. promoted-asset provenance/rights receipts;
+11. monitoring/spend/queue evidence;
+12. account export/deletion and privacy/security approval;
+13. exact production deploy revision;
+14. rollback revision and tested rollback path;
+15. dedicated provider-origin smoke;
+16. custom-domain DNS/TLS/API routing proof;
+17. final live smoke and retained evidence pack.
+
+Historical green CI or historical live smoke cannot substitute for a missing current receipt.

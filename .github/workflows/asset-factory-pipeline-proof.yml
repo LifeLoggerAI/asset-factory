@@ -4,6 +4,18 @@ on:
   push:
     paths:
       - 'assetfactory-studio/**'
+      - 'model_forge/**'
+      - 'tools/blender/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'assetfactory-studio/package-lock.json'
+      - 'life-map-pipeline/functions/package-lock.json'
+      - 'engine/npm-shrinkwrap.json'
+      - '.github/workflows/multimodal-provider-contract.yml'
+      - '.github/workflows/model-forge-proof.yml'
+      - '.github/workflows/model-forge-blender-proof.yml'
+      - '.github/workflows/model-forge-replicate-wave.yml'
+      - 'docs/contracts/MULTIMODAL_PROVIDER_AUTHORITY.md'
       - 'image_asset_generator/**'
       - 'scripts/**'
       - 'schemas/**'
@@ -13,10 +25,23 @@ on:
       - '.github/workflows/asset-factory-pipeline-proof.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'public/**'
       - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   pull_request:
     paths:
       - 'assetfactory-studio/**'
+      - 'model_forge/**'
+      - 'tools/blender/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'assetfactory-studio/package-lock.json'
+      - 'life-map-pipeline/functions/package-lock.json'
+      - 'engine/npm-shrinkwrap.json'
+      - '.github/workflows/multimodal-provider-contract.yml'
+      - '.github/workflows/model-forge-proof.yml'
+      - '.github/workflows/model-forge-blender-proof.yml'
+      - '.github/workflows/model-forge-replicate-wave.yml'
+      - 'docs/contracts/MULTIMODAL_PROVIDER_AUTHORITY.md'
       - 'image_asset_generator/**'
       - 'scripts/**'
       - 'schemas/**'
@@ -26,6 +51,7 @@ on:
       - '.github/workflows/asset-factory-pipeline-proof.yml'
       - 'LAUNCH_READINESS.md'
       - 'README.md'
+      - 'public/**'
       - 'docs/release-evidence/URAI-AF-20260711-V1-RESUME-CREDENTIAL-ISOLATION-001.md'
   workflow_dispatch:
 
@@ -79,6 +105,64 @@ jobs:
           npm run test:completion-lock
           npm run check:deploy-workflow
 
+      - name: Resolve active production dependency locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --lockfile-only --no-frozen-lockfile
+          npm --prefix assetfactory-studio install --package-lock-only --ignore-scripts
+          npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts
+          npm --prefix engine install --package-lock-only --ignore-scripts
+          npm --prefix engine audit fix --package-lock-only --omit=dev --ignore-scripts
+
+      - name: Verify governed dependency locks remain source-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- pnpm-lock.yaml life-map-pipeline/functions/package-lock.json engine/npm-shrinkwrap.json; then
+            echo "::error::Governed dependency locks are stale. Run the dedicated lock-repair workflow and commit its generated outputs."
+            git diff -- pnpm-lock.yaml life-map-pipeline/functions/package-lock.json engine/npm-shrinkwrap.json
+            exit 1
+          fi
+          echo "Governed dependency locks match current package constraints."
+          # assetfactory-studio/package-lock.json is intentionally ignored and retained only as ephemeral dependency evidence.
+
+      - name: Run blocking production dependency security audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run audit:production
+
+      - name: Record full-workspace dependency debt
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm audit --audit-level=high > workspace-dependency-debt.txt 2>&1
+          rc=$?
+          set -e
+          printf 'workspace_audit_exit=%s\n' "$rc" >> workspace-dependency-debt.txt
+          printf 'production_gate_scope=assetfactory-studio,life-map-pipeline/functions,engine\n' >> workspace-dependency-debt.txt
+          printf 'legacy_functions_deploy_authority=false\n' >> workspace-dependency-debt.txt
+
+      - name: Upload dependency resolution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-factory-dependency-evidence-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          path: |
+            pnpm-lock.yaml
+            assetfactory-studio/package-lock.json
+            life-map-pipeline/functions/package-lock.json
+            engine/npm-shrinkwrap.json
+            workspace-dependency-debt.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Lint Studio
         working-directory: assetfactory-studio
         run: npm run lint
@@ -92,6 +176,7 @@ jobs:
         run: npm test
 
       - name: Validate production assets
+        id: production_asset_validation
         working-directory: assetfactory-studio
         shell: bash
         run: |
@@ -99,7 +184,7 @@ jobs:
           npm run validate:assets 2>&1 | tee ../asset-factory-production-validation.log
 
       - name: Upload production validation diagnostic
-        if: always()
+        if: ${{ steps.production_asset_validation.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: asset-factory-production-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
@@ -132,6 +217,7 @@ jobs:
         run: python -m unittest discover -s image_asset_generator -p 'test_production_visual_gate.py' -v
 
       - name: Run offline image asset mechanical proof
+        id: offline_image_proof
         env:
           ASSET_RENDERER_MODE: offline
           ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS: "0"
@@ -209,7 +295,7 @@ jobs:
           PY
 
       - name: Upload image pipeline mechanical proof
-        if: always()
+        if: ${{ steps.offline_image_proof.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: asset-factory-image-mechanical-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}

@@ -57,13 +57,25 @@ function validateSize(value: unknown) {
   return null;
 }
 
-function isPublicHttpUrl(value: unknown) {
+function isPrivateIpv4(host: string) {
+  const parts = host.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+function isPublicHttpsUrl(value: unknown) {
   if (value === undefined || value === null || value === '') return true;
   if (typeof value !== 'string' || value.length > 2048) return false;
   try {
     const parsed = new URL(value);
     const host = parsed.hostname.toLowerCase();
-    return ['https:', 'http:'].includes(parsed.protocol) && host !== loopbackHostname && host !== '::1' && !host.endsWith('.local') && !host.startsWith('127.');
+    return parsed.protocol === 'https:' &&
+      host !== loopbackHostname &&
+      host !== '::1' &&
+      !host.endsWith('.local') &&
+      !host.endsWith(`.${loopbackHostname}`) &&
+      !isPrivateIpv4(host);
   } catch {
     return false;
   }
@@ -77,8 +89,8 @@ function validateVideoMetadata(metadata: Record<string, unknown> | undefined) {
   if (fps !== undefined && (typeof fps !== 'number' || !Number.isFinite(fps) || fps < 12 || fps > 60)) return 'invalid metadata.fps';
   const motionStrength = metadata.motionStrength;
   if (motionStrength !== undefined && (typeof motionStrength !== 'number' || !Number.isFinite(motionStrength) || motionStrength < 0 || motionStrength > 1)) return 'invalid metadata.motionStrength';
-  if (!isPublicHttpUrl(metadata.referenceImageUrl)) return 'invalid metadata.referenceImageUrl';
-  if (!isPublicHttpUrl(metadata.referenceVideoUrl)) return 'invalid metadata.referenceVideoUrl';
+  if (!isPublicHttpsUrl(metadata.referenceImageUrl)) return 'invalid metadata.referenceImageUrl';
+  if (!isPublicHttpsUrl(metadata.referenceVideoUrl)) return 'invalid metadata.referenceVideoUrl';
   if (metadata.providerInput !== undefined && (typeof metadata.providerInput !== 'object' || metadata.providerInput === null || Array.isArray(metadata.providerInput))) return 'invalid metadata.providerInput';
   return null;
 }
@@ -107,6 +119,13 @@ export function validateGenerateRequest(value: unknown): string | null {
   if (spatialContract !== undefined && definition.canonicalType !== 'model3d') return 'spatialModelContract requires model3d type';
   const spatialContractError = validateSpatialModelContract(spatialContract);
   if (spatialContractError) return spatialContractError;
+  if (definition.canonicalType === 'model3d' && metadata) {
+    if (!isPublicHttpsUrl(metadata.sourceImageUrl)) return 'invalid metadata.sourceImageUrl';
+    if (metadata.sourceImageUrls !== undefined) {
+      if (!Array.isArray(metadata.sourceImageUrls) || metadata.sourceImageUrls.length < 1 || metadata.sourceImageUrls.length > 4) return 'invalid metadata.sourceImageUrls';
+      if (metadata.sourceImageUrls.some((url) => !isPublicHttpsUrl(url))) return 'invalid metadata.sourceImageUrls';
+    }
+  }
   if (definition.canonicalType === 'video') {
     const videoError = validateVideoMetadata(metadata);
     if (videoError) return videoError;

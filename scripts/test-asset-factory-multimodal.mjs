@@ -28,6 +28,9 @@ const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.t
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
+const transcriptionRuntime = read('assetfactory-studio/lib/server/assetTranscriptionRuntime.ts');
+const transcriptionRoute = read('assetfactory-studio/app/api/assets/transcribe/route.ts');
+const appHostingConfig = read('assetfactory-studio/apphosting.yaml');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -38,6 +41,11 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
+const providerReadiness = read('scripts/provider-readiness.mjs');
+const legacyProviderRenderer = read('image_asset_generator/provider_renderer.py');
+const paidWorkflowBoundary = read('scripts/check-paid-workflow-boundary-current.py');
+const openAiSoraWorkflow = read('.github/workflows/one-time-finite-time-openai-physics-validation.yml');
+const modelForge = read('model_forge/forge.mjs');
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -57,22 +65,187 @@ for (const extension of ['svg', 'gltf', 'wav', 'mp4', 'webm', 'json']) {
   assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
 }
 
-for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway']) {
+for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway', 'meshy']) {
   assertIncludes(providers, provider, `${provider} provider adapter diagnostic`);
 }
 
-for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
+for (const provider of ['meshy', 'tripo', 'rodin', 'replicate']) {
+  assertIncludes(modelForge, `provider === '${provider}'`, `${provider} Model Forge provider lane`);
+}
+assertIncludes(legacyProviderRenderer, 'ASSET_RENDERER_PROVIDER', 'legacy provider-neutral image adapter');
+assertIncludes(legacyProviderRenderer, 'ASSET_RENDERER_ENDPOINT must use HTTPS', 'legacy custom renderer HTTPS-only transport');
+if (legacyProviderRenderer.includes('ASSET_RENDERER_ALLOW_HTTP')) {
+  console.error('Legacy custom renderer must not retain an HTTP transport escape hatch');
+  process.exit(1);
+}
+assertIncludes(paidWorkflowBoundary, 'one-time-finite-time-openai-physics-validation.yml', 'governed OpenAI Sora video lane');
+assertIncludes(openAiSoraWorkflow, "assert m['model']=='sora-2'", 'OpenAI Sora model authority');
+assertIncludes(openAiSoraWorkflow, 'environment: paid-asset-generation', 'OpenAI Sora protected paid environment');
+
+for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'MESHY_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
-for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAY_API_KEY', 'FAL_KEY', 'referenceImageUrl', 'referenceVideoUrl']) {
+for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAYML_API_SECRET', 'FAL_KEY', 'referenceImageUrl', 'referenceVideoUrl', 'api.dev.runwayml.com/v1/image_to_video', 'api.dev.runwayml.com/v1/tasks/']) {
   assertIncludes(videoProviderRuntime, marker, `video runtime support for ${marker}`);
 }
+
+assertIncludes(videoProviderRuntime, 'if (meta.referenceImageUrl) payload.promptImage = meta.referenceImageUrl;', 'Runway optional image conditioning on unified endpoint');
+assertIncludes(videoProviderRuntime, "https://queue.fal.run/${model}", 'fal queue submit origin');
+assertIncludes(videoProviderRuntime, "trustedProviderUrl(submission.status_url, 'queue.fal.run')", 'fal queue status host pin');
+assertIncludes(videoProviderRuntime, "trustedProviderUrl(submission.response_url, 'queue.fal.run')", 'fal queue result host pin');
+assertIncludes(videoProviderRuntime, "status !== 'COMPLETED'", 'fal bounded queue polling');
+assertIncludes(videoProviderRuntime, "authorization: `Key ${apiKey}`", 'fal video Key authentication');
+assertIncludes(videoProviderRuntime, "aspect_ratio: input.aspectRatio || '9:16'", 'fal video REST aspect ratio contract');
+if (videoProviderRuntime.includes('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT')) {
+  console.error('Runway text-to-video must use the verified image_to_video endpoint with promptImage omitted');
+  process.exit(1);
+}
+
+for (const marker of ['isPrivateIpv4', 'isPrivateIpv6', 'loopbackHostname', "host.endsWith('.local')"]) {
+  assertIncludes(videoProviderRuntime, marker, `video provider private-network guard for ${marker}`);
+}
+assertIncludes(videoProviderRuntime, "redirect: 'error'", 'video provider redirect rejection');
+assertIncludes(providerRuntime, "redirect: 'error'", 'generic provider redirect rejection');
+assertIncludes(providerRuntime, "body: JSON.stringify(body),\n    redirect: 'error'", 'authenticated JSON POST redirect rejection');
+assertIncludes(providerRuntime, "OpenAI audio request failed", 'OpenAI TTS response boundary');
+assertIncludes(providerRuntime, "const buffer = await readBinaryWithLimit(response, providerMaxBytes());", 'bounded direct provider binary responses');
+assertIncludes(providerRuntime, "ElevenLabs sound-effects", 'ElevenLabs direct response boundary');
+assertIncludes(providerRuntime, "Stability image request failed", 'Stability direct response boundary');
+assertIncludes(videoProviderRuntime, "parsed.protocol !== 'https:'", 'video provider HTTPS-only transport');
+assertIncludes(providerRuntime, "Provider artifact URL must use HTTPS", 'generic provider HTTPS-only transport');
+
+for (const marker of ['ASSET_FACTORY_IMAGE_PROVIDER', 'ASSET_FACTORY_MODEL3D_PROVIDER', 'ASSET_FACTORY_AUDIO_PROVIDER', 'ASSET_FACTORY_SFX_PROVIDER', 'ASSET_FACTORY_MUSIC_PROVIDER']) {
+  assertIncludes(providerRuntime, marker, `modality provider routing for ${marker}`);
+}
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v2/text-to-3d', 'Meshy text-to-3D runtime');
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/image-to-3d', 'Meshy image-to-3D runtime');
+assertIncludes(providerRuntime, 'api.meshy.ai/openapi/v1/multi-image-to-3d', 'Meshy multi-image-to-3D runtime');
+assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION", 'Meshy multi-image resolution isolation');
+assertIncludes(providerRuntime, "ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION", 'Meshy text geometry resolution');
+assertIncludes(providerRuntime, "rawImageUrls.map((value) => assertPublicProviderUrl(value))", 'Meshy multi-image public URL validation');
+assertIncludes(providerRuntime, "rawSourceImageUrl ? assertPublicProviderUrl(rawSourceImageUrl) : null", 'Meshy single-image public URL validation');
+assertIncludes(providerRuntime, "function assertGlbBinary", 'provider GLB structural validation helper');
+assertIncludes(providerRuntime, "assertGlbBinary(binary.buffer, 'Meshy model3d')", 'Meshy GLB structural validation');
+assertIncludes(providerRuntime, "assertGlbBinary(binary.buffer, 'Replicate model3d')", 'Replicate GLB structural validation');
+assertIncludes(providerRuntime, "ai_model: textModel", 'Meshy text-to-3D model pinning');
+assertIncludes(providerRuntime, "['standard', '2k']", 'Meshy multi-image supported resolution boundary');
+assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image default');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_IMAGE_FORMAT", 'OpenAI image format authority');
+assertIncludes(providerRuntime, "OpenAI image b64_json exceeds ASSET_FACTORY_PROVIDER_MAX_BYTES", 'OpenAI base64 image size ceiling');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_SPEECH_MODEL", 'OpenAI speech model authority');
+assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_VOICE must be explicitly configured", 'fail-closed OpenAI voice identity');
+assertIncludes(providerRuntime, "ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured", 'fail-closed Replicate voice identity');
+assertIncludes(providerRuntime, "https://api.stability.ai/v2beta/stable-image/generate/${service}", 'current Stability image endpoint');
+assertIncludes(providerRuntime, "expected core or ultra", 'Stability service allowlist');
+assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configured", 'fail-closed ElevenLabs voice identity');
+if (providerRuntime.includes('21m00Tcm4TlvDq8ikWAM')) {
+  console.error('Stock ElevenLabs voice fallback must not exist in Asset Factory runtime');
+  process.exit(1);
+}
+
+for (const marker of [
+  'ASSET_FACTORY_STT_PROVIDER',
+  'ELEVENLABS_API_KEY',
+  'scribe_v2',
+  '/v1/speech-to-text',
+  'sourceSha256',
+  'ASSET_FACTORY_STT_MAX_RESPONSE_BYTES',
+  "redirect: 'error'",
+  'readResponseTextWithLimit',
+]) {
+  assertIncludes(transcriptionRuntime, marker, `transcription runtime support for ${marker}`);
+}
+for (const marker of ['requireAssetFactoryApiKey', "'creator'", "allowedMimePrefixes", 'ASSET_FACTORY_STT_MAX_BYTES', 'Number.isFinite(configuredMaxBytes)', '50 * 1024 * 1024']) {
+  assertIncludes(transcriptionRoute, marker, `transcription route guard for ${marker}`);
+}
+
+for (const variable of [
+  'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_SFX_PROVIDER',
+  'ASSET_FACTORY_MUSIC_PROVIDER',
+  'ASSET_FACTORY_STT_PROVIDER',
+  'ASSET_FACTORY_VIDEO_PROVIDER',
+]) {
+  assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting fail-closed modality ${variable}`);
+}
+if ((appHostingConfig.match(/value: local-proof/g) ?? []).length < 8) {
+  console.error('App Hosting must keep all multimodal provider selectors fail-closed at local-proof');
+  process.exit(1);
+}
+assertIncludes(appHostingConfig, 'variable: ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'App Hosting provider spend kill switch');
+assertIncludes(appHostingConfig, 'value: "false"', 'App Hosting provider spend kill switch default false');
+
+for (const variable of [
+  'ASSET_FACTORY_PROVIDER_MAX_BYTES',
+  'ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS',
+  'ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES',
+  'ASSET_FACTORY_ALLOW_VIDEO_INPUT_OVERRIDES',
+  'ASSET_FACTORY_OPENAI_IMAGE_MODEL',
+  'ASSET_FACTORY_OPENAI_SPEECH_MODEL',
+  'ASSET_FACTORY_STABILITY_IMAGE_SERVICE',
+  'ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_SFX_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL',
+  'ASSET_FACTORY_ELEVENLABS_STT_MODEL',
+  'ASSET_FACTORY_STT_MAX_BYTES',
+  'ASSET_FACTORY_STT_MAX_RESPONSE_BYTES',
+  'ASSET_FACTORY_MESHY_MODEL',
+  'ASSET_FACTORY_MESHY_TEXT_MODEL',
+  'ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION',
+  'ASSET_FACTORY_RUNWAY_VIDEO_MODEL',
+]) {
+  assertIncludes(appHostingConfig, `variable: ${variable}`, `App Hosting provider registry for ${variable}`);
+}
+
+for (const marker of [
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_VIDEO_PROVIDER',
+  'provider-spend-not-authorized',
+  'provider-credential-not-configured',
+  'approved-voice-not-configured',
+  'provider-account-capability-not-certified',
+  'dedicated-production-target-not-configured',
+  'wif-not-configured',
+  'provider-live-smoke-not-certified',
+]) {
+  assertIncludes(providerReadiness, marker, `truthful provider readiness marker ${marker}`);
+}
+if (providerReadiness.includes('URAI_IMAGE_PROVIDER') || providerReadiness.includes('URAI_IMAGE_API_KEY')) {
+  console.error('Legacy image-provider readiness variables must not remain authoritative');
+  process.exit(1);
+}
+
+assertIncludes(providerRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'provider runtime provider spend kill switch');
+assertIncludes(videoProviderRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'video runtime provider spend kill switch');
+assertIncludes(transcriptionRuntime, 'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED', 'transcription runtime provider spend kill switch');
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
 assertIncludes(renderer, 'identity-continuity', 'video identity QA gate');
 assertIncludes(renderer, 'temporal-flicker', 'video temporal QA gate');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
+assertIncludes(manifestRoute, 'modalityReadiness', 'modality-aware provider readiness');
+assertIncludes(manifestRoute, 'providerSpendAuthorized', 'provider spend authorization readiness');
+
+for (const forbiddenCredential of ['FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT_KEY', 'GOOGLE_APPLICATION_CREDENTIALS_JSON']) {
+  if (manifestRoute.match(new RegExp(`requiredProductionEnv[\\s\\S]*['"]${forbiddenCredential}['"]`))) {
+    console.error(`Long-lived Firebase credential ${forbiddenCredential} must not be required by the ADC/WIF production manifest`);
+    process.exit(1);
+  }
+}
+assertIncludes(manifestRoute, "enabled('ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED')", 'provider spend kill switch readiness');
+assertIncludes(manifestRoute, "approved-voice-not-configured", 'speech identity readiness blocker');
+assertIncludes(manifestRoute, "configured('ASSET_FACTORY_OPENAI_VOICE')", 'approved OpenAI voice readiness requirement');
+assertIncludes(manifestRoute, "configured('ELEVENLABS_VOICE_ID')", 'approved ElevenLabs voice readiness requirement');
+assertIncludes(manifestRoute, "provider-account-capability-not-certified", 'Runway account capability readiness blocker');
+assertIncludes(manifestRoute, "provider-spend-not-authorized", 'provider spend authorization readiness blocker');
+assertIncludes(manifestRoute, "configured('ASSET_FACTORY_REPLICATE_VIDEO_MODEL')", 'Replicate video model readiness requirement');
+assertIncludes(manifestRoute, "configured('ASSET_FACTORY_FAL_VIDEO_MODEL')", 'fal video endpoint readiness requirement');
 assertIncludes(validation, 'metadata.durationSeconds', 'video duration validation');
 assertIncludes(validation, 'metadata.fps', 'video fps validation');
 assertIncludes(policy, "canonicalType === 'video'", 'video cost policy');
@@ -93,6 +266,11 @@ assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
 assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
 assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
+assertIncludes(store, "approvalStatus !== 'approved'", 'store-level approval gate before publication');
+assertIncludes(store, 'Asset approval is required before publication', 'fail-closed publish error');
+const publishRoute = read('assetfactory-studio/app/api/jobs/[jobId]/publish/route.ts');
+assertIncludes(publishRoute, "status = message === 'Asset approval is required before publication' ? 409 : 500", 'publish route approval conflict status');
+assertIncludes(e2e, 'unapproved publish must fail closed', 'E2E proves draft candidates cannot publish');
 
 if (!fs.existsSync(studio)) {
   console.error(`Missing studio directory: ${studio}`);

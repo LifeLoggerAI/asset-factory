@@ -30,6 +30,7 @@ type StudioAsset = {
   fileName: string;
   manifestFile: string;
   published?: boolean;
+  approvalStatus?: string;
   manifest?: {
     rendererMode?: string;
     formats?: string[];
@@ -42,6 +43,7 @@ const JOB_API_ENDPOINT = '/api/jobs';
 const ASSETS_API_ENDPOINT = '/api/assets';
 const MATERIALIZE_ENDPOINT = (jobId: string) => `/api/jobs/${encodeURIComponent(jobId)}/materialize`;
 const PUBLISH_ENDPOINT = (jobId: string) => `/api/jobs/${encodeURIComponent(jobId)}/publish`;
+const APPROVE_ENDPOINT = (jobId: string) => `/api/jobs/${encodeURIComponent(jobId)}/approve`;
 
 const assetTypes: { value: AssetType; label: string; description: string }[] = [
   {
@@ -246,6 +248,31 @@ export default function StudioPage() {
     }
   }
 
+  async function approveJob(jobId: string) {
+    setBusy(true);
+    setError('');
+    setStatus(`Approving ${jobId}...`);
+
+    try {
+      const response = await fetch(APPROVE_ENDPOINT(jobId), {
+        method: 'POST',
+        headers: { ...requestHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved', approvedBy: 'assetfactory-studio' }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Approval failed.');
+
+      setStatus(`Approved ${jobId}. Publication is now eligible.`);
+      await refreshAll();
+    } catch (approvalError) {
+      setError(approvalError instanceof Error ? approvalError.message : 'Unable to approve asset.');
+      setStatus('Approval failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function publishJob(jobId: string) {
     setBusy(true);
     setError('');
@@ -442,9 +469,14 @@ export default function StudioPage() {
                             Materialize
                           </Button>
                         )}
-                        {asset && !asset.published && (
+                        {asset && !asset.published && asset.approvalStatus !== 'approved' && (
+                          <Button type="button" onClick={() => void approveJob(job.jobId)} disabled={busy}>
+                            Approve candidate
+                          </Button>
+                        )}
+                        {asset && !asset.published && asset.approvalStatus === 'approved' && (
                           <Button type="button" onClick={() => void publishJob(job.jobId)} disabled={busy}>
-                            Publish
+                            Publish approved
                           </Button>
                         )}
                         {asset && (

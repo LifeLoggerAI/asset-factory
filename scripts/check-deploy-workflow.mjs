@@ -24,7 +24,7 @@ const smokeRequired = [
   "environment: ${{ inputs.environment == 'production' && 'asset-factory-production' || 'staging' }}",
   'Checkout exact dispatch commit', 'ref: ${{ github.sha }}', 'persist-credentials: false',
   'Verify exact clean dispatch identity and smoke-only boundary', "ASSET_FACTORY_SMOKE_READONLY: 'true'",
-  'Deploy workflow boundary gate', 'https://staging.uraiassetfactory.com', 'https://urai-4dc1d.web.app',
+  'Deploy workflow boundary gate', 'ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}', 'Refusing legacy/shared Asset Factory verification target',
   'prod-smoke', 'prod-smoke-denied', 'smoke-tenant-a', 'smoke-tenant-b', 'npm run smoke:website',
   'Authenticated read-only smoke', 'npm run smoke:staging', 'npm run smoke:prod',
   'test "$ASSET_FACTORY_SMOKE_READONLY" = true', 'Deployment performed: false',
@@ -58,14 +58,19 @@ const canonicalProductionRequired = [
   'workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}', 'service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}',
   'create_credentials_file: true', 'export_environment_variables: false', 'Verify ephemeral deployment credential',
   'GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}',
-  'firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage',
+  'ASSET_FACTORY_FIREBASE_PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}',
+  'ASSET_FACTORY_FIREBASE_HOSTING_SITE: ${{ vars.ASSET_FACTORY_FIREBASE_HOSTING_SITE }}',
+  'ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}',
+  'Validate dedicated production target',
+  'node scripts/run-dedicated-firebase-deploy.mjs --only hosting,functions,firestore,storage',
   'Remove ephemeral deployment credential', 'CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}'
 ];
 for (const phrase of canonicalProductionRequired) if (!productionReadiness.includes(phrase)) fail(`canonical production deploy workflow missing ${JSON.stringify(phrase)}`);
 
 const productionForbidden = [
   'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_SERVICE_ACCOUNT_JSON', 'FIREBASE_TOKEN', 'credentials_json', '--token',
-  'firebase-service-account.json', 'Write service account', 'Remove service-account file', 'export_environment_variables: true'
+  'firebase-service-account.json', 'Write service account', 'Remove service-account file', 'export_environment_variables: true',
+  'project_id: urai-4dc1d', 'firebase deploy --project urai-4dc1d', 'ASSET_FACTORY_BASE_URL: https://urai-4dc1d.web.app'
 ];
 for (const phrase of productionForbidden) if (productionReadiness.includes(phrase)) fail(`canonical production deploy workflow contains forbidden long-lived or globally exported auth path: ${JSON.stringify(phrase)}`);
 
@@ -133,7 +138,7 @@ function exactRunCommands(step) {
 const deploySteps = parseSteps(productionDeploySection);
 const names = [
   'Checkout exact main candidate', 'Verify exact clean main identity', 'Install Firebase CLI', 'Install dependencies', 'Build',
-  'Authenticate to Google Cloud with WIF', 'Verify ephemeral deployment credential', 'Deploy',
+  'Validate dedicated production target', 'Authenticate to Google Cloud with WIF', 'Verify ephemeral deployment credential', 'Deploy',
   'Remove ephemeral deployment credential', 'Read-only smoke production finalization endpoints'
 ];
 const indexed = new Map(names.map((name) => [name, deploySteps.indexOf(stepByName(deploySteps, name))]));
@@ -161,7 +166,7 @@ if (!credentialCommands || JSON.stringify(credentialCommands) !== JSON.stringify
 
 const deployStep = deploySteps[deployIndex];
 if (!deployStep.includes('GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}')) fail('deploy must receive ADC only through step env');
-if (!deployStep.includes('run: firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage')) fail('deploy command changed from the approved Firebase target set');
+if (!deployStep.includes('run: node scripts/run-dedicated-firebase-deploy.mjs --only hosting,functions,firestore,storage')) fail('deploy command must use the dedicated-target guard');
 
 const cleanupStep = deploySteps[cleanupIndex];
 if (!cleanupStep.includes('CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}')) fail('cleanup must receive the generated credential path explicitly');

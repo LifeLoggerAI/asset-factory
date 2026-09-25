@@ -45,18 +45,46 @@ fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), '
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
-compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
-compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
+const validationModulePath = compileTsModule('lib/server/assetFactoryValidation.ts', [
+  ["import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, resolveAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"],
+  ["import { validateSpatialModelContract } from './assetSpatialContract';", "const validateSpatialModelContract = () => null;"],
+]);
+compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
-  ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
-  ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };"] ,
-  ["import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';"],
+  ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; aspectRatio?: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
+  ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; extension: string };"] ,
+  ["import { configuredProviderName, isAssetProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName, isAssetProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway' | 'meshy';"],
 ]);
 
 const { buildStripeEntitlement } = await import(pathToFileURL(stripeModulePath).href);
 const { requeueAssetQueueJob } = await import(pathToFileURL(queueModulePath).href);
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
+const { validateGenerateRequest } = await import(pathToFileURL(validationModulePath).href);
 const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+
+
+function testRejectsPrivateProviderReferenceUrls() {
+  assert.equal(validateGenerateRequest({
+    jobId: 'video-private-ref',
+    prompt: 'animate',
+    type: 'video',
+    metadata: { referenceImageUrl: 'https://127.0.0.1/private.png' },
+  }), 'invalid metadata.referenceImageUrl');
+
+  assert.equal(validateGenerateRequest({
+    jobId: 'model-private-ref',
+    prompt: 'reconstruct',
+    type: 'model3d',
+    metadata: { sourceImageUrl: 'https://192.168.1.5/private.png' },
+  }), 'invalid metadata.sourceImageUrl');
+
+  assert.equal(validateGenerateRequest({
+    jobId: 'model-public-ref',
+    prompt: 'reconstruct',
+    type: 'model3d',
+    metadata: { sourceImageUrls: ['https://assets.example.com/a.png', 'https://assets.example.com/b.png'] },
+  }), null);
+}
 
 function testStripeEntitlementFromCheckoutSession() {
   const entitlement = buildStripeEntitlement({
@@ -293,15 +321,54 @@ async function testRejectsNonRequeueableStatus() {
   assert.equal(db.store.assetFactoryQueue.job_completed.status, 'completed');
 }
 
+
+async function testExternalProviderRequiresExplicitSpendAuthorization() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
+  let fetchCalled = false;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+  process.env.REPLICATE_API_TOKEN = 'test-token';
+  process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    throw new Error('provider fetch must not execute without explicit spend authorization');
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'spend-kill-switch-test', tenantId: 'tenant-a', prompt: 'must stay local', type: 'graphic' },
+        resolveAssetType('graphic')
+      ),
+      /ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED is not true/
+    );
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
+    process.env.REPLICATE_API_TOKEN = originalToken;
+    process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+  }
+}
+
 async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
   const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
   const calls = [];
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
   process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '1024';
@@ -344,6 +411,8 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
     process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
@@ -353,10 +422,12 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
 async function testProviderArtifactRejectsPrivateUrls() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
 
@@ -369,7 +440,7 @@ async function testProviderArtifactRejectsPrivateUrls() {
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-2') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-2', status: 'succeeded', output: 'http://127.0.0.1/internal.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-2', status: 'succeeded', output: 'https://127.0.0.1/internal.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
@@ -388,19 +459,83 @@ async function testProviderArtifactRejectsPrivateUrls() {
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
+  }
+}
+
+async function testOpenAiImagePreflightAndFormat() {
+  const originalFetch = globalThis.fetch;
+  const keys = [
+    'ASSET_FACTORY_MEDIA_PROVIDER',
+    'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
+    'OPENAI_API_KEY',
+    'ASSET_FACTORY_OPENAI_IMAGE_MODEL',
+    'ASSET_FACTORY_OPENAI_IMAGE_FORMAT',
+    'ASSET_FACTORY_GRAPHICS_SIZE',
+  ];
+  const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  let fetchCalls = 0;
+
+  process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'openai';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
+  process.env.OPENAI_API_KEY = 'test-openai-key';
+  process.env.ASSET_FACTORY_OPENAI_IMAGE_MODEL = 'gpt-image-2.5-sunburst';
+  process.env.ASSET_FACTORY_OPENAI_IMAGE_FORMAT = 'webp';
+  delete process.env.ASSET_FACTORY_GRAPHICS_SIZE;
+
+  globalThis.fetch = async (url, options = {}) => {
+    fetchCalls += 1;
+    assert.equal(String(url), 'https://api.openai.com/v1/images/generations');
+    assert.equal(options.method, 'POST');
+    const body = JSON.parse(String(options.body));
+    assert.equal(body.size, '1536x864');
+    assert.equal(body.output_format, 'webp');
+    return new Response(JSON.stringify({ data: [{ b64_json: Buffer.from([1, 2, 3]).toString('base64') }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'openai-invalid-size', tenantId: 'tenant-a', prompt: 'invalid size', type: 'graphic', size: { width: 1000, height: 1000 } },
+        resolveAssetType('graphic')
+      ),
+      /violates configured OpenAI image bounds/
+    );
+    assert.equal(fetchCalls, 0);
+
+    const result = await renderWithConfiguredProvider(
+      { jobId: 'openai-valid-size', tenantId: 'tenant-a', prompt: 'valid size', type: 'graphic', size: { width: 1536, height: 864 } },
+      resolveAssetType('graphic')
+    );
+    assert.equal(fetchCalls, 1);
+    assert.equal(result.assetMimeType, 'image/webp');
+    assert.equal(result.extension, 'webp');
+    assert.equal(result.metadata.outputFormat, 'webp');
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const key of keys) {
+      if (original[key] === undefined) delete process.env[key];
+      else process.env[key] = original[key];
+    }
   }
 }
 
 async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   const originalFetch = globalThis.fetch;
   const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalSpendAuthorization = process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
   const originalToken = process.env.REPLICATE_API_TOKEN;
   const originalModel = process.env.ASSET_FACTORY_GRAPHICS_MODEL;
   const originalMaxBytes = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES;
 
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_GRAPHICS_MODEL = 'owner/model-version';
   process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '3';
@@ -439,6 +574,8 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
   } finally {
     globalThis.fetch = originalFetch;
     process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalSpendAuthorization === undefined) delete process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED;
+    else process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = originalSpendAuthorization;
     process.env.REPLICATE_API_TOKEN = originalToken;
     process.env.ASSET_FACTORY_GRAPHICS_MODEL = originalModel;
     process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = originalMaxBytes;
@@ -449,12 +586,15 @@ try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
   testStripeEntitlementRequiresTenant();
+  testRejectsPrivateProviderReferenceUrls();
   await testRequeueDeadLetteredJob();
   await testRejectsTenantMismatch();
   await testRejectsNonRequeueableStatus();
+  await testExternalProviderRequiresExplicitSpendAuthorization();
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
   await testProviderArtifactRejectsChunkedOverLimitDownload();
+  await testOpenAiImagePreflightAndFormat();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
   delete globalThis.__ASSET_FACTORY_TEST_DB__;

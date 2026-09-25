@@ -1,0 +1,175 @@
+name: Multimodal Provider Contract
+
+on:
+  push:
+    branches:
+      - converge/asset-factory-production-multimodal-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multimodal-provider-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TARGET_SHA: ${{ github.sha }}
+  ASSET_FACTORY_MEDIA_PROVIDER: local-proof
+  ASSET_FACTORY_IMAGE_PROVIDER: local-proof
+  ASSET_FACTORY_MODEL3D_PROVIDER: local-proof
+  ASSET_FACTORY_AUDIO_PROVIDER: local-proof
+  ASSET_FACTORY_SFX_PROVIDER: local-proof
+  ASSET_FACTORY_MUSIC_PROVIDER: local-proof
+  ASSET_FACTORY_STT_PROVIDER: local-proof
+  ASSET_FACTORY_VIDEO_PROVIDER: local-proof
+  ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED: "false"
+
+jobs:
+  provider-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact clean head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies from frozen root lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Prove paid-provider secrets are absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${OPENAI_API_KEY:-}"
+          test -z "${REPLICATE_API_TOKEN:-}"
+          test -z "${ELEVENLABS_API_KEY:-}"
+          test -z "${RUNWAYML_API_SECRET:-}"
+          test -z "${RUNWAY_API_KEY:-}"
+          test -z "${MESHY_API_KEY:-}"
+          test -z "${FAL_KEY:-}"
+          test -z "${STABILITY_API_KEY:-}"
+
+      - name: Typecheck provider surface
+        run: npm --prefix assetfactory-studio run typecheck
+
+      - name: Run provider routing contract
+        run: node scripts/test-provider-routing-contract.mjs
+
+      - name: Run provider readiness behavior
+        run: node --test scripts/test-provider-readiness.mjs
+
+      - name: Run Replicate registry contract
+        run: node scripts/test-replicate-model-registry.mjs
+
+      - name: Run multimodal static contract
+        run: node scripts/test-asset-factory-multimodal.mjs
+
+      - name: Prove truthful no-spend readiness reporting
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/provider-contract
+          node scripts/provider-readiness.mjs > artifacts/provider-contract/provider-readiness-local-proof.json
+          ASSET_FACTORY_IMAGE_PROVIDER=openai node scripts/provider-readiness.mjs > artifacts/provider-contract/provider-readiness-external-blocked.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const local=JSON.parse(fs.readFileSync('artifacts/provider-contract/provider-readiness-local-proof.json','utf8'))
+          const external=JSON.parse(fs.readFileSync('artifacts/provider-contract/provider-readiness-external-blocked.json','utf8'))
+          assert.equal(local.spendAuthorized,false)
+          assert.equal(local.modalityReadiness.image.provider,'local-proof')
+          assert.ok(local.modalityReadiness.image.blockers.includes('external-provider-not-selected'))
+          assert.ok(local.deploymentReadiness.dedicatedProductionTarget.blockers.includes('dedicated-production-target-not-configured'))
+          assert.ok(local.deploymentReadiness.wif.blockers.includes('wif-not-configured'))
+          assert.ok(local.deploymentReadiness.providerLiveSmoke.blockers.includes('provider-live-smoke-not-certified'))
+          assert.equal(external.modalityReadiness.image.provider,'openai')
+          assert.ok(external.modalityReadiness.image.blockers.includes('provider-credential-not-configured'))
+          assert.ok(external.modalityReadiness.image.blockers.includes('provider-spend-not-authorized'))
+          console.log('PASS truthful no-spend readiness reporting')
+          NODE
+
+      - name: Write exact-head provider receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/provider-contract
+          spatial_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
+          model_forge_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
+          production_targets="$(node -p "JSON.stringify(JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).productionTargets)")"
+          readiness_file="artifacts/provider-contract/provider-readiness-local-proof.json"
+          dedicated_target_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.dedicatedProductionTarget.configured")"
+          wif_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.wif.configured")"
+          live_smoke_certified="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.providerLiveSmoke.certified")"
+          cat > artifacts/provider-contract/receipt.json <<EOF
+          {
+            "schemaVersion": 1,
+            "headSha": "$TARGET_SHA",
+            "spatialHead": "$spatial_head",
+            "modelForgeExecutionBoundary": "$model_forge_status",
+            "modelForgeProductionTargets": $production_targets,
+            "noSpend": true,
+            "deploymentReadiness": {
+              "dedicatedProductionTargetConfigured": $dedicated_target_configured,
+              "wifConfigured": $wif_configured,
+              "providerLiveSmokeCertified": $live_smoke_certified
+            },
+            "selectors": {
+              "media": "local-proof",
+              "image": "local-proof",
+              "model3d": "local-proof",
+              "audio": "local-proof",
+              "sfx": "local-proof",
+              "music": "local-proof",
+              "stt": "local-proof",
+              "video": "local-proof"
+            },
+            "providerSecretsInjected": false,
+            "result": "contracts-passed"
+          }
+          EOF
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          const receipt=JSON.parse(fs.readFileSync('artifacts/provider-contract/receipt.json','utf8'))
+          assert.equal(receipt.headSha,process.env.TARGET_SHA)
+          const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
+          assert.equal(receipt.spatialHead,inventory.providerExecutionBoundary.spatialHead)
+          assert.equal(receipt.spatialHead,'8015397b649f69c8cf76d3afc35f50e34203052b')
+          assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
+          assert.deepEqual(receipt.modelForgeProductionTargets,[])
+          assert.equal(receipt.noSpend,true)
+          assert.equal(receipt.deploymentReadiness.dedicatedProductionTargetConfigured,false)
+          assert.equal(receipt.deploymentReadiness.wifConfigured,false)
+          assert.equal(receipt.deploymentReadiness.providerLiveSmokeCertified,false)
+          assert.equal(receipt.providerSecretsInjected,false)
+          console.log('PASS exact-head no-spend provider receipt')
+          NODE
+
+      - name: Retain provider contract receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: multimodal-provider-contract
+          path: artifacts/provider-contract/
+          if-no-files-found: error
+          retention-days: 30

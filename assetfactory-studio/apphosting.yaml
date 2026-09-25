@@ -1,8 +1,91 @@
 # Asset Factory App Hosting runtime configuration.
 # Secret values live in Google Cloud Secret Manager and must never be committed.
-# Replicate remains dormant until ASSET_FACTORY_MEDIA_PROVIDER is explicitly selected
-# for an authorized provider-backed generation run.
+# External providers remain dormant until a modality selector is explicitly changed
+# from local-proof and the independent spend kill switch is deliberately authorized.
 env:
+  # Production request security defaults. Secret material is not invented here:
+  # if matching secret material is absent, runtime auth fails closed.
+  - variable: ASSET_FACTORY_REQUIRE_API_KEY
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REQUIRE_AUTH
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_REQUIRE_JWT_SIGNATURE
+    value: "true"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH
+    value: "false"
+    availability:
+      - RUNTIME
+
+  # Explicit launch-safe routing. Credentials may exist without authorizing spend.
+  - variable: ASSET_FACTORY_MEDIA_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_IMAGE_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MODEL3D_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_AUDIO_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_SFX_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MUSIC_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STT_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STT_MAX_BYTES
+    value: "52428800"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STT_MAX_RESPONSE_BYTES
+    value: "8388608"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER
+    value: local-proof
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED
+    value: "false"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS
+    value: "500"
+    availability:
+      - RUNTIME
+
   - variable: REPLICATE_API_TOKEN
     secret: REPLICATE_API_TOKEN
     availability:
@@ -30,11 +113,6 @@ env:
     availability:
       - RUNTIME
 
-  - variable: ASSET_FACTORY_REPLICATE_SPEECH_VOICE
-    value: Friendly_Person
-    availability:
-      - RUNTIME
-
   # Request-level model/input overrides stay fail-closed in production.
   - variable: ASSET_FACTORY_ALLOW_REPLICATE_MODEL_OVERRIDE
     value: "false"
@@ -49,5 +127,151 @@ env:
   # Allow enough time for production-quality 3D predictions to complete.
   - variable: ASSET_FACTORY_PROVIDER_TIMEOUT_MS
     value: "300000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_PROVIDER_MAX_BYTES
+    value: "104857600"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS
+    value: "900000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS
+    value: "5000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES
+    value: "536870912"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ALLOW_VIDEO_INPUT_OVERRIDES
+    value: "false"
+    availability:
+      - RUNTIME
+
+  # Provider model/config registry only. These values do not activate provider calls.
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_MODEL
+    value: gpt-image-2.5-sunburst
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_FORMAT
+    value: png
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_GRAPHICS_SIZE
+    value: 1024x1024
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_IMAGE_QUALITY
+    value: high
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_OPENAI_SPEECH_MODEL
+    value: gpt-4o-mini-tts
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_STABILITY_IMAGE_SERVICE
+    value: core
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL
+    value: eleven_v3
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_SFX_MODEL
+    value: eleven_text_to_sound_v2
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL
+    value: music_v2_5
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_ELEVENLABS_STT_MODEL
+    value: scribe_v2
+    availability:
+      - RUNTIME
+
+  - variable: ELEVENLABS_OUTPUT_FORMAT
+    value: mp3_44100_128
+    availability:
+      - RUNTIME
+
+  - variable: ELEVENLABS_MUSIC_OUTPUT_FORMAT
+    value: auto
+    availability:
+      - RUNTIME
+
+  - variable: ELEVENLABS_ZERO_RETENTION
+    value: "false"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MODEL
+    value: meshy-7.1
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXT_MODEL
+    value: meshy-7.1
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_GEOMETRY_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXT_GEOMETRY_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MULTI_IMAGE_GEOMETRY_RESOLUTION
+    value: 2k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_TEXTURE_RESOLUTION
+    value: 4k
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_MODEL_TYPE
+    value: standard
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_MESHY_POLL_MS
+    value: "3000"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_VIDEO_MODEL
+    value: gen4.5
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_API_VERSION
+    value: "2024-11-06"
+    availability:
+      - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY
+    value: "false"
     availability:
       - RUNTIME
