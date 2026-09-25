@@ -58,8 +58,8 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 
 ### Runway
 
-- Direct image-to-video API path exists with server-only key support, version header, bounded polling, output download, and provenance.
-- Text-to-video remains fail-closed unless a verified endpoint is pinned.
+- Direct Runway video API path exists with server-only key support, version header, bounded polling, output download, and provenance.
+- Text-to-video and image-to-video both use the verified `POST /v1/image_to_video` endpoint; text-only generation omits `promptImage`, while image-conditioned generation supplies it.
 - Connected Runway workspace was authenticated on 2026-09-25 but exposed no available video models and only 2 purchased credits.
 - No Runway generation was executed and no credits were spent.
 - Runtime activation therefore remains external-blocked by account plan/model availability plus production secret binding.
