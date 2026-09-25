@@ -37,6 +37,7 @@ out/
 
 # Lock
 package-lock.json
+!assetfactory-studio/package-lock.json
 
 # OS
 .DS_Store
