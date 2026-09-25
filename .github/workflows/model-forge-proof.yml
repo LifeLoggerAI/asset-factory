@@ -48,6 +48,9 @@ jobs:
           grep -q "refs/heads/main" .github/workflows/model-forge-replicate-wave.yml
           grep -q "google-github-actions/auth@v3" .github/workflows/model-forge-replicate-wave.yml
           grep -q "RUN_ONE_URAI_REPLICATE_MODEL_WAVE" .github/workflows/model-forge-replicate-wave.yml
+          grep -q "ASSET_FACTORY_FIREBASE_PROJECT_ID" .github/workflows/model-forge-replicate-wave.yml
+          ! grep -q "PROJECT_ID: urai-4dc1d" .github/workflows/model-forge-replicate-wave.yml
+          ! grep -q "asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com" .github/workflows/model-forge-replicate-wave.yml
           node model_forge/provider-preflight.mjs > provider-preflight-dry.json
           grep -q '"live": false' provider-preflight-dry.json
           node model_forge/verify-inventory.mjs
