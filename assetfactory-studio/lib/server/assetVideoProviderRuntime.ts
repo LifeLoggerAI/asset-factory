@@ -201,30 +201,14 @@ async function renderRunway(input: GenerateRequest): Promise<VideoProviderRender
     'X-Runway-Version': apiVersion,
   };
 
-  let createUrl = '';
-  let payload: JsonRecord;
-  if (meta.referenceImageUrl) {
-    createUrl = 'https://api.dev.runwayml.com/v1/image_to_video';
-    payload = {
-      promptImage: meta.referenceImageUrl,
-      promptText: input.prompt,
-      model,
-      ratio: input.aspectRatio === '16:9' ? '1280:720' : input.aspectRatio === '9:16' ? '720:1280' : '1280:720',
-      duration: meta.durationSeconds,
-    };
-  } else {
-    const configuredEndpoint = publicUrl(env('ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT'));
-    if (!configuredEndpoint) {
-      throw new Error('Runway text-to-video is fail-closed until ASSET_FACTORY_RUNWAY_TEXT_VIDEO_ENDPOINT is pinned; provide referenceImageUrl for the verified image-to-video lane');
-    }
-    createUrl = configuredEndpoint;
-    payload = {
-      promptText: input.prompt,
-      model,
-      ratio: input.aspectRatio || '16:9',
-      duration: meta.durationSeconds,
-    };
-  }
+  const createUrl = 'https://api.dev.runwayml.com/v1/image_to_video';
+  const payload: JsonRecord = {
+    promptText: input.prompt,
+    model,
+    ratio: input.aspectRatio === '16:9' ? '1280:720' : input.aspectRatio === '9:16' ? '720:1280' : '1280:720',
+    duration: meta.durationSeconds,
+  };
+  if (meta.referenceImageUrl) payload.promptImage = meta.referenceImageUrl;
 
   let task = await fetchJson(createUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
   const taskId = String(task.id ?? '').trim();
