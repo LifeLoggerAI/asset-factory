@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: asset-factory-pipeline-proof-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
@@ -50,7 +50,7 @@ jobs:
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify exact clean candidate identity
         shell: bash
@@ -92,6 +92,21 @@ jobs:
           npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts
           npm --prefix engine install --package-lock-only --ignore-scripts
           npm --prefix engine audit fix --package-lock-only --omit=dev --ignore-scripts
+
+      - name: Commit regenerated tracked dependency locks
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml life-map-pipeline/functions/package-lock.json engine/npm-shrinkwrap.json
+          if git diff --cached --quiet; then
+            echo "Tracked dependency locks already match current package constraints."
+          else
+            git commit -m "chore: refresh tracked production dependency locks"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
 
       - name: Run blocking production dependency security audit
         shell: bash
