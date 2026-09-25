@@ -74,7 +74,7 @@ function isPublicHttpsUrl(value: unknown) {
       host !== loopbackHostname &&
       host !== '::1' &&
       !host.endsWith('.local') &&
-      !host.endsWith('.localhost') &&
+      !host.endsWith(`.${loopbackHostname}`) &&
       !isPrivateIpv4(host);
   } catch {
     return false;
