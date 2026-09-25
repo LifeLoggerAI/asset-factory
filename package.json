@@ -80,7 +80,8 @@
     "validate:production-target": "node scripts/run-dedicated-firebase-deploy.mjs --check-only",
     "test:production-target-boundary": "node scripts/test-production-target-boundary.mjs",
     "audit:production": "pnpm audit --audit-level=high --prod && npm --prefix life-map-pipeline/functions audit --audit-level=high --omit=dev && npm --prefix engine audit --audit-level=high --omit=dev",
-    "audit:workspace-debt": "pnpm audit --audit-level=high",\n    "test:captured-reality-governance": "node scripts/test-captured-reality-governance.mjs"
+    "audit:workspace-debt": "pnpm audit --audit-level=high",
+    "test:captured-reality-governance": "node scripts/test-captured-reality-governance.mjs"
   },
   "pnpm": {
     "overrides": {
