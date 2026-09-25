@@ -557,9 +557,13 @@ function replicateInput(input: GenerateRequest, selection: ReplicateModelSelecti
   let modelInput: JsonRecord;
 
   if (selection.lane === 'speech' && modelName === 'minimax/speech-02-hd') {
+    const voiceId = stringValue(input.metadata?.voiceId, env('ASSET_FACTORY_REPLICATE_SPEECH_VOICE'));
+    if (!voiceId) {
+      throw new Error('ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured; stock voice fallback is prohibited');
+    }
     modelInput = {
       text: input.prompt,
-      voice_id: stringValue(input.metadata?.voiceId, env('ASSET_FACTORY_REPLICATE_SPEECH_VOICE') || 'Friendly_Person'),
+      voice_id: voiceId,
       emotion: stringValue(input.metadata?.emotion, 'auto'),
       language_boost: stringValue(input.metadata?.languageBoost, 'English'),
       english_normalization: input.metadata?.englishNormalization !== false,
