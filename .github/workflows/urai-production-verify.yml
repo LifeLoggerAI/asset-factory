@@ -1,6 +1,9 @@
 name: URAI Production Verify
 
 on:
+  push:
+    branches:
+      - converge/asset-factory-production-multimodal-20260925
   workflow_dispatch:
   pull_request:
 
