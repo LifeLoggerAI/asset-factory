@@ -208,3 +208,8 @@ env:
     value: "2024-11-06"
     availability:
       - RUNTIME
+
+  - variable: ASSET_FACTORY_RUNWAY_VIDEO_ACCOUNT_READY
+    value: "false"
+    availability:
+      - RUNTIME
