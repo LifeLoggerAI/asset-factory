@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'file must be audio or video' }, { status: 415 });
     }
 
-    const maxBytes = Math.max(1, Number(process.env.ASSET_FACTORY_STT_MAX_BYTES || 50 * 1024 * 1024));
+    const configuredMaxBytes = Number(process.env.ASSET_FACTORY_STT_MAX_BYTES);
+    const maxBytes = Number.isFinite(configuredMaxBytes) && configuredMaxBytes > 0
+      ? Math.floor(configuredMaxBytes)
+      : 50 * 1024 * 1024;
     if (file.size <= 0 || file.size > maxBytes) {
       return NextResponse.json({ error: 'file exceeds configured transcription size boundary' }, { status: 413 });
     }
