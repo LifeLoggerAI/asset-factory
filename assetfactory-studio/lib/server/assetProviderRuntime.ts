@@ -309,17 +309,87 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
   return null;
 }
 
+async function readAudioResponse(
+  response: Response,
+  provider: string,
+  metadata: Record<string, unknown>
+): Promise<ProviderRenderResult> {
+  if (!response.ok) throw new Error(`${provider} audio request failed ${response.status}: ${await response.text()}`);
+  const buffer = await readBinaryWithLimit(response, providerMaxBytes());
+  const mimeType = response.headers.get('content-type') ?? 'audio/mpeg';
+  return {
+    assetBuffer: buffer,
+    assetMimeType: mimeType,
+    extension: extensionFromMime(mimeType, 'mp3'),
+    metadata,
+  };
+}
+
 async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderResult | null> {
   const apiKey = env('ELEVENLABS_API_KEY');
   if (!apiKey) return null;
+  const lane = audioLane(input);
+  const zeroRetention = enabled('ELEVENLABS_ZERO_RETENTION');
+  const outputFormat = env('ELEVENLABS_OUTPUT_FORMAT') || 'mp3_44100_128';
+
+  if (lane === 'sfx') {
+    const modelId = env('ASSET_FACTORY_ELEVENLABS_SFX_MODEL') || 'eleven_text_to_sound_v2';
+    const endpoint = new URL('https://api.elevenlabs.io/v1/sound-generation');
+    endpoint.searchParams.set('output_format', outputFormat);
+    const durationSeconds = Math.max(0.5, Math.min(30, Number(input.metadata?.durationSeconds ?? 4)));
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'xi-api-key': apiKey, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      body: JSON.stringify({
+        text: input.prompt,
+        model_id: modelId,
+        duration_seconds: durationSeconds,
+        loop: input.metadata?.loop === true,
+        prompt_influence: Math.max(0, Math.min(1, Number(input.metadata?.promptInfluence ?? 0.3))),
+      }),
+      signal: providerAbortSignal(),
+    });
+    return readAudioResponse(response, 'ElevenLabs sound-effects', {
+      provider: 'elevenlabs',
+      providerModel: modelId,
+      elevenLabsLane: 'sfx',
+      durationSeconds,
+      loop: input.metadata?.loop === true,
+    });
+  }
+
+  if (lane === 'music') {
+    const modelId = env('ASSET_FACTORY_ELEVENLABS_MUSIC_MODEL') || 'music_v2_5';
+    const endpoint = new URL('https://api.elevenlabs.io/v1/music');
+    endpoint.searchParams.set('output_format', env('ELEVENLABS_MUSIC_OUTPUT_FORMAT') || 'auto');
+    const requestedDuration = Number(input.metadata?.durationSeconds ?? 30);
+    const musicLengthMs = Math.round(Math.max(3, Math.min(600, requestedDuration)) * 1000);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'xi-api-key': apiKey, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      body: JSON.stringify({
+        prompt: input.prompt,
+        music_length_ms: musicLengthMs,
+        model_id: modelId,
+        force_instrumental: input.metadata?.forceInstrumental !== false,
+        sign_with_c2pa: input.metadata?.signWithC2pa === true,
+      }),
+      signal: providerAbortSignal(),
+    });
+    return readAudioResponse(response, 'ElevenLabs music', {
+      provider: 'elevenlabs',
+      providerModel: modelId,
+      elevenLabsLane: 'music',
+      musicLengthMs,
+      forceInstrumental: input.metadata?.forceInstrumental !== false,
+    });
+  }
+
   const voiceId = env('ELEVENLABS_VOICE_ID');
   if (!voiceId) throw new Error('ELEVENLABS_VOICE_ID must be explicitly configured; stock voice fallback is prohibited');
-  const lane = audioLane(input);
-  if (lane !== 'speech' && lane !== 'audio') return null;
   const modelId = env('ASSET_FACTORY_ELEVENLABS_SPEECH_MODEL') || env('ASSET_FACTORY_AUDIO_MODEL') || 'eleven_v3';
-  const zeroRetention = enabled('ELEVENLABS_ZERO_RETENTION');
   const endpoint = new URL(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`);
-  endpoint.searchParams.set('output_format', env('ELEVENLABS_OUTPUT_FORMAT') || 'mp3_44100_128');
+  endpoint.searchParams.set('output_format', outputFormat);
   if (zeroRetention) endpoint.searchParams.set('enable_logging', 'false');
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -331,13 +401,13 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
     body: JSON.stringify({ text: input.prompt, model_id: modelId }),
     signal: providerAbortSignal(),
   });
-  if (!response.ok) throw new Error(`ElevenLabs audio request failed ${response.status}: ${await response.text()}`);
-  return {
-    assetBuffer: Buffer.from(await response.arrayBuffer()),
-    assetMimeType: response.headers.get('content-type') ?? 'audio/mpeg',
-    extension: 'mp3',
-    metadata: { provider: 'elevenlabs', providerModel: modelId, voiceId, zeroRetention },
-  };
+  return readAudioResponse(response, 'ElevenLabs speech', {
+    provider: 'elevenlabs',
+    providerModel: modelId,
+    voiceId,
+    elevenLabsLane: 'speech',
+    zeroRetention,
+  });
 }
 
 async function renderStability(input: GenerateRequest): Promise<ProviderRenderResult | null> {
