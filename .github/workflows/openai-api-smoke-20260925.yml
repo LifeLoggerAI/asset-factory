@@ -1,0 +1,43 @@
+name: OpenAI API smoke 2026-09-25
+
+on:
+  push:
+    branches:
+      - chore/openai-api-smoke-20260925
+    paths:
+      - .github/workflows/openai-api-smoke-20260925.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openai-api-smoke-20260925
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: paid-asset-generation
+    steps:
+      - name: Verify OpenAI API credential without generation
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENAI_API_KEY"
+          status="$(curl --silent --show-error --output /tmp/openai-models.json --write-out '%{http_code}'             https://api.openai.com/v1/models             -H "Authorization: Bearer $OPENAI_API_KEY")"
+          test "$status" = "200"
+          count="$(python3 - <<'PY'
+          import json
+          with open('/tmp/openai-models.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          items = data.get('data')
+          if not isinstance(items, list) or not items:
+              raise SystemExit('OpenAI models response did not contain a non-empty data list')
+          print(len(items))
+          PY
+          )"
+          rm -f /tmp/openai-models.json
+          echo "OPENAI_API_SMOKE=PASS http_status=$status models_visible=$count"
