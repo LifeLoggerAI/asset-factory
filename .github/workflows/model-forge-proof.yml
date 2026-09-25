@@ -1,6 +1,9 @@
 name: URAI Model Forge Proof
 
 on:
+  push:
+    branches:
+      - converge/asset-factory-production-multimodal-20260925
   pull_request:
     paths:
       - 'model_forge/**'
