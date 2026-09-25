@@ -95,6 +95,7 @@ assertIncludes(providerRuntime, "gpt-image-2.5-sunburst", 'current OpenAI image 
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_IMAGE_FORMAT", 'OpenAI image format authority');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_SPEECH_MODEL", 'OpenAI speech model authority');
 assertIncludes(providerRuntime, "ASSET_FACTORY_OPENAI_VOICE must be explicitly configured", 'fail-closed OpenAI voice identity');
+assertIncludes(providerRuntime, "ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured", 'fail-closed Replicate voice identity');
 assertIncludes(providerRuntime, "https://api.stability.ai/v2beta/stable-image/generate/${service}", 'current Stability image endpoint');
 assertIncludes(providerRuntime, "expected core or ultra", 'Stability service allowlist');
 assertIncludes(providerRuntime, "ELEVENLABS_VOICE_ID must be explicitly configured", 'fail-closed ElevenLabs voice identity');
