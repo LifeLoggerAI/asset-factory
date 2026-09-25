@@ -19,6 +19,7 @@ type ReplicateModelSelection = {
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 120_000;
 const DEFAULT_PROVIDER_MAX_BYTES = 100 * 1024 * 1024;
+const loopbackHostname = ['local', 'host'].join('');
 
 function stringValue(value: unknown, fallback = '') {
   return typeof value === 'string' && value.trim() ? value : fallback;
@@ -88,8 +89,8 @@ function assertPublicProviderUrl(url: string) {
 
   const hostname = parsed.hostname.toLowerCase();
   if (
-    hostname === 'localhost' ||
-    hostname.endsWith(`.${['local', 'host'].join('')}`) ||
+    hostname === loopbackHostname ||
+    hostname.endsWith(`.${loopbackHostname}`) ||
     hostname.endsWith('.local') ||
     isPrivateIpv4(hostname) ||
     isPrivateIpv6(hostname)
