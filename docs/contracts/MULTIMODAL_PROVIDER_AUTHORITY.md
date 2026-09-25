@@ -22,6 +22,11 @@ All paid provider selectors default to `local-proof`. This branch does not autho
 | STT | ElevenLabs Scribe v2 | deferred fallback | `ASSET_FACTORY_STT_PROVIDER` |
 | Video | Runway | Replicate / fal | `ASSET_FACTORY_VIDEO_PROVIDER` |
 
+Additional governed provider lanes outside the unified Studio router:
+- OpenAI Sora video exists in separately authorized, finite paid film workflows under protected `paid-asset-generation` authority. It is not a hidden fallback for the Studio video router.
+- Model Forge supports Meshy, Tripo, Rodin/Hyper3D, and Replicate as candidate 3D generators under its own no-spend/spend gates.
+- The legacy image generator supports `openai` plus a provider-neutral `custom` HTTPS renderer endpoint. That generic adapter is not a named production provider until a specific endpoint/account is governed and certified.
+
 The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 
 ## Current implementation truth
@@ -94,6 +99,37 @@ The legacy `ASSET_FACTORY_MEDIA_PROVIDER` remains a compatibility fallback only.
 - Service selection is allowlisted to `core` or `ultra`.
 - It is not required for core launch authority.
 
+
+### OpenAI Sora / film workflows
+
+- Sora is present as a separate governed moving-cinema lane, including `sora-2` authorization/workflow contracts.
+- Those workflows are main-only / authorization-marker gated and use the protected `paid-asset-generation` environment.
+- Existing Sora authorization receipts are historical/exact-authority specific; they do not automatically authorize current provider spend, promotion, deployment, delivery, or public release.
+- Sora is not currently wired as an automatic fallback in `ASSET_FACTORY_VIDEO_PROVIDER`; the Studio router remains Runway / Replicate / fal.
+
+### Tripo
+
+- Tripo is implemented in Model Forge as a governed 3D candidate provider.
+- It is not a first-class Studio runtime provider selector.
+- Current provider-credential presence proof reports `TRIPO_API_KEY=absent` in ordinary Actions.
+- Paid execution remains blocked by Model Forge spend and current-gap proof.
+
+### Rodin / Hyper3D
+
+- Rodin/Hyper3D is implemented in Model Forge as a governed 3D candidate provider.
+- The lane requests GLB/PBR candidate output and retains candidate provenance.
+- It is not a first-class Studio runtime provider selector.
+- Current provider-credential presence proof reports `RODIN_API_KEY=absent` in ordinary Actions.
+- Paid execution remains blocked by Model Forge spend and current-gap proof.
+
+### Provider-neutral custom image renderer
+
+- The legacy image-generation pipeline supports a generic `ASSET_RENDERER_PROVIDER=custom` HTTPS JSON endpoint.
+- This is an adapter surface, not a named provider certification.
+- The endpoint must use HTTPS; the prior `ASSET_RENDERER_ALLOW_HTTP` escape hatch is removed.
+- Provider-returned image URLs are accepted only over HTTPS and downgrade redirects fail closed.
+- A specific vendor behind this adapter must still satisfy the normal credential, budget, provenance, smoke, and promotion gates before being considered LIVE VERIFIED.
+
 ## Provenance
 
 Provider-backed manifests now record:
@@ -129,6 +165,12 @@ Accepted source classifications:
 - procedural
 
 RealityScan/Polycam/photogrammetry capture is a human/physical acquisition step. UrAi ingestion should preserve source identity and provenance through Blender/Substance finishing.
+
+These are not counted as AI generation providers:
+- RealityScan / Polycam / photogrammetry: real-world capture/reconstruction inputs.
+- Blender: cleanup, normalization, LOD, validation, and finishing authority.
+- Substance: human-assisted PBR finishing lane where used.
+- HeyGen, Google Veo, Kling, Luma, Adobe Firefly and other named media vendors are not current Asset Factory runtime providers merely because they may exist elsewhere in the broader UrAi ecosystem or future plans; they require explicit integration and evidence before being added to this authority.
 
 ## Blender finishing contract
 
