@@ -56,7 +56,7 @@ function publicUrl(value: unknown): string | null {
     const host = parsed.hostname.toLowerCase();
     if (
       host === loopbackHostname ||
-      host.endsWith('.localhost') ||
+      host.endsWith(`.${loopbackHostname}`) ||
       host.endsWith('.local') ||
       isPrivateIpv4(host) ||
       isPrivateIpv6(host)
