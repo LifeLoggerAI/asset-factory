@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "urai-adam-rested-neutral-qa-v1",
+  "schemaVersion": "urai-adam-rested-leaner-qa-v2",
   "status": "enforced-pre-promotion",
-  "target": "CURRENT_ADULT_RESTED_NEUTRAL",
-  "principle": "Normalize transient capture artifacts while preserving stable current-adult identity and source-grounded proportions.",
+  "target": "CURRENT_ADULT_RESTED_LEANER_CANON",
+  "principle": "Preserve stable current-adult identity while applying the project-approved rested, approximately 20 lb leaner presentation direction only where it does not conflict with real anatomical evidence.",
   "transientArtifactsToReject": [
     "fatigue expression",
     "temporary under-eye shadow from poor lighting",
@@ -48,9 +48,33 @@
     "literal comparison to real current-adult source",
     "no identity drift",
     "no unsupported body proportion drift",
-    "rested-neutral presentation",
+    "rested approximately-20-lb-leaner presentation direction",
     "human approval",
     "provenance receipt"
   ],
-  "promotionAuthorized": false
+  "promotionAuthorized": false,
+  "presentationDirection": {
+    "approximateLeanerDirection": "approximately 20 lb leaner than the tired/heavier capture presentation",
+    "classification": "ART_DIRECTION_NOT_CURRENT_WEIGHT_CLAIM",
+    "preserve": [
+      "same mature adult identity",
+      "real skull/nose/ears/jaw/chin",
+      "eye spacing",
+      "hairline",
+      "beard pattern",
+      "neck proportions",
+      "supported tattoos",
+      "general skeletal build",
+      "natural asymmetry"
+    ],
+    "prohibit": [
+      "bodybuilder transformation",
+      "six-pack invention",
+      "tiny waist",
+      "oversized shoulders/arms",
+      "younger replacement",
+      "generic handsome replacement",
+      "anatomically unsupported slimming"
+    ]
+  }
 }
