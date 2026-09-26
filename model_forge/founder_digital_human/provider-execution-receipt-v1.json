@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "urai-adam-provider-execution-receipt-v1",
+  "timestampUtc": "2026-09-26T03:50:08Z",
+  "publicReleaseAuthorized": false,
+  "canonicalPromotionAuthorized": false,
+  "events": [
+    {
+      "provider": "HeyGen",
+      "operation": "founder-voice-clone",
+      "input": "private authorized founder voice sample",
+      "result": "BLOCKED",
+      "providerCode": "plan_upgrade_required",
+      "httpStatus": 402,
+      "claim": "No founder HeyGen voice clone exists."
+    },
+    {
+      "provider": "HeyGen",
+      "operation": "private-source-video-upload-slot",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "result": "UPLOAD_SLOT_CREATED_BYTES_NOT_TRANSFERRED",
+      "reason": "execution container could not resolve provider upload host",
+      "claim": "No HeyGen founder digital twin was created."
+    },
+    {
+      "provider": "Runway",
+      "operation": "private-reference-upload",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "result": "PASS",
+      "sourceSha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60",
+      "claim": "Private reference accepted by provider; source is not canonicalized by provider."
+    },
+    {
+      "provider": "Runway",
+      "operation": "identity-preserving-natural-motion-challenger",
+      "taskId": "7bc3fa97-8779-485c-982a-6f1b596fb74a",
+      "result": "PENDING",
+      "requestedDurationSeconds": 6,
+      "resolution": "1080p",
+      "audioGeneration": false,
+      "creditsObservedAfterSubmission": 9396,
+      "qaRequired": [
+        "identity drift",
+        "face geometry drift",
+        "tattoo drift",
+        "glasses drift",
+        "skin temporal consistency",
+        "blink realism",
+        "gaze realism",
+        "head/shoulder motion realism"
+      ],
+      "claim": "Generation accepted, not yet visually certified."
+    }
+  ]
+}
