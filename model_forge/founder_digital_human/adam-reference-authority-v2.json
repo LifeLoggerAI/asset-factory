@@ -17,7 +17,10 @@
       "width": 1920,
       "height": 1080,
       "fps": 30,
-      "durationSeconds": 59.725
+      "durationSeconds": 59.725,
+      "recoveryState": "BYTE_VERIFIED_RECOVERED",
+      "parentPackageSha256": "abfbc44f1639bff38240dc226886199c6fefd6243d63998715dec2a17ac28f2b",
+      "archiveIntegrity": "PASS"
     },
     "filenameConflict": {
       "olderHandoff": "20260915_181658.mp4",
