@@ -1,7 +1,7 @@
 {
   "schemaVersion": "urai-adam-capture-unblock-v1",
-  "status": "human-capture-required",
-  "purpose": "Close only the remaining physical-evidence gaps for final scale, lower-body anatomy, hands, hidden tattoo continuation, full-body motion and hero material calibration. Additional casual head capture is not required.",
+  "status": "conditional-human-capture",
+  "purpose": "Close only the remaining physical-evidence gaps for final scale, lower-body anatomy, hands, hidden tattoo continuation, and any motion coverage still missing after extracting the recovered gait archive. Additional casual head capture is not required.",
   "globalRules": {
     "subject": "Adam Clamp",
     "beautyFilter": false,
@@ -47,7 +47,9 @@
         "actorCentered": true,
         "fullHdMinimum": true,
         "fpsRecommended": 60
-      }
+      },
+      "requirement": "CONDITIONAL_FALLBACK_ONLY",
+      "trigger": "Record only if recovered ADAM-JACOB-MOTION-001 does not provide sufficient Adam-specific gait/start-stop-turn/gesture coverage after provenance-safe extraction."
     },
     {
       "id": "ADAM_HANDS_FACE_PERFORMANCE_V1",
@@ -77,7 +79,7 @@
     "hashEveryOriginal": true
   },
   "promotionRule": "Capture completion does not itself certify likeness, voice, motion or Gold Master. It unlocks reconstruction and literal QA.",
-  "goldMasterBlockedUntilCapture": true,
+  "goldMasterBlockedUntilCapture": false,
   "optionalDeferredHeadPolish": {
     "blocking": false,
     "reason": "Existing A0 real photo + 59.725s 1080p video authority is sufficient for the next dedicated head reconstruction pass.",
@@ -101,5 +103,14 @@
       "calf"
     ],
     "presentationTarget": "Project-approved approximately 20 lb leaner/rested direction is already locked; measured values remain required before final anatomical freeze."
-  }
+  },
+  "recoveredMotionFirst": {
+    "sourceKey": "ADAM-JACOB-MOTION-001",
+    "state": "RECOVERED_VERIFIED_EXTRACTION_PENDING",
+    "originalBytes": 731725257,
+    "currentTransferBlocker": "source exceeds connected Drive raw-download ceiling",
+    "rule": "Do not ask Adam to repeat walking/motion already present in the archive until extraction proves that coverage is insufficient.",
+    "personMapping": "source-correspondence/provenance only; no facial-recognition mapping"
+  },
+  "goldMasterBlockedUntilMotionAuthorityResolved": true
 }
