@@ -120,6 +120,32 @@
       "publicSourceDisclosure": false,
       "canonicalCandidate": false,
       "claim": "Real A0 source bytes recovered and verified; this recovery does not itself create or certify a production avatar."
+    },
+    {
+      "provider": "Runway",
+      "operation": "a0-front-neutral-rested-leaner-likeness-challenger",
+      "taskId": "45ed13f2-7713-41a5-95d4-78645f1cf52f",
+      "inputAssetKey": "adam-a0-front-neutral-real-photo",
+      "inputSha256": "639d86879a9b011c04ae61603de208c5d1d80b328fc897092328347060cb2573",
+      "result": "RUNNING",
+      "outputKind": "image",
+      "requestedPresentation": "CURRENT_ADULT_RESTED_LEANER_CANON",
+      "canonicalCandidate": false,
+      "promotionAllowed": false,
+      "qaRequired": [
+        "front identity",
+        "skull",
+        "eyes/orbits",
+        "nose",
+        "mouth",
+        "jaw/chin",
+        "ears",
+        "hairline",
+        "beard pattern",
+        "neck/tattoos",
+        "age preservation",
+        "no generic beautification"
+      ]
     }
   ]
 }
