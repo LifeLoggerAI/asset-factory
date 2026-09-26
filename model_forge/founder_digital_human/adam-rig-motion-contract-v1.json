@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-adam-rig-motion-contract-v1",
-  "status": "prepared-source-capture-incomplete",
+  "status": "prepared-recovered-motion-archive-extraction-pending",
   "coordinateSystem": {
     "units": "meters",
     "upAxis": "Y",
@@ -9,7 +9,10 @@
     "origin": "grounded-at-feet"
   },
   "bodyRig": {
-    "formatTargets": ["FBX", "glTF/GLB"],
+    "formatTargets": [
+      "FBX",
+      "glTF/GLB"
+    ],
     "requiredChains": [
       "root-pelvis-spine-chest-neck-head",
       "left/right clavicle-shoulder-elbow-wrist-hand-fingers",
@@ -45,7 +48,8 @@
     "visemeRule": "phoneme timing must drive coarticulated jaw/lip/cheek/tongue behavior; mouth-only animation is noncompliant"
   },
   "motionSourcePriority": [
-    "recorded Adam performance via verified Move AI or equivalent mocap",
+    "extract and provenance-map recovered ADAM-JACOB-MOTION-001 private source before requesting replacement gait footage",
+    "recorded Adam performance via verified Move AI or equivalent mocap only when recovered source is insufficient or for higher-fidelity replacement",
     "recorded Adam performance manually solved/retargeted",
     "generated motion only as temporary challenger and never as Adam-specific gait authority"
   ],
@@ -69,10 +73,13 @@
     "sit-stand-if-runtime-needs"
   ],
   "captureGap": {
-    "currentCanonicalVideoIsFullBody": false,
-    "currentCanonicalVideoContainsWalk": false,
-    "currentCanonicalVideoContainsHands": false,
-    "newCaptureRequiredForGoldMaster": true
+    "currentHeadVideoIsFullBody": false,
+    "recoveredMotionArchiveExists": true,
+    "recoveredMotionArchivePotentiallyContainsGait": true,
+    "recoveredMotionArchiveMappedToAdam": false,
+    "newCaptureRequiredForGoldMaster": false,
+    "newCaptureRequirement": "CONDITIONAL_ONLY_AFTER_RECOVERED_ARCHIVE_EXTRACTION_OR_IF_REQUIRED_COVERAGE_IS_MISSING",
+    "motionGoldMasterRequires": "provenance-mapped Adam segments plus verified gait/posture/gesture extraction, or replacement capture if the archive proves insufficient"
   },
   "hardFailures": [
     "foot-sliding",
@@ -85,5 +92,18 @@
     "voice-body-emotion-mismatch",
     "face-body-timebase-drift"
   ],
-  "promotionAuthorized": false
+  "promotionAuthorized": false,
+  "recoveredMotionArchive": {
+    "sourceKey": "ADAM-JACOB-MOTION-001",
+    "state": "RECOVERED_VERIFIED_EXTRACTION_BLOCKED_BY_TRANSFER_CEILING",
+    "byteSize": 731725257,
+    "connectorLimitBytes": 268435456,
+    "sourceSubjects": 2,
+    "identityBasis": "source correspondence metadata",
+    "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+    "originalUntouched": true,
+    "proxyPresent": false,
+    "calibrationOutputsPresent": false,
+    "publicReleaseAuthorized": false
+  }
 }
