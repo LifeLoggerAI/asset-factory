@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "urai-adam-rig-motion-contract-v1",
+  "status": "prepared-source-capture-incomplete",
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "rootJoint": "Hips",
+    "origin": "grounded-at-feet"
+  },
+  "bodyRig": {
+    "formatTargets": ["FBX", "glTF/GLB"],
+    "requiredChains": [
+      "root-pelvis-spine-chest-neck-head",
+      "left/right clavicle-shoulder-elbow-wrist-hand-fingers",
+      "left/right hip-knee-ankle-foot-toe"
+    ],
+    "requiredRuntimeFeatures": [
+      "root-motion",
+      "foot-lock",
+      "two-bone-IK",
+      "hand-contact-safe-retargeting",
+      "head-stabilization",
+      "facial-body-timebase-sync"
+    ]
+  },
+  "facialRig": {
+    "target": "FACS-compatible blendshape set",
+    "requiredControls": [
+      "jaw-open",
+      "jaw-left-right",
+      "lip-close",
+      "lip-funnel",
+      "lip-pucker",
+      "lip-corners",
+      "cheek-raise",
+      "brow-inner-up",
+      "brow-outer-up",
+      "brow-down",
+      "eye-blink-left-right",
+      "eye-squint-left-right",
+      "eye-wide-left-right",
+      "eye-look-directions"
+    ],
+    "visemeRule": "phoneme timing must drive coarticulated jaw/lip/cheek/tongue behavior; mouth-only animation is noncompliant"
+  },
+  "motionSourcePriority": [
+    "recorded Adam performance via verified Move AI or equivalent mocap",
+    "recorded Adam performance manually solved/retargeted",
+    "generated motion only as temporary challenger and never as Adam-specific gait authority"
+  ],
+  "requiredGoldMasterClips": [
+    "neutral-standing",
+    "relaxed-idle",
+    "breathing",
+    "weight-shift",
+    "listening",
+    "thinking",
+    "conversational-speaking",
+    "small-gesture",
+    "emphasis-gesture",
+    "restrained-excitement",
+    "serious-explanation",
+    "reflective-pause",
+    "turn-left-right",
+    "walk-forward",
+    "walk-away",
+    "stop",
+    "sit-stand-if-runtime-needs"
+  ],
+  "captureGap": {
+    "currentCanonicalVideoIsFullBody": false,
+    "currentCanonicalVideoContainsWalk": false,
+    "currentCanonicalVideoContainsHands": false,
+    "newCaptureRequiredForGoldMaster": true
+  },
+  "hardFailures": [
+    "foot-sliding",
+    "floating-hips",
+    "hand-popping",
+    "broken-wrist-elbow",
+    "neck-snapping",
+    "robotic-ease-curves",
+    "loop-visible-idle",
+    "voice-body-emotion-mismatch",
+    "face-body-timebase-drift"
+  ],
+  "promotionAuthorized": false
+}
