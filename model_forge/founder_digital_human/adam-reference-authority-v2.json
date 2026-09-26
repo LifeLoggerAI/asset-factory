@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "urai-adam-reference-authority-v2",
+  "status": "REFERENCE_GOLD_MASTER_CONDITIONAL",
+  "currentAdult": {
+    "buildReadyForHeadAndUpperBody": true,
+    "heroFreezeReady": false,
+    "identitySourcePriority": [
+      "real A0 photographs",
+      "hash-backed real A0 video 20260915_210531.mp4",
+      "earlier real current-adult canonical video",
+      "approved rested/leaner presentation anchor for art direction only",
+      "other generated references for blockout/art direction only"
+    ],
+    "a0Video": {
+      "filename": "20260915_210531.mp4",
+      "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "durationSeconds": 59.725
+    },
+    "filenameConflict": {
+      "olderHandoff": "20260915_181658.mp4",
+      "resolution": "UNRESOLVED_ALIAS_DO_NOT_ASSUME_SAME_FILE"
+    }
+  },
+  "presentation": {
+    "direction": "same mature adult identity, approximately 20 lb leaner, rested, realistic, naturally asymmetric",
+    "generatedAnchor": "1789515287682.png",
+    "anchorUse": "PRESENTATION_ONLY",
+    "never": [
+      "bodybuilder",
+      "superhero",
+      "generic handsome replacement",
+      "younger replacement",
+      "perfectly symmetric face",
+      "plastic skin",
+      "fabricated tattoos"
+    ]
+  },
+  "existingBuildHistory": {
+    "runtimeInfrastructure": [
+      "61-joint skeleton",
+      "full finger chains",
+      "four LOD runtime contract",
+      "15-clip animation API",
+      "R3F/useGLTF/useAnimations contract",
+      "body/wardrobe framework"
+    ],
+    "rejectedHeadCandidates": [
+      {
+        "name": "V6 A0 constrained sculpt",
+        "vertices": 101510,
+        "triangles": 203008,
+        "result": "REJECTED_IDENTITY_GATE"
+      },
+      {
+        "name": "V6B A0 profile/front constrained sculpt",
+        "vertices": 119306,
+        "triangles": 238600,
+        "result": "REJECTED_IDENTITY_GATE"
+      }
+    ],
+    "rule": "Rejected V6/V6B heads must never be promoted, restacked, or used as likeness authority."
+  },
+  "remainingPhysicalEvidence": [
+    "measured height and core body measurements",
+    "real eight-view full-body A-pose",
+    "detailed hands with scale",
+    "unseen tattoo continuation where genuinely unresolved",
+    "neutral daylight eye/skin calibration",
+    "dedicated Adam full-body motion"
+  ],
+  "goldMaster": false
+}
