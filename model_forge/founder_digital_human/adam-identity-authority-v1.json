@@ -59,5 +59,35 @@
     "Do not expose private source media in public GitHub or client bundles.",
     "All derivatives must retain source hash lineage and synthetic/real classification."
   ],
-  "goldMaster": false
+  "goldMaster": false,
+  "presentationAuthority": {
+    "target": "CURRENT_ADULT_RESTED_NEUTRAL",
+    "description": "Represent Adam as his stable current-adult identity on a rested, good day: natural, upright, healthy-looking, and recognizably Adam without de-aging, glamorizing, or changing body identity.",
+    "stableIdentityMustPreserve": [
+      "facial structure",
+      "natural asymmetry",
+      "current-adult age range",
+      "hair and facial-hair identity",
+      "glasses when part of intended launch appearance",
+      "tattoos supported by real source evidence",
+      "body proportions supported by multi-source real evidence"
+    ],
+    "transientCaptureStatesMustNotBecomeIdentityTruth": [
+      "sleep-deprivation eye shadows",
+      "temporary facial puffiness or bloating",
+      "slumped or exhausted posture",
+      "harsh overhead-lighting shadows",
+      "wide-angle facial or body distortion",
+      "camera foreshortening",
+      "temporary redness or fatigue expression",
+      "single-frame body-volume exaggeration"
+    ],
+    "bodyPresentationRules": [
+      "Do not make Adam appear heavier because of wide-angle distortion, slouching, clothing bunching, temporary puffiness, or a single unflattering capture.",
+      "Do not artificially slim, sculpt, de-age, or fitness-enhance Adam beyond stable real-source evidence.",
+      "Resolve body proportions from multiple real observations when available rather than one transient capture state.",
+      "Use upright relaxed posture and natural perspective as the neutral launch presentation."
+    ],
+    "captureTimingRule": "A tired-day capture may be retained as provenance but must not define canonical rested-neutral presentation. New identity capture can wait until Adam is rested enough to represent the intended launch appearance."
+  }
 }
