@@ -36,7 +36,62 @@
         "no embedded audio",
         "not sufficient by itself for full-body motion Gold Master",
         "not sufficient by itself for multi-view high-resolution head reconstruction"
-      ]
+      ],
+      "sourceSet": {
+        "rule": "Current-adult identity is resolved from multiple real sources. No single generated reference may override real-source consensus.",
+        "sources": [
+          {
+            "assetKey": "adam-current-adult-canonical-video-v1",
+            "role": "EARLY_CURRENT_ADULT_LIKENESS_ANCHOR",
+            "sha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60"
+          },
+          {
+            "assetKey": "adam-a0-real-video-20260915-210531",
+            "role": "STRONG_HEAD_NECK_MOTION_AUTHORITY",
+            "provenanceState": "HASH_BACKED_LIBRARY_AUTHORITY_RECORD",
+            "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+            "technical": {
+              "width": 1920,
+              "height": 1080,
+              "fps": 30,
+              "durationSeconds": 59.725,
+              "audio": "AAC 48kHz stereo"
+            },
+            "coverage": [
+              "front",
+              "left/right three-quarter",
+              "left/right profile",
+              "rear-lateral",
+              "under-chin",
+              "glasses-on",
+              "glasses-off",
+              "hairline/fade/crown",
+              "ears",
+              "jaw/neck",
+              "visible tattoo continuity"
+            ]
+          },
+          {
+            "assetKey": "adam-supplemental-a0-real-photo-set-20260915",
+            "role": "REAL_MULTI_VIEW_HEAD_AUTHORITY",
+            "provenanceState": "LIBRARY_AUTHORITY_RECORD",
+            "coverage": [
+              "glasses-off front neutral",
+              "right profile",
+              "right three-quarter",
+              "left three-quarter",
+              "left profile",
+              "rear-side hair/ear",
+              "neck tattoo three-quarter"
+            ]
+          }
+        ],
+        "filenameReconciliation": {
+          "hashBackedAuthorityFilename": "20260915_210531.mp4",
+          "olderHandoffAlsoReferences": "20260915_181658.mp4",
+          "rule": "Do not alias these filenames unless original-byte provenance proves they are the same source."
+        }
+      }
     },
     "historical": {
       "assetKey": "adam-age-19-canonical-photo-v1",
@@ -61,8 +116,8 @@
   ],
   "goldMaster": false,
   "presentationAuthority": {
-    "target": "CURRENT_ADULT_RESTED_NEUTRAL",
-    "description": "Represent Adam as his stable current-adult identity on a rested, good day: natural, upright, healthy-looking, and recognizably Adam without de-aging, glamorizing, or changing body identity.",
+    "target": "CURRENT_ADULT_RESTED_LEANER_CANON",
+    "description": "Represent Adam as the same mature current-adult person in the project-approved rested presentation direction: approximately 20 lb leaner in presentation, upright, realistic and naturally asymmetric. This is art-direction authority, not a statement of current measured weight or health.",
     "stableIdentityMustPreserve": [
       "facial structure",
       "natural asymmetry",
@@ -83,10 +138,11 @@
       "single-frame body-volume exaggeration"
     ],
     "bodyPresentationRules": [
-      "Do not make Adam appear heavier because of wide-angle distortion, slouching, clothing bunching, temporary puffiness, or a single unflattering capture.",
-      "Do not artificially slim, sculpt, de-age, or fitness-enhance Adam beyond stable real-source evidence.",
-      "Resolve body proportions from multiple real observations when available rather than one transient capture state.",
-      "Use upright relaxed posture and natural perspective as the neutral launch presentation."
+      "Preserve real skeletal build and identity-defining proportions.",
+      "Use the project-approved approximately 20 lb leaner/rested presentation direction without turning Adam into a bodybuilder, superhero, tiny-waist fitness model, or younger replacement.",
+      "Moderately reduce abdomen/flank presentation and superficial facial puffiness only as presentation direction, while preserving skull, jaw/chin identity, neck proportions and general skeletal build.",
+      "Reject wide-angle distortion, slouching, clothing bunching and temporary puffiness as canonical geometry evidence.",
+      "Resolve final scale and lower-body proportions from real full-body evidence and measurements when supplied."
     ],
     "captureTimingRule": "A tired-day capture may be retained as provenance but must not define canonical rested-neutral presentation. New identity capture can wait until Adam is rested enough to represent the intended launch appearance."
   }
