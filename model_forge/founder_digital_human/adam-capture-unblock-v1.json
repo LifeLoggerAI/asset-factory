@@ -11,7 +11,13 @@
     "lighting": "soft frontal light; avoid hard overhead shadows",
     "background": "plain, uncluttered, no sensitive documents or identifiers",
     "wardrobe": "current intended launch/founder appearance",
-    "preserveNaturalAppearance": true
+    "preserveNaturalAppearance": true,
+    "restedNeutralPresentation": true,
+    "captureTiming": "Do not require capture while visibly exhausted. Record when Adam is rested enough to represent his intended launch appearance.",
+    "posture": "upright, relaxed, natural; do not slouch for the identity pass",
+    "perspective": "avoid close wide-angle distortion; step back and use a normal/tele perspective when practical",
+    "transientStatePolicy": "temporary fatigue, eye shadows, puffiness, bloating, redness, slouching, and lens distortion are not canonical identity traits",
+    "bodyPresentationPolicy": "do not artificially slim or fitness-enhance; also do not let unflattering lens/posture/transient-state distortion make the canonical avatar look heavier than stable real-source evidence"
   },
   "clips": [
     {
