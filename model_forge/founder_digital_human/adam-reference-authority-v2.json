@@ -151,7 +151,7 @@
     "replacementRule": "Do not replace preserved runtime GLBs until a naked-head candidate passes front, both 45-degree and both profile identity gates."
   },
   "v11CuratedPackage": {
-    "status": "LOCAL_VERIFIED_PACKAGE_READY",
+    "status": "PRIVATE_DURABLE_PACKAGE_VERIFIED",
     "inputCount": 21,
     "videoFrames": 16,
     "a0Stills": 5,
@@ -159,7 +159,12 @@
     "zipSha256": "23cd98b9d52befc6fee5f0fd5a1eb63b10d1677ad9e496b456f12f36158d9736",
     "internalReceiptSha256": "ff08e666462a0155ca8b5773eec42d7f4d537b3ffa369a90b9986a03081687de",
     "archiveIntegrity": "PASS",
-    "durablePrivateUpload": "PENDING_CONNECTOR_TRANSFER_PATH",
-    "publicGitHubUpload": false
+    "durablePrivateUpload": "VERIFIED_GOOGLE_DRIVE_PRIVATE",
+    "publicGitHubUpload": false,
+    "uraiDevPr": 23,
+    "uraiDevHead": "b80c0237d265d4af2bb6f6747a691bea85e47b92",
+    "computeState": "REALITYSCAN_NOT_RUN",
+    "wrapState": "NOT_STARTED",
+    "productionTransferAllowed": false
   }
 }
