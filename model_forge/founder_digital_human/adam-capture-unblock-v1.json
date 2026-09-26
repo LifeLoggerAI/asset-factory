@@ -1,7 +1,7 @@
 {
   "schemaVersion": "urai-adam-capture-unblock-v1",
   "status": "human-capture-required",
-  "purpose": "Close the remaining real-source gap for hero head reconstruction, full-body rigging, Move AI mocap, facial performance and 30-second continuity proof.",
+  "purpose": "Close only the remaining physical-evidence gaps for final scale, lower-body anatomy, hands, hidden tattoo continuation, full-body motion and hero material calibration. Additional casual head capture is not required.",
   "globalRules": {
     "subject": "Adam Clamp",
     "beautyFilter": false,
@@ -13,42 +13,13 @@
     "wardrobe": "current intended launch/founder appearance",
     "preserveNaturalAppearance": true,
     "restedNeutralPresentation": true,
-    "captureTiming": "Do not require capture while visibly exhausted. Record when Adam is rested enough to represent his intended launch appearance.",
+    "captureTiming": "No capture is required tonight. Record remaining body/motion evidence only when Adam is rested enough to represent the approved launch presentation.",
     "posture": "upright, relaxed, natural; do not slouch for the identity pass",
     "perspective": "avoid close wide-angle distortion; step back and use a normal/tele perspective when practical",
     "transientStatePolicy": "temporary fatigue, eye shadows, puffiness, bloating, redness, slouching, and lens distortion are not canonical identity traits",
     "bodyPresentationPolicy": "do not artificially slim or fitness-enhance; also do not let unflattering lens/posture/transient-state distortion make the canonical avatar look heavier than stable real-source evidence"
   },
   "clips": [
-    {
-      "id": "ADAM_IDENTITY_HEAD_V1",
-      "targetDurationSeconds": 75,
-      "minimumResolution": "2160p preferred; 1080p minimum",
-      "minimumFps": 30,
-      "camera": "eye-level, locked, chest-up",
-      "sequence": [
-        "front neutral 5 seconds",
-        "left three-quarter 5 seconds",
-        "left profile 5 seconds",
-        "center neutral 3 seconds",
-        "right three-quarter 5 seconds",
-        "right profile 5 seconds",
-        "center neutral 3 seconds",
-        "natural speech at least 30 seconds",
-        "natural pause, look away and return"
-      ],
-      "requiredCoverage": [
-        "eyes open/closed",
-        "neutral mouth",
-        "natural speech mouth shapes",
-        "jawline",
-        "ears",
-        "hairline",
-        "facial hair",
-        "glasses if launch appearance uses them",
-        "neck tattoos without invented detail"
-      ]
-    },
     {
       "id": "ADAM_FULL_BODY_MOCAP_V1",
       "targetDurationSeconds": 90,
@@ -106,5 +77,29 @@
     "hashEveryOriginal": true
   },
   "promotionRule": "Capture completion does not itself certify likeness, voice, motion or Gold Master. It unlocks reconstruction and literal QA.",
-  "goldMasterBlockedUntilCapture": true
+  "goldMasterBlockedUntilCapture": true,
+  "optionalDeferredHeadPolish": {
+    "blocking": false,
+    "reason": "Existing A0 real photo + 59.725s 1080p video authority is sufficient for the next dedicated head reconstruction pass.",
+    "futureOnly": [
+      "neutral daylight iris/skin calibration",
+      "rear/crown hair macro if strand-level groom needs it",
+      "glasses macro if exact manufacturer geometry is required"
+    ]
+  },
+  "measurements": {
+    "blockingForFinalScale": true,
+    "requiredLater": [
+      "barefoot measured height",
+      "shoulder breadth",
+      "chest",
+      "natural waist",
+      "hips",
+      "neck",
+      "inseam",
+      "thigh",
+      "calf"
+    ],
+    "presentationTarget": "Project-approved approximately 20 lb leaner/rested direction is already locked; measured values remain required before final anatomical freeze."
+  }
 }
