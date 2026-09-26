@@ -105,6 +105,21 @@
         "reason": "The model execution container could not resolve the provider-hosted artifact domain for frame extraction.",
         "promotionAllowed": false
       }
+    },
+    {
+      "provider": "UrAi private source recovery",
+      "operation": "reassemble-and-verify-adam-v9-a0-package",
+      "result": "PASS",
+      "parentSha256": "abfbc44f1639bff38240dc226886199c6fefd6243d63998715dec2a17ac28f2b",
+      "archiveIntegrity": "PASS",
+      "recoveredVideoSha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "recoveredVideoBytes": 129175854,
+      "recoveredVideoDurationSeconds": 59.725133,
+      "recoveredVideoResolution": "1920x1080",
+      "sourceAuthority": "REAL_VIDEO_A0",
+      "publicSourceDisclosure": false,
+      "canonicalCandidate": false,
+      "claim": "Real A0 source bytes recovered and verified; this recovery does not itself create or certify a production avatar."
     }
   ]
 }
