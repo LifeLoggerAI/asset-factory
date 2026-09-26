@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "urai-adam-capture-unblock-v1",
+  "status": "human-capture-required",
+  "purpose": "Close the remaining real-source gap for hero head reconstruction, full-body rigging, Move AI mocap, facial performance and 30-second continuity proof.",
+  "globalRules": {
+    "subject": "Adam Clamp",
+    "beautyFilter": false,
+    "aiVoice": false,
+    "backgroundMusic": false,
+    "rearCameraPreferred": true,
+    "lighting": "soft frontal light; avoid hard overhead shadows",
+    "background": "plain, uncluttered, no sensitive documents or identifiers",
+    "wardrobe": "current intended launch/founder appearance",
+    "preserveNaturalAppearance": true
+  },
+  "clips": [
+    {
+      "id": "ADAM_IDENTITY_HEAD_V1",
+      "targetDurationSeconds": 75,
+      "minimumResolution": "2160p preferred; 1080p minimum",
+      "minimumFps": 30,
+      "camera": "eye-level, locked, chest-up",
+      "sequence": [
+        "front neutral 5 seconds",
+        "left three-quarter 5 seconds",
+        "left profile 5 seconds",
+        "center neutral 3 seconds",
+        "right three-quarter 5 seconds",
+        "right profile 5 seconds",
+        "center neutral 3 seconds",
+        "natural speech at least 30 seconds",
+        "natural pause, look away and return"
+      ],
+      "requiredCoverage": [
+        "eyes open/closed",
+        "neutral mouth",
+        "natural speech mouth shapes",
+        "jawline",
+        "ears",
+        "hairline",
+        "facial hair",
+        "glasses if launch appearance uses them",
+        "neck tattoos without invented detail"
+      ]
+    },
+    {
+      "id": "ADAM_FULL_BODY_MOCAP_V1",
+      "targetDurationSeconds": 90,
+      "minimumResolution": "1080p",
+      "minimumFps": 60,
+      "orientation": "landscape preferred for mocap",
+      "camera": "locked; full body centered; feet and hands continuously visible",
+      "sequence": [
+        "neutral standing 5 seconds",
+        "T-pose 3 seconds",
+        "relaxed idle 10 seconds",
+        "natural weight shifts 10 seconds",
+        "walk toward camera",
+        "walk away from camera",
+        "side walk left-to-right",
+        "side walk right-to-left",
+        "turn left and stop",
+        "turn right and stop",
+        "natural conversational gesture 15 seconds",
+        "clean start-stop-turn sequence"
+      ],
+      "moveAiCaptureGuidance": {
+        "singleActor": true,
+        "cameraLocked": true,
+        "actorCentered": true,
+        "fullHdMinimum": true,
+        "fpsRecommended": 60
+      }
+    },
+    {
+      "id": "ADAM_HANDS_FACE_PERFORMANCE_V1",
+      "targetDurationSeconds": 60,
+      "minimumResolution": "2160p preferred; 1080p minimum",
+      "minimumFps": 60,
+      "camera": "eye-level, medium close-up",
+      "sequence": [
+        "palms visible",
+        "backs of hands visible",
+        "fingers open and close naturally",
+        "neutral listening",
+        "small smile",
+        "serious explanation",
+        "reflective pause",
+        "quiet speech",
+        "restrained excitement",
+        "natural blink and gaze changes"
+      ]
+    }
+  ],
+  "uploadPolicy": {
+    "destination": "private Founder Avatar / 01_REAL_REFERENCE and 06_MOTION lanes",
+    "originalsUntouched": true,
+    "derivativesSeparate": true,
+    "publicGithubRawMedia": false,
+    "hashEveryOriginal": true
+  },
+  "promotionRule": "Capture completion does not itself certify likeness, voice, motion or Gold Master. It unlocks reconstruction and literal QA.",
+  "goldMasterBlockedUntilCapture": true
+}
