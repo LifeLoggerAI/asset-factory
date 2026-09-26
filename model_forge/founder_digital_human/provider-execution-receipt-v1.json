@@ -72,7 +72,7 @@
       "operation": "identity-preserving-natural-motion-challenger-retry",
       "inputAssetKey": "adam-current-adult-canonical-video-v1-upscaled-private",
       "taskId": "4cf28ecf-dfdb-4482-b20a-9d7781308073",
-      "result": "PENDING",
+      "result": "OUTPUT_GENERATED_QA_BLOCKED",
       "durationSeconds": 6,
       "resolution": "1080p",
       "audioGeneration": false,
@@ -88,7 +88,23 @@
         "gaze realism",
         "head-shoulder timing",
         "background/frame preservation"
-      ]
+      ],
+      "output": {
+        "width": 1076,
+        "height": 1920,
+        "durationSeconds": 6.375,
+        "hasAudio": true
+      },
+      "audioContract": {
+        "requestedAudioGeneration": false,
+        "providerReturnedAudioTrack": true,
+        "audioDisposition": "REJECT_FOR_CANONICAL_USE"
+      },
+      "visualQa": {
+        "status": "BLOCKED_EXECUTION_SURFACE_ARTIFACT_FETCH",
+        "reason": "The model execution container could not resolve the provider-hosted artifact domain for frame extraction.",
+        "promotionAllowed": false
+      }
     }
   ]
 }
