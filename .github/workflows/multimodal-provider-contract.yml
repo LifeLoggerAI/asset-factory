@@ -4,17 +4,28 @@ on:
   push:
     branches:
       - converge/asset-factory-production-multimodal-20260925
+  pull_request:
+    paths:
+      - '.github/workflows/multimodal-provider-contract.yml'
+      - 'model_forge/launch-model-inventory.json'
+      - 'model_forge/reference-resolution.json'
+      - 'assetfactory-studio/**'
+      - 'scripts/*provider*.mjs'
+      - 'scripts/test-asset-factory-multimodal.mjs'
+      - 'scripts/test-replicate-model-registry.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: multimodal-provider-contract-${{ github.ref }}
+  group: multimodal-provider-contract-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  TARGET_SHA: ${{ github.sha }}
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   ASSET_FACTORY_MEDIA_PROVIDER: local-proof
   ASSET_FACTORY_IMAGE_PROVIDER: local-proof
   ASSET_FACTORY_MODEL3D_PROVIDER: local-proof
