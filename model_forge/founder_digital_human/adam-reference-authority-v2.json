@@ -74,5 +74,92 @@
     "neutral daylight eye/skin calibration",
     "dedicated Adam full-body motion"
   ],
-  "goldMaster": false
+  "goldMaster": false,
+  "reconstructionLineage": {
+    "authorityRepo": "LifeLoggerAI/UrAi-Dev",
+    "branches": [
+      {
+        "version": "V7",
+        "branch": "avatar/adam-v7-multiview-reconstruction-20260916",
+        "state": "EXECUTED_REJECTED",
+        "methods": [
+          "3DDFA/BFM shared-identity solve",
+          "masked COLMAP SfM"
+        ],
+        "result": "HEAD_LIKENESS_RED"
+      },
+      {
+        "version": "V8",
+        "branch": "avatar/adam-v8-keentools-professional-reconstruction-20260916",
+        "state": "PROVIDER_CALL_BLOCKED",
+        "provider": "KeenTools Cloud API",
+        "reason": "KEENTOOLS_API_KEY absent from Actions secret context",
+        "providerRequestMade": false
+      },
+      {
+        "version": "V9",
+        "branch": "avatar/adam-v9-all-next-passes-20260916",
+        "state": "AUTHORIZED_ONE_SHOT_FAILED_CLOSED",
+        "provider": "KeenTools Cloud API",
+        "workflowRun": "35132737345",
+        "providerRequestMade": false,
+        "reason": "KEENTOOLS_API_KEY absent"
+      },
+      {
+        "version": "V10",
+        "branch": "avatar/adam-v10-realityscan-wrap-20260916",
+        "state": "INPUT_PREPARED_COMPUTE_NOT_RUN",
+        "realityScan": "NOT_RUN",
+        "wrap": "NOT_STARTED"
+      },
+      {
+        "version": "V11",
+        "branch": "avatar/adam-v11-curated-realityscan-20260926",
+        "draftPr": 23,
+        "state": "CURATED_INPUT_READY_COMPUTE_NOT_RUN"
+      }
+    ],
+    "currentRecommendedLane": "V11_CURATED_REALITYSCAN_THEN_WRAP",
+    "currentReason": "V11 removes known occlusion, motion-blur and extreme-perspective frames before scan compute while preserving real-source-only identity authority."
+  },
+  "preservedRuntime": {
+    "status": "GREEN_PRESERVED_IMMUTABLE",
+    "joints": 61,
+    "animationCount": 15,
+    "lods": [
+      {
+        "lod": 0,
+        "triangles": 140535,
+        "sha256": "e360ddb440ea49c18e20bc13f4c95c8696d38ae708b47e2ec08c36aee3d78eff"
+      },
+      {
+        "lod": 1,
+        "triangles": 80982,
+        "sha256": "12b9ae1a6b59a5cd5582de8fda2c38334dc4f104b2e79c02415062a64399278d"
+      },
+      {
+        "lod": 2,
+        "triangles": 37744,
+        "sha256": "4dbc18256c22978c10dc07a7642e8fae59efbaaf528ee12abadbce7c56300c24"
+      },
+      {
+        "lod": 3,
+        "triangles": 17552,
+        "sha256": "ada7b57d3f27fe3471694497e5ff2359d9c7eb88a057a2cc7fc1807f314e7935"
+      }
+    ],
+    "replacementRule": "Do not replace preserved runtime GLBs until a naked-head candidate passes front, both 45-degree and both profile identity gates."
+  },
+  "v11CuratedPackage": {
+    "status": "LOCAL_VERIFIED_PACKAGE_READY",
+    "inputCount": 21,
+    "videoFrames": 16,
+    "a0Stills": 5,
+    "zipBytes": 4440671,
+    "zipSha256": "23cd98b9d52befc6fee5f0fd5a1eb63b10d1677ad9e496b456f12f36158d9736",
+    "internalReceiptSha256": "ff08e666462a0155ca8b5773eec42d7f4d537b3ffa369a90b9986a03081687de",
+    "archiveIntegrity": "PASS",
+    "durablePrivateUpload": "PENDING_CONNECTOR_TRANSFER_PATH",
+    "publicGitHubUpload": false
+  }
 }
