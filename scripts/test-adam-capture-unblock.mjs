@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const c=JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-capture-unblock-v1.json', import.meta.url),'utf8'));
+assert.equal(c.schemaVersion,'urai-adam-capture-unblock-v1');
+assert.equal(c.status,'human-capture-required');
+assert.equal(c.globalRules.beautyFilter,false);
+assert.equal(c.globalRules.aiVoice,false);
+const full=c.clips.find((x)=>x.id==='ADAM_FULL_BODY_MOCAP_V1');
+assert.ok(full,'full-body capture required');
+assert.equal(full.minimumResolution,'1080p');
+assert.equal(full.minimumFps,60);
+assert.equal(full.moveAiCaptureGuidance.cameraLocked,true);
+assert.equal(full.moveAiCaptureGuidance.singleActor,true);
+assert.equal(c.uploadPolicy.originalsUntouched,true);
+assert.equal(c.uploadPolicy.publicGithubRawMedia,false);
+assert.equal(c.goldMasterBlockedUntilCapture,true);
+console.log('Adam capture unblock contract passed');
