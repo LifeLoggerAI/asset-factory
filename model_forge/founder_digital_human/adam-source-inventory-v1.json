@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "urai-adam-source-inventory-v1",
+  "status": "sanitized-public-manifest-private-sources-retained-in-drive",
+  "rules": {
+    "rawPrivateDriveIdsInGitHub": false,
+    "generatedOutputMayBecomeIdentityTruthAutomatically": false,
+    "holdoutMayBeUsedForTraining": false,
+    "historicalLikenessMayReplaceCurrentAdult": false
+  },
+  "sources": [
+    {
+      "assetKey": "adam-current-adult-canonical-video-v1",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "CURRENT_ADULT_PRIMARY",
+      "trainingEligibility": "REFERENCE_ONLY_UNLESS_EXPLICIT_PIPELINE_REQUIRES_DERIVATION",
+      "sha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60",
+      "technical": {
+        "container": "mp4",
+        "codec": "h264",
+        "width": 368,
+        "height": 656,
+        "fps": 30,
+        "durationSeconds": 6.266667,
+        "audioTrackPresent": false,
+        "bytes": 514118
+      },
+      "coverage": {
+        "face": true,
+        "neckTattoo": true,
+        "upperTorso": true,
+        "fullBody": false,
+        "walk": false,
+        "hands": false,
+        "voice": false,
+        "multiViewHead": false
+      }
+    },
+    {
+      "assetKey": "adam-age-19-canonical-photo-v1",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "HISTORICAL_ONLY",
+      "trainingEligibility": "HISTORICAL_EXPERIENCES_ONLY",
+      "sha256": "527fb2f79fb9f5b35755e3e60792096730eb2c15bbaeb911e022b13212e05604"
+    },
+    {
+      "assetKey": "adam-founder-voice-elevenlabs-enrollment-v1",
+      "class": "REAL_AUDIO_PRIVATE",
+      "authority": "VOICE_TRAIN_ONLY",
+      "trainingEligibility": "AUTHORIZED_TRAIN",
+      "sha256": "a03c3d56918274f5dfe06a130c50a0142ca4e779a8da208b5cc773bb31787368",
+      "durationSeconds": 108.564898,
+      "holdoutIncluded": false,
+      "qaExcludedMaterialIncluded": false
+    },
+    {
+      "assetKey": "adam-founder-voice-master-corpus-v1",
+      "class": "REAL_AUDIO_PRIVATE",
+      "authority": "VOICE_CORPUS",
+      "trainingEligibility": "SPLIT_LOCKED",
+      "split": {
+        "trainClips": 412,
+        "trainSeconds": 2673.838,
+        "holdoutClips": 68,
+        "holdoutSeconds": 487.758,
+        "qaClips": 2,
+        "qaSeconds": 18.06
+      },
+      "rule": "Holdout and QA clips remain excluded from enrollment/training."
+    }
+  ],
+  "missingGoldMasterInputs": [
+    "current-adult high-resolution multi-view head capture",
+    "current-adult full-body neutral front",
+    "left and right profiles",
+    "front and rear 45-degree full-body views",
+    "side-view uninterrupted walk",
+    "walk toward and away from camera",
+    "natural standing/gesture sequence with hands and feet visible",
+    "clean start/stop/turn motion capture"
+  ]
+}
