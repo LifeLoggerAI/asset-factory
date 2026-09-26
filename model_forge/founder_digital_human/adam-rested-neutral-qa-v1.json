@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "urai-adam-rested-neutral-qa-v1",
+  "status": "enforced-pre-promotion",
+  "target": "CURRENT_ADULT_RESTED_NEUTRAL",
+  "principle": "Normalize transient capture artifacts while preserving stable current-adult identity and source-grounded proportions.",
+  "transientArtifactsToReject": [
+    "fatigue expression",
+    "temporary under-eye shadow from poor lighting",
+    "temporary facial puffiness",
+    "slouched posture",
+    "close wide-angle distortion",
+    "camera foreshortening",
+    "harsh overhead-lighting distortion",
+    "single-frame body-volume exaggeration"
+  ],
+  "prohibitedIdentityChanges": [
+    "de-aging into a historical appearance",
+    "generic symmetry replacement",
+    "eye reshaping",
+    "nose reshaping",
+    "mouth reshaping",
+    "tattoo invention",
+    "body proportion changes unsupported by multiple real observations",
+    "skin treatment that erases stable adult skin character"
+  ],
+  "cameraQa": {
+    "rejectCloseUltraWidePerspective": true,
+    "preferEyeLevel": true,
+    "preferNormalPerspective": true,
+    "correctCapturePerspectiveBeforeGeometryChange": true
+  },
+  "bodyQa": {
+    "useMultipleRealObservations": true,
+    "singleFrameBodyVolumeAuthority": false,
+    "transientPostureMayDefineCanonicalBody": false,
+    "temporaryStateMayDefineCanonicalBody": false,
+    "generatedBodyMayOverrideRealEvidence": false
+  },
+  "faceQa": {
+    "preserveNaturalAsymmetry": true,
+    "preserveAdultAgeRange": true,
+    "preserveFacialHairIdentity": true,
+    "preserveGlassesWhenLaunchAppearanceUsesThem": true,
+    "preserveSupportedTattooPlacement": true,
+    "fatigueExpressionMayDefineCanonicalNeutral": false
+  },
+  "promotionRequires": [
+    "literal comparison to real current-adult source",
+    "no identity drift",
+    "no unsupported body proportion drift",
+    "rested-neutral presentation",
+    "human approval",
+    "provenance receipt"
+  ],
+  "promotionAuthorized": false
+}
