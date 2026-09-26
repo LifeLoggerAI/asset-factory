@@ -11,6 +11,12 @@ const execute=args.includes('--execute');
 const wavePath=path.resolve(args[waveArg+1]);
 const wave=JSON.parse(fs.readFileSync(wavePath,'utf8'));
 if(wave.schemaVersion!=='urai-model-forge-wave-v1') throw new Error('unsupported wave schema');
+if(!Array.isArray(wave.entries)||!wave.entries.length) throw new Error('wave must contain at least one entry');
+if(!Number.isInteger(wave.maxCandidateGenerations)||wave.maxCandidateGenerations<1) throw new Error('wave candidate cap must be a positive integer');
+for(const entry of wave.entries){
+  if(!Array.isArray(entry.providers)||!entry.providers.length) throw new Error('wave entry must select at least one provider');
+  if(!Number.isInteger(entry.maxAttemptsPerProvider)||entry.maxAttemptsPerProvider<1) throw new Error('wave attempts must be a positive integer');
+}
 const planned=wave.entries.reduce((n,e)=>n+(e.providers?.length??0)*(e.maxAttemptsPerProvider??1),0);
 if(planned>wave.maxCandidateGenerations) throw new Error(`planned candidate attempts ${planned} exceed wave cap ${wave.maxCandidateGenerations}`);
 if(execute&&process.env.URAI_MODEL_FORGE_SPEND_AUTHORIZED!=='1') throw new Error('wave execution requires URAI_MODEL_FORGE_SPEND_AUTHORIZED=1');
@@ -38,6 +44,7 @@ for(const entry of wave.entries){
     summary.entries.push({assetId:spec.id,provider,status:result.status===0?'executed':'failed',exitCode:result.status});
   }
 }
+summary.status=execute?(summary.entries.every((entry)=>entry.status==='executed')?'completed':'incomplete'):'planned';
 fs.writeFileSync('model-forge-wave-receipt.json',JSON.stringify(summary,null,2)+'\n');
 console.log(JSON.stringify(summary,null,2));
-if(execute&&summary.entries.some((e)=>e.status==='failed')) process.exit(1);
+if(execute&&summary.status!=='completed') process.exit(1);

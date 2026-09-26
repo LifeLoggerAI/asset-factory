@@ -50,6 +50,7 @@ jobs:
           node --check model_forge/verify-promotion.mjs
           node --check model_forge/run-wave.mjs
           node --check model_forge/provider-preflight.mjs
+          node --test scripts/test-model-forge-execution-outcomes.mjs
           grep -q "tencent/hunyuan-3d-3.1" model_forge/forge.mjs
           grep -q "REPLICATE_API_TOKEN" model_forge/forge.mjs
           grep -q "refs/heads/main" .github/workflows/model-forge-replicate-wave.yml
