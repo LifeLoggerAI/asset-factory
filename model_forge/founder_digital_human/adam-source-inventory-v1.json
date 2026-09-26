@@ -66,17 +66,73 @@
         "qaSeconds": 18.06
       },
       "rule": "Holdout and QA clips remain excluded from enrollment/training."
+    },
+    {
+      "assetKey": "adam-a0-real-video-20260915-210531",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "CURRENT_ADULT_HEAD_NECK_MOTION",
+      "provenanceState": "HASH_BACKED_LIBRARY_AUTHORITY_RECORD",
+      "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "technical": {
+        "container": "mp4",
+        "codec": "h264",
+        "width": 1920,
+        "height": 1080,
+        "fps": 30,
+        "durationSeconds": 59.725,
+        "audio": "AAC 48kHz stereo",
+        "bytes": 129175854
+      },
+      "coverage": {
+        "front": true,
+        "threeQuarter": true,
+        "profiles": true,
+        "rearLateral": true,
+        "underChin": true,
+        "glassesOn": true,
+        "glassesOff": true,
+        "ears": true,
+        "hairline": true,
+        "crown": true,
+        "neckTattoo": true,
+        "fullBody": false,
+        "gait": false,
+        "hands": false
+      },
+      "rule": "Use for head/neck likeness and natural head-turn evidence; do not infer full-body scale or gait."
+    },
+    {
+      "assetKey": "adam-supplemental-a0-real-photo-set-20260915",
+      "class": "REAL_CAPTURE_PRIVATE_SET",
+      "authority": "CURRENT_ADULT_MULTI_VIEW_HEAD",
+      "provenanceState": "LIBRARY_AUTHORITY_RECORD",
+      "coverage": {
+        "frontNeutralGlassesOff": true,
+        "rightProfile": true,
+        "rightThreeQuarter": true,
+        "leftThreeQuarter": true,
+        "leftProfile": true,
+        "rearSideHairEar": true,
+        "neckTattoo": true
+      },
+      "rule": "Real photos supersede generated references wherever anatomy is directly visible."
+    },
+    {
+      "assetKey": "adam-approved-rested-leaner-presentation-anchor-v1",
+      "class": "SYNTHETIC_OR_DERIVED_PRESENTATION_REFERENCE",
+      "authority": "PRESENTATION_ONLY",
+      "sourceName": "1789515287682.png",
+      "rule": "Use only for rested/leaner presentation direction. Never use it to redefine factual face, tattoo, body-scale or anatomical identity when real evidence conflicts."
     }
   ],
   "missingGoldMasterInputs": [
-    "current-adult high-resolution multi-view head capture",
-    "current-adult full-body neutral front",
-    "left and right profiles",
-    "front and rear 45-degree full-body views",
-    "side-view uninterrupted walk",
-    "walk toward and away from camera",
-    "natural standing/gesture sequence with hands and feet visible",
-    "clean start/stop/turn motion capture"
+    "measured barefoot height",
+    "core body measurements for scale and proportions",
+    "controlled real eight-view full-body A-pose",
+    "detailed left/right hand capture with scale",
+    "unseen rear/hidden neck tattoo continuation only where genuinely unresolved",
+    "neutral daylight eye/skin color reference for hero materials",
+    "dedicated full-body motion: idle, walk toward/away, side passes, turns, stop, reach, sit, stand"
   ],
   "derivedPrivateEvidence": [
     {
@@ -100,5 +156,11 @@
       "canonicalAuthority": false,
       "publicReleaseAuthorized": false
     }
+  ],
+  "resolvedSinceInitialPass": [
+    "high-resolution current-adult head/neck video authority",
+    "glasses-off frontal head authority",
+    "opposing real profile views",
+    "multi-view head coverage sufficient for dedicated reconstruction/sculpt work"
   ]
 }
