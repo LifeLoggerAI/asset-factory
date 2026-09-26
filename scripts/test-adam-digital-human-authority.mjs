@@ -19,6 +19,8 @@ assert.equal(identity.authorityClasses.generatedDerived.use, 'CANDIDATE_ONLY');
 assert.equal(identity.presentationAuthority.target, 'CURRENT_ADULT_RESTED_LEANER_CANON');
 assert.ok(identity.presentationAuthority.transientCaptureStatesMustNotBecomeIdentityTruth.includes('slumped or exhausted posture'));
 assert.ok(identity.presentationAuthority.captureTimingRule.includes('can wait until Adam is rested enough'));
+assert.ok(identity.presentationAuthority.description.includes('approximately 20 lb leaner'));
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.rule.includes('Do not alias'), true);
 assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.hashBackedAuthorityFilename, '20260915_210531.mp4');
 assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.olderHandoffAlsoReferences, '20260915_181658.mp4');
 
@@ -60,12 +62,15 @@ assert.equal(motion.captureGap.newCaptureRequiredForGoldMaster, true);
 assert.equal(motion.promotionAuthorized, false);
 assert.equal(handoff.spatialMutationAuthorized, false);
 assert.equal(handoff.release.publicReleaseAuthorized, false);
-assert.equal(presentation.schemaVersion, 'urai-adam-rested-neutral-qa-v1');
-assert.equal(presentation.target, 'CURRENT_ADULT_RESTED_NEUTRAL');
+assert.equal(presentation.schemaVersion, 'urai-adam-rested-leaner-qa-v2');
+assert.equal(presentation.target, 'CURRENT_ADULT_RESTED_LEANER_CANON');
 assert.equal(presentation.cameraQa.rejectCloseUltraWidePerspective, true);
 assert.equal(presentation.bodyQa.singleFrameBodyVolumeAuthority, false);
 assert.equal(presentation.bodyQa.generatedBodyMayOverrideRealEvidence, false);
 assert.equal(presentation.faceQa.fatigueExpressionMayDefineCanonicalNeutral, false);
+assert.equal(presentation.presentationDirection.classification, 'ART_DIRECTION_NOT_CURRENT_WEIGHT_CLAIM');
+assert.ok(presentation.presentationDirection.prohibit.includes('bodybuilder transformation'));
+assert.ok(presentation.presentationDirection.prohibit.includes('anatomically unsupported slimming'));
 assert.equal(presentation.promotionAuthorized, false);
 
 console.log('Adam digital-human authority contract passed');
