@@ -123,6 +123,47 @@
       "authority": "PRESENTATION_ONLY",
       "sourceName": "1789515287682.png",
       "rule": "Use only for rested/leaner presentation direction. Never use it to redefine factual face, tattoo, body-scale or anatomical identity when real evidence conflicts."
+    },
+    {
+      "assetKey": "adam-jacob-motion-001",
+      "class": "REAL_MOTION_PRIVATE",
+      "authority": "RECOVERED_GAIT_POSTURE_GESTURE_REFERENCE_PENDING_SUBJECT_EXTRACTION",
+      "provenanceState": "RECOVERED_VERIFIED_PRIVATE_ARCHIVE",
+      "byteSize": 731725257,
+      "mimeType": "video/quicktime",
+      "purpose": [
+        "character-model-matching",
+        "locomotion-reference",
+        "posture-reference",
+        "gesture-cadence-reference",
+        "relative-scale-reference",
+        "camera-model-matching"
+      ],
+      "subjects": {
+        "count": 2,
+        "identityBasis": "source correspondence metadata",
+        "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+        "facialRecognitionAllowed": false
+      },
+      "extractionState": {
+        "originalPreserved": true,
+        "rawTransferBlockedByConnectorLimit": true,
+        "sourceBytes": 731725257,
+        "connectorLimitBytes": 268435456,
+        "productionSafeProxyPresent": false,
+        "measurementsPresent": false,
+        "calibrationOutputsPresent": false
+      },
+      "coveragePotential": {
+        "gait": true,
+        "posture": true,
+        "gestureCadence": true,
+        "relativeScale": true,
+        "walking": true,
+        "startsStopsTurns": "TO_VERIFY_AFTER_EXTRACTION",
+        "handsFeetVisibility": "TO_VERIFY_AFTER_EXTRACTION"
+      },
+      "rule": "Attempt private extraction and provenance mapping before requesting replacement walking footage. Do not claim Adam-specific gait until the subject segments are mapped from source provenance and visually extracted."
     }
   ],
   "missingGoldMasterInputs": [
@@ -132,7 +173,7 @@
     "detailed left/right hand capture with scale",
     "unseen rear/hidden neck tattoo continuation only where genuinely unresolved",
     "neutral daylight eye/skin color reference for hero materials",
-    "dedicated full-body motion: idle, walk toward/away, side passes, turns, stop, reach, sit, stand"
+    "resolved Adam-specific full-body motion authority from recovered gait archive or conditional replacement capture"
   ],
   "derivedPrivateEvidence": [
     {
@@ -161,7 +202,8 @@
     "high-resolution current-adult head/neck video authority",
     "glasses-off frontal head authority",
     "opposing real profile views",
-    "multi-view head coverage sufficient for dedicated reconstruction/sculpt work"
+    "multi-view head coverage sufficient for dedicated reconstruction/sculpt work",
+    "recovered verified gait/posture/gesture source archive"
   ],
   "privatePackageRecovery": {
     "status": "VERIFIED_RECOVERED",
