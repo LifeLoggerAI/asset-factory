@@ -83,7 +83,8 @@
     "audit:production": "pnpm audit --audit-level=high --prod && npm --prefix life-map-pipeline/functions audit --audit-level=high --omit=dev && npm --prefix engine audit --audit-level=high --omit=dev",
     "audit:workspace-debt": "pnpm audit --audit-level=high",
     "check:replicate-rollout-manual-only": "node scripts/check-replicate-rollout-manual-only.mjs",
-    "test:adam-digital-human-authority": "node scripts/test-adam-digital-human-authority.mjs"
+    "test:adam-digital-human-authority": "node scripts/test-adam-digital-human-authority.mjs",
+    "test:founder-move-ai-contract": "node scripts/test-founder-move-ai-contract.mjs"
   },
   "pnpm": {
     "overrides": {
