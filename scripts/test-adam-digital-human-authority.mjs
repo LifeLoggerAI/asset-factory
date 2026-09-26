@@ -59,7 +59,16 @@ assert.equal(retry.audioContract?.audioDisposition, 'REJECT_FOR_CANONICAL_USE');
 assert.equal(retry.visualQa?.promotionAllowed, false);
 assert.equal(retry.canonicalCandidate, false);
 
-assert.equal(motion.captureGap.newCaptureRequiredForGoldMaster, true);
+assert.equal(motion.captureGap.recoveredMotionArchiveExists, true);
+assert.equal(motion.captureGap.recoveredMotionArchiveMappedToAdam, false);
+assert.equal(motion.captureGap.newCaptureRequiredForGoldMaster, false);
+assert.ok(motion.captureGap.newCaptureRequirement.includes('CONDITIONAL'));
+const recoveredMotion = sources.sources.find((x) => x.assetKey === 'adam-jacob-motion-001');
+assert.equal(recoveredMotion?.class, 'REAL_MOTION_PRIVATE');
+assert.equal(recoveredMotion?.byteSize, 731725257);
+assert.equal(recoveredMotion?.subjects?.personToFrameMapping, 'PENDING_VISUAL_EXTRACTION');
+assert.equal(recoveredMotion?.subjects?.facialRecognitionAllowed, false);
+assert.equal(recoveredMotion?.extractionState?.rawTransferBlockedByConnectorLimit, true);
 assert.equal(motion.promotionAuthorized, false);
 assert.equal(handoff.spatialMutationAuthorized, false);
 assert.equal(handoff.release.publicReleaseAuthorized, false);
