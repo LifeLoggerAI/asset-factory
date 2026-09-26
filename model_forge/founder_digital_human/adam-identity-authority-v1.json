@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "urai-adam-identity-authority-v1",
+  "status": "source-authority-established-production-model-pending",
+  "subject": {
+    "displayName": "Adam Clamp",
+    "role": "Founder, Steward and System Architect",
+    "product": "UrAi"
+  },
+  "authorityClasses": {
+    "currentAdult": {
+      "assetKey": "adam-current-adult-canonical-video-v1",
+      "classification": "REAL_CAPTURE_PRIVATE",
+      "use": "PRIMARY_LAUNCH_LIKENESS_AUTHORITY",
+      "sha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60",
+      "container": "mp4",
+      "video": {
+        "codec": "h264",
+        "width": 368,
+        "height": 656,
+        "fps": 30,
+        "durationSeconds": 6.266667,
+        "bytes": 514118,
+        "audioTrackPresent": false
+      },
+      "dateCaveat": "Historical capture selected by the subject as current-adult likeness authority; capture date is not asserted as 2026.",
+      "identityUse": [
+        "facial structure",
+        "hair and facial-hair presentation when visible",
+        "glasses when visible",
+        "neck tattoo placement and character when visible",
+        "current-adult appearance"
+      ],
+      "limitations": [
+        "portrait-resolution source",
+        "short duration",
+        "no embedded audio",
+        "not sufficient by itself for full-body motion Gold Master",
+        "not sufficient by itself for multi-view high-resolution head reconstruction"
+      ]
+    },
+    "historical": {
+      "assetKey": "adam-age-19-canonical-photo-v1",
+      "classification": "REAL_CAPTURE_PRIVATE",
+      "use": "HISTORICAL_ONLY",
+      "sha256": "527fb2f79fb9f5b35755e3e60792096730eb2c15bbaeb911e022b13212e05604",
+      "rule": "Never substitute historical Adam for current-adult launch identity."
+    },
+    "generatedDerived": {
+      "classification": "SYNTHETIC_OR_DERIVED",
+      "use": "CANDIDATE_ONLY",
+      "rule": "No generated or reconstructed result can supersede real-source identity authority without literal comparison, provenance, and human approval."
+    }
+  },
+  "identityRules": [
+    "Do not beautify or genericize the subject.",
+    "Preserve visible asymmetry and distinguishing features.",
+    "Do not invent tattoo detail beyond visible evidence.",
+    "Do not infer biometric identity from unrelated images.",
+    "Do not expose private source media in public GitHub or client bundles.",
+    "All derivatives must retain source hash lineage and synthetic/real classification."
+  ],
+  "goldMaster": false
+}
