@@ -72,7 +72,7 @@
     "detailed hands with scale",
     "unseen tattoo continuation where genuinely unresolved",
     "neutral daylight eye/skin calibration",
-    "dedicated Adam full-body motion"
+    "provenance-mapped extraction of recovered full-body gait/posture/gesture source, or fallback capture only if insufficient"
   ],
   "goldMaster": false,
   "reconstructionLineage": {
@@ -166,5 +166,17 @@
     "computeState": "REALITYSCAN_NOT_RUN",
     "wrapState": "NOT_STARTED",
     "productionTransferAllowed": false
+  },
+  "motionAuthority": {
+    "sourceKey": "ADAM-JACOB-MOTION-001",
+    "sourceState": "RECOVERED_VERIFIED_PRIVATE",
+    "originalBytes": 731725257,
+    "extractionState": "BLOCKED_BY_CONNECTED_DRIVE_268435456_BYTE_RAW_TRANSFER_CEILING",
+    "subjectCount": 2,
+    "identityBasis": "source correspondence metadata",
+    "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+    "facialRecognitionAllowed": false,
+    "newAdamGaitCapture": "CONDITIONAL_FALLBACK_ONLY",
+    "promotionAllowed": false
   }
 }
