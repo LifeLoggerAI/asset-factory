@@ -33,7 +33,7 @@
       "provider": "Runway",
       "operation": "identity-preserving-natural-motion-challenger",
       "taskId": "7bc3fa97-8779-485c-982a-6f1b596fb74a",
-      "result": "PENDING",
+      "result": "FAILED_INPUT_VALIDATION",
       "requestedDurationSeconds": 6,
       "resolution": "1080p",
       "audioGeneration": false,
@@ -48,7 +48,18 @@
         "gaze realism",
         "head/shoulder motion realism"
       ],
-      "claim": "Generation accepted, not yet visually certified."
+      "claim": "Generation accepted, not yet visually certified.",
+      "error": "reference video width 368px is below provider minimum 700px",
+      "canonicalCandidate": false
+    },
+    {
+      "provider": "Runway",
+      "operation": "content-preserving-source-upscale",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "taskId": "b67758e1-94a6-4d96-b25c-2cffb1f1b193",
+      "result": "RUNNING",
+      "purpose": "Raise source width above provider minimum without changing identity, motion, style or duration before retrying the motion challenger.",
+      "canonicalCandidate": false
     }
   ]
 }
