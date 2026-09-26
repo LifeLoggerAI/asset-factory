@@ -7,6 +7,7 @@ const sources = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digit
 const receipt = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/provider-execution-receipt-v1.json', import.meta.url), 'utf8'));
 const motion = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rig-motion-contract-v1.json', import.meta.url), 'utf8'));
 const handoff = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-spatial-handoff-v1.json', import.meta.url), 'utf8'));
+const presentation = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rested-neutral-qa-v1.json', import.meta.url), 'utf8'));
 
 assert.equal(identity.schemaVersion, 'urai-adam-identity-authority-v1');
 assert.equal(identity.goldMaster, false);
@@ -15,6 +16,9 @@ assert.equal(identity.authorityClasses.currentAdult.use, 'PRIMARY_LAUNCH_LIKENES
 assert.equal(identity.authorityClasses.currentAdult.sha256, 'd89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60');
 assert.equal(identity.authorityClasses.currentAdult.video.audioTrackPresent, false);
 assert.equal(identity.authorityClasses.generatedDerived.use, 'CANDIDATE_ONLY');
+assert.equal(identity.presentationAuthority.target, 'CURRENT_ADULT_RESTED_NEUTRAL');
+assert.ok(identity.presentationAuthority.transientCaptureStatesMustNotBecomeIdentityTruth.includes('slumped or exhausted posture'));
+assert.ok(identity.presentationAuthority.captureTimingRule.includes('can wait until Adam is rested enough'));
 
 assert.equal(providers.schemaVersion, 'urai-adam-digital-human-provider-matrix-v1');
 assert.equal(providers.promotionAuthorized, false);
@@ -48,5 +52,12 @@ assert.equal(motion.captureGap.newCaptureRequiredForGoldMaster, true);
 assert.equal(motion.promotionAuthorized, false);
 assert.equal(handoff.spatialMutationAuthorized, false);
 assert.equal(handoff.release.publicReleaseAuthorized, false);
+assert.equal(presentation.schemaVersion, 'urai-adam-rested-neutral-qa-v1');
+assert.equal(presentation.target, 'CURRENT_ADULT_RESTED_NEUTRAL');
+assert.equal(presentation.cameraQa.rejectCloseUltraWidePerspective, true);
+assert.equal(presentation.bodyQa.singleFrameBodyVolumeAuthority, false);
+assert.equal(presentation.bodyQa.generatedBodyMayOverrideRealEvidence, false);
+assert.equal(presentation.faceQa.fatigueExpressionMayDefineCanonicalNeutral, false);
+assert.equal(presentation.promotionAuthorized, false);
 
 console.log('Adam digital-human authority contract passed');
