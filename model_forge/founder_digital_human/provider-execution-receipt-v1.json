@@ -127,7 +127,7 @@
       "taskId": "45ed13f2-7713-41a5-95d4-78645f1cf52f",
       "inputAssetKey": "adam-a0-front-neutral-real-photo",
       "inputSha256": "639d86879a9b011c04ae61603de208c5d1d80b328fc897092328347060cb2573",
-      "result": "RUNNING",
+      "result": "OUTPUT_GENERATED_QA_BLOCKED",
       "outputKind": "image",
       "requestedPresentation": "CURRENT_ADULT_RESTED_LEANER_CANON",
       "canonicalCandidate": false,
@@ -145,7 +145,16 @@
         "neck/tattoos",
         "age preservation",
         "no generic beautification"
-      ]
+      ],
+      "output": {
+        "kind": "image",
+        "aspectRatio": "3:4"
+      },
+      "visualQa": {
+        "status": "BLOCKED_EXECUTION_SURFACE_ARTIFACT_FETCH",
+        "reason": "Provider-hosted signed image URL is not retrievable by the current model/container/web execution surfaces for literal pixel comparison.",
+        "promotionAllowed": false
+      }
     }
   ]
 }
