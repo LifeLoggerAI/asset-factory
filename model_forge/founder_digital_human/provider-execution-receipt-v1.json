@@ -169,6 +169,31 @@
       "rawPrivateIdsCommitted": false,
       "canonicalCandidate": false,
       "claim": "Curated real-source reconstruction input is durably stored; RealityScan/Wrap compute has not run."
+    },
+    {
+      "provider": "UrAi private source archive",
+      "operation": "verify-recovered-private-gait-archive",
+      "result": "PASS_WITH_EXTRACTION_BLOCKER",
+      "sourceKey": "ADAM-JACOB-MOTION-001",
+      "sourceClass": "REAL_MOTION_PRIVATE",
+      "byteSize": 731725257,
+      "mimeType": "video/quicktime",
+      "ownership": "PRIVATE_OWNER_ONLY",
+      "archiveState": "RECOVERED_VERIFIED",
+      "subjectCount": 2,
+      "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+      "identityBasis": "source correspondence metadata",
+      "facialRecognitionUsed": false,
+      "productionSafeProxyPresent": false,
+      "calibrationOutputsPresent": false,
+      "rawDownloadAttempt": {
+        "result": "BLOCKED_BY_CONNECTOR_TRANSFER_LIMIT",
+        "sourceBytes": 731725257,
+        "connectorLimitBytes": 268435456
+      },
+      "policy": "Analyze recovered source before requesting replacement Adam gait capture. Do not promote Adam-specific motion until provenance-safe subject mapping and visual extraction pass.",
+      "canonicalCandidate": false,
+      "publicReleaseAuthorized": false
     }
   ]
 }
