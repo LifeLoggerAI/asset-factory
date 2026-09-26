@@ -16,5 +16,8 @@ assert.equal(full.moveAiCaptureGuidance.cameraLocked,true);
 assert.equal(full.moveAiCaptureGuidance.singleActor,true);
 assert.equal(c.uploadPolicy.originalsUntouched,true);
 assert.equal(c.uploadPolicy.publicGithubRawMedia,false);
+assert.equal(c.measurements.blockingForFinalScale,true);
+assert.ok(c.measurements.requiredLater.includes('barefoot measured height'));
+assert.ok(c.measurements.presentationTarget.includes('approximately 20 lb leaner/rested direction'));
 assert.equal(c.goldMasterBlockedUntilCapture,true);
 console.log('Adam capture unblock contract passed');
