@@ -85,7 +85,8 @@
     "check:replicate-rollout-manual-only": "node scripts/check-replicate-rollout-manual-only.mjs",
     "test:adam-digital-human-authority": "node scripts/test-adam-digital-human-authority.mjs",
     "test:founder-move-ai-contract": "node scripts/test-founder-move-ai-contract.mjs",
-    "test:adam-capture-unblock": "node scripts/test-adam-capture-unblock.mjs"
+    "test:adam-capture-unblock": "node scripts/test-adam-capture-unblock.mjs",
+    "test:adam-runtime-foundation": "node scripts/test-adam-preserved-runtime-foundation.mjs"
   },
   "pnpm": {
     "overrides": {
