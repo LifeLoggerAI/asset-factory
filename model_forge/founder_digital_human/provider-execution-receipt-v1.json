@@ -57,9 +57,38 @@
       "operation": "content-preserving-source-upscale",
       "inputAssetKey": "adam-current-adult-canonical-video-v1",
       "taskId": "b67758e1-94a6-4d96-b25c-2cffb1f1b193",
-      "result": "RUNNING",
+      "result": "PASS",
       "purpose": "Raise source width above provider minimum without changing identity, motion, style or duration before retrying the motion challenger.",
-      "canonicalCandidate": false
+      "canonicalCandidate": false,
+      "output": {
+        "width": 1472,
+        "height": 2624,
+        "durationSeconds": 6.266667
+      },
+      "claim": "Content-preserving upscale completed; not itself a canonical avatar artifact."
+    },
+    {
+      "provider": "Runway",
+      "operation": "identity-preserving-natural-motion-challenger-retry",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1-upscaled-private",
+      "taskId": "4cf28ecf-dfdb-4482-b20a-9d7781308073",
+      "result": "PENDING",
+      "durationSeconds": 6,
+      "resolution": "1080p",
+      "audioGeneration": false,
+      "creditsObservedAfterSubmission": 9383,
+      "canonicalCandidate": false,
+      "qaRequired": [
+        "identity drift",
+        "age drift",
+        "tattoo drift",
+        "glasses drift",
+        "skin temporal consistency",
+        "blink realism",
+        "gaze realism",
+        "head-shoulder timing",
+        "background/frame preservation"
+      ]
     }
   ]
 }
