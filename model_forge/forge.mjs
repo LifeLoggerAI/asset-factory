@@ -664,8 +664,13 @@ async function main() {
     });
   }
   runReceipt.completedAt = new Date().toISOString();
+  runReceipt.completedCandidates = runReceipt.providers.filter((entry) => entry.status === 'candidate-structurally-valid').length;
+  runReceipt.status = runReceipt.completedCandidates === providers.length ? 'completed' : (runReceipt.completedCandidates > 0 ? 'partial' : 'failed');
   fs.writeFileSync(path.join(runRoot, 'run-receipt.json'), `${JSON.stringify(runReceipt, null, 2)}\n`);
   console.log(JSON.stringify(runReceipt, null, 2));
+  // Keep the failure receipt, but never let a caller mistake skipped/failed
+  // providers for successful manufacture merely because the CLI returned.
+  if (runReceipt.status !== 'completed') process.exitCode = 1;
 }
 
 main().catch((error) => {
