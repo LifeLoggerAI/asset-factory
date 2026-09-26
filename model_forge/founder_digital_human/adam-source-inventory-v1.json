@@ -162,5 +162,53 @@
     "glasses-off frontal head authority",
     "opposing real profile views",
     "multi-view head coverage sufficient for dedicated reconstruction/sculpt work"
-  ]
+  ],
+  "privatePackageRecovery": {
+    "status": "VERIFIED_RECOVERED",
+    "packageKey": "adam-v9-precompute-current-private",
+    "parentSha256": "abfbc44f1639bff38240dc226886199c6fefd6243d63998715dec2a17ac28f2b",
+    "archiveIntegrity": "PASS",
+    "recoveredA0Video": {
+      "assetKey": "adam-a0-real-video-20260915-210531",
+      "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "bytes": 129175854,
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "durationSeconds": 59.725133,
+      "audio": "AAC 48kHz stereo",
+      "byteVerified": true
+    },
+    "recoveredRealPhotoViews": [
+      {
+        "role": "FRONT_NEUTRAL",
+        "sha256": "639d86879a9b011c04ae61603de208c5d1d80b328fc897092328347060cb2573"
+      },
+      {
+        "role": "RIGHT_45",
+        "sha256": "a21e8a1b7d7c9e7a70204c5b7423cc2f361c2d5ed42599bef1383faf5d55fad1"
+      },
+      {
+        "role": "LEFT_45",
+        "sha256": "9621020038311851783f612810027f8afa130ea66cff3f472612553bf3561556"
+      },
+      {
+        "role": "RIGHT_PROFILE",
+        "sha256": "d6f0b84099849cb96653d358c5914c936ce6e9584fccbe11e2c478af35866a1a"
+      },
+      {
+        "role": "LEFT_PROFILE",
+        "sha256": "9f9f4c252f881c92eb870b48406b6d45fcd2d0a78e4ad7d78b922d9a095fa020"
+      },
+      {
+        "role": "REAR_RIGHT_CRANIUM_EAR",
+        "sha256": "69baa51f1a5e0bad52c684a65a9bf1908c300622aa4cba8b1f4083b0914fb76b"
+      },
+      {
+        "role": "REAR_LEFT_NECK_CRANIUM",
+        "sha256": "bdc7919548e8318bb28144bcca634254ed03043e2d32c8850f5ef3ae2626adb7"
+      }
+    ],
+    "rule": "Raw A0 media remains private. Public GitHub records hashes/technical truth only."
+  }
 }
