@@ -16,9 +16,11 @@ assert.equal(identity.authorityClasses.currentAdult.use, 'PRIMARY_LAUNCH_LIKENES
 assert.equal(identity.authorityClasses.currentAdult.sha256, 'd89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60');
 assert.equal(identity.authorityClasses.currentAdult.video.audioTrackPresent, false);
 assert.equal(identity.authorityClasses.generatedDerived.use, 'CANDIDATE_ONLY');
-assert.equal(identity.presentationAuthority.target, 'CURRENT_ADULT_RESTED_NEUTRAL');
+assert.equal(identity.presentationAuthority.target, 'CURRENT_ADULT_RESTED_LEANER_CANON');
 assert.ok(identity.presentationAuthority.transientCaptureStatesMustNotBecomeIdentityTruth.includes('slumped or exhausted posture'));
 assert.ok(identity.presentationAuthority.captureTimingRule.includes('can wait until Adam is rested enough'));
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.hashBackedAuthorityFilename, '20260915_210531.mp4');
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.olderHandoffAlsoReferences, '20260915_181658.mp4');
 
 assert.equal(providers.schemaVersion, 'urai-adam-digital-human-provider-matrix-v1');
 assert.equal(providers.promotionAuthorized, false);
@@ -37,7 +39,13 @@ assert.equal(sources.rules.rawPrivateDriveIdsInGitHub, false);
 assert.equal(sources.rules.generatedOutputMayBecomeIdentityTruthAutomatically, false);
 assert.equal(sources.rules.holdoutMayBeUsedForTraining, false);
 assert.equal(sources.sources.find((x) => x.assetKey === 'adam-current-adult-canonical-video-v1')?.coverage?.fullBody, false);
-assert.ok(sources.missingGoldMasterInputs.includes('current-adult high-resolution multi-view head capture'));
+assert.ok(!sources.missingGoldMasterInputs.includes('current-adult high-resolution multi-view head capture'));
+assert.ok(sources.resolvedSinceInitialPass.includes('multi-view head coverage sufficient for dedicated reconstruction/sculpt work'));
+const a0Video = sources.sources.find((x) => x.assetKey === 'adam-a0-real-video-20260915-210531');
+assert.equal(a0Video?.technical?.width, 1920);
+assert.equal(a0Video?.technical?.height, 1080);
+assert.equal(a0Video?.technical?.durationSeconds, 59.725);
+assert.equal(a0Video?.sha256, '1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4');
 
 const retry = receipt.events.find((x) => x.taskId === '4cf28ecf-dfdb-4482-b20a-9d7781308073');
 assert.ok(retry, 'missing corrected Runway challenger receipt');
