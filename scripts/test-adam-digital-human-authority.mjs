@@ -8,6 +8,7 @@ const receipt = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digit
 const motion = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rig-motion-contract-v1.json', import.meta.url), 'utf8'));
 const handoff = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-spatial-handoff-v1.json', import.meta.url), 'utf8'));
 const presentation = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rested-neutral-qa-v1.json', import.meta.url), 'utf8'));
+const referenceV2 = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-reference-authority-v2.json', import.meta.url), 'utf8'));
 
 assert.equal(identity.schemaVersion, 'urai-adam-identity-authority-v1');
 assert.equal(identity.goldMaster, false);
@@ -72,5 +73,15 @@ assert.equal(presentation.presentationDirection.classification, 'ART_DIRECTION_N
 assert.ok(presentation.presentationDirection.prohibit.includes('bodybuilder transformation'));
 assert.ok(presentation.presentationDirection.prohibit.includes('anatomically unsupported slimming'));
 assert.equal(presentation.promotionAuthorized, false);
+
+assert.equal(referenceV2.schemaVersion, 'urai-adam-reference-authority-v2');
+assert.equal(referenceV2.status, 'REFERENCE_GOLD_MASTER_CONDITIONAL');
+assert.equal(referenceV2.currentAdult.buildReadyForHeadAndUpperBody, true);
+assert.equal(referenceV2.currentAdult.heroFreezeReady, false);
+assert.equal(referenceV2.currentAdult.a0Video.sha256, '1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4');
+assert.equal(referenceV2.currentAdult.filenameConflict.resolution, 'UNRESOLVED_ALIAS_DO_NOT_ASSUME_SAME_FILE');
+assert.ok(referenceV2.existingBuildHistory.rejectedHeadCandidates.every((x) => x.result === 'REJECTED_IDENTITY_GATE'));
+assert.ok(referenceV2.existingBuildHistory.rule.includes('must never be promoted'));
+assert.equal(referenceV2.goldMaster, false);
 
 console.log('Adam digital-human authority contract passed');
