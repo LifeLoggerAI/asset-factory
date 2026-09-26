@@ -11,6 +11,7 @@ on:
       - 'scripts/test-adam-digital-human-authority.mjs'
       - 'scripts/test-founder-move-ai-contract.mjs'
       - 'scripts/test-adam-capture-unblock.mjs'
+      - 'scripts/test-adam-preserved-runtime-foundation.mjs'
       - 'docs/contracts/ADAM_CAPTURE_UNBLOCK_V1.md'
       - 'assetfactory-studio/lib/server/founderMoveAiRuntime.ts'
       - 'package.json'
@@ -31,3 +32,4 @@ jobs:
       - run: npm run test:adam-digital-human-authority
       - run: npm run test:founder-move-ai-contract
       - run: npm run test:adam-capture-unblock
+      - run: npm run test:adam-runtime-foundation
