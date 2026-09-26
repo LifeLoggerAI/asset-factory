@@ -10,6 +10,8 @@ on:
       - 'docs/contracts/ADAM_DIGITAL_HUMAN_V1.md'
       - 'scripts/test-adam-digital-human-authority.mjs'
       - 'scripts/test-founder-move-ai-contract.mjs'
+      - 'scripts/test-adam-capture-unblock.mjs'
+      - 'docs/contracts/ADAM_CAPTURE_UNBLOCK_V1.md'
       - 'assetfactory-studio/lib/server/founderMoveAiRuntime.ts'
       - 'package.json'
       - '.github/workflows/adam-digital-human-authority.yml'
@@ -28,3 +30,4 @@ jobs:
           node-version: '22'
       - run: npm run test:adam-digital-human-authority
       - run: npm run test:founder-move-ai-contract
+      - run: npm run test:adam-capture-unblock
