@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "urai-adam-preserved-runtime-foundation-v1",
+  "status": "STRUCTURALLY_VALIDATED_LIKENESS_NOT_ACCEPTED",
+  "sourceAuthority": "V9_RUNTIME_PRESERVATION_RECEIPT",
+  "identityBoundary": "The preserved GLBs are a technical runtime/rig/LOD foundation only. Their current head geometry is not accepted as Adam likeness authority.",
+  "skeleton": {
+    "jointCount": 61,
+    "fullFingerChains": true,
+    "root": "AdamAvatarRoot"
+  },
+  "morphs": [
+    "blink_L",
+    "blink_R",
+    "jaw_open",
+    "smile_subtle"
+  ],
+  "animations": [
+    "adam_idle",
+    "adam_idle_shift",
+    "adam_look_left",
+    "adam_look_right",
+    "adam_turn_45_left",
+    "adam_turn_45_right",
+    "adam_turn_90_left",
+    "adam_turn_90_right",
+    "adam_turn_180",
+    "adam_walk",
+    "adam_walk_stop",
+    "adam_step_reorient",
+    "adam_reach",
+    "adam_sit",
+    "adam_stand"
+  ],
+  "lods": [
+    {
+      "lod": 0,
+      "file": "urai-adam-avatar-lod0.glb",
+      "triangles": 140535,
+      "bytes": 13231696,
+      "sha256": "e360ddb440ea49c18e20bc13f4c95c8696d38ae708b47e2ec08c36aee3d78eff"
+    },
+    {
+      "lod": 1,
+      "file": "urai-adam-avatar-lod1.glb",
+      "triangles": 80982,
+      "bytes": 10346844,
+      "sha256": "12b9ae1a6b59a5cd5582de8fda2c38334dc4f104b2e79c02415062a64399278d"
+    },
+    {
+      "lod": 2,
+      "file": "urai-adam-avatar-lod2.glb",
+      "triangles": 37744,
+      "bytes": 8192480,
+      "sha256": "4dbc18256c22978c10dc07a7642e8fae59efbaaf528ee12abadbce7c56300c24"
+    },
+    {
+      "lod": 3,
+      "file": "urai-adam-avatar-lod3.glb",
+      "triangles": 17552,
+      "bytes": 7227112,
+      "sha256": "ada7b57d3f27fe3471694497e5ff2359d9c7eb88a057a2cc7fc1807f314e7935"
+    }
+  ],
+  "runtimeDeploymentPaths": [
+    "/assets/urai/avatar/adam/urai-adam-avatar-lod0.glb",
+    "/assets/urai/avatar/adam/urai-adam-avatar-lod1.glb",
+    "/assets/urai/avatar/adam/urai-adam-avatar-lod2.glb",
+    "/assets/urai/avatar/adam/urai-adam-avatar-lod3.glb"
+  ],
+  "preservedArchitecture": [
+    "skinning",
+    "full finger chains",
+    "15 animation API",
+    "four LOD contract",
+    "R3F/useGLTF/useAnimations contract",
+    "body and wardrobe framework"
+  ],
+  "replacementRule": {
+    "acceptedHeadRequiredBeforeTransfer": true,
+    "rejectedHeads": [
+      "V5 procedural/analytic head",
+      "V6 A0 constrained sculpt",
+      "V6B A0 profile/front constrained sculpt",
+      "V7 3DDFA/BFM candidate",
+      "V7 COLMAP sparse candidate"
+    ],
+    "rule": "Replace/refine the likeness head and identity-sensitive surface assets only after a naked five-view head passes literal A0 comparison. Preserve the runtime contract unless a measured production reason requires a versioned change."
+  },
+  "publicReleaseAuthorized": false,
+  "goldMaster": false
+}
