@@ -1,5 +1,11 @@
 type JsonRecord = Record<string, unknown>;
 
+function jsonRecord(value: unknown): JsonRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonRecord
+    : {};
+}
+
 export type MoveAiSingleCameraInput = {
   video: Buffer;
   filename: string;
@@ -72,8 +78,8 @@ async function graphql<T extends JsonRecord>(apiKey: string, query: string, vari
     signal: timeoutSignal(),
   });
   const raw = await response.text();
-  let body: any;
-  try { body = raw ? JSON.parse(raw) : {}; } catch { body = { raw }; }
+  let body: JsonRecord;
+  try { body = raw ? jsonRecord(JSON.parse(raw)) : {}; } catch { body = { raw }; }
   if (!response.ok) throw new Error(`Move AI request failed ${response.status}: ${raw.slice(0, 1000)}`);
   if (Array.isArray(body.errors) && body.errors.length) {
     throw new Error(`Move AI GraphQL error: ${JSON.stringify(body.errors).slice(0, 1500)}`);
@@ -151,7 +157,7 @@ export async function createMoveAiSingleCameraJob(takeId: string) {
 
 export async function getMoveAiJob(jobId: string): Promise<MoveAiJobSnapshot> {
   const apiKey = requireMoveAiExecutionAuthority();
-  const data = await graphql<{ job?: any }>(
+  const data = await graphql<{ job?: JsonRecord }>(
     apiKey,
     `query GetJob($jobId: ID!) {
       job: getJob(jobId: $jobId) {
@@ -163,19 +169,21 @@ export async function getMoveAiJob(jobId: string): Promise<MoveAiJobSnapshot> {
     }`,
     { jobId }
   );
-  const job = data.job ?? {};
+  const job = jsonRecord(data.job);
+  const progress = jsonRecord(job.progress);
   const outputs = Array.isArray(job.outputs)
-    ? job.outputs.flatMap((entry: any) => {
-        const url = entry?.file?.presignedUrl;
+    ? job.outputs.flatMap((value: unknown) => {
+        const entry = jsonRecord(value);
+        const url = jsonRecord(entry.file).presignedUrl;
         if (typeof url !== 'string' || !url.startsWith('https://')) return [];
         return [{ key: String(entry?.key ?? 'output'), url }];
       })
     : [];
   return {
     id: String(job.id ?? jobId),
-    state: typeof job.progress?.state === 'string' ? job.progress.state : typeof job.state === 'string' ? job.state : null,
-    percentageComplete: Number.isFinite(Number(job.progress?.percentageComplete))
-      ? Number(job.progress.percentageComplete)
+    state: typeof progress.state === 'string' ? progress.state : typeof job.state === 'string' ? job.state : null,
+    percentageComplete: Number.isFinite(Number(progress.percentageComplete))
+      ? Number(progress.percentageComplete)
       : null,
     outputs,
   };
