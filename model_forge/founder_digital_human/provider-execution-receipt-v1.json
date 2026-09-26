@@ -155,6 +155,20 @@
         "reason": "Provider-hosted signed image URL is not retrievable by the current model/container/web execution surfaces for literal pixel comparison.",
         "promotionAllowed": false
       }
+    },
+    {
+      "provider": "UrAi private storage",
+      "operation": "persist-v11-curated-realityscan-package",
+      "result": "PASS",
+      "packageSha256": "23cd98b9d52befc6fee5f0fd5a1eb63b10d1677ad9e496b456f12f36158d9736",
+      "packageBytes": 4440671,
+      "internalReceiptSha256": "ff08e666462a0155ca8b5773eec42d7f4d537b3ffa369a90b9986a03081687de",
+      "storage": "PRIVATE_GOOGLE_DRIVE",
+      "uraiDevPr": 23,
+      "uraiDevHead": "b80c0237d265d4af2bb6f6747a691bea85e47b92",
+      "rawPrivateIdsCommitted": false,
+      "canonicalCandidate": false,
+      "claim": "Curated real-source reconstruction input is durably stored; RealityScan/Wrap compute has not run."
     }
   ]
 }
