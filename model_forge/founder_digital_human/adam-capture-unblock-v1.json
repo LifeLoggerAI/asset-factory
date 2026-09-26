@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "urai-adam-capture-unblock-v1",
+  "status": "conditional-human-capture",
+  "purpose": "Close only the remaining physical-evidence gaps for final scale, lower-body anatomy, hands, hidden tattoo continuation, and any motion coverage still missing after extracting the recovered gait archive. Additional casual head capture is not required.",
+  "globalRules": {
+    "subject": "Adam Clamp",
+    "beautyFilter": false,
+    "aiVoice": false,
+    "backgroundMusic": false,
+    "rearCameraPreferred": true,
+    "lighting": "soft frontal light; avoid hard overhead shadows",
+    "background": "plain, uncluttered, no sensitive documents or identifiers",
+    "wardrobe": "current intended launch/founder appearance",
+    "preserveNaturalAppearance": true,
+    "restedNeutralPresentation": true,
+    "captureTiming": "No capture is required tonight. Record remaining body/motion evidence only when Adam is rested enough to represent the approved launch presentation.",
+    "posture": "upright, relaxed, natural; do not slouch for the identity pass",
+    "perspective": "avoid close wide-angle distortion; step back and use a normal/tele perspective when practical",
+    "transientStatePolicy": "temporary fatigue, eye shadows, puffiness, bloating, redness, slouching, and lens distortion are not canonical identity traits",
+    "bodyPresentationPolicy": "do not artificially slim or fitness-enhance; also do not let unflattering lens/posture/transient-state distortion make the canonical avatar look heavier than stable real-source evidence"
+  },
+  "clips": [
+    {
+      "id": "ADAM_FULL_BODY_MOCAP_V1",
+      "targetDurationSeconds": 90,
+      "minimumResolution": "1080p",
+      "minimumFps": 60,
+      "orientation": "landscape preferred for mocap",
+      "camera": "locked; full body centered; feet and hands continuously visible",
+      "sequence": [
+        "neutral standing 5 seconds",
+        "T-pose 3 seconds",
+        "relaxed idle 10 seconds",
+        "natural weight shifts 10 seconds",
+        "walk toward camera",
+        "walk away from camera",
+        "side walk left-to-right",
+        "side walk right-to-left",
+        "turn left and stop",
+        "turn right and stop",
+        "natural conversational gesture 15 seconds",
+        "clean start-stop-turn sequence"
+      ],
+      "moveAiCaptureGuidance": {
+        "singleActor": true,
+        "cameraLocked": true,
+        "actorCentered": true,
+        "fullHdMinimum": true,
+        "fpsRecommended": 60
+      },
+      "requirement": "CONDITIONAL_FALLBACK_ONLY",
+      "trigger": "Record only if recovered ADAM-JACOB-MOTION-001 does not provide sufficient Adam-specific gait/start-stop-turn/gesture coverage after provenance-safe extraction."
+    },
+    {
+      "id": "ADAM_HANDS_FACE_PERFORMANCE_V1",
+      "targetDurationSeconds": 60,
+      "minimumResolution": "2160p preferred; 1080p minimum",
+      "minimumFps": 60,
+      "camera": "eye-level, medium close-up",
+      "sequence": [
+        "palms visible",
+        "backs of hands visible",
+        "fingers open and close naturally",
+        "neutral listening",
+        "small smile",
+        "serious explanation",
+        "reflective pause",
+        "quiet speech",
+        "restrained excitement",
+        "natural blink and gaze changes"
+      ]
+    }
+  ],
+  "uploadPolicy": {
+    "destination": "private Founder Avatar / 01_REAL_REFERENCE and 06_MOTION lanes",
+    "originalsUntouched": true,
+    "derivativesSeparate": true,
+    "publicGithubRawMedia": false,
+    "hashEveryOriginal": true
+  },
+  "promotionRule": "Capture completion does not itself certify likeness, voice, motion or Gold Master. It unlocks reconstruction and literal QA.",
+  "goldMasterBlockedUntilCapture": false,
+  "optionalDeferredHeadPolish": {
+    "blocking": false,
+    "reason": "Existing A0 real photo + 59.725s 1080p video authority is sufficient for the next dedicated head reconstruction pass.",
+    "futureOnly": [
+      "neutral daylight iris/skin calibration",
+      "rear/crown hair macro if strand-level groom needs it",
+      "glasses macro if exact manufacturer geometry is required"
+    ]
+  },
+  "measurements": {
+    "blockingForFinalScale": true,
+    "requiredLater": [
+      "barefoot measured height",
+      "shoulder breadth",
+      "chest",
+      "natural waist",
+      "hips",
+      "neck",
+      "inseam",
+      "thigh",
+      "calf"
+    ],
+    "presentationTarget": "Project-approved approximately 20 lb leaner/rested direction is already locked; measured values remain required before final anatomical freeze."
+  },
+  "recoveredMotionFirst": {
+    "sourceKey": "ADAM-JACOB-MOTION-001",
+    "state": "RECOVERED_VERIFIED_EXTRACTION_PENDING",
+    "originalBytes": 731725257,
+    "currentTransferBlocker": "source exceeds connected Drive raw-download ceiling",
+    "rule": "Do not ask Adam to repeat walking/motion already present in the archive until extraction proves that coverage is insufficient.",
+    "personMapping": "source-correspondence/provenance only; no facial-recognition mapping"
+  },
+  "goldMasterBlockedUntilMotionAuthorityResolved": true
+}

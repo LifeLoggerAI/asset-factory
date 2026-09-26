@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "urai-adam-rig-motion-contract-v1",
+  "status": "prepared-recovered-motion-archive-extraction-pending",
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "rootJoint": "Hips",
+    "origin": "grounded-at-feet"
+  },
+  "bodyRig": {
+    "formatTargets": [
+      "FBX",
+      "glTF/GLB"
+    ],
+    "requiredChains": [
+      "root-pelvis-spine-chest-neck-head",
+      "left/right clavicle-shoulder-elbow-wrist-hand-fingers",
+      "left/right hip-knee-ankle-foot-toe"
+    ],
+    "requiredRuntimeFeatures": [
+      "root-motion",
+      "foot-lock",
+      "two-bone-IK",
+      "hand-contact-safe-retargeting",
+      "head-stabilization",
+      "facial-body-timebase-sync"
+    ]
+  },
+  "facialRig": {
+    "target": "FACS-compatible blendshape set",
+    "requiredControls": [
+      "jaw-open",
+      "jaw-left-right",
+      "lip-close",
+      "lip-funnel",
+      "lip-pucker",
+      "lip-corners",
+      "cheek-raise",
+      "brow-inner-up",
+      "brow-outer-up",
+      "brow-down",
+      "eye-blink-left-right",
+      "eye-squint-left-right",
+      "eye-wide-left-right",
+      "eye-look-directions"
+    ],
+    "visemeRule": "phoneme timing must drive coarticulated jaw/lip/cheek/tongue behavior; mouth-only animation is noncompliant"
+  },
+  "motionSourcePriority": [
+    "extract and provenance-map recovered ADAM-JACOB-MOTION-001 private source before requesting replacement gait footage",
+    "recorded Adam performance via verified Move AI or equivalent mocap only when recovered source is insufficient or for higher-fidelity replacement",
+    "recorded Adam performance manually solved/retargeted",
+    "generated motion only as temporary challenger and never as Adam-specific gait authority"
+  ],
+  "requiredGoldMasterClips": [
+    "neutral-standing",
+    "relaxed-idle",
+    "breathing",
+    "weight-shift",
+    "listening",
+    "thinking",
+    "conversational-speaking",
+    "small-gesture",
+    "emphasis-gesture",
+    "restrained-excitement",
+    "serious-explanation",
+    "reflective-pause",
+    "turn-left-right",
+    "walk-forward",
+    "walk-away",
+    "stop",
+    "sit-stand-if-runtime-needs"
+  ],
+  "captureGap": {
+    "currentHeadVideoIsFullBody": false,
+    "recoveredMotionArchiveExists": true,
+    "recoveredMotionArchivePotentiallyContainsGait": true,
+    "recoveredMotionArchiveMappedToAdam": false,
+    "newCaptureRequiredForGoldMaster": false,
+    "newCaptureRequirement": "CONDITIONAL_ONLY_AFTER_RECOVERED_ARCHIVE_EXTRACTION_OR_IF_REQUIRED_COVERAGE_IS_MISSING",
+    "motionGoldMasterRequires": "provenance-mapped Adam segments plus verified gait/posture/gesture extraction, or replacement capture if the archive proves insufficient"
+  },
+  "hardFailures": [
+    "foot-sliding",
+    "floating-hips",
+    "hand-popping",
+    "broken-wrist-elbow",
+    "neck-snapping",
+    "robotic-ease-curves",
+    "loop-visible-idle",
+    "voice-body-emotion-mismatch",
+    "face-body-timebase-drift"
+  ],
+  "promotionAuthorized": false,
+  "recoveredMotionArchive": {
+    "sourceKey": "ADAM-JACOB-MOTION-001",
+    "state": "RECOVERED_VERIFIED_EXTRACTION_BLOCKED_BY_TRANSFER_CEILING",
+    "byteSize": 731725257,
+    "connectorLimitBytes": 268435456,
+    "sourceSubjects": 2,
+    "identityBasis": "source correspondence metadata",
+    "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+    "originalUntouched": true,
+    "proxyPresent": false,
+    "calibrationOutputsPresent": false,
+    "publicReleaseAuthorized": false
+  }
+}

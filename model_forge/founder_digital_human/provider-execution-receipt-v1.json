@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "urai-adam-provider-execution-receipt-v1",
+  "timestampUtc": "2026-09-26T03:50:08Z",
+  "publicReleaseAuthorized": false,
+  "canonicalPromotionAuthorized": false,
+  "events": [
+    {
+      "provider": "HeyGen",
+      "operation": "founder-voice-clone",
+      "input": "private authorized founder voice sample",
+      "result": "BLOCKED",
+      "providerCode": "plan_upgrade_required",
+      "httpStatus": 402,
+      "claim": "No founder HeyGen voice clone exists."
+    },
+    {
+      "provider": "HeyGen",
+      "operation": "private-source-video-upload-slot",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "result": "UPLOAD_SLOT_CREATED_BYTES_NOT_TRANSFERRED",
+      "reason": "execution container could not resolve provider upload host",
+      "claim": "No HeyGen founder digital twin was created."
+    },
+    {
+      "provider": "Runway",
+      "operation": "private-reference-upload",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "result": "PASS",
+      "sourceSha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60",
+      "claim": "Private reference accepted by provider; source is not canonicalized by provider."
+    },
+    {
+      "provider": "Runway",
+      "operation": "identity-preserving-natural-motion-challenger",
+      "taskId": "7bc3fa97-8779-485c-982a-6f1b596fb74a",
+      "result": "FAILED_INPUT_VALIDATION",
+      "requestedDurationSeconds": 6,
+      "resolution": "1080p",
+      "audioGeneration": false,
+      "creditsObservedAfterSubmission": 9396,
+      "qaRequired": [
+        "identity drift",
+        "face geometry drift",
+        "tattoo drift",
+        "glasses drift",
+        "skin temporal consistency",
+        "blink realism",
+        "gaze realism",
+        "head/shoulder motion realism"
+      ],
+      "claim": "Generation accepted, not yet visually certified.",
+      "error": "reference video width 368px is below provider minimum 700px",
+      "canonicalCandidate": false
+    },
+    {
+      "provider": "Runway",
+      "operation": "content-preserving-source-upscale",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1",
+      "taskId": "b67758e1-94a6-4d96-b25c-2cffb1f1b193",
+      "result": "PASS",
+      "purpose": "Raise source width above provider minimum without changing identity, motion, style or duration before retrying the motion challenger.",
+      "canonicalCandidate": false,
+      "output": {
+        "width": 1472,
+        "height": 2624,
+        "durationSeconds": 6.266667
+      },
+      "claim": "Content-preserving upscale completed; not itself a canonical avatar artifact."
+    },
+    {
+      "provider": "Runway",
+      "operation": "identity-preserving-natural-motion-challenger-retry",
+      "inputAssetKey": "adam-current-adult-canonical-video-v1-upscaled-private",
+      "taskId": "4cf28ecf-dfdb-4482-b20a-9d7781308073",
+      "result": "OUTPUT_GENERATED_QA_BLOCKED",
+      "durationSeconds": 6,
+      "resolution": "1080p",
+      "audioGeneration": false,
+      "creditsObservedAfterSubmission": 9383,
+      "canonicalCandidate": false,
+      "qaRequired": [
+        "identity drift",
+        "age drift",
+        "tattoo drift",
+        "glasses drift",
+        "skin temporal consistency",
+        "blink realism",
+        "gaze realism",
+        "head-shoulder timing",
+        "background/frame preservation"
+      ],
+      "output": {
+        "width": 1076,
+        "height": 1920,
+        "durationSeconds": 6.375,
+        "hasAudio": true
+      },
+      "audioContract": {
+        "requestedAudioGeneration": false,
+        "providerReturnedAudioTrack": true,
+        "audioDisposition": "REJECT_FOR_CANONICAL_USE"
+      },
+      "visualQa": {
+        "status": "BLOCKED_EXECUTION_SURFACE_ARTIFACT_FETCH",
+        "reason": "The model execution container could not resolve the provider-hosted artifact domain for frame extraction.",
+        "promotionAllowed": false
+      }
+    },
+    {
+      "provider": "UrAi private source recovery",
+      "operation": "reassemble-and-verify-adam-v9-a0-package",
+      "result": "PASS",
+      "parentSha256": "abfbc44f1639bff38240dc226886199c6fefd6243d63998715dec2a17ac28f2b",
+      "archiveIntegrity": "PASS",
+      "recoveredVideoSha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "recoveredVideoBytes": 129175854,
+      "recoveredVideoDurationSeconds": 59.725133,
+      "recoveredVideoResolution": "1920x1080",
+      "sourceAuthority": "REAL_VIDEO_A0",
+      "publicSourceDisclosure": false,
+      "canonicalCandidate": false,
+      "claim": "Real A0 source bytes recovered and verified; this recovery does not itself create or certify a production avatar."
+    },
+    {
+      "provider": "Runway",
+      "operation": "a0-front-neutral-rested-leaner-likeness-challenger",
+      "taskId": "45ed13f2-7713-41a5-95d4-78645f1cf52f",
+      "inputAssetKey": "adam-a0-front-neutral-real-photo",
+      "inputSha256": "639d86879a9b011c04ae61603de208c5d1d80b328fc897092328347060cb2573",
+      "result": "OUTPUT_GENERATED_QA_BLOCKED",
+      "outputKind": "image",
+      "requestedPresentation": "CURRENT_ADULT_RESTED_LEANER_CANON",
+      "canonicalCandidate": false,
+      "promotionAllowed": false,
+      "qaRequired": [
+        "front identity",
+        "skull",
+        "eyes/orbits",
+        "nose",
+        "mouth",
+        "jaw/chin",
+        "ears",
+        "hairline",
+        "beard pattern",
+        "neck/tattoos",
+        "age preservation",
+        "no generic beautification"
+      ],
+      "output": {
+        "kind": "image",
+        "aspectRatio": "3:4"
+      },
+      "visualQa": {
+        "status": "BLOCKED_EXECUTION_SURFACE_ARTIFACT_FETCH",
+        "reason": "Provider-hosted signed image URL is not retrievable by the current model/container/web execution surfaces for literal pixel comparison.",
+        "promotionAllowed": false
+      }
+    },
+    {
+      "provider": "UrAi private storage",
+      "operation": "persist-v11-curated-realityscan-package",
+      "result": "PASS",
+      "packageSha256": "23cd98b9d52befc6fee5f0fd5a1eb63b10d1677ad9e496b456f12f36158d9736",
+      "packageBytes": 4440671,
+      "internalReceiptSha256": "ff08e666462a0155ca8b5773eec42d7f4d537b3ffa369a90b9986a03081687de",
+      "storage": "PRIVATE_GOOGLE_DRIVE",
+      "uraiDevPr": 23,
+      "uraiDevHead": "b80c0237d265d4af2bb6f6747a691bea85e47b92",
+      "rawPrivateIdsCommitted": false,
+      "canonicalCandidate": false,
+      "claim": "Curated real-source reconstruction input is durably stored; RealityScan/Wrap compute has not run."
+    },
+    {
+      "provider": "UrAi private source archive",
+      "operation": "verify-recovered-private-gait-archive",
+      "result": "PASS_WITH_EXTRACTION_BLOCKER",
+      "sourceKey": "ADAM-JACOB-MOTION-001",
+      "sourceClass": "REAL_MOTION_PRIVATE",
+      "byteSize": 731725257,
+      "mimeType": "video/quicktime",
+      "ownership": "PRIVATE_OWNER_ONLY",
+      "archiveState": "RECOVERED_VERIFIED",
+      "subjectCount": 2,
+      "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+      "identityBasis": "source correspondence metadata",
+      "facialRecognitionUsed": false,
+      "productionSafeProxyPresent": false,
+      "calibrationOutputsPresent": false,
+      "rawDownloadAttempt": {
+        "result": "BLOCKED_BY_CONNECTOR_TRANSFER_LIMIT",
+        "sourceBytes": 731725257,
+        "connectorLimitBytes": 268435456
+      },
+      "policy": "Analyze recovered source before requesting replacement Adam gait capture. Do not promote Adam-specific motion until provenance-safe subject mapping and visual extraction pass.",
+      "canonicalCandidate": false,
+      "publicReleaseAuthorized": false
+    }
+  ]
+}

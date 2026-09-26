@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const f=JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-preserved-runtime-foundation-v1.json', import.meta.url),'utf8'));
+assert.equal(f.schemaVersion,'urai-adam-preserved-runtime-foundation-v1');
+assert.equal(f.status,'STRUCTURALLY_VALIDATED_LIKENESS_NOT_ACCEPTED');
+assert.equal(f.skeleton.jointCount,61);
+assert.equal(f.skeleton.fullFingerChains,true);
+assert.equal(f.animations.length,15);
+assert.deepEqual(f.morphs,['blink_L','blink_R','jaw_open','smile_subtle']);
+assert.equal(f.lods.length,4);
+assert.equal(f.lods[0].sha256,'e360ddb440ea49c18e20bc13f4c95c8696d38ae708b47e2ec08c36aee3d78eff');
+assert.equal(f.lods[3].sha256,'ada7b57d3f27fe3471694497e5ff2359d9c7eb88a057a2cc7fc1807f314e7935');
+assert.equal(f.replacementRule.acceptedHeadRequiredBeforeTransfer,true);
+assert.ok(f.replacementRule.rejectedHeads.some((x)=>x.includes('V6B')));
+assert.equal(f.publicReleaseAuthorized,false);
+assert.equal(f.goldMaster,false);
+console.log('Adam preserved runtime foundation passed');

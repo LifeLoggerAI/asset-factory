@@ -1,0 +1,96 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const identity = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-identity-authority-v1.json', import.meta.url), 'utf8'));
+const providers = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-provider-matrix-v1.json', import.meta.url), 'utf8'));
+const sources = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-source-inventory-v1.json', import.meta.url), 'utf8'));
+const receipt = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/provider-execution-receipt-v1.json', import.meta.url), 'utf8'));
+const motion = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rig-motion-contract-v1.json', import.meta.url), 'utf8'));
+const handoff = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-spatial-handoff-v1.json', import.meta.url), 'utf8'));
+const presentation = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-rested-neutral-qa-v1.json', import.meta.url), 'utf8'));
+const referenceV2 = JSON.parse(fs.readFileSync(new URL('../model_forge/founder_digital_human/adam-reference-authority-v2.json', import.meta.url), 'utf8'));
+
+assert.equal(identity.schemaVersion, 'urai-adam-identity-authority-v1');
+assert.equal(identity.goldMaster, false);
+assert.equal(identity.authorityClasses.currentAdult.classification, 'REAL_CAPTURE_PRIVATE');
+assert.equal(identity.authorityClasses.currentAdult.use, 'PRIMARY_LAUNCH_LIKENESS_AUTHORITY');
+assert.equal(identity.authorityClasses.currentAdult.sha256, 'd89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60');
+assert.equal(identity.authorityClasses.currentAdult.video.audioTrackPresent, false);
+assert.equal(identity.authorityClasses.generatedDerived.use, 'CANDIDATE_ONLY');
+assert.equal(identity.presentationAuthority.target, 'CURRENT_ADULT_RESTED_LEANER_CANON');
+assert.ok(identity.presentationAuthority.transientCaptureStatesMustNotBecomeIdentityTruth.includes('slumped or exhausted posture'));
+assert.ok(identity.presentationAuthority.captureTimingRule.includes('can wait until Adam is rested enough'));
+assert.ok(identity.presentationAuthority.description.includes('approximately 20 lb leaner'));
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.rule.includes('Do not alias'), true);
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.hashBackedAuthorityFilename, '20260915_210531.mp4');
+assert.equal(identity.authorityClasses.currentAdult.sourceSet.filenameReconciliation.olderHandoffAlsoReferences, '20260915_181658.mp4');
+
+assert.equal(providers.schemaVersion, 'urai-adam-digital-human-provider-matrix-v1');
+assert.equal(providers.promotionAuthorized, false);
+assert.equal(providers.publicReleaseAuthorized, false);
+
+const byName = new Map(providers.providers.map((provider) => [provider.provider, provider]));
+assert.equal(byName.get('Runway')?.connection, 'AUTHENTICATED');
+assert.equal(byName.get('HeyGen')?.founderVoiceCloneAttempt?.result, 'BLOCKED');
+assert.equal(byName.get('HeyGen')?.founderVoiceCloneAttempt?.reason, 'plan_upgrade_required');
+assert.equal(byName.get('ElevenLabs')?.privateFounderVoiceId, null);
+assert.equal(byName.get('Meshy')?.identityFaceAuthority, false);
+assert.equal(byName.get('Tripo')?.identityFaceAuthority, false);
+assert.equal(byName.get('Rodin/Hyper3D')?.identityFaceAuthority, false);
+
+assert.equal(sources.rules.rawPrivateDriveIdsInGitHub, false);
+assert.equal(sources.rules.generatedOutputMayBecomeIdentityTruthAutomatically, false);
+assert.equal(sources.rules.holdoutMayBeUsedForTraining, false);
+assert.equal(sources.sources.find((x) => x.assetKey === 'adam-current-adult-canonical-video-v1')?.coverage?.fullBody, false);
+assert.ok(!sources.missingGoldMasterInputs.includes('current-adult high-resolution multi-view head capture'));
+assert.ok(sources.resolvedSinceInitialPass.includes('multi-view head coverage sufficient for dedicated reconstruction/sculpt work'));
+const a0Video = sources.sources.find((x) => x.assetKey === 'adam-a0-real-video-20260915-210531');
+assert.equal(a0Video?.technical?.width, 1920);
+assert.equal(a0Video?.technical?.height, 1080);
+assert.equal(a0Video?.technical?.durationSeconds, 59.725);
+assert.equal(a0Video?.sha256, '1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4');
+
+const retry = receipt.events.find((x) => x.taskId === '4cf28ecf-dfdb-4482-b20a-9d7781308073');
+assert.ok(retry, 'missing corrected Runway challenger receipt');
+assert.equal(retry.result, 'OUTPUT_GENERATED_QA_BLOCKED');
+assert.equal(retry.audioContract?.requestedAudioGeneration, false);
+assert.equal(retry.audioContract?.providerReturnedAudioTrack, true);
+assert.equal(retry.audioContract?.audioDisposition, 'REJECT_FOR_CANONICAL_USE');
+assert.equal(retry.visualQa?.promotionAllowed, false);
+assert.equal(retry.canonicalCandidate, false);
+
+assert.equal(motion.captureGap.recoveredMotionArchiveExists, true);
+assert.equal(motion.captureGap.recoveredMotionArchiveMappedToAdam, false);
+assert.equal(motion.captureGap.newCaptureRequiredForGoldMaster, false);
+assert.ok(motion.captureGap.newCaptureRequirement.includes('CONDITIONAL'));
+const recoveredMotion = sources.sources.find((x) => x.assetKey === 'adam-jacob-motion-001');
+assert.equal(recoveredMotion?.class, 'REAL_MOTION_PRIVATE');
+assert.equal(recoveredMotion?.byteSize, 731725257);
+assert.equal(recoveredMotion?.subjects?.personToFrameMapping, 'PENDING_VISUAL_EXTRACTION');
+assert.equal(recoveredMotion?.subjects?.facialRecognitionAllowed, false);
+assert.equal(recoveredMotion?.extractionState?.rawTransferBlockedByConnectorLimit, true);
+assert.equal(motion.promotionAuthorized, false);
+assert.equal(handoff.spatialMutationAuthorized, false);
+assert.equal(handoff.release.publicReleaseAuthorized, false);
+assert.equal(presentation.schemaVersion, 'urai-adam-rested-leaner-qa-v2');
+assert.equal(presentation.target, 'CURRENT_ADULT_RESTED_LEANER_CANON');
+assert.equal(presentation.cameraQa.rejectCloseUltraWidePerspective, true);
+assert.equal(presentation.bodyQa.singleFrameBodyVolumeAuthority, false);
+assert.equal(presentation.bodyQa.generatedBodyMayOverrideRealEvidence, false);
+assert.equal(presentation.faceQa.fatigueExpressionMayDefineCanonicalNeutral, false);
+assert.equal(presentation.presentationDirection.classification, 'ART_DIRECTION_NOT_CURRENT_WEIGHT_CLAIM');
+assert.ok(presentation.presentationDirection.prohibit.includes('bodybuilder transformation'));
+assert.ok(presentation.presentationDirection.prohibit.includes('anatomically unsupported slimming'));
+assert.equal(presentation.promotionAuthorized, false);
+
+assert.equal(referenceV2.schemaVersion, 'urai-adam-reference-authority-v2');
+assert.equal(referenceV2.status, 'REFERENCE_GOLD_MASTER_CONDITIONAL');
+assert.equal(referenceV2.currentAdult.buildReadyForHeadAndUpperBody, true);
+assert.equal(referenceV2.currentAdult.heroFreezeReady, false);
+assert.equal(referenceV2.currentAdult.a0Video.sha256, '1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4');
+assert.equal(referenceV2.currentAdult.filenameConflict.resolution, 'UNRESOLVED_ALIAS_DO_NOT_ASSUME_SAME_FILE');
+assert.ok(referenceV2.existingBuildHistory.rejectedHeadCandidates.every((x) => x.result === 'REJECTED_IDENTITY_GATE'));
+assert.ok(referenceV2.existingBuildHistory.rule.includes('must never be promoted'));
+assert.equal(referenceV2.goldMaster, false);
+
+console.log('Adam digital-human authority contract passed');

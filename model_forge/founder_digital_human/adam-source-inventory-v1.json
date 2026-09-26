@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "urai-adam-source-inventory-v1",
+  "status": "sanitized-public-manifest-private-sources-retained-in-drive",
+  "rules": {
+    "rawPrivateDriveIdsInGitHub": false,
+    "generatedOutputMayBecomeIdentityTruthAutomatically": false,
+    "holdoutMayBeUsedForTraining": false,
+    "historicalLikenessMayReplaceCurrentAdult": false
+  },
+  "sources": [
+    {
+      "assetKey": "adam-current-adult-canonical-video-v1",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "CURRENT_ADULT_PRIMARY",
+      "trainingEligibility": "REFERENCE_ONLY_UNLESS_EXPLICIT_PIPELINE_REQUIRES_DERIVATION",
+      "sha256": "d89d7e2e660ca4e60819ddd7600ed8bea0e32addaf6199f42319eb0414ac3b60",
+      "technical": {
+        "container": "mp4",
+        "codec": "h264",
+        "width": 368,
+        "height": 656,
+        "fps": 30,
+        "durationSeconds": 6.266667,
+        "audioTrackPresent": false,
+        "bytes": 514118
+      },
+      "coverage": {
+        "face": true,
+        "neckTattoo": true,
+        "upperTorso": true,
+        "fullBody": false,
+        "walk": false,
+        "hands": false,
+        "voice": false,
+        "multiViewHead": false
+      }
+    },
+    {
+      "assetKey": "adam-age-19-canonical-photo-v1",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "HISTORICAL_ONLY",
+      "trainingEligibility": "HISTORICAL_EXPERIENCES_ONLY",
+      "sha256": "527fb2f79fb9f5b35755e3e60792096730eb2c15bbaeb911e022b13212e05604"
+    },
+    {
+      "assetKey": "adam-founder-voice-elevenlabs-enrollment-v1",
+      "class": "REAL_AUDIO_PRIVATE",
+      "authority": "VOICE_TRAIN_ONLY",
+      "trainingEligibility": "AUTHORIZED_TRAIN",
+      "sha256": "a03c3d56918274f5dfe06a130c50a0142ca4e779a8da208b5cc773bb31787368",
+      "durationSeconds": 108.564898,
+      "holdoutIncluded": false,
+      "qaExcludedMaterialIncluded": false
+    },
+    {
+      "assetKey": "adam-founder-voice-master-corpus-v1",
+      "class": "REAL_AUDIO_PRIVATE",
+      "authority": "VOICE_CORPUS",
+      "trainingEligibility": "SPLIT_LOCKED",
+      "split": {
+        "trainClips": 412,
+        "trainSeconds": 2673.838,
+        "holdoutClips": 68,
+        "holdoutSeconds": 487.758,
+        "qaClips": 2,
+        "qaSeconds": 18.06
+      },
+      "rule": "Holdout and QA clips remain excluded from enrollment/training."
+    },
+    {
+      "assetKey": "adam-a0-real-video-20260915-210531",
+      "class": "REAL_CAPTURE_PRIVATE",
+      "authority": "CURRENT_ADULT_HEAD_NECK_MOTION",
+      "provenanceState": "HASH_BACKED_LIBRARY_AUTHORITY_RECORD",
+      "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "technical": {
+        "container": "mp4",
+        "codec": "h264",
+        "width": 1920,
+        "height": 1080,
+        "fps": 30,
+        "durationSeconds": 59.725,
+        "audio": "AAC 48kHz stereo",
+        "bytes": 129175854
+      },
+      "coverage": {
+        "front": true,
+        "threeQuarter": true,
+        "profiles": true,
+        "rearLateral": true,
+        "underChin": true,
+        "glassesOn": true,
+        "glassesOff": true,
+        "ears": true,
+        "hairline": true,
+        "crown": true,
+        "neckTattoo": true,
+        "fullBody": false,
+        "gait": false,
+        "hands": false
+      },
+      "rule": "Use for head/neck likeness and natural head-turn evidence; do not infer full-body scale or gait."
+    },
+    {
+      "assetKey": "adam-supplemental-a0-real-photo-set-20260915",
+      "class": "REAL_CAPTURE_PRIVATE_SET",
+      "authority": "CURRENT_ADULT_MULTI_VIEW_HEAD",
+      "provenanceState": "LIBRARY_AUTHORITY_RECORD",
+      "coverage": {
+        "frontNeutralGlassesOff": true,
+        "rightProfile": true,
+        "rightThreeQuarter": true,
+        "leftThreeQuarter": true,
+        "leftProfile": true,
+        "rearSideHairEar": true,
+        "neckTattoo": true
+      },
+      "rule": "Real photos supersede generated references wherever anatomy is directly visible."
+    },
+    {
+      "assetKey": "adam-approved-rested-leaner-presentation-anchor-v1",
+      "class": "SYNTHETIC_OR_DERIVED_PRESENTATION_REFERENCE",
+      "authority": "PRESENTATION_ONLY",
+      "sourceName": "1789515287682.png",
+      "rule": "Use only for rested/leaner presentation direction. Never use it to redefine factual face, tattoo, body-scale or anatomical identity when real evidence conflicts."
+    },
+    {
+      "assetKey": "adam-jacob-motion-001",
+      "class": "REAL_MOTION_PRIVATE",
+      "authority": "RECOVERED_GAIT_POSTURE_GESTURE_REFERENCE_PENDING_SUBJECT_EXTRACTION",
+      "provenanceState": "RECOVERED_VERIFIED_PRIVATE_ARCHIVE",
+      "byteSize": 731725257,
+      "mimeType": "video/quicktime",
+      "purpose": [
+        "character-model-matching",
+        "locomotion-reference",
+        "posture-reference",
+        "gesture-cadence-reference",
+        "relative-scale-reference",
+        "camera-model-matching"
+      ],
+      "subjects": {
+        "count": 2,
+        "identityBasis": "source correspondence metadata",
+        "personToFrameMapping": "PENDING_VISUAL_EXTRACTION",
+        "facialRecognitionAllowed": false
+      },
+      "extractionState": {
+        "originalPreserved": true,
+        "rawTransferBlockedByConnectorLimit": true,
+        "sourceBytes": 731725257,
+        "connectorLimitBytes": 268435456,
+        "productionSafeProxyPresent": false,
+        "measurementsPresent": false,
+        "calibrationOutputsPresent": false
+      },
+      "coveragePotential": {
+        "gait": true,
+        "posture": true,
+        "gestureCadence": true,
+        "relativeScale": true,
+        "walking": true,
+        "startsStopsTurns": "TO_VERIFY_AFTER_EXTRACTION",
+        "handsFeetVisibility": "TO_VERIFY_AFTER_EXTRACTION"
+      },
+      "rule": "Attempt private extraction and provenance mapping before requesting replacement walking footage. Do not claim Adam-specific gait until the subject segments are mapped from source provenance and visually extracted."
+    }
+  ],
+  "missingGoldMasterInputs": [
+    "measured barefoot height",
+    "core body measurements for scale and proportions",
+    "controlled real eight-view full-body A-pose",
+    "detailed left/right hand capture with scale",
+    "unseen rear/hidden neck tattoo continuation only where genuinely unresolved",
+    "neutral daylight eye/skin color reference for hero materials",
+    "resolved Adam-specific full-body motion authority from recovered gait archive or conditional replacement capture"
+  ],
+  "derivedPrivateEvidence": [
+    {
+      "assetKey": "adam-current-adult-contact-sheet-v1",
+      "sourceAssetKey": "adam-current-adult-canonical-video-v1",
+      "class": "PRIVATE_DERIVATIVE_REFERENCE",
+      "sha256": "40396a905af555c17bbf79e67173b209a4d146d347cb464210eed53ccb0bdd84",
+      "bytes": 1004041,
+      "frameCount": 7,
+      "purpose": "identity reconstruction and literal QA only",
+      "coverage": {
+        "multipleProfileOrThreeQuarterAngles": true,
+        "glasses": true,
+        "facialHairSilhouette": true,
+        "earAndHairline": true,
+        "jawline": true,
+        "neckTattooCoverage": true,
+        "trueFrontalNeutral": false,
+        "fullBody": false
+      },
+      "canonicalAuthority": false,
+      "publicReleaseAuthorized": false
+    }
+  ],
+  "resolvedSinceInitialPass": [
+    "high-resolution current-adult head/neck video authority",
+    "glasses-off frontal head authority",
+    "opposing real profile views",
+    "multi-view head coverage sufficient for dedicated reconstruction/sculpt work",
+    "recovered verified gait/posture/gesture source archive"
+  ],
+  "privatePackageRecovery": {
+    "status": "VERIFIED_RECOVERED",
+    "packageKey": "adam-v9-precompute-current-private",
+    "parentSha256": "abfbc44f1639bff38240dc226886199c6fefd6243d63998715dec2a17ac28f2b",
+    "archiveIntegrity": "PASS",
+    "recoveredA0Video": {
+      "assetKey": "adam-a0-real-video-20260915-210531",
+      "sha256": "1dbb55dc162478ce0c22d39f3f3b39d0f119968e5430237c6b1417c4622c01d4",
+      "bytes": 129175854,
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "durationSeconds": 59.725133,
+      "audio": "AAC 48kHz stereo",
+      "byteVerified": true
+    },
+    "recoveredRealPhotoViews": [
+      {
+        "role": "FRONT_NEUTRAL",
+        "sha256": "639d86879a9b011c04ae61603de208c5d1d80b328fc897092328347060cb2573"
+      },
+      {
+        "role": "RIGHT_45",
+        "sha256": "a21e8a1b7d7c9e7a70204c5b7423cc2f361c2d5ed42599bef1383faf5d55fad1"
+      },
+      {
+        "role": "LEFT_45",
+        "sha256": "9621020038311851783f612810027f8afa130ea66cff3f472612553bf3561556"
+      },
+      {
+        "role": "RIGHT_PROFILE",
+        "sha256": "d6f0b84099849cb96653d358c5914c936ce6e9584fccbe11e2c478af35866a1a"
+      },
+      {
+        "role": "LEFT_PROFILE",
+        "sha256": "9f9f4c252f881c92eb870b48406b6d45fcd2d0a78e4ad7d78b922d9a095fa020"
+      },
+      {
+        "role": "REAR_RIGHT_CRANIUM_EAR",
+        "sha256": "69baa51f1a5e0bad52c684a65a9bf1908c300622aa4cba8b1f4083b0914fb76b"
+      },
+      {
+        "role": "REAR_LEFT_NECK_CRANIUM",
+        "sha256": "bdc7919548e8318bb28144bcca634254ed03043e2d32c8850f5ef3ae2626adb7"
+      }
+    ],
+    "rule": "Raw A0 media remains private. Public GitHub records hashes/technical truth only."
+  }
+}
