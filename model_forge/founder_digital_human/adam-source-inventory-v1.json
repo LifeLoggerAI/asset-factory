@@ -77,5 +77,28 @@
     "walk toward and away from camera",
     "natural standing/gesture sequence with hands and feet visible",
     "clean start/stop/turn motion capture"
+  ],
+  "derivedPrivateEvidence": [
+    {
+      "assetKey": "adam-current-adult-contact-sheet-v1",
+      "sourceAssetKey": "adam-current-adult-canonical-video-v1",
+      "class": "PRIVATE_DERIVATIVE_REFERENCE",
+      "sha256": "40396a905af555c17bbf79e67173b209a4d146d347cb464210eed53ccb0bdd84",
+      "bytes": 1004041,
+      "frameCount": 7,
+      "purpose": "identity reconstruction and literal QA only",
+      "coverage": {
+        "multipleProfileOrThreeQuarterAngles": true,
+        "glasses": true,
+        "facialHairSilhouette": true,
+        "earAndHairline": true,
+        "jawline": true,
+        "neckTattooCoverage": true,
+        "trueFrontalNeutral": false,
+        "fullBody": false
+      },
+      "canonicalAuthority": false,
+      "publicReleaseAuthorized": false
+    }
   ]
 }
