@@ -15,6 +15,7 @@ test('captured reality is classified as reconstruction rather than generic model
 
 test('promotion template grants no provider spend, public release, XR certification or promotion authority', () => {
   assert.equal(receipt.reconstruction.providerSpendAuthorized, false)
+  assert.equal(schema.properties.reconstruction.properties.providerSpendAuthorized.const, false)
   assert.equal(receipt.governance.publicReleaseAuthorized, false)
   assert.equal(receipt.xrEvidence.certified, false)
   assert.equal(receipt.governance.promotionAllowed, false)
@@ -25,14 +26,26 @@ test('promotion template grants no provider spend, public release, XR certificat
 
 test('promotion validator requires source review privacy browser mobile revocation and human approval', () => {
   for (const marker of [
+    'asset identifier required',
+    'source receipts required',
     'immutable originals must be verified',
     'privacy screen required',
     'source-vs-reconstruction receipt required',
     'desktop performance proof required',
     'mobile performance proof required',
     'consent-revocation proof required',
+    'browser evidence proof refs required',
+    'provider spend must remain hard-off',
     'explicit human review required',
   ]) assert.ok(verify.includes(marker), marker)
   assert.match(verify, /XR certification requires physical-device evidence/)
   assert.match(verify, /generated fill must stay interpretive/)
 })
+
+
+test('promotion validator rejects placeholder evidence arrays and missing asset identity', () => {
+  assert.match(verify, /const nonEmptyRefs =/)
+  assert.match(verify, /value\.every\(nonEmpty\)/)
+  assert.match(verify, /r\.assetId\.trim\(\)/)
+  assert.match(verify, /r\.browserEvidence\?\.proofRefs/)
+});
