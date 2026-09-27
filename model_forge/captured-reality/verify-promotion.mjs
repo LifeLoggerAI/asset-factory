@@ -8,15 +8,19 @@ const failures = []
 const need = (condition, message) => { if (!condition) failures.push(message) }
 const sha = (value) => /^[a-f0-9]{64}$/.test(String(value || ''))
 const head = (value) => /^[a-f0-9]{40}$/.test(String(value || ''))
+const nonEmpty = (value) => typeof value === 'string' && value.trim().length > 0
+const nonEmptyRefs = (value) => Array.isArray(value) && value.length > 0 && value.every(nonEmpty)
 
 need(r.schemaVersion === 'urai-captured-reality-promotion-receipt-v1', 'schemaVersion mismatch')
-need(Array.isArray(r.sourceAuthority?.sourceReceiptRefs) && r.sourceAuthority.sourceReceiptRefs.length > 0, 'source receipts required')
+need(nonEmpty(r.assetId) && /^[A-Za-z0-9._:-]{1,128}$/.test(r.assetId.trim()), 'asset identifier required')
+need(nonEmptyRefs(r.sourceAuthority?.sourceReceiptRefs), 'source receipts required')
 need(r.sourceAuthority?.immutableOriginalsVerified === true, 'immutable originals must be verified')
 need(r.sourceAuthority?.locationConsentPurpose === 'location.context', 'C3 location.context required')
 need(r.sourceAuthority?.privacyScreenPassed === true, 'privacy screen required')
 need(r.sourceAuthority?.thirdPartyAuthorityResolved === true, 'third-party authority must be resolved')
 
 need(['3dgs','photogrammetry','nerf-derived','hybrid'].includes(r.reconstruction?.method), 'supported reconstruction method required')
+need(r.reconstruction?.providerSpendAuthorized === false, 'provider spend must remain hard-off')
 need(Boolean(r.reconstruction?.cameraSolveReceiptRef), 'camera solve receipt required')
 need(Boolean(r.reconstruction?.trainingReceiptRef), 'training receipt required')
 need(Boolean(r.reconstruction?.sourceVsReconstructionReceiptRef), 'source-vs-reconstruction receipt required')
@@ -37,6 +41,7 @@ need(r.browserEvidence?.desktopPerformancePassed === true, 'desktop performance 
 need(r.browserEvidence?.mobilePerformancePassed === true, 'mobile performance proof required')
 need(r.browserEvidence?.fallbackPassed === true, 'fallback proof required')
 need(r.browserEvidence?.revocationPassed === true, 'consent-revocation proof required')
+need(nonEmptyRefs(r.browserEvidence?.proofRefs), 'browser evidence proof refs required')
 need(head(r.sceneIntegration?.exactHead), 'exact Spatial head required')
 need(r.sceneIntegration?.replayBindingVerified === true, 'Replay binding proof required')
 need(r.sceneIntegration?.publicRouteMounted === false, 'captured reality promotion must remain private before separate public release authority')
