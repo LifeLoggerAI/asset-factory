@@ -1,6 +1,12 @@
 name: Multimodal Provider Contract
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/multimodal-provider-contract.yml'
+      - 'scripts/*provider*'
+      - 'model_forge/launch-model-inventory.json'
+      - 'model_forge/reference-resolution.json'
   push:
     branches:
       - converge/asset-factory-production-multimodal-20260925
@@ -14,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TARGET_SHA: ${{ github.sha }}
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   ASSET_FACTORY_MEDIA_PROVIDER: local-proof
   ASSET_FACTORY_IMAGE_PROVIDER: local-proof
   ASSET_FACTORY_MODEL3D_PROVIDER: local-proof
@@ -109,62 +115,11 @@ jobs:
           console.log('PASS truthful no-spend readiness reporting')
           NODE
 
+      - name: Verify receipt authority and no-spend regression cases
+        run: node --test scripts/test-provider-contract-receipt.mjs
+
       - name: Write exact-head provider receipt
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/provider-contract
-          spatial_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
-          model_forge_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
-          production_targets="$(node -p "JSON.stringify(JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).productionTargets)")"
-          readiness_file="artifacts/provider-contract/provider-readiness-local-proof.json"
-          dedicated_target_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.dedicatedProductionTarget.configured")"
-          wif_configured="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.wif.configured")"
-          live_smoke_certified="$(node -p "JSON.parse(require('fs').readFileSync('$readiness_file','utf8')).deploymentReadiness.providerLiveSmoke.certified")"
-          cat > artifacts/provider-contract/receipt.json <<EOF
-          {
-            "schemaVersion": 1,
-            "headSha": "$TARGET_SHA",
-            "spatialHead": "$spatial_head",
-            "modelForgeExecutionBoundary": "$model_forge_status",
-            "modelForgeProductionTargets": $production_targets,
-            "noSpend": true,
-            "deploymentReadiness": {
-              "dedicatedProductionTargetConfigured": $dedicated_target_configured,
-              "wifConfigured": $wif_configured,
-              "providerLiveSmokeCertified": $live_smoke_certified
-            },
-            "selectors": {
-              "media": "local-proof",
-              "image": "local-proof",
-              "model3d": "local-proof",
-              "audio": "local-proof",
-              "sfx": "local-proof",
-              "music": "local-proof",
-              "stt": "local-proof",
-              "video": "local-proof"
-            },
-            "providerSecretsInjected": false,
-            "result": "contracts-passed"
-          }
-          EOF
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs'
-          import assert from 'node:assert/strict'
-          const receipt=JSON.parse(fs.readFileSync('artifacts/provider-contract/receipt.json','utf8'))
-          assert.equal(receipt.headSha,process.env.TARGET_SHA)
-          const inventory=JSON.parse(fs.readFileSync('model_forge/launch-model-inventory.json','utf8'))
-          assert.equal(receipt.spatialHead,inventory.providerExecutionBoundary.spatialHead)
-          assert.equal(receipt.spatialHead,'8015397b649f69c8cf76d3afc35f50e34203052b')
-          assert.match(receipt.modelForgeExecutionBoundary,/^blocked-/)
-          assert.deepEqual(receipt.modelForgeProductionTargets,[])
-          assert.equal(receipt.noSpend,true)
-          assert.equal(receipt.deploymentReadiness.dedicatedProductionTargetConfigured,false)
-          assert.equal(receipt.deploymentReadiness.wifConfigured,false)
-          assert.equal(receipt.deploymentReadiness.providerLiveSmokeCertified,false)
-          assert.equal(receipt.providerSecretsInjected,false)
-          console.log('PASS exact-head no-spend provider receipt')
-          NODE
+        run: node scripts/provider-contract-receipt.mjs
 
       - name: Retain provider contract receipt
         uses: actions/upload-artifact@v4
