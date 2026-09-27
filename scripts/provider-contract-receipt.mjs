@@ -17,7 +17,11 @@ export function makeProviderContractReceipt({ inventory, resolution, readiness, 
   assert.equal(inventory.providerExecutionBoundary?.spatialHead, spatialHead, 'execution boundary source drift');
   assert.equal(resolution.recoveredSpatialHead, spatialHead, 'reference-resolution source drift');
   assert.equal(resolution.generationPolicy?.currentSpatialHead, spatialHead, 'generation policy source drift');
-  assert.equal(resolution.generationPolicy.currentSpatialPr, inventory.authority.spatialPr);
+  const spatialPr = inventory.authority?.spatialPr;
+  assert.ok(Number.isSafeInteger(spatialPr) && spatialPr > 0, 'valid recorded Spatial PR is required');
+  assert.equal(inventory.providerExecutionBoundary?.spatialPr, spatialPr, 'execution boundary PR drift');
+  assert.equal(resolution.spatialPr, spatialPr, 'reference-resolution PR drift');
+  assert.equal(resolution.generationPolicy.currentSpatialPr, spatialPr, 'generation policy PR drift');
   assert.equal(resolution.generationPolicy.currentProductionProviderTargetsAuthorized, false);
   assert.equal(inventory.authority.dependencyReconciliation?.admittedSpatialHead, spatialHead, 'unreconciled dependency');
   assert.equal(inventory.authority.dependencyReconciliation.predecessorEvidenceTransferred, false);
@@ -39,6 +43,7 @@ export function makeProviderContractReceipt({ inventory, resolution, readiness, 
     schemaVersion: 1,
     headSha: actualHead,
     spatialHead,
+    spatialPr,
     workflowRunId: env.GITHUB_RUN_ID || null,
     workflowRunAttempt: env.GITHUB_RUN_ATTEMPT || null,
     workflowEvent: env.GITHUB_EVENT_NAME || 'local',

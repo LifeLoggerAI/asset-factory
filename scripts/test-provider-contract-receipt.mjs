@@ -40,3 +40,64 @@ for (const [name, mutate] of [
   ['external provider selected', (f) => { f.env.ASSET_FACTORY_IMAGE_PROVIDER = 'openai'; }],
   ['live proof claimed', (f) => { f.readiness.deploymentReadiness.providerLiveSmoke.certified = true; }],
 ]) test(`receipt rejects ${name}`, () => { const input = fixture(); mutate(input); assert.throws(() => makeProviderContractReceipt(input)); });
+
+// Shape-validation fixtures do not authorize dependency repinning or release.
+test('receipt accepts a consistently reconciled PR without hardcoding its number', () => {
+  const input = fixture();
+  const nextPr = input.inventory.authority.spatialPr + 1;
+  input.inventory.authority.spatialPr = nextPr;
+  input.inventory.providerExecutionBoundary.spatialPr = nextPr;
+  input.resolution.spatialPr = nextPr;
+  input.resolution.generationPolicy.currentSpatialPr = nextPr;
+  const receipt = makeProviderContractReceipt(input);
+  assert.equal(receipt.spatialPr, nextPr);
+  assert.equal(receipt.spatialHead, input.inventory.authority.recoveredSpatialHead);
+  assert.equal(receipt.noSpend, true);
+});
+
+test('receipt rejects stale execution PR after the other authorities reconcile', () => {
+  const input = fixture();
+  const nextPr = input.inventory.authority.spatialPr + 1;
+  input.inventory.authority.spatialPr = nextPr;
+  input.resolution.spatialPr = nextPr;
+  input.resolution.generationPolicy.currentSpatialPr = nextPr;
+  assert.throws(() => makeProviderContractReceipt(input), /execution boundary PR drift/);
+});
+
+test('receipt rejects a missing execution-boundary PR', () => {
+  const input = fixture();
+  delete input.inventory.providerExecutionBoundary.spatialPr;
+  assert.throws(() => makeProviderContractReceipt(input), /execution boundary PR drift/);
+});
+
+test('receipt rejects a stale reference-resolution PR', () => {
+  const input = fixture();
+  input.resolution.spatialPr += 1;
+  assert.throws(() => makeProviderContractReceipt(input), /reference-resolution PR drift/);
+});
+
+test('receipt rejects a stale generation-policy PR', () => {
+  const input = fixture();
+  input.resolution.generationPolicy.currentSpatialPr += 1;
+  assert.throws(() => makeProviderContractReceipt(input));
+});
+
+test('receipt rejects mutually absent PR identities', () => {
+  const input = fixture();
+  delete input.inventory.authority.spatialPr;
+  delete input.inventory.providerExecutionBoundary.spatialPr;
+  delete input.resolution.spatialPr;
+  delete input.resolution.generationPolicy.currentSpatialPr;
+  assert.throws(() => makeProviderContractReceipt(input), /valid recorded Spatial PR is required/);
+});
+
+test('receipt rejects aligned but malformed PR identities', () => {
+  for (const invalid of [null, '', '1296', 0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    const input = fixture();
+    input.inventory.authority.spatialPr = invalid;
+    input.inventory.providerExecutionBoundary.spatialPr = invalid;
+    input.resolution.spatialPr = invalid;
+    input.resolution.generationPolicy.currentSpatialPr = invalid;
+    assert.throws(() => makeProviderContractReceipt(input), /valid recorded Spatial PR is required/);
+  }
+});
