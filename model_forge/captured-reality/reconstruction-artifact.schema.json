@@ -93,7 +93,7 @@
           "minLength": 1
         },
         "providerSpendAuthorized": {
-          "type": "boolean"
+          "const": false
         }
       }
     },
