@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "urai-adam-digital-human-provider-matrix-v1",
+  "status": "execution-in-progress",
+  "promotionAuthorized": false,
+  "publicReleaseAuthorized": false,
+  "privateCandidateGenerationAuthorizedByExecutionOrder": true,
+  "providers": [
+    {
+      "provider": "Runway",
+      "role": ["reference-driven video", "performance challenger", "identity-preservation bakeoff"],
+      "connection": "AUTHENTICATED",
+      "observedCredits": 9498,
+      "videoModelsAvailable": true,
+      "state": "READY_FOR_CONTROLLED_PRIVATE_CHALLENGER",
+      "canonicalAuthority": false
+    },
+    {
+      "provider": "HeyGen",
+      "role": ["private digital twin", "photo avatar", "lip sync", "facial performance challenger"],
+      "connection": "AUTHENTICATED",
+      "observedPlan": "free",
+      "privateUnrelatedPhotoAvatarPresent": true,
+      "founderPrivateAvatarPresent": false,
+      "founderVoiceCloneAttempt": {
+        "result": "BLOCKED",
+        "reason": "plan_upgrade_required",
+        "httpStatus": 402
+      },
+      "state": "PARTIAL_PROVIDER_BLOCK",
+      "canonicalAuthority": false
+    },
+    {
+      "provider": "ElevenLabs",
+      "role": ["founder voice identity", "speech", "holdout evaluation"],
+      "repoRuntime": "IMPLEMENTED_FAIL_CLOSED",
+      "founderEnrollmentAsset": {
+        "assetKey": "adam-elevenlabs-ivc-enrollment-v1",
+        "sha256": "a03c3d56918274f5dfe06a130c50a0142ca4e779a8da208b5cc773bb31787368",
+        "durationSeconds": 108.564898,
+        "sourcePolicy": "frozen train-only; holdout and QA excluded"
+      },
+      "privateFounderVoiceId": null,
+      "state": "MODEL_CREATION_NOT_EXECUTABLE_ON_CURRENT_CONNECTOR_SURFACE",
+      "canonicalAuthority": "VOICE_PROVIDER_TARGET_ONLY"
+    },
+    {
+      "provider": "Move AI",
+      "role": ["body motion capture", "retargetable human performance"],
+      "state": "ACCOUNT_OR_SECRET_AUTHORITY_NOT_VERIFIED_IN_CURRENT_REPO_CONNECTOR_PASS",
+      "goldMasterDependency": "requires suitable full-body source capture or new capture"
+    },
+    {
+      "provider": "Meshy",
+      "role": ["body/clothing/base geometry challenger", "3D candidate generation"],
+      "assetFactoryAdapter": "IMPLEMENTED",
+      "state": "CANDIDATE_ONLY",
+      "identityFaceAuthority": false
+    },
+    {
+      "provider": "Tripo",
+      "role": ["3D candidate generation"],
+      "modelForgeLane": "IMPLEMENTED",
+      "state": "CANDIDATE_ONLY",
+      "identityFaceAuthority": false
+    },
+    {
+      "provider": "Rodin/Hyper3D",
+      "role": ["3D candidate generation"],
+      "modelForgeLane": "IMPLEMENTED",
+      "state": "CANDIDATE_ONLY",
+      "identityFaceAuthority": false
+    },
+    {
+      "provider": "Replicate/fal/Stability/OpenAI",
+      "role": ["supporting image/video/material/detail challengers"],
+      "state": "USE_ONLY_WHERE_PROVIDER_AUTHORITY_AND_SECRET_BINDING_ARE VERIFIED",
+      "identityFaceAuthority": false
+    }
+  ],
+  "selectionRule": "UrAi owns identity truth, provider routing, QA, normalization and promotion. Provider success never equals canonical acceptance."
+}
