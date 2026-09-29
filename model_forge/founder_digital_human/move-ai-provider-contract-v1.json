@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "urai-adam-move-ai-provider-contract-v1",
+  "status": "adapter-implemented-execution-disabled",
+  "provider": "Move AI",
+  "endpoint": "https://api.move.ai/ugc/graphql",
+  "sourceAuthority": {
+    "documentation": "https://developers.move.ai/docs/intro/",
+    "outputFormats": "https://docs.move.ai/knowledge/genesis-output-formats",
+    "terms": "https://developers.move.ai/policies/terms-of-use/"
+  },
+  "execution": {
+    "secret": "MOVE_API_KEY",
+    "enabledGate": "ASSET_FACTORY_MOVE_AI_ENABLED",
+    "spendGate": "ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED",
+    "outputUseGate": "MOVE_AI_OUTPUT_USE_APPROVED",
+    "allDefault": false,
+    "subjectConsentRequired": true
+  },
+  "singleCameraFlow": [
+    "createFile",
+    "PUT video to presignedUrl",
+    "createSingleCamTake",
+    "createSingleCamJob",
+    "poll getJob",
+    "inspect/download outputs only after output-use approval"
+  ],
+  "acceptedInput": {
+    "format": "MP4",
+    "recommendedCapture": {
+      "fpsMinimum": 60,
+      "resolutionMinimum": "Full HD",
+      "camera": "locked",
+      "actorCount": 1,
+      "actorPosition": "center frame"
+    }
+  },
+  "expectedOutputs": ["FBX", "BVH", "GLB", "JSON"],
+  "usageBoundary": {
+    "feedOutputIntoAnotherAiSystem": false,
+    "deterministicHumanReview": true,
+    "originalVideoWorkUse": "subject to provider terms",
+    "runtimePromotion": false,
+    "rule": "Do not promote Move AI output into UrAi AI-runtime behavior until intended use has been confirmed permitted under the current provider agreement."
+  },
+  "adamCurrentSource": {
+    "currentCanonicalVideoSuitableForGoldMasterMocap": false,
+    "reason": "Current canonical likeness clip is portrait/short and lacks full-body walking/hands; record the locked identity-anchor/full-body capture first."
+  }
+}

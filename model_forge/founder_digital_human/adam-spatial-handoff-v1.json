@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "urai-adam-spatial-handoff-v1",
+  "status": "ready-contract-waiting-production-artifacts",
+  "packageId": "URAI_DIGITAL_HUMAN_ADAM_V1",
+  "spatialMutationAuthorized": false,
+  "integrationRule": "Consume only after active Spatial pixel owner frees an integration point. Do not restack this branch into Spatial scene-owned files.",
+  "expectedArtifactSlots": {
+    "heroModel": "models/adam/adam-hero.glb",
+    "mobileModel": "models/adam/adam-mobile.glb",
+    "facialRig": "rigs/adam/facial-rig.json",
+    "visemeMap": "rigs/adam/viseme-map.json",
+    "motionManifest": "motion/adam/motion-manifest.json",
+    "voiceBinding": "voice/adam/founder-voice-binding.json",
+    "performanceProfiles": "performance/adam/scene-performance.json",
+    "provenance": "provenance/adam/source-lineage.json"
+  },
+  "runtimeExpectations": {
+    "scaleMeters": 1,
+    "origin": "feet-grounded",
+    "contactShadowRequired": true,
+    "sceneDepthOcclusionRequired": true,
+    "lightingMatchRequired": true,
+    "reducedMotionFallbackRequired": true,
+    "nonVisualEquivalentRequired": true,
+    "captionsRequiredForSpeech": true
+  },
+  "cameraAcceptance": {
+    "heroCloseupAllowedOnlyAfterLiteralFaceQA": true,
+    "longShotMayUseLowerLOD": true,
+    "noIdentityChangingLOD": true
+  },
+  "release": {
+    "likenessApproved": false,
+    "voiceApproved": false,
+    "motionApproved": false,
+    "performanceCertified": false,
+    "publicReleaseAuthorized": false
+  }
+}

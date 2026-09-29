@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import process from 'node:process';
+import { checkTriangleBudget } from './triangle-budget.mjs';
 
 function fail(message) { throw new Error(message); }
 
@@ -23,19 +24,6 @@ function parseGlb(buffer) {
   return { version, gltf };
 }
 
-function triangleEstimate(gltf) {
-  let triangles = 0;
-  for (const mesh of gltf.meshes ?? []) {
-    for (const primitive of mesh.primitives ?? []) {
-      const mode = primitive.mode ?? 4;
-      if (mode !== 4) continue;
-      const accessor = primitive.indices !== undefined ? gltf.accessors?.[primitive.indices] : null;
-      if (accessor?.count) triangles += Math.floor(accessor.count / 3);
-    }
-  }
-  return triangles;
-}
-
 function main() {
   const file = process.argv[2];
   if (!file) fail('Usage: node model_forge/validate-glb.mjs <file.glb> [maxTriangles]');
@@ -46,7 +34,7 @@ function main() {
   const nodes = gltf.nodes?.length ?? 0;
   const materials = gltf.materials?.length ?? 0;
   const images = gltf.images?.length ?? 0;
-  const triangles = triangleEstimate(gltf);
+  const { triangles, indexedTriangles } = checkTriangleBudget(gltf, maxTriangles);
   if (!meshes) fail('GLB contains no meshes');
   if (triangles > maxTriangles) fail(`Triangle estimate ${triangles} exceeds ${maxTriangles}`);
   const report = {
@@ -62,7 +50,8 @@ function main() {
     images,
     accessors: gltf.accessors?.length ?? 0,
     animations: gltf.animations?.length ?? 0,
-    trianglesEstimatedFromIndexedTrianglePrimitives: triangles,
+    trianglesEstimated: triangles,
+    trianglesEstimatedFromIndexedTrianglePrimitives: indexedTriangles,
     extensionsUsed: gltf.extensionsUsed ?? [],
     extensionsRequired: gltf.extensionsRequired ?? [],
     verdict: 'structurally-valid-candidate-not-visual-authority',

@@ -12,7 +12,7 @@ function fixture(t) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-forge-outcomes-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   fs.mkdirSync(path.join(cwd, 'model_forge'));
-  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs']) {
+  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs', 'triangle-budget.mjs']) {
     fs.copyFileSync(path.join(root, 'model_forge', file), path.join(cwd, 'model_forge', file));
   }
   fs.writeFileSync(path.join(cwd, 'no-network.mjs'), `
