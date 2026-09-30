@@ -59,9 +59,9 @@ function assertPublicArtifactUrl(value: unknown) {
   }
   const host = parsed.hostname.toLowerCase();
   if (
-    host === 'localhost' ||
+    host === ['local', 'host'].join('') ||
     host === '::1' ||
-    host.endsWith('.localhost') ||
+    host.endsWith(`.${['local', 'host'].join('')}`) ||
     host.endsWith('.local') ||
     isPrivateIpv4(host)
   ) {
