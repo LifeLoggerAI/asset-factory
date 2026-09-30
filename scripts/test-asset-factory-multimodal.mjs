@@ -73,7 +73,7 @@ assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fai
 assertIncludes(renderer, 'identity-continuity', 'video identity QA gate');
 assertIncludes(renderer, 'temporal-flicker', 'video temporal QA gate');
 assertIncludes(renderer, "truthClass: 'INTERPRETIVE'", 'synthetic provider truth class');
-assertIncludes(higgsfieldClient, 'Authorization', 'Higgsfield server auth contract');
+assertIncludes(higgsfieldClient, 'authorization', 'Higgsfield server auth contract');
 assertIncludes(higgsfieldClient, 'Idempotency-Key', 'Higgsfield idempotency contract');
 assertIncludes(higgsfieldClient, "hostname !== 'api.higgsfield.ai'", 'Higgsfield API origin allowlist');
 assertIncludes(higgsfieldClient, "status === 'completed'", 'Higgsfield async completion contract');
