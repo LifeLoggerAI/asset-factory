@@ -28,6 +28,7 @@ const validation = read('assetfactory-studio/lib/server/assetFactoryValidation.t
 const providers = read('assetfactory-studio/lib/server/assetProviderAdapters.ts');
 const providerRuntime = read('assetfactory-studio/lib/server/assetProviderRuntime.ts');
 const videoProviderRuntime = read('assetfactory-studio/lib/server/assetVideoProviderRuntime.ts');
+const higgsfieldClient = read('assetfactory-studio/lib/server/higgsfieldClient.ts');
 const policy = read('assetfactory-studio/lib/server/assetGenerationPolicy.ts');
 const billing = read('assetfactory-studio/lib/server/assetBilling.ts');
 const storagePaths = read('assetfactory-studio/lib/server/assetStoragePaths.ts');
@@ -57,20 +58,26 @@ for (const extension of ['svg', 'gltf', 'wav', 'mp4', 'webm', 'json']) {
   assertIncludes(generatedRoute, `${extension}:`, `${extension} content type`);
 }
 
-for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway']) {
+for (const provider of ['local-proof', 'openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway', 'higgsfield']) {
   assertIncludes(providers, provider, `${provider} provider adapter diagnostic`);
 }
 
-for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY']) {
+for (const providerRuntimeMarker of ['OPENAI_API_KEY', 'REPLICATE_API_TOKEN', 'ELEVENLABS_API_KEY', 'STABILITY_API_KEY', 'FAL_KEY', 'ASSET_FACTORY_HIGGSFIELD_IMAGE_ENDPOINT']) {
   assertIncludes(providerRuntime, providerRuntimeMarker, `${providerRuntimeMarker} provider runtime support`);
 }
-for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAY_API_KEY', 'FAL_KEY', 'referenceImageUrl', 'referenceVideoUrl']) {
+for (const marker of ['ASSET_FACTORY_VIDEO_PROVIDER', 'ASSET_FACTORY_REPLICATE_VIDEO_MODEL', 'RUNWAY_API_KEY', 'FAL_KEY', 'ASSET_FACTORY_HIGGSFIELD_TEXT_VIDEO_ENDPOINT', 'ASSET_FACTORY_HIGGSFIELD_IMAGE_VIDEO_ENDPOINT', 'referenceImageUrl', 'referenceVideoUrl']) {
   assertIncludes(videoProviderRuntime, marker, `video runtime support for ${marker}`);
 }
 
 assertIncludes(renderer, 'local-proof cannot promote fake motion as video', 'fail-closed local video policy');
 assertIncludes(renderer, 'identity-continuity', 'video identity QA gate');
 assertIncludes(renderer, 'temporal-flicker', 'video temporal QA gate');
+assertIncludes(renderer, "truthClass: 'INTERPRETIVE'", 'synthetic provider truth class');
+assertIncludes(higgsfieldClient, 'Authorization', 'Higgsfield server auth contract');
+assertIncludes(higgsfieldClient, 'Idempotency-Key', 'Higgsfield idempotency contract');
+assertIncludes(higgsfieldClient, "hostname !== 'api.higgsfield.ai'", 'Higgsfield API origin allowlist');
+assertIncludes(higgsfieldClient, "status === 'completed'", 'Higgsfield async completion contract');
+assertIncludes(manifestRoute, 'higgsfieldCredentialVisible', 'Higgsfield sanitized credential diagnostic');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
 assertIncludes(manifestRoute, 'providers', 'system manifest provider diagnostics');
 assertIncludes(validation, 'metadata.durationSeconds', 'video duration validation');
