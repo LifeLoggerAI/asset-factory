@@ -35,6 +35,20 @@ function positiveEnvNumber(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function budgetDecision(canonicalType: string, estimatedUnits: number, estimatedCostCents: number): PolicyDecision {
+  const maxJobCost = positiveEnvNumber('ASSET_FACTORY_MAX_JOB_ESTIMATED_COST_CENTS', 500);
+  if (estimatedCostCents > maxJobCost) {
+    return {
+      ok: false,
+      error: `estimated job cost ${estimatedCostCents} cents exceeds per-job ceiling ${maxJobCost} cents`,
+      canonicalType,
+      estimatedUnits,
+      estimatedCostCents,
+    };
+  }
+  return { ok: true, canonicalType, estimatedUnits, estimatedCostCents };
+}
+
 export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision {
   const definition = resolveAssetType(input.type);
   const canonicalType = definition.canonicalType;
@@ -50,7 +64,13 @@ export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision
   if (canonicalType === 'audio') {
     const durationSeconds = numberFromMetadata(input.metadata, 'durationSeconds', 2);
     if (limit.maxDurationSeconds && durationSeconds > limit.maxDurationSeconds) return { ok: false, error: `durationSeconds exceeds ${limit.maxDurationSeconds} for audio`, canonicalType, estimatedUnits: 0, estimatedCostCents: 0 };
-    return { ok: true, canonicalType, estimatedUnits: Math.ceil(durationSeconds), estimatedCostCents: Math.ceil(durationSeconds) };
+    const rawType = String(input.type ?? '').trim().toLowerCase();
+    const centsPerSecond = rawType === 'music'
+      ? positiveEnvNumber('ASSET_FACTORY_MUSIC_ESTIMATED_COST_CENTS_PER_SECOND', 10)
+      : ['sfx', 'sound', 'ambience'].includes(rawType)
+        ? positiveEnvNumber('ASSET_FACTORY_SFX_ESTIMATED_COST_CENTS_PER_SECOND', 5)
+        : positiveEnvNumber('ASSET_FACTORY_SPEECH_ESTIMATED_COST_CENTS_PER_SECOND', 3);
+    return budgetDecision(canonicalType, Math.ceil(durationSeconds), Math.ceil(durationSeconds * centsPerSecond));
   }
 
   if (canonicalType === 'video') {
@@ -61,16 +81,19 @@ export function evaluateGenerationPolicy(input: GenerateRequest): PolicyDecision
     const resolutionFactor = Math.max(1, Math.ceil((width * height) / (1080 * 1920)));
     const units = Math.max(1, Math.ceil(durationSeconds * resolutionFactor));
     const centsPerSecond1080 = positiveEnvNumber('ASSET_FACTORY_VIDEO_ESTIMATED_COST_CENTS_PER_SECOND', 100);
-    return { ok: true, canonicalType, estimatedUnits: units, estimatedCostCents: Math.ceil(durationSeconds * resolutionFactor * centsPerSecond1080) };
+    return budgetDecision(canonicalType, units, Math.ceil(durationSeconds * resolutionFactor * centsPerSecond1080));
   }
 
   if (canonicalType === 'graphic') {
     const width = input.size?.width ?? definition.defaultSize?.width ?? 1440;
     const height = input.size?.height ?? definition.defaultSize?.height ?? 1440;
     const megapixels = Math.max(1, Math.ceil((width * height) / 1_000_000));
-    return { ok: true, canonicalType, estimatedUnits: megapixels, estimatedCostCents: megapixels * 2 };
+    const centsPerMegapixel = positiveEnvNumber('ASSET_FACTORY_IMAGE_ESTIMATED_COST_CENTS_PER_MEGAPIXEL', 10);
+    return budgetDecision(canonicalType, megapixels, megapixels * centsPerMegapixel);
   }
 
-  if (canonicalType === 'model3d') return { ok: true, canonicalType, estimatedUnits: 1, estimatedCostCents: 25 };
-  return { ok: true, canonicalType, estimatedUnits: 1, estimatedCostCents: 1 };
+  if (canonicalType === 'model3d') {
+    return budgetDecision(canonicalType, 1, positiveEnvNumber('ASSET_FACTORY_MODEL3D_ESTIMATED_COST_CENTS_PER_JOB', 100));
+  }
+  return budgetDecision(canonicalType, 1, 1);
 }

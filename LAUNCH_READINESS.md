@@ -12,6 +12,8 @@ Canonical live tracker: GitHub issue #63.
 
 Status: **repo-side hardening complete for current pass; live evidence required before production lock**.
 
+Unified convergence note: draft PR #284 carries production hardening, Model Forge, and multimodal provider work as the forward integration lane stacked on PR #281.
+
 The repo contains a functional local proof pipeline, the Studio/Firebase deploy path has been aligned, smoke-health compatibility has been fixed, CI/runtime drift has been fixed, and runbooks/evidence/lock docs have been synced. It is still not locked until staging and production prove the complete authenticated, tenant-scoped, persisted, monitored flow with local fallback disabled.
 
 ### What is implemented
@@ -23,7 +25,9 @@ The repo contains a functional local proof pipeline, the Studio/Firebase deploy 
 - Local multimodal E2E coverage for generate -> materialize -> generated asset fetch -> publish -> approve.
 - Optional Firebase Admin / Firestore / Cloud Storage production backend seams.
 - Optional API-key, signed HS256 bearer/JWT, tenant, and role guardrails.
-- Provider runtime seams for external media providers.
+- Modality-specific governed provider broker for image, 3D, speech, SFX, music, STT, and video, defaulting to no-spend `local-proof`.
+- Model Forge source authority for candidate 3D generation, Blender cleanup/review, GLB validation, promotion receipts, and launch model inventory.
+- Provider-backed outputs remain draft candidates with provider/model/task provenance and cannot self-promote to canonical/Gold Master.
 - Stripe webhook dependency, signature-verification path, and entitlement persistence seam.
 - Public-safe system contract and diagnostic route separation.
 - Durable queue/operator surfaces for worker leases, retries, dead-letter visibility, and controlled requeue.
@@ -38,7 +42,7 @@ The repo contains a functional local proof pipeline, the Studio/Firebase deploy 
 - Live production workflow evidence with `ASSET_FACTORY_FORCE_LOCAL=false`.
 - Production Firebase project, service account, Firestore rules, indexes, storage bucket, IAM, and signed/private access policy.
 - Production auth provider issuing HS256 bearer tokens with the configured issuer, audience, tenant claim, and role claim.
-- Real provider-backed generation using production credentials and selected model IDs.
+- Real provider-backed generation using production credentials and selected model IDs; current repo authority proves contracts/no-spend boundaries, not live provider activation.
 - Deployed durable worker proof with leases, retries, retry limits, idempotency, dead-letter handling, and cleanup/retention.
 - Production Stripe webhook proof that verified events persist idempotent tenant quota/plan records.
 - Production observability, including request IDs, structured logs, error tracking, metrics, uptime checks, and cost/queue dashboards.
@@ -122,20 +126,25 @@ Actions -> Deploy Asset Factory -> Run workflow
 Sequence:
 
 ```text
-staging / deploy=false / smoke_mode=readonly
-staging / deploy=true / smoke_mode=both
-production / deploy=false / smoke_mode=readonly
-production / deploy=true / smoke_mode=both
+staging / smoke_mode=readonly
+staging / smoke_mode=both
+production / smoke_mode=readonly
+production / smoke_mode=both
 ```
 
-Required GitHub environment/repository secrets:
+This workflow is smoke-only and never deploys.
+
+Required protected-environment values:
 
 ```text
-FIREBASE_TOKEN
+ASSET_FACTORY_BASE_URL
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
+ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
+
+Production deployment is separate and additionally requires the verified dedicated project/site/WIF variables. Long-lived `FIREBASE_TOKEN` deployment is prohibited.
 
 ## Manual smoke commands
 
@@ -152,7 +161,7 @@ npm --prefix assetfactory-studio run e2e
 Staging smoke, once deployed:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_STAGING_BASE_URL \
 ASSET_FACTORY_API_KEY=$STAGING_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$STAGING_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=smoke-tenant-a \
@@ -177,7 +186,7 @@ npm run smoke:prod
 
 1. Run the GitHub Actions workflow for staging read-only smoke.
 2. Fix every failing named step before proceeding.
-3. Run staging deploy plus authenticated smoke with secrets.
+3. Deploy to the verified protected staging target through the governed deployment path, then run authenticated smoke.
 4. Run production read-only smoke.
 5. Run production deploy plus authenticated smoke with secrets.
 6. Attach workflow artifacts/logs to issue #63.

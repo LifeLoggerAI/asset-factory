@@ -39,7 +39,7 @@ Do not use these claims in public copy, README, launch notes, website, or Core d
 Allowed language until lock closes:
 
 ```text
-Asset Factory repo-side hardening is complete for the current pass, with a production-smoked Firebase API slice and deterministic local proof pipeline. The full product system remains launch-gated until live staging/production auth, tenancy, provider-backed generation, worker, billing, observability, website, rollback, and production smoke evidence pass.
+Asset Factory has strong repo-side hardening and deterministic proof pipelines. Historical shared-project smoke is not final production authority; launch remains gated until dedicated staging/production auth, tenancy, provider-backed generation where required, worker, billing, observability, website, rollback, and current production smoke evidence pass.
 ```
 
 ## Required production settings
@@ -69,8 +69,8 @@ Prefer the GitHub Actions workflow documented in `docs/OPERATIONS_RUNBOOK.md` an
 ```bash
 npm run test:launch-readiness
 npm run test:completion-lock
-ASSET_FACTORY_SMOKE_READONLY=true ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:website
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_TENANT_ID=prod-smoke ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied CRON_SECRET=$PROD_CRON_SECRET npm run smoke:prod
+ASSET_FACTORY_SMOKE_READONLY=true ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL npm run smoke:website
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_TENANT_ID=prod-smoke ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied CRON_SECRET=$PROD_CRON_SECRET npm run smoke:prod
 ```
 
 Custom domain after routing is fixed:

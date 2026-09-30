@@ -1,0 +1,123 @@
+name: URAI Model Forge Replicate Wave
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_paid_wave:
+        description: Type RUN_ONE_URAI_REPLICATE_MODEL_WAVE to authorize exactly one paid Hunyuan candidate
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: urai-model-forge-replicate-wave
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+  URAI_REPLICATE_MODEL: tencent/hunyuan-3d-3.1
+  URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'
+
+jobs:
+  one-candidate:
+    runs-on: ubuntu-latest
+    environment: asset-factory-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require exact bounded authorization
+        env:
+          CONFIRM_PAID_WAVE: ${{ inputs.confirm_paid_wave }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main' || { echo '::error::Paid model wave may only run from main.'; exit 64; }
+          test "$CONFIRM_PAID_WAVE" = 'RUN_ONE_URAI_REPLICATE_MODEL_WAVE' || { echo '::error::Exact authorization phrase missing.'; exit 65; }
+          test -n "$PROJECT_ID" || { echo '::error::ASSET_FACTORY_FIREBASE_PROJECT_ID environment variable is required.'; exit 66; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER environment variable is required.'; exit 67; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT environment variable is required.'; exit 68; }
+          case "$PROJECT_ID" in
+            urai-4dc1d|asset-factory-dev-id) echo '::error::Shared or development Firebase authority is prohibited for paid Model Forge execution.'; exit 69 ;;
+          esac
+          case "$GCP_DEPLOY_SERVICE_ACCOUNT" in
+            *@urai-4dc1d.iam.gserviceaccount.com) echo '::error::Legacy shared-project deploy identity is prohibited.'; exit 70 ;;
+          esac
+          boundary_status="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.status")"
+          boundary_head="$(node -p "JSON.parse(require('fs').readFileSync('model_forge/launch-model-inventory.json','utf8')).providerExecutionBoundary.spatialHead")"
+          test "$boundary_status" = 'authorized-current-head-gap-proof' || { echo "::error::Paid Model Forge execution is source-blocked: $boundary_status"; exit 71; }
+          test -n "$boundary_head" || { echo '::error::Authorized Model Forge execution must name the reconciled Spatial exact head.'; exit 72; }
+
+      - uses: google-github-actions/auth@v3
+        id: google_auth
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Load Replicate token from Secret Manager
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
+        run: |
+          set -euo pipefail
+          token="$(firebase apphosting:secrets:access REPLICATE_API_TOKEN --project "$PROJECT_ID" --non-interactive)"
+          test -n "$token"
+          echo "::add-mask::$token"
+          printf 'REPLICATE_API_TOKEN=%s\n' "$token" >> "$GITHUB_ENV"
+          unset token
+
+      - name: Remove ephemeral Google credential before provider call
+        env:
+          CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}
+        run: |
+          set -euo pipefail
+          rm -f -- "$CREDENTIAL_PATH"
+          test ! -e "$CREDENTIAL_PATH"
+
+      - name: Run exactly one bounded Hunyuan candidate
+        run: |
+          set -euo pipefail
+          node model_forge/run-wave.mjs --wave model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json --execute
+          test -f model-forge-wave-receipt.json
+
+      - name: Locate and validate generated candidate
+        run: |
+          set -euo pipefail
+          candidate="$(find model_forge/runs -type f -name candidate.glb | head -n 1)"
+          test -n "$candidate"
+          node model_forge/validate-glb.mjs "$candidate" > model-forge-replicate-glb-validation.json
+          cp "$candidate" model-forge-replicate-candidate.glb
+          cp "$(dirname "$candidate")/provenance.json" model-forge-replicate-provenance.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: urai-model-forge-replicate-candidate-${{ github.sha }}
+          path: |
+            model-forge-wave-receipt.json
+            model-forge-replicate-candidate.glb
+            model-forge-replicate-provenance.json
+            model-forge-replicate-glb-validation.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove provider token from process environment file
+        if: always()
+        run: |
+          sed -i '/^REPLICATE_API_TOKEN=/d' "$GITHUB_ENV" || true

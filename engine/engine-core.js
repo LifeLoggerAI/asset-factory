@@ -1,5 +1,5 @@
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const CryptoJS = require('crypto-js');
 const { buildShort, buildLong, buildThread } = require('./formats');
 const { audit, log, LogLevel } = require('./logger');
@@ -16,7 +16,7 @@ function selectFormat(input) {
 
 function generateBundle(input, user) {
   const startTime = Date.now();
-  const jobId = uuidv4();
+  const jobId = randomUUID();
   let seed = null;
 
   try {

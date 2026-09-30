@@ -20,6 +20,7 @@ const manifestRoute = read('assetfactory-studio/app/api/system/manifest/route.ts
 const authGuard = read('assetfactory-studio/lib/server/assetAuth.ts');
 const operationsRunbook = read('docs/OPERATIONS_RUNBOOK.md');
 const studioEnvExample = read('assetfactory-studio/.env.example');
+const appHosting = read('assetfactory-studio/apphosting.yaml');
 
 const requiredReadinessStrings = [
   'signed HS256 bearer/JWT',
@@ -57,5 +58,20 @@ assertIncludes(authGuard, 'verifyHs256Signature', 'assetfactory-studio/lib/serve
 assertIncludes(operationsRunbook, 'The current synchronous Studio auth guard supports signed HS256 bearer tokens.', 'docs/OPERATIONS_RUNBOOK.md');
 assertIncludes(studioEnvExample, 'ASSET_FACTORY_JWT_HS256_SECRET=', 'assetfactory-studio/.env.example');
 assertIncludes(studioEnvExample, 'ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH=false', 'assetfactory-studio/.env.example');
+
+for (const marker of [
+  'variable: ASSET_FACTORY_REQUIRE_API_KEY',
+  'variable: ASSET_FACTORY_REQUIRE_AUTH',
+  'variable: ASSET_FACTORY_REQUIRE_JWT_SIGNATURE',
+  'variable: ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH',
+]) assertIncludes(appHosting, marker, 'assetfactory-studio/apphosting.yaml');
+
+if (!appHosting.match(/variable: ASSET_FACTORY_REQUIRE_API_KEY[\s\S]*?value: "true"/)
+  || !appHosting.match(/variable: ASSET_FACTORY_REQUIRE_AUTH[\s\S]*?value: "true"/)
+  || !appHosting.match(/variable: ASSET_FACTORY_REQUIRE_JWT_SIGNATURE[\s\S]*?value: "true"/)
+  || !appHosting.match(/variable: ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH[\s\S]*?value: "false"/)) {
+  console.error('App Hosting production auth switches must remain fail-closed');
+  process.exit(1);
+}
 
 console.log('PASS HS256 production readiness checks');

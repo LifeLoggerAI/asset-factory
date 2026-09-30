@@ -38,6 +38,7 @@ jobs:
       ASSET_FACTORY_REQUIRE_API_KEY: 'true'
       ASSET_FACTORY_REQUIRE_AUTH: 'true'
       ASSET_FACTORY_SMOKE_READONLY: 'true'
+      ASSET_FACTORY_BASE_URL: ${{ vars.ASSET_FACTORY_BASE_URL }}
     steps:
       - name: Checkout exact dispatch commit
         uses: actions/checkout@v4
@@ -102,12 +103,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -n "$ASSET_FACTORY_BASE_URL" || { echo "ASSET_FACTORY_BASE_URL environment variable is required for the selected GitHub environment." >&2; exit 1; }
+          case "$ASSET_FACTORY_BASE_URL" in
+            https://urai-4dc1d.web.app*|https://urai-4dc1d.firebaseapp.com*|https://asset-factory-dev-id.web.app*|https://asset-factory-dev-id.firebaseapp.com*|https://urai.app*|https://www.urai.app*)
+              echo "Refusing legacy/shared Asset Factory verification target: $ASSET_FACTORY_BASE_URL" >&2
+              exit 1
+              ;;
+            https://*) ;;
+            *) echo "ASSET_FACTORY_BASE_URL must be HTTPS." >&2; exit 1 ;;
+          esac
+          echo "base_url=$ASSET_FACTORY_BASE_URL" >> "$GITHUB_OUTPUT"
           if [ "${{ inputs.environment }}" = production ]; then
-            echo "base_url=https://urai-4dc1d.web.app" >> "$GITHUB_OUTPUT"
             echo "tenant_id=prod-smoke" >> "$GITHUB_OUTPUT"
             echo "other_tenant_id=prod-smoke-denied" >> "$GITHUB_OUTPUT"
           else
-            echo "base_url=https://staging.uraiassetfactory.com" >> "$GITHUB_OUTPUT"
             echo "tenant_id=smoke-tenant-a" >> "$GITHUB_OUTPUT"
             echo "other_tenant_id=smoke-tenant-b" >> "$GITHUB_OUTPUT"
           fi

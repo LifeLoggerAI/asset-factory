@@ -7,10 +7,10 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 
 | Area | Status | Evidence / action required |
 | --- | --- | --- |
-| Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, `docs/OPERATIONS_RUNBOOK.md`, and issue #63 are the current evidence spine. |
+| Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `LOCK.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, `docs/contracts/MULTIMODAL_PROVIDER_AUTHORITY.md`, `docs/OPERATIONS_RUNBOOK.md`, and issue #63 are the current evidence spine. Draft PR #284 is the unified forward convergence lane. |
 | Current commit identified | Verified | Use the release evidence file for the exact inspected `HEAD` SHA; do not hardcode a mutable branch SHA here. |
 | Repo-side hardening | Complete for current pass | README, launch readiness, completion lock, privacy/safety, operations runbook, deploy workflow, smoke compatibility, and evidence validator have been synced. |
-| Firebase default API slice | Verified by repo evidence | Current docs record `https://urai-4dc1d.web.app` as verified. Fresh workflow evidence is still required before final lock. |
+| Historical shared Firebase slice | Historical evidence only | `$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL` has prior smoke evidence but is not valid final Asset Factory production authority. Dedicated provider-origin evidence is required before lock. |
 | Custom-domain API routing | Blocked / needs fresh proof | Must prove apex and `www` routes return Asset Factory API responses and pass read-only + authenticated smoke. |
 | API contract version | Verified from docs/scripts | Contract and checks use `asset-factory-api-v1`. |
 | Required bridge routes documented | Verified | `/api/health`, `/api/assets`, `/api/assets/{assetId}`, `/api/lifemap/events`. |
@@ -18,10 +18,10 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 | Local deterministic proof pipeline | Verified by repo docs | Supports `graphic`, `model3d`, `audio`, and `bundle`; requires fresh workflow/local command evidence before release. |
 | Local commands pass | Needs fresh evidence | Must run and record local gate commands on fresh checkout or via the Deploy Asset Factory workflow. |
 | Staging deploy with fallback disabled | Blocked | Must deploy with `ASSET_FACTORY_FORCE_LOCAL=false` and run staging smoke. |
-| Production smoke | Partially verified by repo evidence | Firebase default smoke evidence exists in docs; custom-domain and full product smoke remain gated. |
+| Production smoke | Needs current dedicated-target proof | Historical shared-project smoke exists, but final production smoke must run against the verified dedicated provider origin and then the attached custom domain. |
 | Auth/JWT/API-key enforcement | Needs live proof | Must prove issuer/audience/tenant/role enforcement. |
 | Tenant isolation | Needs live proof | Must prove Tenant A cannot read/list/download Tenant B data. |
-| Provider-backed generation | Needs live proof | Must prove real provider generation for launch asset types. |
+| Provider-backed generation | Repo contracts complete / live proof pending | PR #284 contains modality routing, no-spend gates, provenance, provider contracts, STT, Model Forge, and spend ceilings. Must still prove real provider generation for each selected launch lane on the dedicated runtime. |
 | Durable worker queue | Needs live proof | Must prove leases, retries, idempotency, DLQ, cleanup/retention. |
 | Stripe billing/entitlements | Needs live proof | Must prove signed webhook verification and idempotent entitlement persistence. |
 | Diagnostics redaction | Needs live proof | Public health/manifest must be redacted; full diagnostics must require API key. |
@@ -36,11 +36,11 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 
 Use this order. Do not skip gates or mark a gate complete without attached evidence.
 
-1. Run the GitHub Actions workflow: `Deploy Asset Factory` with `staging / deploy=false / smoke_mode=readonly`.
+1. Run the smoke-only GitHub Actions workflow against protected staging with `smoke_mode=readonly`.
 2. Fix every failing named workflow step before proceeding.
-3. Run `staging / deploy=true / smoke_mode=both` with secrets configured.
-4. Run `production / deploy=false / smoke_mode=readonly`.
-5. Run `production / deploy=true / smoke_mode=both` with secrets configured.
+3. Run staging `smoke_mode=both`.
+4. Deploy only through the separate governed deployment workflow after dedicated target authority is verified.
+5. Run production `smoke_mode=readonly`, then `smoke_mode=both` against the dedicated provider origin.
 6. Attach successful workflow artifacts/logs to issue #63.
 7. Fix custom-domain `/api/*` routing so apex and `www` resolve to the Firebase-backed API surface.
 8. Run custom-domain read-only and authenticated production smoke.
@@ -60,20 +60,25 @@ Actions -> Deploy Asset Factory -> Run workflow
 Sequence:
 
 ```text
-staging / deploy=false / smoke_mode=readonly
-staging / deploy=true / smoke_mode=both
-production / deploy=false / smoke_mode=readonly
-production / deploy=true / smoke_mode=both
+staging / smoke_mode=readonly
+staging / smoke_mode=both
+production / smoke_mode=readonly
+production / smoke_mode=both
 ```
 
-Required GitHub environment/repository secrets:
+The smoke workflow never deploys.
+
+Required protected-environment values:
 
 ```text
-FIREBASE_TOKEN
+ASSET_FACTORY_BASE_URL
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
+ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
+
+Production deploy additionally requires the dedicated project/site/WIF variables. `FIREBASE_TOKEN` is not an approved deployment credential.
 
 ## Exact local verification commands
 
@@ -87,7 +92,7 @@ node --version
 java -version
 npm install
 npm --prefix engine install
-npm --prefix functions install
+node scripts/check-legacy-functions-boundary.mjs
 npm --prefix life-map-pipeline/functions install
 npm --prefix assetfactory-studio install
 npm run doctor
@@ -106,7 +111,7 @@ npm run build
 Use this manually only when debugging the GitHub Actions workflow.
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://staging.uraiassetfactory.com \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_STAGING_BASE_URL \
 ASSET_FACTORY_API_KEY=$STAGING_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$STAGING_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=smoke-tenant-a \
@@ -115,18 +120,18 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
-## Exact production Firebase default verification commands
+## Exact dedicated production-origin verification commands
 
-Use these manually only when debugging the GitHub Actions workflow.
+Use these manually only when debugging the GitHub Actions workflow after the dedicated provider origin has been verified.
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL \
 npm run smoke:website
 ```
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \

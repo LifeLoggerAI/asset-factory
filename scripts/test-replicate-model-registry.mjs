@@ -23,6 +23,10 @@ function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
   for (const [from, to] of patches) source = source.replace(from, to);
+  source = source.replace(
+    /from ['"]\.\/assetProviderAdapters['"];?/,
+    "from './assetProviderAdapters.mjs';"
+  );
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -35,14 +39,21 @@ function compileTsModule(relativePath, patches = []) {
   }).outputText;
   const outputPath = path.join(compiledDir, relativePath.replace(/\.ts$/, '.mjs'));
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, output);
+  const normalizedOutput = output.replace(
+    /from ['"]\.\/assetProviderAdapters['"];?/,
+    "from './assetProviderAdapters.mjs';"
+  );
+  if (relativePath.endsWith('assetProviderRuntime.ts') && !normalizedOutput.includes("./assetProviderAdapters.mjs")) {
+    throw new Error('Replicate registry harness failed to rewrite assetProviderAdapters import');
+  }
+  fs.writeFileSync(outputPath, normalizedOutput);
   return outputPath;
 }
 
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
-  "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
+  "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
@@ -51,11 +62,11 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
   ],
   [
     "import type { AssetTypeDefinition } from './assetTypeCatalog';",
-    "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };",
+    "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'video' | 'bundle'; extension: string };",
   ],
   [
-    "import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';",
-    "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';",
+    "import { configuredProviderName, isAssetProviderName, type AssetProviderName } from './assetProviderAdapters';",
+    "import { configuredProviderName, isAssetProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway' | 'meshy';",
   ],
 ]);
 
@@ -64,6 +75,10 @@ const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRunt
 
 const trackedEnv = [
   'ASSET_FACTORY_MEDIA_PROVIDER',
+  'ASSET_FACTORY_IMAGE_PROVIDER',
+  'ASSET_FACTORY_MODEL3D_PROVIDER',
+  'ASSET_FACTORY_AUDIO_PROVIDER',
+  'ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED',
   'REPLICATE_API_TOKEN',
   'ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL',
   'ASSET_FACTORY_REPLICATE_MODEL3D_MODEL',
@@ -78,6 +93,14 @@ const trackedEnv = [
 const originalEnv = Object.fromEntries(trackedEnv.map((key) => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 
+function validGlbFixture() {
+  const buffer = Buffer.alloc(12);
+  buffer.write('glTF', 0, 'ascii');
+  buffer.writeUInt32LE(2, 4);
+  buffer.writeUInt32LE(buffer.byteLength, 8);
+  return buffer;
+}
+
 function restoreEnv() {
   for (const key of trackedEnv) {
     const value = originalEnv[key];
@@ -88,6 +111,10 @@ function restoreEnv() {
 
 function configureRegistry() {
   process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_IMAGE_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_MODEL3D_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_AUDIO_PROVIDER = 'replicate';
+  process.env.ASSET_FACTORY_PROVIDER_SPEND_AUTHORIZED = 'true';
   process.env.REPLICATE_API_TOKEN = 'test-token';
   process.env.ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL = 'black-forest-labs/flux-schnell';
   process.env.ASSET_FACTORY_REPLICATE_MODEL3D_MODEL = 'tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854';
@@ -114,9 +141,10 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
       });
     }
     if (urlString === artifactUrl) {
-      return new Response(new Uint8Array([1, 2, 3, 4]), {
+      const bytes = expectedLane === 'model3d' ? validGlbFixture() : Buffer.from([1, 2, 3, 4]);
+      return new Response(bytes, {
         status: 200,
-        headers: { 'content-type': mimeType, 'content-length': '4' },
+        headers: { 'content-type': mimeType, 'content-length': String(bytes.byteLength) },
       });
     }
     throw new Error(`Unexpected fetch URL: ${urlString}`);
@@ -127,7 +155,8 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
   assert.equal(result.metadata.providerModel, expectedModel);
   assert.equal(result.metadata.replicateLane, expectedLane);
   assert.equal(result.assetMimeType, mimeType);
-  assert.equal(result.assetBuffer.byteLength, 4);
+  assert.equal(result.assetBuffer.byteLength, expectedLane === 'model3d' ? 12 : 4);
+  if (expectedLane === 'model3d') assert.equal(result.metadata.glbValidated, true);
   assert.deepEqual(calls.map(({ method }) => method), ['POST', 'GET']);
 }
 
@@ -147,7 +176,7 @@ async function testGraphicLane() {
 async function testModel3dLaneUsesPinnedVersionRoute() {
   const version = 'a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854';
   await runCase({
-    request: { jobId: 'model3d', tenantId: 'tenant', prompt: 'glass memory shrine', type: 'model3d', metadata: { enablePbr: true, generateType: 'Normal' } },
+    request: { jobId: 'model3d', tenantId: 'tenant', prompt: 'glass memory shrine', type: 'model3d', metadata: {} },
     typeName: 'model3d',
     expectedUrl: 'https://api.replicate.com/v1/predictions',
     expectedBody: { version, input: { prompt: 'glass memory shrine', enable_pbr: true, face_count: 40000, generate_type: 'Normal' } },
@@ -169,6 +198,23 @@ async function testMusicLane() {
     expectedModel: 'google/lyria-2',
     expectedLane: 'audio',
   });
+}
+
+async function testSpeechLaneRequiresApprovedVoice() {
+  const original = process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+  delete process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+  try {
+    await assert.rejects(
+      () => renderWithConfiguredProvider(
+        { jobId: 'speech-no-voice', tenantId: 'tenant', prompt: 'hello', type: 'speech', metadata: {} },
+        resolveAssetType('speech')
+      ),
+      /ASSET_FACTORY_REPLICATE_SPEECH_VOICE must be explicitly configured/
+    );
+  } finally {
+    if (original === undefined) delete process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE;
+    else process.env.ASSET_FACTORY_REPLICATE_SPEECH_VOICE = original;
+  }
 }
 
 async function testSpeechLane() {
@@ -207,6 +253,7 @@ try {
   await testGraphicLane();
   await testModel3dLaneUsesPinnedVersionRoute();
   await testMusicLane();
+  await testSpeechLaneRequiresApprovedVoice();
   await testSpeechLane();
   await testRequestOverridesRemainFailClosed();
   console.log('PASS Replicate four-lane model registry contract tests');

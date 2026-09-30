@@ -15,9 +15,10 @@ This file defines the HTTP contract that UrAi Core and other systems may depend 
 | Environment | Base URL | Completion rule |
 | --- | --- | --- |
 | Local proof | `http://localhost:<port>` | Deterministic proof renderers may be used. |
-| Staging | `https://staging.uraiassetfactory.com` | Must run with local fallback disabled and production-like auth. |
-| Production Firebase slice | `https://urai-4dc1d.web.app` | Verified for Firebase health, asset request/status, and Life Map event ingestion only. |
-| Production public domain | `https://www.uraiassetfactory.com` | Not complete until DNS/TLS, legal/trust/status pages, auth, tenant isolation, provider-backed generation, billing, worker, observability, and production smoke evidence pass. |
+| Staging | protected-environment `ASSET_FACTORY_BASE_URL` | Must be the verified dedicated staging origin, with local fallback disabled and production-like auth. |
+| Historical shared Firebase slice | `https://urai-4dc1d.web.app` | Historical evidence only; not valid final Asset Factory production authority. |
+| Production provider origin | protected-environment `ASSET_FACTORY_BASE_URL` | Must be the verified dedicated Asset Factory provider origin before custom-domain attachment. |
+| Production public domain | `https://www.uraiassetfactory.com` | Not complete until it is attached to the verified dedicated target and DNS/TLS, legal/trust/status pages, auth, tenant isolation, provider-backed generation where required, billing, worker, observability, and production smoke evidence pass. |
 
 ## Authentication and tenancy
 

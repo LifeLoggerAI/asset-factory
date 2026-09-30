@@ -22,11 +22,17 @@ export async function POST(
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const asset = await publishAsset(jobId);
+  try {
+    const asset = await publishAsset(jobId);
 
-  if (!asset) {
-    return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+    if (!asset) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, asset });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Publish failed';
+    const status = message === 'Asset approval is required before publication' ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
-
-  return NextResponse.json({ ok: true, asset });
 }

@@ -108,9 +108,12 @@ def _extract_image_bytes(payload: Dict[str, Any], timeout: int) -> bytes:
     for item in candidates:
         for key in ("image_url", "url"):
             value = item.get(key)
-            if isinstance(value, str) and value.startswith(("https://", "http://")):
+            if isinstance(value, str) and value.startswith("https://"):
                 req = urllib.request.Request(value, headers={"User-Agent": "urai-asset-factory/1.1"})
                 with urllib.request.urlopen(req, timeout=timeout) as response:
+                    final_url = response.geturl()
+                    if not final_url.startswith("https://"):
+                        raise RuntimeError("Renderer image URL redirect downgraded from HTTPS")
                     return response.read()
 
     raise ValueError("Renderer response did not contain image bytes or an image URL")
@@ -214,8 +217,8 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
     endpoint = os.environ.get("ASSET_RENDERER_ENDPOINT", "").strip()
     if not endpoint:
         raise RuntimeError("ASSET_RENDERER_ENDPOINT is required for custom provider rendering")
-    if not endpoint.startswith("https://") and os.environ.get("ASSET_RENDERER_ALLOW_HTTP") != "1":
-        raise RuntimeError("ASSET_RENDERER_ENDPOINT must use HTTPS unless ASSET_RENDERER_ALLOW_HTTP=1")
+    if not endpoint.startswith("https://"):
+        raise RuntimeError("ASSET_RENDERER_ENDPOINT must use HTTPS")
 
     width, height = target_dimensions(entry, size)
     timeout = _env_int("ASSET_RENDERER_TIMEOUT_SEC", 180)
@@ -248,6 +251,8 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
         try:
             req = urllib.request.Request(endpoint, data=body, headers=_request_headers(), method="POST")
             with urllib.request.urlopen(req, timeout=timeout) as response:
+                if not response.geturl().startswith("https://"):
+                    raise RuntimeError("Custom renderer redirect downgraded from HTTPS")
                 response_body = response.read()
                 content_type = response.headers.get("content-type", "")
 

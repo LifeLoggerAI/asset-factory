@@ -13,7 +13,7 @@ Local proof mode is useful for development. It is not proof of production readin
 As of the latest release evidence, the Firebase default production API is verified at:
 
 ```text
-https://urai-4dc1d.web.app
+$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL
 ```
 
 Evidence files:
@@ -38,17 +38,18 @@ Actions -> Deploy Asset Factory -> Run workflow
 
 Recommended sequence:
 
-1. `environment=staging`, `deploy=false`, `smoke_mode=readonly`
-2. `environment=staging`, `deploy=true`, `smoke_mode=both`
-3. `environment=production`, `deploy=false`, `smoke_mode=readonly`
-4. `environment=production`, `deploy=true`, `smoke_mode=both`
+1. `environment=staging`, `smoke_mode=readonly`
+2. `environment=staging`, `smoke_mode=both`
+3. `environment=production`, `smoke_mode=readonly`
+4. `environment=production`, `smoke_mode=both`
+
+The smoke workflow never deploys. Production deployment uses the separate Asset Factory Production Readiness workflow.
 
 The workflow runs with local fallback disabled and uploads an evidence artifact. Attach successful artifacts to issue #63.
 
 Required GitHub environment/repository secrets:
 
 ```text
-FIREBASE_TOKEN
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
 CRON_SECRET
@@ -142,7 +143,7 @@ Observability:
 ```bash
 npm install
 npm --prefix engine install
-npm --prefix functions install
+node scripts/check-legacy-functions-boundary.mjs
 npm --prefix life-map-pipeline/functions install
 npm --prefix assetfactory-studio install
 npm run doctor
@@ -275,19 +276,20 @@ Prefer the GitHub Actions workflow. Use manual commands only when debugging a fa
 3. Confirm provider spend caps are active.
 4. Confirm Stripe live webhook endpoint and secret are active.
 5. Confirm public docs do not claim unsupported capabilities.
-6. Deploy production.
-7. Run read-only smoke against the currently verified Firebase production API base.
+6. Validate the dedicated project/site/base-URL environment authority.
+7. Deploy production through the protected Asset Factory Production Readiness workflow.
+8. Run read-only smoke against the verified dedicated provider origin.
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL \
 npm run smoke:website
 ```
 
-8. Run authenticated production smoke against the currently verified Firebase production API base.
+9. Run authenticated production smoke against the verified dedicated provider origin.
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$VERIFIED_ASSET_FACTORY_PRODUCTION_BASE_URL \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
@@ -296,7 +298,7 @@ CRON_SECRET=$PROD_CRON_SECRET \
 npm run smoke:prod
 ```
 
-9. Verify DNS/TLS and API routing for `uraiassetfactory.com` and `www.uraiassetfactory.com` before declaring the custom domain ready.
+10. Verify DNS/TLS and API routing for `uraiassetfactory.com` and `www.uraiassetfactory.com` before declaring the custom domain ready.
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
@@ -314,14 +316,14 @@ CRON_SECRET=$PROD_CRON_SECRET \
 npm run smoke:prod
 ```
 
-10. Check logs, queue backlog, dead letters, provider failures, and spend.
-11. Attach production smoke evidence to issue #63.
+11. Check logs, queue backlog, dead letters, provider failures, and spend.
+12. Attach production smoke evidence to issue #63.
 
 ## Custom-domain API blocker closure
 
 The custom-domain blocker is closed only when all of these are true:
 
-- `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
+- `uraiassetfactory.com` is attached to the verified dedicated Asset Factory target using provider-generated domain instructions.
 - `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
 - `https://uraiassetfactory.com/api/system/health` returns the expected Asset Factory Studio health response.
 - `https://uraiassetfactory.com/api/health` returns the compatibility health response, not a Next.js 404 page.

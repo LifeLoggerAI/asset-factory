@@ -8,6 +8,7 @@ const actual = process.versions.node;
 const actualMajor = Number(actual.split('.')[0]);
 const root = process.cwd();
 const installRootDependencies = process.env.ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS === 'true';
+const installLegacyFunctions = process.env.ASSET_FACTORY_SETUP_INSTALL_LEGACY_FUNCTIONS === 'true';
 
 function fail(message) {
   console.error(`FAIL local setup: ${message}`);
@@ -68,7 +69,12 @@ if (rootDeps.ok) {
 }
 
 run('Install engine dependencies', 'npm', ['--prefix', 'engine', 'install']);
-run('Install functions dependencies', 'npm', ['--prefix', 'functions', 'install']);
+if (installLegacyFunctions) {
+  run('Install historical functions dependencies', 'npm', ['--prefix', 'functions', 'install']);
+} else {
+  console.log('\n> Skipping historical functions/ dependency install; this tree is non-deployable forensic history.');
+  console.log('> To inspect it intentionally, rerun with ASSET_FACTORY_SETUP_INSTALL_LEGACY_FUNCTIONS=true.');
+}
 run('Install LifeMap functions dependencies', 'npm', ['--prefix', 'life-map-pipeline/functions', 'install']);
 run('Install Studio dependencies', 'npm', ['--prefix', 'assetfactory-studio', 'install']);
 run('Run repo doctor', 'npm', ['run', 'doctor']);

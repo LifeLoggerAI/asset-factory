@@ -72,9 +72,6 @@ if (/\b(TODO|TBD)\b/i.test(evidence)) {
 const requiredLiterals = [
   'repo: LifeLoggerAI/asset-factory',
   'api_contract_version: asset-factory-api-v1',
-  'firebase_project: urai-4dc1d',
-  'staging_url: https://staging.uraiassetfactory.com',
-  'production_url: https://www.uraiassetfactory.com',
   'fallback_disabled: true',
   'auth_required: true',
   'api_key_required: true',
@@ -112,6 +109,11 @@ for (const section of requiredSections) requireSection(section);
 const requiredFields = [
   'branch',
   'commit',
+  'firebase_project',
+  'firebase_hosting_site',
+  'provider_origin',
+  'staging_url',
+  'production_url',
   'local_proof_run',
   'staging_smoke_run',
   'production_smoke_run',
@@ -120,6 +122,24 @@ const requiredFields = [
 ];
 
 for (const field of requiredFields) requireConcreteField(field);
+
+const legacyProjects = new Set(['urai-4dc1d', 'asset-factory-dev-id']);
+if (legacyProjects.has(fieldValue('firebase_project'))) {
+  fail('firebase_project must be the verified dedicated Asset Factory project, not a legacy/shared project');
+}
+if (legacyProjects.has(fieldValue('firebase_hosting_site'))) {
+  fail('firebase_hosting_site must be the verified dedicated Asset Factory site, not a legacy/shared site');
+}
+for (const label of ['provider_origin', 'staging_url', 'production_url']) {
+  let parsed;
+  try { parsed = new URL(fieldValue(label)); }
+  catch { fail(`${label} must be a valid absolute URL`); }
+  if (parsed.protocol !== 'https:') fail(`${label} must use HTTPS`);
+}
+const legacyHosts = new Set(['urai-4dc1d.web.app','urai-4dc1d.firebaseapp.com','asset-factory-dev-id.web.app','asset-factory-dev-id.firebaseapp.com','urai.app','www.urai.app']);
+if (legacyHosts.has(new URL(fieldValue('provider_origin')).hostname.toLowerCase())) {
+  fail('provider_origin must be the verified dedicated Asset Factory origin');
+}
 
 const shaFields = ['commit', 'rollback_sha'];
 for (const field of shaFields) requireConcreteField(field, { sha: true });
