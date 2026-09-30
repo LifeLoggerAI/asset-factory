@@ -38,7 +38,8 @@ try {
   fail('ASSET_FACTORY_BASE_URL must be a valid absolute URL.');
 }
 if (baseUrl.protocol !== 'https:') fail('ASSET_FACTORY_BASE_URL must use HTTPS.');
-if (legacyHosts.has(baseUrl.hostname.toLowerCase())) fail(`legacy/shared host ${baseUrl.hostname} is not valid final Asset Factory production authority.`);
+const baseHost = baseUrl.hostname.toLowerCase().replace(/\.$/, '');
+if (legacyHosts.has(baseHost)) fail(`legacy/shared host ${baseHost} is not valid final Asset Factory production authority.`);
 if (!hostingSite) fail('ASSET_FACTORY_FIREBASE_HOSTING_SITE is required.');
 const legacyHostingSites = new Set([...legacyProjects, 'asset-factory-prod', 'asset-factory-admin']);
 if (legacyHostingSites.has(hostingSite)) fail(`legacy/shared Hosting site ${hostingSite} is not valid final Asset Factory production authority.`);
@@ -63,7 +64,7 @@ if (only) {
 
 console.log('ASSET_FACTORY_PRODUCTION_TARGET=VALIDATED');
 console.log(`PROJECT_ID=${projectId}`);
-console.log(`BASE_HOST=${baseUrl.hostname}`);
+console.log(`BASE_HOST=${baseHost}`);
 console.log(`HOSTING_SITE=${hostingSite}`);
 
 if (checkOnly) process.exit(0);
