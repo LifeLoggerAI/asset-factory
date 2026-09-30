@@ -1,0 +1,33 @@
+{
+  "id": "ground-sanctuary-geology-01",
+  "prompt": "Photoreal natural sanctuary geology for UrAi Ground: irregular weathered stone formation partially embedded in soil, realistic fracture planes, erosion, subtle lichen and moss, believable mineral roughness and scale. Must read as ordinary physical geology at first-person human height, not a fantasy altar, cave portal, crystal, slab wall, or video-game landmark. Natural asymmetry, grounded contact, restrained material color.",
+  "providers": [
+    "meshy",
+    "tripo",
+    "rodin"
+  ],
+  "referenceImages": [],
+  "generation": {
+    "maxProviderAttempts": 1,
+    "seed": 240919
+  },
+  "target": {
+    "meters": 5.5,
+    "hero": true,
+    "maxTriangles": 150000,
+    "textureResolution": "4k",
+    "pbr": true
+  },
+  "authority": {
+    "route": "/ground",
+    "source": "URAI Ground Definitive Canon V1",
+    "negativeCanon": [
+      "crystal",
+      "altar",
+      "portal",
+      "slab wall",
+      "floating rock",
+      "neon"
+    ]
+  }
+}
