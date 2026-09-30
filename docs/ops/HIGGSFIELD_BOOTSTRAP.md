@@ -107,3 +107,7 @@ The browser-console inspection was cancelled before it produced an authenticated
 - a paid Higgsfield request has succeeded.
 
 Those remain activation gates, not source-integration blockers.
+
+## Artifact download origin gate
+
+ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS must contain a comma-separated list of explicitly approved output origins (scheme and host, with port if applicable) before downloading provider artifacts. No origin is approved by default. Establish this list from legitimately observed provider output and rights/storage policy; do not guess CDN domains. Redirects, credential-bearing URLs and IP-literal IPv6 output URLs are rejected. Downloads are capped while streaming, including responses without Content-Length. Credentials and provider selectors remain dormant until the existing activation gates are satisfied. Offline behavior tests use synthetic responses and make no provider calls.
