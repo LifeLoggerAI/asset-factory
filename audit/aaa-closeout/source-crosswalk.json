@@ -1,0 +1,785 @@
+{
+  "schemaVersion": "urai-aaa-source-crosswalk-v1",
+  "packages": [
+    {
+      "id": "AAA-001",
+      "scene": "Home",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/currentHomeVisualAuthority.json",
+        "urai-tier1/src/spatial/layout/HomeWorldProductionV223.tsx",
+        "urai-tier1/src/spatial/assets/HomeLaunchSanctuaryV254.tsx"
+      ],
+      "manifestAssetIds": [
+        "home-entry-chamber-v1"
+      ],
+      "heroSpecId": "HERO-HOME-001",
+      "relatedGoldMasterGateIds": [
+        "GM-001"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-002",
+      "scene": "Home",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/assets/HomeLaunchSanctuaryV254.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-001"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-003",
+      "scene": "Sky/Weather",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/assets/HomeAtmosphericSky.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-001",
+        "GM-009"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-004",
+      "scene": "Orb",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/home/HomeOrb.tsx",
+        "urai-tier1/src/spatial/layout/HomeWorldProductionV223.tsx"
+      ],
+      "manifestAssetIds": [
+        "urai-orb-avatar-v1"
+      ],
+      "heroSpecId": "HERO-ORB-001",
+      "relatedGoldMasterGateIds": [
+        "GM-003"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-005",
+      "scene": "Ground",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/GroundSpatialWorldClean.tsx"
+      ],
+      "manifestAssetIds": [
+        "ground-world-terrain-v1"
+      ],
+      "heroSpecId": "HERO-GROUND-001",
+      "relatedGoldMasterGateIds": [
+        "GM-002"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-006",
+      "scene": "Ground",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/GroundSpatialWorldClean.tsx"
+      ],
+      "manifestAssetIds": [
+        "ground-natural-canopy-v3"
+      ],
+      "heroSpecId": "HERO-GROUND-002",
+      "relatedGoldMasterGateIds": [
+        "GM-002"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-007",
+      "scene": "Ground",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/GroundSpatialWorldClean.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-002"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-008",
+      "scene": "Ground",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/GroundSpatialWorldClean.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-002"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-009",
+      "scene": "Life Map",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/components/lifemap/ComposedLifeMapScene.tsx",
+        "urai-tier1/src/components/lifemap/LifeMapProductionWorld.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": "HERO-LIFEMAP-001",
+      "relatedGoldMasterGateIds": [
+        "GM-004"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-006"
+      ]
+    },
+    {
+      "id": "AAA-010",
+      "scene": "Memory Star",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/components/lifemap/LifeMapProductionWorld.tsx"
+      ],
+      "manifestAssetIds": [
+        "life-map-memory-star-v1"
+      ],
+      "heroSpecId": "HERO-MEMSTAR-001",
+      "relatedGoldMasterGateIds": [
+        "GM-005"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-007"
+      ]
+    },
+    {
+      "id": "AAA-011",
+      "scene": "Focus",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/focus/FocusChamberClient.tsx"
+      ],
+      "manifestAssetIds": [
+        "focus-memory-chamber-v1"
+      ],
+      "heroSpecId": "HERO-FOCUS-001",
+      "relatedGoldMasterGateIds": [
+        "GM-006"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-008"
+      ]
+    },
+    {
+      "id": "AAA-012",
+      "scene": "Replay",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/replay/CinematicReplayClient.tsx"
+      ],
+      "manifestAssetIds": [
+        "replay-memory-environment-v1"
+      ],
+      "heroSpecId": "HERO-REPLAY-001",
+      "relatedGoldMasterGateIds": [
+        "GM-007"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-013",
+      "scene": "Physical Passport",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/layout/HomeAAAVisualRepair.tsx",
+        "urai-tier1/src/app/passport/PassportVaultClient.tsx"
+      ],
+      "manifestAssetIds": [
+        "passport-status-room-v1"
+      ],
+      "heroSpecId": "HERO-PASSPORT-001",
+      "relatedGoldMasterGateIds": [
+        "GM-008"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-010"
+      ]
+    },
+    {
+      "id": "AAA-014",
+      "scene": "Avatar Self View",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/home/AvatarSelfView.tsx"
+      ],
+      "manifestAssetIds": [
+        "home-human-rig-v3",
+        "home-human-makehuman-v4"
+      ],
+      "heroSpecId": "HERO-AVATAR-001",
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-015",
+      "scene": "Council",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/council/CouncilRealm.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": "HERO-COUNCIL-001",
+      "relatedGoldMasterGateIds": [
+        "GM-014"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-016",
+      "scene": "Shadow",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/realms/SpatialRealmRuntime.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-012"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-017",
+      "scene": "Legacy",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/legacy/LegacyArchiveWorld.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-013"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-018",
+      "scene": "Rituals",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/scene/RitualPlatform.tsx",
+        "urai-tier1/src/spatial/companion/CompanionRitualTimingEngine.ts"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-015"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-019",
+      "scene": "Possible Futures",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/possible-futures/PossibleFuturesClient.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-016"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-020",
+      "scene": "Mirror",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/app/mirror/MirrorSpatialClient.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-011"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-021",
+      "scene": "Emotional Weather",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/environment/HomeEmotionalWeatherState.ts",
+        "urai-tier1/src/spatial/assets/HomeAtmosphericSky.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": "HERO-WEATHER-001",
+      "relatedGoldMasterGateIds": [
+        "GM-009"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-011",
+        "AMV-012",
+        "AMV-013",
+        "AMV-014",
+        "AMV-015",
+        "AMV-016"
+      ]
+    },
+    {
+      "id": "AAA-022",
+      "scene": "Global Emotional Field",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/home/HomeGlobalEmotionalFieldEarth.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-010"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-023",
+      "scene": "Audio",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/audio/SpatialAmbientRuntime.tsx",
+        "urai-tier1/src/spatial/assets/sensoryAssetManifest.ts"
+      ],
+      "manifestAssetIds": [
+        "urai-ambient-bed-v1"
+      ],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-001",
+        "AMV-002",
+        "AMV-003"
+      ]
+    },
+    {
+      "id": "AAA-024",
+      "scene": "Orb audio",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/audio/SpatialPositionedAudioRuntime.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-003"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-004",
+        "AMV-005"
+      ]
+    },
+    {
+      "id": "AAA-025",
+      "scene": "Replay audio",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/audio/SpatialPositionedAudioRuntime.tsx",
+        "urai-tier1/src/app/replay/CinematicReplayClient.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-007"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-009"
+      ]
+    },
+    {
+      "id": "AAA-026",
+      "scene": "Haptics",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/haptics/HapticRuntime.tsx",
+        "urai-tier1/src/spatial/haptics/hapticCueRegistry.ts"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-010"
+      ]
+    },
+    {
+      "id": "AAA-027",
+      "scene": "Narrator voice",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/narrator/NarratorVoice.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-028",
+      "scene": "Transitions",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/world/WorldTransitionController.tsx",
+        "urai-tier1/src/spatial/canon/transitionCanon.ts"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-023"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-017",
+        "AMV-018",
+        "AMV-019",
+        "AMV-020"
+      ]
+    },
+    {
+      "id": "AAA-029",
+      "scene": "Accessibility",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/accessibility/spatialAccessibilitySchema.ts",
+        "urai-tier1/src/app/accessibility.css"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-030",
+      "scene": "Performance",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-031",
+      "scene": "Launch media",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-032",
+      "scene": "Storytime",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-020"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-033",
+      "scene": "Studio",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-034",
+      "scene": "Labs",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-035",
+      "scene": "Foundation",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-036",
+      "scene": "Marketing",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-037",
+      "scene": "Analytics",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-038",
+      "scene": "Admin",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-039",
+      "scene": "Communications",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-040",
+      "scene": "B2B",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-041",
+      "scene": "Investors",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-042",
+      "scene": "Privacy",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-043",
+      "scene": "Content",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-044",
+      "scene": "Jobs",
+      "repository": "UNKNOWN: external owner not inspected in this ledger",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-045",
+      "scene": "Asset Factory",
+      "repository": "LifeLoggerAI/asset-factory",
+      "sourcePaths": [
+        "assetfactory-studio/app/assets/page.tsx",
+        "assetfactory-studio/app/dashboard/page.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-021",
+        "GM-022"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-046",
+      "scene": "Cross-estate icons and localization",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-028"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-047",
+      "scene": "Cross-estate motion",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [
+        "urai-tier1/src/spatial/world/WorldTransitionController.tsx"
+      ],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-023"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": [
+        "AMV-017",
+        "AMV-018",
+        "AMV-019",
+        "AMV-020"
+      ]
+    },
+    {
+      "id": "AAA-048",
+      "scene": "Physical-device QA",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-049",
+      "scene": "XR",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-025"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    },
+    {
+      "id": "AAA-050",
+      "scene": "Gold Master",
+      "repository": "LifeLoggerAI/urai-spatial",
+      "sourcePaths": [],
+      "manifestAssetIds": [],
+      "heroSpecId": null,
+      "relatedGoldMasterGateIds": [
+        "GM-027"
+      ],
+      "mappingScope": "Analyst source crosswalk; file presence alone does not prove live integration, visual acceptance, or package completion.",
+      "relatedSensorySpecIds": []
+    }
+  ]
+}

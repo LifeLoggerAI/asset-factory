@@ -50,6 +50,7 @@ jobs:
           node --check model_forge/verify-promotion.mjs
           node --check model_forge/run-wave.mjs
           node --check model_forge/provider-preflight.mjs
+          node --test scripts/test-model-forge-execution-outcomes.mjs
           grep -q "tencent/hunyuan-3d-3.1" model_forge/forge.mjs
           grep -q "REPLICATE_API_TOKEN" model_forge/forge.mjs
           grep -q "refs/heads/main" .github/workflows/model-forge-replicate-wave.yml
@@ -133,12 +134,21 @@ jobs:
         run: |
           node model_forge/run-wave.mjs \
             --wave model_forge/waves/wave-01-ground-canopy-bakeoff.json > wave-plan.json
-          grep -q '"execute": false' wave-plan.json
-          grep -q '"plannedCandidateAttempts": 3' wave-plan.json
-          test "$(grep -c '"status": "planned"' wave-plan.json)" -eq 3
           node model_forge/run-wave.mjs             --wave model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json > replicate-wave-plan.json
-          grep -q '"plannedCandidateAttempts": 1' replicate-wave-plan.json
-          test "$(grep -c '"status": "planned"' replicate-wave-plan.json)" -eq 1
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import assert from 'node:assert/strict'
+          for (const [file, expectedCount] of [['wave-plan.json', 3], ['replicate-wave-plan.json', 1]]) {
+            const receipt = JSON.parse(fs.readFileSync(file, 'utf8'))
+            assert.equal(receipt.execute, false)
+            assert.equal(receipt.status, 'planned')
+            assert.equal(receipt.plannedCandidateAttempts, expectedCount)
+            assert.equal(receipt.maxCandidateGenerations, expectedCount)
+            assert.equal(receipt.entries.length, expectedCount)
+            assert.ok(receipt.entries.every(entry => entry.status === 'planned' && entry.credentialConfigured === false))
+          }
+          console.log('PASS bounded no-spend wave receipts')
+          NODE
       - uses: actions/upload-artifact@v4
         with:
           name: model-forge-no-spend-proof-${{ env.URAI_MODEL_FORGE_EXACT_HEAD }}
