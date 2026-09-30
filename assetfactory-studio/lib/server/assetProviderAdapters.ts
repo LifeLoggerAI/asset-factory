@@ -1,6 +1,6 @@
 import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';
 
-export type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway';
+export type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'runway' | 'higgsfield';
 
 export type AssetProviderAdapter = {
   name: AssetProviderName;
@@ -18,6 +18,7 @@ const providerEnv: Record<Exclude<AssetProviderName, 'local-proof'>, string[]> =
   elevenlabs: ['ELEVENLABS_API_KEY'],
   stability: ['STABILITY_API_KEY'],
   runway: ['RUNWAY_API_KEY'],
+  higgsfield: ['HIGGSFIELD_API_KEY_ID', 'HIGGSFIELD_API_KEY_SECRET'],
 };
 
 function missingEnv(required: string[]) {
@@ -26,7 +27,7 @@ function missingEnv(required: string[]) {
 
 export function configuredProviderName(): AssetProviderName {
   const value = String(process.env.ASSET_FACTORY_MEDIA_PROVIDER || 'local-proof').toLowerCase();
-  if (['openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway'].includes(value)) {
+  if (['openai', 'replicate', 'fal', 'elevenlabs', 'stability', 'runway', 'higgsfield'].includes(value)) {
     return value as AssetProviderName;
   }
   return 'local-proof';
@@ -82,6 +83,13 @@ export function getProviderAdapters(): AssetProviderAdapter[] {
       configured: missingEnv(providerEnv.runway).length === 0,
       missingEnv: missingEnv(providerEnv.runway),
       notes: 'Governed video provider slot. Runtime remains disabled unless a server-approved Runway endpoint contract is explicitly configured.',
+    },
+    {
+      name: 'higgsfield',
+      supportedTypes: ['graphic', 'video'],
+      configured: missingEnv(providerEnv.higgsfield).length === 0,
+      missingEnv: missingEnv(providerEnv.higgsfield),
+      notes: 'Governed server-side Higgsfield image/video provider. Async requests use pinned endpoints and synthetic INTERPRETIVE provenance.',
     },
   ];
 }

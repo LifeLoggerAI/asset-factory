@@ -44,6 +44,7 @@ compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
   "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
+compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
     "import type { GenerateRequest } from './assetFactoryValidation';",
@@ -55,8 +56,9 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
   ],
   [
     "import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';",
-    "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability';",
+    "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'higgsfield';",
   ],
+  ["from './higgsfieldClient';", "from './higgsfieldClient.mjs';"],
 ]);
 
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);

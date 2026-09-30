@@ -1,6 +1,7 @@
 import type { GenerateRequest } from './assetFactoryValidation';
 import type { AssetTypeDefinition } from './assetTypeCatalog';
 import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';
+import { downloadHiggsfieldArtifact, higgsfieldArtifactUrl, higgsfieldCredentialsConfigured, higgsfieldIdempotencyKey, runHiggsfieldGeneration } from './higgsfieldClient';
 
 type ProviderRenderResult = {
   assetBuffer: Buffer;
@@ -481,6 +482,34 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
   };
 }
 
+async function renderHiggsfield(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
+  if (definition.canonicalType !== 'graphic' || !higgsfieldCredentialsConfigured()) return null;
+  const endpoint = env('ASSET_FACTORY_HIGGSFIELD_IMAGE_ENDPOINT') || 'higgsfield-ai/soul/v2/standard';
+  const result = await runHiggsfieldGeneration(
+    endpoint,
+    { prompt: input.prompt },
+    higgsfieldIdempotencyKey(input.jobId, 'graphic', endpoint)
+  );
+  const artifactUrl = higgsfieldArtifactUrl(result, 'image');
+  const artifact = await downloadHiggsfieldArtifact(artifactUrl, {
+    maxBytes: providerMaxBytes(),
+    timeoutMs: providerTimeoutMs(),
+  });
+  return {
+    assetBuffer: artifact.buffer,
+    assetMimeType: artifact.mimeType,
+    extension: extensionFromMime(artifact.mimeType, 'png'),
+    metadata: {
+      provider: 'higgsfield',
+      providerModel: endpoint,
+      providerRequestId: result.request_id,
+      syntheticSource: true,
+      truthClass: 'INTERPRETIVE',
+      sourceTruth: false,
+    },
+  };
+}
+
 async function renderFal(input: GenerateRequest, definition: AssetTypeDefinition): Promise<ProviderRenderResult | null> {
   const apiKey = env('FAL_KEY');
   const model = definition.canonicalType === 'model3d'
@@ -530,5 +559,6 @@ async function renderProvider(
   if (provider === 'stability' && definition.canonicalType === 'graphic') return renderStability(input);
   if (provider === 'replicate') return renderReplicate(input, definition);
   if (provider === 'fal') return renderFal(input, definition);
+  if (provider === 'higgsfield') return renderHiggsfield(input, definition);
   return null;
 }
