@@ -138,14 +138,14 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
 
   if (definition.canonicalType === 'video') {
     const result = await renderVideoWithConfiguredProvider(input);
-    if (!result) throw new Error('Canonical video rendering requires ASSET_FACTORY_VIDEO_PROVIDER=replicate|fal|runway and an approved provider configuration; local-proof cannot promote fake motion as video.');
+    if (!result) throw new Error('Canonical video rendering requires ASSET_FACTORY_VIDEO_PROVIDER=replicate|fal|runway|higgsfield and an approved provider configuration; local-proof cannot promote fake motion as video.');
     const manifest = buildManifest(input, {
       rendererMode: 'video-renderer',
       formats: [result.extension, 'json'],
       width,
       height,
       previewPath: null,
-      metadata: { format: result.extension, providerBacked: true, ...result.metadata, qaRequired: ['identity-continuity','motion-naturalness','anatomy','temporal-flicker','lighting-continuity','rights-boundary'] },
+      metadata: { format: result.extension, providerBacked: true, syntheticSource: true, truthClass: 'INTERPRETIVE', sourceTruth: false, ...result.metadata, qaRequired: ['identity-continuity','motion-naturalness','anatomy','temporal-flicker','lighting-continuity','rights-boundary'] },
       rendererContract: 'governed-video-provider-v1',
     });
     return { ok: true as const, assetBuffer: result.assetBuffer, assetMimeType: result.assetMimeType, assetFileName: `${input.jobId}.${result.extension}`, manifest, mode: 'video-renderer' as const };
@@ -159,7 +159,7 @@ export async function renderAsset(input: GenerateRequest & Record<string, unknow
       width: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : width,
       height: definition.canonicalType === 'audio' || definition.canonicalType === 'bundle' ? 0 : height,
       previewPath: null,
-      metadata: { format: providerResult.extension, providerBacked: true, ...providerResult.metadata, ...(spatialModelContract ? { spatialModelContract } : {}) },
+      metadata: { format: providerResult.extension, providerBacked: true, syntheticSource: true, truthClass: 'INTERPRETIVE', sourceTruth: false, ...providerResult.metadata, ...(spatialModelContract ? { spatialModelContract } : {}) },
       rendererContract: 'provider-backed-v1',
     });
     return { ok: true as const, assetBuffer: providerResult.assetBuffer, assetMimeType: providerResult.assetMimeType, assetFileName: `${input.jobId}.${providerResult.extension}`, manifest, mode: definition.rendererMode };
