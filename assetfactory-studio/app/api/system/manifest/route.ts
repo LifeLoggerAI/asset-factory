@@ -57,12 +57,18 @@ export async function GET(req: NextRequest) {
   const falCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'fal' && provider.configured
   );
+  const higgsfieldCredentialVisible = providers.adapters.some(
+    (provider) => provider.name === 'higgsfield' && provider.configured
+  );
   const falGraphicsConfigured = configured('ASSET_FACTORY_FAL_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
   const replicateGraphicsConfigured = configured('ASSET_FACTORY_REPLICATE_GRAPHICS_MODEL') || configured('ASSET_FACTORY_GRAPHICS_MODEL');
   const replicateModel3dConfigured = configured('ASSET_FACTORY_REPLICATE_MODEL3D_MODEL') || configured('ASSET_FACTORY_MODEL3D_MODEL');
   const replicateAudioConfigured = configured('ASSET_FACTORY_REPLICATE_AUDIO_MODEL') || configured('ASSET_FACTORY_AUDIO_MODEL');
   const replicateSpeechConfigured = configured('ASSET_FACTORY_REPLICATE_SPEECH_MODEL');
   const replicateRegistryConfigured = replicateGraphicsConfigured && replicateModel3dConfigured && replicateAudioConfigured && replicateSpeechConfigured;
+  const higgsfieldImageConfigured = configured('ASSET_FACTORY_HIGGSFIELD_IMAGE_ENDPOINT');
+  const higgsfieldVideoConfigured = configured('ASSET_FACTORY_HIGGSFIELD_TEXT_VIDEO_ENDPOINT') && configured('ASSET_FACTORY_HIGGSFIELD_IMAGE_VIDEO_ENDPOINT');
+  const higgsfieldRegistryConfigured = higgsfieldImageConfigured && higgsfieldVideoConfigured;
   const durableQueueConfigured = queue.mode !== 'local-inline';
   const authConfigured = enabled('ASSET_FACTORY_REQUIRE_API_KEY') && enabled('ASSET_FACTORY_REQUIRE_AUTH');
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
@@ -93,6 +99,10 @@ export async function GET(req: NextRequest) {
       providerBackedRendering: providerConfigured,
       replicateCredentialVisible,
       falCredentialVisible,
+      higgsfieldCredentialVisible,
+      higgsfieldImageConfigured,
+      higgsfieldVideoConfigured,
+      higgsfieldRegistryConfigured,
       falGraphicsConfigured,
       replicateGraphicsConfigured,
       replicateModel3dConfigured,
@@ -119,6 +129,7 @@ export async function GET(req: NextRequest) {
       durableQueueConfigured,
       providerConfigured,
       falGraphicsConfigured,
+      higgsfieldRegistryConfigured,
       replicateRegistryConfigured,
       stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET),
