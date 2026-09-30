@@ -1,0 +1,27 @@
+{
+  "id": "ground-canopy-challenger-01",
+  "prompt": "Photoreal mature broadleaf tree challenger for UrAi Ground. Natural irregular trunk and branch architecture, dense overlapping broadleaf canopy with convincing leaf clusters and negative space, realistic bark, grounded roots, asymmetrical crown, restrained natural color under daylight atmospheric lighting. No detached leaf balls, no primitive sphere/cylinder tree, no low-poly facets, no fantasy glow, no perfect symmetry, no text or pedestal.",
+  "providers": [
+    "meshy",
+    "tripo",
+    "rodin"
+  ],
+  "referenceImages": [],
+  "generation": {
+    "maxProviderAttempts": 1,
+    "seed": 241003
+  },
+  "target": {
+    "meters": 9,
+    "hero": true,
+    "maxTriangles": 180000,
+    "textureResolution": "4k",
+    "pbr": true
+  },
+  "authority": {
+    "route": "/ground",
+    "currentVisibleAuthority": "runtime-authored-canopy-v20",
+    "replacementRule": "challenger only; must beat V20 in literal desktop/portrait/reduced-motion scene pixels before promotion",
+    "supersededBinary": "ground-natural-canopy-v3-low-poly-silhouette"
+  }
+}
