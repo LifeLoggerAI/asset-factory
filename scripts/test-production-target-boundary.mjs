@@ -56,6 +56,12 @@ expectBlocked('shared geturai landing host forbidden', {
   ASSET_FACTORY_BASE_URL: 'https://geturai-landing-hub.web.app',
 }, 'legacy/shared host');
 
+expectBlocked('shared geturai landing host with DNS root dot forbidden', {
+  ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-asset-factory-prod',
+  ASSET_FACTORY_FIREBASE_HOSTING_SITE: 'synthetic-asset-factory-site',
+  ASSET_FACTORY_BASE_URL: 'https://geturai-landing-hub.web.app.',
+}, 'legacy/shared host');
+
 expectBlocked('historical shared asset-factory-prod site forbidden', {
   ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-asset-factory-prod',
   ASSET_FACTORY_FIREBASE_HOSTING_SITE: 'asset-factory-prod',
@@ -72,6 +78,12 @@ expectBlocked('consumer host forbidden', {
   ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-asset-factory-prod',
   ASSET_FACTORY_FIREBASE_HOSTING_SITE: 'synthetic-asset-factory-site',
   ASSET_FACTORY_BASE_URL: 'https://urai-4dc1d.web.app',
+}, 'legacy/shared host');
+
+expectBlocked('consumer host with DNS root dot forbidden', {
+  ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-asset-factory-prod',
+  ASSET_FACTORY_FIREBASE_HOSTING_SITE: 'synthetic-asset-factory-site',
+  ASSET_FACTORY_BASE_URL: 'https://urai-4dc1d.web.app.',
 }, 'legacy/shared host');
 
 expectBlocked('consumer hosting site forbidden', {
