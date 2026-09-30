@@ -5,12 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
-const legacyProjects = new Set(['urai-4dc1d', 'asset-factory-dev-id']);
+const legacyProjects = new Set(['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub']);
 const legacyHosts = new Set([
   'urai-4dc1d.web.app',
   'urai-4dc1d.firebaseapp.com',
   'asset-factory-dev-id.web.app',
   'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
   'urai.app',
   'www.urai.app',
 ]);
@@ -38,7 +40,8 @@ try {
 if (baseUrl.protocol !== 'https:') fail('ASSET_FACTORY_BASE_URL must use HTTPS.');
 if (legacyHosts.has(baseUrl.hostname.toLowerCase())) fail(`legacy/shared host ${baseUrl.hostname} is not valid final Asset Factory production authority.`);
 if (!hostingSite) fail('ASSET_FACTORY_FIREBASE_HOSTING_SITE is required.');
-if (legacyProjects.has(hostingSite)) fail(`legacy/shared Hosting site ${hostingSite} is not valid final Asset Factory production authority.`);
+const legacyHostingSites = new Set([...legacyProjects, 'asset-factory-prod', 'asset-factory-admin']);
+if (legacyHostingSites.has(hostingSite)) fail(`legacy/shared Hosting site ${hostingSite} is not valid final Asset Factory production authority.`);
 if (!/^[a-z0-9][a-z0-9-]{2,62}$/.test(hostingSite)) fail('Firebase Hosting site has an invalid format.');
 
 const args = process.argv.slice(2);
