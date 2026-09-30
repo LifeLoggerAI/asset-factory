@@ -2,8 +2,8 @@
   "schemaVersion": "urai-model-forge-launch-inventory-v1",
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
-    "spatialPr": 1296,
-    "recoveredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
+    "spatialPr": 1462,
+    "recoveredSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,25 +13,26 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Active dependency pointer reconciled to Spatial PR #1296 at 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66. This successor changes only localization proof-harness cold-start readiness timing and its unit-test bound; runtime art, product behavior, provider authority, paid targets and reference bytes are unchanged. Fresh exact-head proof remains required and no predecessor evidence transfers.",
+    "successorReconciliation": "Active dependency pointer reconciled to terminal Spatial PR #1462 at e30b28dd023835c5b97cefe96332e4daa4b6088f. The delta from the prior #1296 pointer contains substantial product, privacy, Captured Reality, Android, WIF and release-governance work. This reconciliation transfers no predecessor visual acceptance, provider authorization, promotion authority, deployment proof or Gold Master status; all seven resolved reference identities remain separately governed and fresh literal route review is required.",
     "dependencyReconciliation": {
-      "previousDeclaredSpatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
-      "admittedSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
-      "comparisonStatus": "ahead",
-      "comparisonCommits": 1,
-      "scope": "active-dependency-pointer-only",
+      "previousDeclaredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
+      "admittedSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
+      "comparisonStatus": "diverged",
+      "comparisonCommits": 324,
+      "scope": "current-release-dependency-pointer-only",
       "reviewedChangeFamilies": [
-        "bounded localization Home cold-start asset-readiness timeout and matching unit-test ceiling"
+        "final Home/Life Map/Focus/Replay convergence and proof hardening",
+        "Captured Reality / Gaussian runtime and consent boundaries",
+        "Android shell, OAuth return and governed signing preparation",
+        "privacy inventory / Data Safety reconciliation",
+        "WIF-only credential and release-governance hardening"
       ],
-      "currentExactHeadProofStatus": "required-pending",
+      "currentExactHeadProofStatus": "required",
       "predecessorEvidenceTransferred": false,
       "paidProductionTargetsAuthorized": false,
       "referenceBytesChanged": false,
-      "rule": "Current source reconciliation does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
-      "comparisonChangedFiles": 2,
-      "preservedConcurrentSpatialHeads": [
-        "d60ebdecbdb038fc905ea6569b313c8655c3fd2b"
-      ]
+      "rule": "Final Spatial dependency admission does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
+      "comparisonChangedFiles": "broad-release-delta"
     },
     "dependencyReconciliationHistory": [
       {
@@ -112,7 +113,7 @@
       "id": "ground-authored-canopy-v20",
       "route": "/ground",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "ground-polyhaven-jacaranda-web-v1 integrated CC0 candidate, fail-closed pending exact-head visual acceptance on Spatial #1296",
+      "currentAuthority": "ground-polyhaven-jacaranda-web-v1 integrated CC0 candidate, fail-closed pending exact-head visual acceptance on Spatial #1462",
       "providerAction": "hold-paid-bakeoff-pending-cc0-visual-acceptance",
       "reason": "Tracking ID retained for continuity. Current Spatial authority has integrated a pinned Poly Haven Jacaranda CC0 candidate to replace the procedural/unapproved canopy, but the receipt records humanReviewApproved=false, visualProofVerified=false, exactHeadChecksPassed=false and failClosedUntilProof=true. Do not spend on a provider canopy bake-off until this current candidate is accepted or rejected by literal exact-head route evidence and a remaining gap is documented.",
       "candidateSpec": "model_forge/specs/ground-hero-tree.json"
@@ -121,19 +122,19 @@
       "id": "ground-hero-root-system-01",
       "route": "/ground",
       "class": "hero_close_camera",
-      "currentAuthority": "GroundRootNetwork v14 + founder-locked physical Ground canon on Spatial #1296",
+      "currentAuthority": "GroundRootNetwork v14 + founder-locked physical Ground canon on Spatial #1462",
       "providerAction": "challenger-only",
       "candidateSpec": "model_forge/specs/ground-hero-root-system.json",
-      "reason": "Current #1296 already renders a canonical root network. A provider root system is not a missing launch asset and may be manufactured only to address a specifically accepted visual gap."
+      "reason": "Current #1462 already renders a canonical root network. A provider root system is not a missing launch asset and may be manufactured only to address a specifically accepted visual gap."
     },
     {
       "id": "ground-sanctuary-geology-01",
       "route": "/ground",
       "class": "generated_cleaned_environmental",
-      "currentAuthority": "current scanned rock/fern geology + authored terrain on Spatial #1296 V34",
+      "currentAuthority": "current scanned rock/fern geology + authored terrain on Spatial #1462 V34",
       "providerAction": "challenger-only",
       "candidateSpec": "model_forge/specs/ground-sanctuary-geology.json",
-      "reason": "Current #1296 already renders scanned geology and authored terrain. Provider geology is challenger-only after a current-head literal gap is documented."
+      "reason": "Current #1462 already renders scanned geology and authored terrain. Provider geology is challenger-only after a current-head literal gap is documented."
     },
     {
       "id": "ground-understory-support-01",
@@ -155,7 +156,7 @@
       "id": "replay-memory-environment-v1",
       "route": "/replay",
       "class": "hero_close_camera",
-      "currentAuthority": "existing replay-memory-environment-v1 candidate on Spatial #1296; promotion=false / visualProofVerified=false",
+      "currentAuthority": "existing replay-memory-environment-v1 candidate on Spatial #1462; promotion=false / visualProofVerified=false",
       "providerAction": "challenger-only",
       "candidateSpec": "model_forge/specs/replay-memory-geology.json",
       "reason": "The current Replay candidate already exists and must be compressed, rendered, performance-checked and literally accepted or rejected before any replacement generation is authorized."
@@ -257,8 +258,8 @@
   ],
   "providerExecutionBoundary": {
     "status": "blocked-pending-current-head-gap-proof-and-cc0-canopy-review",
-    "spatialPr": 1296,
-    "spatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
-    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1296 exact head 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66 route pixels have accepted or rejected ground-polyhaven-jacaranda-web-v1 and identify a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
+    "spatialPr": 1462,
+    "spatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
+    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1462 exact head e30b28dd023835c5b97cefe96332e4daa4b6088f route pixels identify and document a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
   }
 }
