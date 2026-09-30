@@ -1,4 +1,5 @@
 import type { GenerateRequest } from './assetFactoryValidation';
+import { downloadHiggsfieldArtifact, higgsfieldArtifactUrl, higgsfieldCredentialsConfigured, higgsfieldIdempotencyKey, runHiggsfieldGeneration } from './higgsfieldClient';
 
 export type VideoProviderRenderResult = {
   assetBuffer: Buffer;
@@ -159,6 +160,105 @@ async function renderReplicate(input: GenerateRequest): Promise<VideoProviderRen
   };
 }
 
+function higgsfieldResolution() {
+  const configured = env('ASSET_FACTORY_HIGGSFIELD_VIDEO_RESOLUTION') || '720p';
+  return ['480p', '720p', '1080p'].includes(configured) ? configured : '720p';
+}
+
+function higgsfieldVideoSelection(input: GenerateRequest) {
+  const meta = videoMetadata(input);
+  const requestedMode = env('ASSET_FACTORY_HIGGSFIELD_VIDEO_MODE') || 'auto';
+
+  if (requestedMode === 'motion') {
+    if (!meta.referenceVideoUrl || !meta.referenceImageUrl) {
+      throw new Error('Higgsfield motion mode requires referenceVideoUrl and referenceImageUrl');
+    }
+    return {
+      lane: 'motion',
+      endpoint: env('ASSET_FACTORY_HIGGSFIELD_MOTION_ENDPOINT') || 'higgsfield/genjutsu/motion-transfer/v1.0',
+      payload: {
+        prompt: input.prompt,
+        video_url: meta.referenceVideoUrl,
+        image_urls: [meta.referenceImageUrl],
+        resolution: higgsfieldResolution(),
+      } as JsonRecord,
+    };
+  }
+
+  if (requestedMode === 'cinema' || (requestedMode === 'auto' && meta.referenceVideoUrl && !meta.referenceImageUrl)) {
+    const endpoint = env('ASSET_FACTORY_HIGGSFIELD_CINEMA_ENDPOINT') || 'higgsfield/cinema-studio/4.0';
+    const payload: JsonRecord = {
+      prompt: input.prompt,
+      duration: Math.max(4, Math.round(meta.durationSeconds)),
+      resolution: higgsfieldResolution() === '1080p' ? '720p' : higgsfieldResolution(),
+      aspect_ratio: input.aspectRatio || '16:9',
+      generate_audio: input.metadata?.generateAudio !== false,
+    };
+    if (meta.referenceImageUrl) payload.image_urls = [meta.referenceImageUrl];
+    if (meta.referenceVideoUrl) payload.video_urls = [meta.referenceVideoUrl];
+    return { lane: 'cinema', endpoint, payload };
+  }
+
+  if (meta.referenceImageUrl) {
+    return {
+      lane: 'image-to-video',
+      endpoint: env('ASSET_FACTORY_HIGGSFIELD_IMAGE_VIDEO_ENDPOINT') || 'bytedance/seedance-2.5/image-to-video',
+      payload: {
+        prompt: input.prompt,
+        duration: Math.max(4, Math.round(meta.durationSeconds)),
+        image_url: meta.referenceImageUrl,
+        resolution: higgsfieldResolution(),
+        generate_audio: input.metadata?.generateAudio !== false,
+      } as JsonRecord,
+    };
+  }
+
+  return {
+    lane: 'text-to-video',
+    endpoint: env('ASSET_FACTORY_HIGGSFIELD_TEXT_VIDEO_ENDPOINT') || 'bytedance/seedance-2.5/text-to-video',
+    payload: {
+      prompt: input.prompt,
+      duration: Math.max(4, Math.round(meta.durationSeconds)),
+      resolution: higgsfieldResolution(),
+      aspect_ratio: input.aspectRatio || '16:9',
+      output_format: 'mp4',
+      generate_audio: input.metadata?.generateAudio !== false,
+    } as JsonRecord,
+  };
+}
+
+async function renderHiggsfield(input: GenerateRequest): Promise<VideoProviderRenderResult> {
+  if (!higgsfieldCredentialsConfigured()) {
+    throw new Error('Higgsfield video runtime requires HIGGSFIELD_API_KEY_ID and HIGGSFIELD_API_KEY_SECRET');
+  }
+  const selected = higgsfieldVideoSelection(input);
+  const result = await runHiggsfieldGeneration(
+    selected.endpoint,
+    selected.payload,
+    higgsfieldIdempotencyKey(input.jobId, selected.lane, selected.endpoint)
+  );
+  const artifactUrl = higgsfieldArtifactUrl(result, 'video');
+  const artifact = await downloadHiggsfieldArtifact(artifactUrl, {
+    maxBytes: numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES),
+    timeoutMs: numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS),
+  });
+  return {
+    assetBuffer: artifact.buffer,
+    assetMimeType: artifact.mimeType,
+    extension: artifact.mimeType.includes('webm') ? 'webm' : 'mp4',
+    metadata: {
+      provider: 'higgsfield',
+      providerModel: selected.endpoint,
+      providerLane: selected.lane,
+      providerRequestId: result.request_id,
+      video: videoMetadata(input),
+      syntheticSource: true,
+      truthClass: 'INTERPRETIVE',
+      sourceTruth: false,
+    },
+  };
+}
+
 async function renderConfiguredHttpProvider(input: GenerateRequest, provider: 'fal' | 'runway'): Promise<VideoProviderRenderResult> {
   const endpoint = env(`ASSET_FACTORY_${provider.toUpperCase()}_VIDEO_ENDPOINT`);
   const apiKey = provider === 'fal' ? env('FAL_KEY') : env('RUNWAY_API_KEY');
@@ -187,5 +287,6 @@ export async function renderVideoWithConfiguredProvider(input: GenerateRequest):
   if (provider === 'replicate') return renderReplicate(input);
   if (provider === 'fal') return renderConfiguredHttpProvider(input, 'fal');
   if (provider === 'runway') return renderConfiguredHttpProvider(input, 'runway');
+  if (provider === 'higgsfield') return renderHiggsfield(input);
   throw new Error(`Configured provider ${provider} does not support canonical video rendering`);
 }
