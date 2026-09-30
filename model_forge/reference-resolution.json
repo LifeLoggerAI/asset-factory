@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
+  "recoveredSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -124,12 +124,16 @@
     "providerMaterializationBoundary": "Library reference bytes are resolved and hashed, but paid provider execution must use a governed upload/materialization path; do not replace them with public lookalikes or historical storyboards.",
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
-    "currentSpatialPr": 1296,
-    "currentSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66"
+    "currentSpatialPr": 1462,
+    "currentSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f"
   },
-  "successorReconciliation": "Active Spatial dependency reconciled from d60ebdecbdb038fc905ea6569b313c8655c3fd2b to 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66 (1 commit / 2 changed files). The delta only widens bounded localization proof cold-start readiness from 45s to 90s and updates its unit-test ceiling; all seven reference identities and SHA-256 values remain unchanged. No predecessor evidence transfers and paid production targets remain unauthorized.",
-  "spatialPr": 1296,
+  "successorReconciliation": "Active Spatial dependency is now terminal PR #1462 at e30b28dd023835c5b97cefe96332e4daa4b6088f. The prior #1296 reference hashes remain preserved as reference provenance only. No predecessor runtime/visual acceptance transfers; the broad successor requires fresh exact-head literal scene review, and paid production remains unauthorized.",
+  "spatialPr": 1462,
   "dependencyReconciliationHistory": [
+    {
+      "spatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
+      "successorReconciliation": "Historical predecessor pointer: Spatial PR #1296 at 1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66. Superseded by terminal PR #1462 e30b28dd023835c5b97cefe96332e4daa4b6088f; no predecessor evidence transferred."
+    },
     {
       "spatialHead": "d60ebdecbdb038fc905ea6569b313c8655c3fd2b",
       "successorReconciliation": "Active Spatial dependency reconciled from 8015397b649f69c8cf76d3afc35f50e34203052b to d60ebdecbdb038fc905ea6569b313c8655c3fd2b (1 commit / 1 changed file). The delta only hardens canonical journey proof input mechanics; all seven reference identities and SHA-256 values remain unchanged. This record admits source lineage only; current exact-head proof remains required, no predecessor evidence transfers, and paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval."
