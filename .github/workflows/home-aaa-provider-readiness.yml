@@ -1,0 +1,176 @@
+name: Home AAA Provider Readiness (No Spend)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/home-aaa-provider-readiness.yml'
+      - 'model_forge/provider-preflight.mjs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/home-aaa-provider-readiness.yml'
+      - 'model_forge/provider-preflight.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home-aaa-provider-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: urai-4dc1d
+  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
+  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+
+jobs:
+  contract:
+    name: Prove no-spend provider-readiness boundary
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Prove workflow cannot generate or spend
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/home-aaa-provider-readiness.yml
+          test -f "$workflow"
+          grep -Fq 'model_forge/provider-preflight.mjs --live' "$workflow"
+          ! grep -Fq 'URAI_MODEL_FORGE_SPEND_AUTHORIZED=1' "$workflow"
+          ! grep -Fq 'model_forge/forge.mjs' "$workflow"
+          ! grep -Fq 'model_forge/run-wave.mjs' "$workflow"
+          ! grep -Eq 'text-to-3d|image-to-3d|multi-image-to-3d|/api/v2/rodin|/v2/openapi/task|/predictions' "$workflow"
+          node --check model_forge/provider-preflight.mjs
+
+  live-readiness:
+    name: Read provider readiness without generation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    environment: asset-factory-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact clean main authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test "$PROJECT_ID" = urai-4dc1d
+          test "$GCP_WIF_PROVIDER" = projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
+          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+
+      - name: Authenticate to Google Cloud with WIF
+        id: google_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: false
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+
+      - name: Read provider credentials and query readiness only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          read_secret() {
+            local name="$1"
+            local value=""
+            set +e
+            value="$(gcloud secrets versions access latest --secret="$name" --project="$PROJECT_ID" 2>"$RUNNER_TEMP/$name.stderr")"
+            local status=$?
+            set -e
+            if [ "$status" -ne 0 ] || [ -z "$value" ]; then
+              printf '%s' ""
+              return 0
+            fi
+            echo "::add-mask::$value"
+            printf '%s' "$value"
+          }
+
+          meshy="$(read_secret MESHY_API_KEY)"
+          tripo="$(read_secret TRIPO_API_KEY)"
+          rodin="$(read_secret RODIN_API_KEY)"
+
+          env \
+            MESHY_API_KEY="$meshy" \
+            TRIPO_API_KEY="$tripo" \
+            RODIN_API_KEY="$rodin" \
+            node model_forge/provider-preflight.mjs --live
+
+          unset meshy tripo rodin
+          jq '{
+            schemaVersion,
+            live,
+            providers: [.providers[] | {
+              provider,
+              configured,
+              balanceChecked,
+              status,
+              balance: (.balance // null),
+              frozen: (.frozen // null),
+              note: (.note // null)
+            }]
+          }' model-forge-provider-preflight.json > "$RUNNER_TEMP/sanitized.json"
+          mv "$RUNNER_TEMP/sanitized.json" model-forge-provider-preflight.json
+
+      - name: Remove ephemeral Google credential
+        if: always()
+        env:
+          CREDENTIAL_PATH: ${{ steps.google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${CREDENTIAL_PATH:-}" ]; then
+            case "$CREDENTIAL_PATH" in
+              "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+              *) echo "Unexpected ADC credential path; refusing cleanup outside generated WIF file." >&2; exit 1 ;;
+            esac
+            rm -f -- "$CREDENTIAL_PATH"
+            test ! -e "$CREDENTIAL_PATH"
+          fi
+          rm -f "$RUNNER_TEMP"/MESHY_API_KEY.stderr "$RUNNER_TEMP"/TRIPO_API_KEY.stderr "$RUNNER_TEMP"/RODIN_API_KEY.stderr
+
+      - name: Upload sanitized readiness receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: home-aaa-provider-readiness-${{ github.sha }}
+          path: model-forge-provider-preflight.json
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
