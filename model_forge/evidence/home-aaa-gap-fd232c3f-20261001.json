@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "urai-home-aaa-gap-evidence-v1",
+  "recordedAt": "2026-10-01T05:00:00Z",
+  "spatial": {
+    "repository": "LifeLoggerAI/urai-spatial",
+    "pr": 1462,
+    "head": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
+    "continuousVisualRunId": 36815370477,
+    "visualArtifactId": 11141558556,
+    "desktopArtifactId": 11141124527
+  },
+  "reference": {
+    "name": "UrAi Home Reference Pack.png",
+    "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
+    "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
+    "bytes": 2459496
+  },
+  "literalFinding": {
+    "status": "gap-proven",
+    "currentRead": "Sparse procedural landscape with simple ridge silhouettes, repeated fern clusters, rocks and a ring-like focal object; lacks the realistic lived architectural/material composition required by the full-vision Home bar.",
+    "authorityRead": "Photoreal first-person inhabited architecture, realistic stone/timber/glass/textile materials, plants/furniture/work-purpose traces, atmospheric mountain/lake continuity, a premium glassy living Orb and restrained UI.",
+    "canonReconciliation": "Use the reference for fidelity/material/lived-space target while newer locked canon still governs sky-dominant, bodyless first-person, no sci-fi hall and natural Ground/Life Map continuity."
+  },
+  "decision": {
+    "paidExecutionAuthorized": false,
+    "promotionAuthorized": false,
+    "deploymentAuthorized": false,
+    "nextAllowedStep": "Prepare dry-run/provider-ready challenger spec and require a fresh immutable owner spend authorization tied to the exact Asset Factory execution authority before any provider call."
+  }
+}
