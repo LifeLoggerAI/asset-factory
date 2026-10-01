@@ -20,7 +20,7 @@
   },
   "authority": {
     "route": "/home",
-    "source": "UrAi Home Reference Pack.png + current locked Home canon + exact-head Spatial fd232c3fdafcdaacf2a41224080d108011fd8d0e literal pixel review",
+    "source": "UrAi Home Reference Pack.png + current locked Home canon + exact-head Spatial 535bd9b6e7d691f8e30f000f247945eda4318a2d literal pixel review",
     "referenceAuthority": {
       "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
       "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
@@ -28,11 +28,11 @@
       "materializationRequired": true
     },
     "exactHeadGapEvidence": {
-      "spatialPr": 1462,
-      "spatialHead": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
-      "visualArtifactId": 11141558556,
-      "desktopArtifactId": 11141124527,
-      "finding": "Current Home is structurally functional but materially reads as sparse procedural/blockout terrain rather than the photoreal inhabited architectural sanctuary required by full-vision launch."
+      "spatialPr": 1508,
+      "spatialHead": "535bd9b6e7d691f8e30f000f247945eda4318a2d",
+      "visualArtifactId": 11196858721,
+      "portalFallbackArtifactId": 11197925416,
+      "finding": "Current exact-head Home is structurally functional and machine-clean but still reads as simplified/procedural and sparse rather than a photoreal inhabited architectural sanctuary; direct current-SHA pixel acceptance remains NO-GO."
     },
     "requiredRead": "believable inhabited architectural home with realistic materials, close-camera fidelity, warm lived details, open-sky continuity, restrained UI and natural Ground/Life Map continuity",
     "negativeCanon": [
