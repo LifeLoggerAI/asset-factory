@@ -187,11 +187,23 @@ function assertTripoOk(payload, context) {
   return payload;
 }
 
+function providerFailureSummary(payload) {
+  return JSON.stringify({
+    id: payload?.id ?? null,
+    status: payload?.status ?? null,
+    error: payload?.error ?? null,
+    logs: payload?.logs ?? payload?.log ?? null,
+    metrics: payload?.metrics ?? null,
+    model: payload?.model ?? null,
+    version: payload?.version ?? null,
+  }).slice(0, 4000);
+}
+
 async function pollJson(url, headers, isDone, isFailed, intervalMs = 3000) {
   const deadline = Date.now() + timeoutMs();
   while (Date.now() < deadline) {
     const { payload } = await requestJson(url, { headers });
-    if (isFailed(payload)) fail(`Provider task failed: ${JSON.stringify(payload).slice(0, 1200)}`);
+    if (isFailed(payload)) fail(`Provider task failed: ${providerFailureSummary(payload)}`);
     if (isDone(payload)) return payload;
     await sleep(intervalMs);
   }
