@@ -7,6 +7,8 @@ on:
         description: Type RUN_ONE_REPLICATE_MODEL3D_SMOKE to authorize exactly one paid Replicate prediction
         required: true
         type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -24,6 +26,7 @@ env:
 
 jobs:
   smoke:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: asset-factory-production
     permissions:
@@ -215,8 +218,186 @@ jobs:
           rm -f "$RUNNER_TEMP/replicate-current.json"
           rm -f "$RUNNER_TEMP/replicate-model3d-smoke.glb"
 
+  home-challenger:
+    name: One-shot Home architectural challenger
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 315 &&
+      github.event.comment.body == 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: asset-factory-production
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    env:
+      HOME_AUTHORIZATION_ISSUE: '315'
+      HOME_EXPECTED_SPEC_BLOB: 0b6490e075ae3078286e2adbd040cce7a9a7608c
+      URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'
+      URAI_REPLICATE_MODEL: tencent/hunyuan-3d-3.1
+      URAI_MODEL_FORGE_TIMEOUT_MS: '1200000'
+      URAI_MODEL_FORGE_MAX_BYTES: '262144000'
+    steps:
+      - name: Checkout exact trusted main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prove exact authorization event and immutable Home spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/main'
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test '${{ github.event.issue.number }}' = "$HOME_AUTHORIZATION_ISSUE"
+          test '${{ github.event.comment.author_association }}' = 'OWNER'
+          test '${{ github.event.comment.body }}' = 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          actual_blob="$(git hash-object model_forge/specs/home-architectural-sanctuary.json)"
+          test "$actual_blob" = "$HOME_EXPECTED_SPEC_BLOB"
+          node model_forge/forge.mjs \
+            --spec model_forge/specs/home-architectural-sanctuary.json \
+            --providers replicate \
+            --dry-run > "$RUNNER_TEMP/home-challenger-plan.json"
+          jq -e '.dryRun == true and .spendAuthorized == true and .assetId == "home-entry-chamber-v1" and (.providers | length) == 1 and .providers[0].provider == "replicate" and .generationPolicy.maxProviderAttempts == 1' "$RUNNER_TEMP/home-challenger-plan.json"
+
+      - name: Refuse any previously started Home attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(gh issue view "$HOME_AUTHORIZATION_ISSUE" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[].body | select(contains("HOME_CHALLENGER_ATTEMPT_STARTED="))] | length')"
+          test "$count" = 0 || { echo "::error::One-shot Home challenger attempt already started; refusing another provider call."; exit 73; }
+
+      - name: Verify pinned WIF identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PROJECT_ID" = 'urai-4dc1d'
+          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
+          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+
+      - name: Authenticate to Google Cloud with trusted WIF
+        id: home_google_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: false
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+
+      - name: Load Replicate token without exposing it
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.home_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+          token="$(gcloud secrets versions access latest --secret=REPLICATE_API_TOKEN --project="$PROJECT_ID" 2>"$RUNNER_TEMP/home-secret-access.stderr")"
+          test -n "$token" || { cat "$RUNNER_TEMP/home-secret-access.stderr" >&2 || true; exit 1; }
+          echo "::add-mask::$token"
+          printf 'REPLICATE_API_TOKEN=%s\n' "$token" >> "$GITHUB_ENV"
+          unset token
+
+      - name: Record irreversible Home attempt marker
+        id: home_marker
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(gh issue view "$HOME_AUTHORIZATION_ISSUE" --repo "$GITHUB_REPOSITORY" --json comments --jq '[.comments[].body | select(contains("HOME_CHALLENGER_ATTEMPT_STARTED="))] | length')"
+          test "$count" = 0 || { echo "::error::Attempt marker appeared concurrently; refusing provider call."; exit 74; }
+          gh issue comment "$HOME_AUTHORIZATION_ISSUE" --repo "$GITHUB_REPOSITORY" --body "HOME_CHALLENGER_ATTEMPT_STARTED=${GITHUB_RUN_ID}; exact_sha=${GITHUB_SHA}; provider=replicate; model=tencent/hunyuan-3d-3.1; maximum_predictions=1; expected_cost_usd=0.50; automatic_retries=0"
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Remove ephemeral Google credential before Home provider call
+        env:
+          CREDENTIAL_PATH: ${{ steps.home_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CREDENTIAL_PATH"
+          case "$CREDENTIAL_PATH" in
+            "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+            *) echo "Unexpected ADC credential path; refusing cleanup outside generated WIF file." >&2; exit 1 ;;
+          esac
+          rm -f -- "$CREDENTIAL_PATH"
+          test ! -e "$CREDENTIAL_PATH"
+
+      - name: Execute exactly one Replicate Home challenger
+        id: home_run
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$URAI_MODEL_FORGE_SPEND_AUTHORIZED" = 1
+          test -n "${REPLICATE_API_TOKEN:-}"
+          test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          node model_forge/forge.mjs \
+            --spec model_forge/specs/home-architectural-sanctuary.json \
+            --providers replicate \
+            --out "$RUNNER_TEMP/home-challenger-runs"
+          candidate="$(find "$RUNNER_TEMP/home-challenger-runs" -type f -name candidate.glb -print -quit)"
+          test -n "$candidate"
+          test "$(xxd -p -l 4 "$candidate")" = "676c5446"
+          sha="$(sha256sum "$candidate" | awk '{print $1}')"
+          bytes="$(stat -c%s "$candidate")"
+          echo "candidate_sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "candidate_bytes=$bytes" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable Home candidate and receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: one-shot-home-challenger-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/home-challenger-plan.json
+            ${{ runner.temp }}/home-challenger-runs/
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 6
+
+      - name: Record Home completion without promotion
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA256: ${{ steps.home_run.outputs.candidate_sha256 }}
+          CANDIDATE_BYTES: ${{ steps.home_run.outputs.candidate_bytes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment "$HOME_AUTHORIZATION_ISSUE" --repo "$GITHUB_REPOSITORY" --body "HOME_CHALLENGER_COMPLETED=${GITHUB_RUN_ID}; candidate_sha256=$CANDIDATE_SHA256; candidate_bytes=$CANDIDATE_BYTES; provider_calls=1; expected_cost_usd=0.50; automatic_retries=0; promoted=false; workflow=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Record terminal Home failure after attempt
+        if: failure() && steps.home_marker.outputs.attempted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue comment "$HOME_AUTHORIZATION_ISSUE" --repo "$GITHUB_REPOSITORY" --body "HOME_CHALLENGER_TERMINAL_FAILURE=${GITHUB_RUN_ID}; automatic_retry=false; promoted=false; inspect workflow before any new authorization: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Remove temporary Home provider files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/home-secret-access.stderr"
+          rm -f "${{ steps.home_google_auth.outputs.credentials_file_path }}" || true
+          printf 'REPLICATE_API_TOKEN=\n' >> "$GITHUB_ENV"
+
   report:
-    if: always()
+    if: github.event_name == 'workflow_dispatch' && always()
     needs: smoke
     runs-on: ubuntu-latest
     permissions:
