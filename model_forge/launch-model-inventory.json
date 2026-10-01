@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1462,
-    "recoveredSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
+    "recoveredSpatialHead": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,7 +13,7 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Active dependency pointer reconciled to terminal Spatial PR #1462 at e30b28dd023835c5b97cefe96332e4daa4b6088f. The delta from the prior #1296 pointer contains substantial product, privacy, Captured Reality, Android, WIF and release-governance work. This reconciliation transfers no predecessor visual acceptance, provider authorization, promotion authority, deployment proof or Gold Master status; all seven resolved reference identities remain separately governed and fresh literal route review is required.",
+    "successorReconciliation": "Active Spatial dependency refreshed to terminal PR #1462 at fd232c3fdafcdaacf2a41224080d108011fd8d0e. Current literal Home pixels were reviewed against the resolved Home reference and a specific full-vision AAA architectural/material gap is now proven. This refresh transfers no predecessor visual acceptance, provider authorization, promotion authority, deployment proof or Gold Master status.",
     "dependencyReconciliation": {
       "previousDeclaredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
       "admittedSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
@@ -213,9 +213,10 @@
       "id": "home-entry-chamber-v1",
       "route": "/home",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "current-home-candidate",
-      "providerAction": "preserve-unless-specific-literal-pixel-gap",
-      "candidateSpec": null
+      "currentAuthority": "current Spatial #1462 Home candidate at fd232c3fdafcdaacf2a41224080d108011fd8d0e; literal exact-head pixel review documents a full-vision AAA architectural/material gap",
+      "providerAction": "challenger-required-no-spend-until-fresh-immutable-authorization",
+      "candidateSpec": "model_forge/specs/home-architectural-sanctuary.json",
+      "reason": "Exact-head retained Home pixels were literally compared against the resolved UrAi Home Reference Pack. The current runtime is structurally functional but materially reads as sparse procedural/blockout terrain rather than the photoreal inhabited architectural sanctuary required for full-vision launch. A reference-bound provider challenger is now justified, but paid execution remains fail-closed until a fresh immutable owner authorization is tied to the exact Asset Factory execution authority."
     },
     {
       "id": "ground-world-terrain-v1",
@@ -244,6 +245,7 @@
   ],
   "productionTargets": [],
   "challengerTargets": [
+    "home-entry-chamber-v1",
     "ground-hero-root-system-01",
     "ground-sanctuary-geology-01",
     "replay-memory-environment-v1"
@@ -257,9 +259,10 @@
     "fabricated personal memory environment"
   ],
   "providerExecutionBoundary": {
-    "status": "blocked-pending-current-head-gap-proof-and-cc0-canopy-review",
+    "status": "home-gap-proven-paid-execution-still-unauthorized",
     "spatialPr": 1462,
-    "spatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
-    "rule": "Do not execute a paid Model Forge wave until Spatial PR #1462 exact head e30b28dd023835c5b97cefe96332e4daa4b6088f route pixels identify and document a specific remaining asset gap that cannot be closed by existing runtime/candidate authority. Dry-run/tooling proof and non-spend validation remain authorized."
+    "spatialHead": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
+    "gapEvidence": "model_forge/evidence/home-aaa-gap-fd232c3f-20261001.json",
+    "rule": "Home now has a specific literal exact-head visual gap and a governed reference-bound challenger spec. Do not execute a paid Model Forge provider request until a fresh immutable owner authorization names the exact Asset Factory execution authority, provider/model lane, maximum calls, and absolute spend ceiling. Dry-run/tooling proof remains authorized."
   }
 }
