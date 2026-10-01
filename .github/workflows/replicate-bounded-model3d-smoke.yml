@@ -218,6 +218,140 @@ jobs:
           rm -f "$RUNNER_TEMP/replicate-current.json"
           rm -f "$RUNNER_TEMP/replicate-model3d-smoke.glb"
 
+
+  home-provider-readiness:
+    name: Home provider readiness — zero spend
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 315 &&
+      github.event.comment.body == 'CHECK_HOME_PROVIDER_READINESS_NO_SPEND' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: asset-factory-production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+    steps:
+      - name: Checkout exact trusted main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prove zero-spend readiness boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test '${{ github.event.issue.number }}' = '315'
+          test '${{ github.event.comment.author_association }}' = 'OWNER'
+          test '${{ github.event.comment.body }}' = 'CHECK_HOME_PROVIDER_READINESS_NO_SPEND'
+          test "$URAI_MODEL_FORGE_SPEND_AUTHORIZED" = 0
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          node --check model_forge/provider-preflight.mjs
+
+      - name: Authenticate to Google Cloud with trusted WIF
+        id: readiness_google_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Read provider credentials and query balances only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.readiness_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          read_secret() {
+            local name="$1"
+            local value=""
+            set +e
+            value="$(firebase apphosting:secrets:access "$name" --project "$PROJECT_ID" --non-interactive 2>"$RUNNER_TEMP/$name.stderr")"
+            local status=$?
+            set -e
+            if [ "$status" -ne 0 ] || [ -z "$value" ]; then
+              printf '%s' ""
+              return 0
+            fi
+            echo "::add-mask::$value"
+            printf '%s' "$value"
+          }
+
+          meshy="$(read_secret MESHY_API_KEY)"
+          tripo="$(read_secret TRIPO_API_KEY)"
+          rodin="$(read_secret RODIN_API_KEY)"
+
+          env \
+            MESHY_API_KEY="$meshy" \
+            TRIPO_API_KEY="$tripo" \
+            RODIN_API_KEY="$rodin" \
+            node model_forge/provider-preflight.mjs --live
+
+          unset meshy tripo rodin
+          jq '{
+            schemaVersion,
+            live,
+            providers: [.providers[] | select(.provider == "meshy" or .provider == "tripo" or .provider == "rodin") | {
+              provider,
+              configured,
+              balanceChecked,
+              status,
+              balance: (.balance // null),
+              frozen: (.frozen // null),
+              note: (.note // null)
+            }]
+          }' model-forge-provider-preflight.json > "$RUNNER_TEMP/home-provider-readiness.json"
+          mv "$RUNNER_TEMP/home-provider-readiness.json" model-forge-provider-preflight.json
+
+      - name: Remove ephemeral Google credential
+        if: always()
+        env:
+          CREDENTIAL_PATH: ${{ steps.readiness_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${CREDENTIAL_PATH:-}" ]; then
+            case "$CREDENTIAL_PATH" in
+              "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+              *) echo "Unexpected ADC credential path; refusing cleanup outside generated WIF file." >&2; exit 1 ;;
+            esac
+            rm -f -- "$CREDENTIAL_PATH"
+            test ! -e "$CREDENTIAL_PATH"
+          fi
+          rm -f "$RUNNER_TEMP"/MESHY_API_KEY.stderr "$RUNNER_TEMP"/TRIPO_API_KEY.stderr "$RUNNER_TEMP"/RODIN_API_KEY.stderr
+
+      - name: Upload sanitized Home provider readiness
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: home-provider-readiness-${{ github.sha }}-${{ github.run_id }}
+          path: model-forge-provider-preflight.json
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
+
   home-challenger:
     name: One-shot Home architectural challenger
     if: >-
