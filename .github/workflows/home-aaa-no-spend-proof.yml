@@ -1,0 +1,36 @@
+name: Home AAA No-Spend Forge Proof
+
+on:
+  pull_request:
+    paths:
+      - 'model_forge/specs/home-architectural-sanctuary.json'
+      - 'model_forge/evidence/home-aaa-gap-fd232c3f-20261001.json'
+      - 'model_forge/launch-model-inventory.json'
+      - '.github/workflows/home-aaa-no-spend-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact candidate
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Verify governed inventory
+        run: node model_forge/verify-inventory.mjs
+      - name: Dry-run Home challenger with zero provider spend
+        run: node model_forge/forge.mjs --spec model_forge/specs/home-architectural-sanctuary.json --dry-run
+      - name: Assert no paid execution authority
+        run: test "${URAI_MODEL_FORGE_SPEND_AUTHORIZED}" = "0"
