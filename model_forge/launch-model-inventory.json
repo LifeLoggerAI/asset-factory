@@ -100,7 +100,13 @@
         "rule": "Current source reconciliation does not certify runtime pixels, promotion, provider execution, deployment or Gold Master acceptance.",
         "comparisonChangedFiles": 74
       }
-    ]
+    ],
+    "currentHomeGap": {
+      "status": "proven",
+      "evidence": "model_forge/evidence/home-aaa-gap-fd232c3f-20261001.json",
+      "paidProductionTargetsAuthorized": false,
+      "referenceBytesChanged": false
+    }
   },
   "classes": {
     "custom_procedural_urai_native": "Preserve custom/runtime ownership unless separately proven inferior.",
@@ -213,10 +219,10 @@
       "id": "home-entry-chamber-v1",
       "route": "/home",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "current Spatial #1462 Home candidate at fd232c3fdafcdaacf2a41224080d108011fd8d0e; literal exact-head pixel review documents a full-vision AAA architectural/material gap",
-      "providerAction": "challenger-required-no-spend-until-fresh-immutable-authorization",
+      "currentAuthority": "current Spatial #1462 Home candidate at fd232c3fdafcdaacf2a41224080d108011fd8d0e; literal exact-head review proves a full-vision AAA fidelity gap",
+      "providerAction": "challenger-spec-ready-paid-execution-blocked",
       "candidateSpec": "model_forge/specs/home-architectural-sanctuary.json",
-      "reason": "Exact-head retained Home pixels were literally compared against the resolved UrAi Home Reference Pack. The current runtime is structurally functional but materially reads as sparse procedural/blockout terrain rather than the photoreal inhabited architectural sanctuary required for full-vision launch. A reference-bound provider challenger is now justified, but paid execution remains fail-closed until a fresh immutable owner authorization is tied to the exact Asset Factory execution authority."
+      "reason": "Exact-head retained Home pixels materially diverge from the resolved Home Reference Pack: current runtime reads as sparse procedural/blockout landscape rather than a photoreal inhabited architectural sanctuary. A reference-bound challenger spec now exists, but provider spend remains unauthorized until a fresh immutable owner authorization binds the exact Asset Factory execution authority."
     },
     {
       "id": "ground-world-terrain-v1",
@@ -259,10 +265,11 @@
     "fabricated personal memory environment"
   ],
   "providerExecutionBoundary": {
-    "status": "home-gap-proven-paid-execution-still-unauthorized",
+    "status": "specific-home-gap-proven-paid-execution-still-blocked",
     "spatialPr": 1462,
     "spatialHead": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
-    "gapEvidence": "model_forge/evidence/home-aaa-gap-fd232c3f-20261001.json",
-    "rule": "Home now has a specific literal exact-head visual gap and a governed reference-bound challenger spec. Do not execute a paid Model Forge provider request until a fresh immutable owner authorization names the exact Asset Factory execution authority, provider/model lane, maximum calls, and absolute spend ceiling. Dry-run/tooling proof remains authorized."
+    "evidence": "model_forge/evidence/home-aaa-gap-fd232c3f-20261001.json",
+    "reference": "UrAi Home Reference Pack.png sha256:5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
+    "rule": "The literal Home gap prerequisite is now satisfied for a bounded challenger, but no provider call is authorized. Require a fresh immutable owner authorization tied to the exact Asset Factory execution SHA, named provider/model, maximum calls and absolute spend ceiling before setting URAI_MODEL_FORGE_SPEND_AUTHORIZED=1."
   }
 }
