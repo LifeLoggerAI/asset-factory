@@ -1,0 +1,50 @@
+{
+  "id": "home-entry-chamber-v1",
+  "prompt": "Photoreal premium UrAi Home architectural sanctuary for first-person use: an open-air indoor-outdoor lived space with sky dominant over the primary player path, realistic weathered stone, warm timber, glass, textiles, restrained metal, planted greenery, comfortable human-scale seating and a small work/purpose area. The space must feel inhabited and emotionally calm rather than staged, with believable mountain/lake or valley continuity beyond the architecture and strong blue-hour/sunset atmospheric depth. Preserve a clear central walking path and room for the living Orb without turning the Orb into architecture. Materials must read as physically plausible PBR at close camera range. No enclosing ceiling over the main traversal, no sci-fi corridor, no fantasy temple, no giant ring portal, no neon architecture, no low-poly game forms, no procedural primitive furniture, no visible text, no dashboard UI, no invented human likeness. Designed to materially close the gap between current exact-head Home pixels and the resolved UrAi Home Reference Pack while obeying newer locked sky-dominant/bodyless-first-person canon.",
+  "providers": [
+    "meshy",
+    "tripo",
+    "rodin"
+  ],
+  "referenceImages": [],
+  "generation": {
+    "maxProviderAttempts": 1,
+    "seed": 261001
+  },
+  "target": {
+    "meters": 14,
+    "hero": true,
+    "maxTriangles": 250000,
+    "textureResolution": "4k",
+    "pbr": true
+  },
+  "authority": {
+    "route": "/home",
+    "source": "UrAi Home Reference Pack.png + current locked Home canon + exact-head Spatial fd232c3fdafcdaacf2a41224080d108011fd8d0e literal pixel review",
+    "referenceAuthority": {
+      "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
+      "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
+      "bytes": 2459496,
+      "materializationRequired": true
+    },
+    "exactHeadGapEvidence": {
+      "spatialPr": 1462,
+      "spatialHead": "fd232c3fdafcdaacf2a41224080d108011fd8d0e",
+      "visualArtifactId": 11141558556,
+      "desktopArtifactId": 11141124527,
+      "finding": "Current Home is structurally functional but materially reads as sparse procedural/blockout terrain rather than the photoreal inhabited architectural sanctuary required by full-vision launch."
+    },
+    "requiredRead": "believable inhabited architectural home with realistic materials, close-camera fidelity, warm lived details, open-sky continuity, restrained UI and natural Ground/Life Map continuity",
+    "negativeCanon": [
+      "enclosing ceiling over primary traversal",
+      "sci-fi corridor",
+      "fantasy temple",
+      "giant portal ring",
+      "neon architecture",
+      "low-poly game forms",
+      "primitive procedural furniture",
+      "dashboard dominance",
+      "invented human likeness"
+    ]
+  }
+}
