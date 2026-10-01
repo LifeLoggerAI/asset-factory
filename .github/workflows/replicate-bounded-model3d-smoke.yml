@@ -356,8 +356,10 @@ jobs:
     name: One-shot Home architectural challenger
     if: >-
       github.event_name == 'issue_comment' &&
-      github.event.issue.number == 315 &&
-      github.event.comment.body == 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER' &&
+      (
+        (github.event.issue.number == 315 && github.event.comment.body == 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER') ||
+        (github.event.issue.number == 322 && github.event.comment.body == 'AUTHORIZE_REPLACEMENT_HOME_ARCHITECTURAL_CHALLENGER')
+      ) &&
       github.event.comment.author_association == 'OWNER' &&
       github.actor == github.repository_owner
     runs-on: ubuntu-24.04
@@ -368,7 +370,7 @@ jobs:
       issues: write
       id-token: write
     env:
-      HOME_AUTHORIZATION_ISSUE: '315'
+      HOME_AUTHORIZATION_ISSUE: '${{ github.event.issue.number }}'
       HOME_EXPECTED_SPEC_BLOB: 0b6490e075ae3078286e2adbd040cce7a9a7608c
       URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'
       URAI_REPLICATE_MODEL: tencent/hunyuan-3d-3.1
@@ -390,7 +392,13 @@ jobs:
           test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
           test '${{ github.event.issue.number }}' = "$HOME_AUTHORIZATION_ISSUE"
           test '${{ github.event.comment.author_association }}' = 'OWNER'
-          test '${{ github.event.comment.body }}' = 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER'
+          if [ "$HOME_AUTHORIZATION_ISSUE" = '315' ]; then
+            test '${{ github.event.comment.body }}' = 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER'
+          elif [ "$HOME_AUTHORIZATION_ISSUE" = '322' ]; then
+            test '${{ github.event.comment.body }}' = 'AUTHORIZE_REPLACEMENT_HOME_ARCHITECTURAL_CHALLENGER'
+          else
+            echo "::error::Unexpected Home authorization issue"; exit 75
+          fi
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
           actual_blob="$(git hash-object model_forge/specs/home-architectural-sanctuary.json)"
