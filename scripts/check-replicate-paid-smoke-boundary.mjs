@@ -62,6 +62,46 @@ if (smoke.indexOf('Remove ephemeral Google credential') > smoke.indexOf('Run exa
   fail('Google credential cleanup must precede the Replicate provider call');
 }
 
+for (const required of [
+  'issue_comment:',
+  "github.event.issue.number == 315",
+  "github.event.comment.body == 'AUTHORIZE_ONE_HOME_ARCHITECTURAL_CHALLENGER'",
+  "github.event.comment.author_association == 'OWNER'",
+  'github.actor == github.repository_owner',
+  'HOME_CHALLENGER_ATTEMPT_STARTED=',
+  'provider=replicate',
+  'model=tencent/hunyuan-3d-3.1',
+  'maximum_predictions=1',
+  'expected_cost_usd=0.50',
+  'automatic_retries=0',
+  "URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'",
+  '--providers replicate',
+  '.generationPolicy.maxProviderAttempts == 1',
+]) {
+  if (!smoke.includes(required)) fail(`trusted Home challenger lane missing ${JSON.stringify(required)}`);
+}
+if (!smoke.includes("smoke:\n    if: github.event_name == 'workflow_dispatch'")) {
+  fail('legacy Replicate smoke must remain workflow_dispatch-only');
+}
+if (!smoke.includes("report:\n    if: github.event_name == 'workflow_dispatch' && always()")) {
+  fail('legacy smoke report must not run for Home issue-comment authorization');
+}
+if (!smoke.includes('count="$(gh issue view "$HOME_AUTHORIZATION_ISSUE"')) {
+  fail('Home challenger lost issue #315 one-time marker guard');
+}
+if (!smoke.includes('test "$count" = 0')) {
+  fail('Home challenger no longer refuses a started one-shot attempt');
+}
+if (!smoke.includes('Remove ephemeral Google credential before Home provider call')) {
+  fail('Home challenger must remove Google credentials before the Replicate call');
+}
+if (smoke.indexOf('Remove ephemeral Google credential before Home provider call') > smoke.indexOf('Execute exactly one Replicate Home challenger')) {
+  fail('Home challenger Google credential cleanup must precede provider execution');
+}
+if (smoke.indexOf('Record irreversible Home attempt marker') > smoke.indexOf('Execute exactly one Replicate Home challenger')) {
+  fail('Home challenger attempt marker must precede provider execution');
+}
+
 for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@v3']) {
   if (!grant.includes(required)) fail(`grant workflow missing pinned WIF contract ${JSON.stringify(required)}`);
 }
