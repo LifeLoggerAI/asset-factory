@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/one-shot-home-architectural-challenger.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/one-shot-home-architectural-challenger.yml'
 
 permissions:
   contents: read
@@ -26,7 +31,28 @@ env:
   URAI_MODEL_FORGE_MAX_BYTES: '262144000'
 
 jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Validate immutable one-shot plan without provider access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain --untracked-files=all)"
+          actual_blob="$(git hash-object model_forge/specs/home-architectural-sanctuary.json)"
+          test "$actual_blob" = "$EXPECTED_SPEC_BLOB"
+          node model_forge/forge.mjs --spec model_forge/specs/home-architectural-sanctuary.json --providers replicate --dry-run > "$RUNNER_TEMP/home-challenger-plan.json"
+          jq -e '.dryRun == true and .spendAuthorized == true and .assetId == "home-entry-chamber-v1" and (.providers | length) == 1 and .providers[0].provider == "replicate" and .generationPolicy.maxProviderAttempts == 1' "$RUNNER_TEMP/home-challenger-plan.json"
+
   generate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: asset-factory-production
@@ -36,7 +62,7 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
           fetch-depth: 1
 
@@ -44,7 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
           test -z "$(git status --porcelain --untracked-files=all)"
           actual_blob="$(git hash-object model_forge/specs/home-architectural-sanctuary.json)"
           test "$actual_blob" = "$EXPECTED_SPEC_BLOB"
@@ -134,7 +160,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: one-shot-home-challenger-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}
+          name: one-shot-home-challenger-${{ github.sha }}-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/home-challenger-plan.json
             ${{ runner.temp }}/home-challenger-runs/
