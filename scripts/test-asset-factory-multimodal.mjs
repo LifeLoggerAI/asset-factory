@@ -39,6 +39,7 @@ const queueDispatcher = read('assetfactory-studio/lib/server/assetQueueDispatche
 const auth = read('assetfactory-studio/lib/server/assetAuth.ts');
 const store = read('assetfactory-studio/lib/server/assetFactoryStore.ts');
 const e2e = read('scripts/e2e-asset-factory.mjs');
+const lifeMovie = read('assetfactory-studio/lib/server/lifeMovieAssetContract.ts');
 
 for (const assetType of ['graphic', 'model3d', 'audio', 'bundle']) {
   assertIncludes(catalog, `canonicalType: '${assetType}'`, `${assetType} catalog definition`);
@@ -100,6 +101,30 @@ assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
 assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
 assertIncludes(store, "status: 'failed'", 'failed lifecycle status');
 assertIncludes(store, 'storagePaths', 'storage path attachment');
+
+for (const marker of [
+  'RECORDED_SOURCE_TRUTH',
+  'ATTRIBUTED_FAMILY_RECOLLECTION',
+  'SPATIALLY_RECONSTRUCTABLE',
+  'INTERPRETIVE_CINEMATIC_RECREATION',
+  'UNKNOWN_UNRESOLVED',
+  'identityContinuity',
+  'motionNaturalness',
+  'anatomy',
+  'temporalFlicker',
+  'lightingContinuity',
+  'periodAccuracy',
+  'rightsBoundary',
+  'runtimeAssetKey',
+  'sha256',
+  'accepted-for-runtime',
+]) {
+  assertIncludes(lifeMovie, marker, `Life Movie promotion contract marker ${marker}`);
+}
+assertIncludes(lifeMovie, 'synthetic-cannot-be-recorded-source-truth', 'synthetic truth fail-closed rule');
+assertIncludes(lifeMovie, 'qa-incomplete', 'Life Movie QA promotion gate');
+assertIncludes(lifeMovie, 'provenanceRetained', 'Life Movie provenance retention');
+
 
 if (!fs.existsSync(studio)) {
   console.error(`Missing studio directory: ${studio}`);
