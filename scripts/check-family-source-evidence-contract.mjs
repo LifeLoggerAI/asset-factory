@@ -8,6 +8,16 @@ const manifest = JSON.parse(
 assert.equal(manifest.schemaVersion, '2.1.0');
 assert.equal(manifest.classification, 'public-production-policy');
 
+const lifeModel = JSON.parse(fs.readFileSync('contracts/life-model-v1.json', 'utf8'));
+assert.equal(lifeModel.schemaVersion, 'urai-life-model-v1');
+assert.equal(lifeModel.invariants.syntheticOutputMayBecomeHistoricalSource, false);
+assert.equal(lifeModel.invariants.providerOwnsCanonicalIdentity, false);
+assert.equal(manifest.lifeModelContract.schemaVersion, lifeModel.schemaVersion);
+assert.equal(manifest.lifeModelContract.syntheticOutputMayBecomeHistoricalSource, false);
+assert.equal(manifest.lifeModelContract.evidenceAndPresentationAreSeparate, true);
+assert.equal(manifest.lifeModelContract.correctionPolicy, 'overlay-and-invalidate-derivatives');
+assert.equal(manifest.lifeModelContract.revocationPolicy, 'invalidate-and-unload-dependent-derivatives');
+
 for (const invariant of [
   'immutable originals are never overwritten',
   'derivatives retain parent-source linkage',
