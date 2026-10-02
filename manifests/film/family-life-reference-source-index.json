@@ -114,5 +114,14 @@
       "generated derivative mistaken for original",
       "unresolved duplicate provenance"
     ]
+  },
+  "lifeModelContract": {
+    "schemaVersion": "urai-life-model-v1",
+    "contractPath": "contracts/life-model-v1.json",
+    "evidenceAndPresentationAreSeparate": true,
+    "syntheticOutputMayBecomeHistoricalSource": false,
+    "providerOwnsCanonicalIdentity": false,
+    "correctionPolicy": "overlay-and-invalidate-derivatives",
+    "revocationPolicy": "invalidate-and-unload-dependent-derivatives"
   }
 }
