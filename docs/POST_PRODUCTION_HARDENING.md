@@ -1,6 +1,6 @@
-# Post-Production Hardening Plan
+# Historical Production-Slice Hardening Notes
 
-Asset Factory is production verified on Firebase project `urai-4dc1d`. This document tracks non-blocking hardening work that should be handled after the production lock.
+The Firebase evidence referenced by this document is historical production-slice evidence. Current Asset Factory V200 remains **NOT LOCKED**. These notes must not be interpreted as proof of a current production lock; current authority is `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`.
 
 ## Verified Baseline
 
@@ -11,8 +11,9 @@ Asset Factory is production verified on Firebase project `urai-4dc1d`. This docu
   - `POST /api/assets`
   - `GET /api/assets/{assetId}`
   - `POST /api/lifemap/events`
-- Production lock: `LOCK.md`
-- Verification evidence: `docs/PRODUCTION_VERIFICATION_REPORT.md`
+- Historical lock/report references: `LOCK.md`, `docs/PRODUCTION_VERIFICATION_REPORT.md`
+- Current completion authority: `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`
+- Current status: **NOT LOCKED**
 
 ## Hardening Tracks
 
@@ -88,6 +89,6 @@ docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md
 
 After the secret is added, run the `Asset Factory Production Readiness` workflow manually once and compare its smoke output with the production verification report.
 
-## Do Not Reopen The Production Lock For These Items
+## Current V200 Boundary
 
-These tasks are non-blocking hardening items unless they break a verified production endpoint. `LOCK.md` should remain `STATUS: PRODUCTION VERIFIED` unless a live smoke regression is observed.
+The historical Firebase slice does not create a current production lock. Do not change `LOCK.md` or the current completion contract to a production-locked state unless the present V200 lock conditions are independently evidenced. Missing provider, deployment, tenancy, billing, worker, observability, rollback, custom-domain, privacy/legal, or independent-review evidence remains blocking where applicable.
