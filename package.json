@@ -69,7 +69,7 @@
     "deploy:studio": "npm --prefix assetfactory-studio run check && node scripts/run-dedicated-firebase-deploy.mjs --cwd assetfactory-studio --only hosting",
     "deploy:verify": "npm run validate:production-target && npm run smoke:production-finalization",
     "deploy:verify-readonly": "npm run validate:production-target && ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization",
-    "deploy:verify-custom-domain": "ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com ASSET_FACTORY_SMOKE_READONLY=true npm run smoke-production-finalization",
+    "deploy:verify-custom-domain": "ASSET_FACTORY_BASE_URL=https://www.uraiassetfactory.com ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:production-finalization",
     "deploy:production": "npm run verify:local && npm run deploy:studio && npm run deploy:verify",
     "deploy:partial": "npm run verify:local && npm run deploy:hosting-rules && npm run deploy:verify-readonly",
     "smoke:remote": "node scripts/smoke-asset-factory-remote.mjs",
