@@ -42,7 +42,20 @@ export function validateLifeMovieAssetPromotion(input: LifeMovieAssetPromotion) 
   if (!LIFE_MOVIE_ASSET_TRUTH_CLASSES.includes(input.truthClass)) return { ok: false as const, reason: 'invalid-truth-class' };
   if (!SHA256.test(input.artifact.sha256)) return { ok: false as const, reason: 'missing-artifact-hash' };
   if (input.providerTaskId && !SAFE_TOKEN.test(input.providerTaskId)) return { ok: false as const, reason: 'invalid-provider-task-id' };
-  if (!input.sourceAuthorityIds.every((id) => SAFE_TOKEN.test(id))) return { ok: false as const, reason: 'invalid-source-authority' };
+
+  // A runtime promotion must remain attributable to at least one explicit source
+  // authority. An empty or malformed authority list would otherwise allow an
+  // accepted asset to lose its provenance anchor.
+  if (!Array.isArray(input.sourceAuthorityIds) || input.sourceAuthorityIds.length === 0) {
+    return { ok: false as const, reason: 'source-authority-required' };
+  }
+  if (!input.sourceAuthorityIds.every((id) => SAFE_TOKEN.test(id))) {
+    return { ok: false as const, reason: 'invalid-source-authority' };
+  }
+
+  // Treat malformed runtime input as a governed rejection rather than throwing
+  // while dereferencing the QA object.
+  if (!input.qa || typeof input.qa !== 'object') return { ok: false as const, reason: 'qa-incomplete' };
 
   const requiredQa = [
     input.qa.identityContinuity,
