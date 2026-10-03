@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
 const script = 'scripts/run-dedicated-firebase-deploy.mjs';
@@ -105,6 +106,31 @@ if (accepted.status !== 0) {
 }
 if (!(accepted.stdout || '').includes('ASSET_FACTORY_PRODUCTION_TARGET=VALIDATED')) {
   console.error('PRODUCTION_TARGET_BOUNDARY=RED: success marker missing');
+  process.exit(1);
+}
+
+const activeDomainAuthorityFiles = [
+  'scripts/diagnose-custom-domain.mjs',
+  'deploy/custom-domain/asset-factory-api-proxy.vercel.json',
+  'scripts/finish-custom-domain-production.mjs',
+];
+
+for (const file of activeDomainAuthorityFiles) {
+  const content = readFileSync(file, 'utf8');
+  if (content.includes('https://urai-4dc1d.web.app/api/:path*')) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: ${file} still routes custom-domain API traffic through shared consumer Hosting`);
+    process.exit(1);
+  }
+  if (content.includes('Hosting site urai-4dc1d or')) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: ${file} still instructs operators to use shared consumer Hosting`);
+    process.exit(1);
+  }
+}
+
+const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
+const customDomainScript = String(packageJson.scripts?.['deploy:verify-custom-domain'] || '');
+if (!customDomainScript.includes('npm run smoke:production-finalization') || customDomainScript.includes('npm run smoke-production-finalization')) {
+  console.error('PRODUCTION_TARGET_BOUNDARY=RED: deploy:verify-custom-domain must invoke the existing smoke:production-finalization script');
   process.exit(1);
 }
 
