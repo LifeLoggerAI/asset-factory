@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "urai-life-model-v1",
+  "evidenceClasses": [
+    "SOURCE_CAPTURED",
+    "SOURCE_DERIVED",
+    "DIRECT_SUBJECT_TESTIMONY",
+    "ATTRIBUTED_TESTIMONY",
+    "CORROBORATED_INFERENCE",
+    "CONTEXTUAL_RESEARCH",
+    "UNKNOWN"
+  ],
+  "presentationClasses": [
+    "ARCHIVAL",
+    "RECONSTRUCTED",
+    "INTERPRETIVE",
+    "SIMULATED",
+    "COUNTERFACTUAL"
+  ],
+  "sceneDecisions": [
+    "READY",
+    "READY_WITH_OCCLUSION",
+    "READY_INTERPRETIVE",
+    "BLOCKED"
+  ],
+  "invariants": {
+    "syntheticOutputMayBecomeHistoricalSource": false,
+    "simulationMayCreateHistoricalEvidence": false,
+    "providerOwnsCanonicalIdentity": false,
+    "correctionsOverwriteOriginalEvidence": false,
+    "consentRevocationInvalidatesDependentDerivatives": true
+  }
+}
