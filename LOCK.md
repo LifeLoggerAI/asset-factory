@@ -1,58 +1,29 @@
 # Asset Factory Production Lock
 
-STATUS: PRODUCTION VERIFIED
+STATUS: NOT LOCKED
 
-Asset Factory has passed local verification, Firebase Functions deployment, and live production smoke testing for Firebase project `urai-4dc1d`.
+This file is retained as historical evidence of a previously verified Firebase production **slice**. It is not authority for full Asset Factory V200 production readiness.
 
-## Verified Production Surface
+## Historical verified slice
 
-- Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Functions source: `life-map-pipeline/functions`
-- Runtime: Node 22
+The historical receipt recorded local verification, Firebase Functions deployment, and live smoke testing for Firebase project `urai-4dc1d` at `https://urai-4dc1d.web.app`. That evidence remains useful for the specific routes and functions it actually exercised.
 
-## Verified Functions
+It does **not** establish the current full Asset Factory production lock.
 
-- `assetFactoryHealth`
-- `createAssetRequest`
-- `getAssetStatus`
-- `ingestLifeMapEvent`
-- `processLifeMapEvent`
+## Current authoritative lock
 
-## Verified Live Smoke Tests
+The current completion authority is:
 
-Command:
+`docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`
 
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
-```
+That lock remains **NOT LOCKED** until the current required evidence exists, including the complete governed promotion/provenance contract, current staging/production evidence, provider-backed generation where required, tenancy/isolation proof, billing/entitlement proof, worker/queue/retry/DLQ evidence, observability, custom-domain evidence where applicable, rollback evidence, and independent release authority.
 
-Passed:
+No older report, local smoke, partial Firebase deploy, demo proof, or roadmap note may override the current completion lock.
 
-1. `GET /api/health`
-2. `POST /api/assets`
-3. `GET /api/assets/{assetId}`
-4. `POST /api/lifemap/events`
-5. Full `PASS production finalization smoke`
+## Provenance
 
-Smoke evidence:
+The historical production-slice evidence and its receipts are preserved in repository history and the documented verification report. This reconciliation does not delete or rewrite that historical evidence; it removes the ambiguous implication that the historical slice is equivalent to the current full production lock.
 
-- `assetId=1K2r0m8Dle87cIIBgU0J`
-- `queueId=krebIOgHF2wOmGLwu9U7`
-- `eventId=2MZ90nqWzvrG3wLs9JUV`
+## Boundary
 
-## Verification Report
-
-See:
-
-```text
-docs/PRODUCTION_VERIFICATION_REPORT.md
-```
-
-## Non-Blocking Follow-Ups
-
-- Triage `npm audit` findings separately.
-- Refresh lockfiles and confirm Firebase SDK warning disappears.
-- Verify custom domain `assetfactory.app` if/when DNS is configured.
-- Configure `FIREBASE_SERVICE_ACCOUNT` if GitHub Actions deployment should run from CI.
+Source implementation, historical deployment evidence, and current completion-lock authority are separate evidence classes. A historical deployed SHA must not be represented as the current release SHA unless an exact current deployment receipt proves that identity.
