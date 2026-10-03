@@ -1,11 +1,11 @@
 # Evidence Status
 
 Status: BLOCKED - Live Evidence Required
-Updated: 2026-05-22
+Updated: 2026-10-03
 
 Repo: LifeLoggerAI/asset-factory
 Branch audited: main
-Latest inspected commit: 50ac7c97d5f5a747b0664d44dec968af6ca9e683
+Latest inspected commit: cfb7c77eb65e90b120fc255cf91e0bed8a45bbab
 Canonical tracker: https://github.com/LifeLoggerAI/asset-factory/issues/63
 Completion lock: docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md
 
@@ -13,7 +13,7 @@ Completion lock: docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md
 
 Asset Factory is **not LOCKED** and must not be described as fully done, fully production-ready, live verified, or complete.
 
-Repo-side hardening is complete for the current pass, and historical Firebase-default production smoke evidence exists for `https://urai-4dc1d.web.app`, but the full product system is still blocked on live staging/production workflow evidence and P0 launch gates.
+Repo-side hardening and authority reconciliation are complete for the current pass, and historical Firebase-default production smoke evidence exists for `https://urai-4dc1d.web.app`, but the full product system is still blocked on live staging/production workflow evidence and P0 launch gates.
 
 ## Evidence accepted so far
 
@@ -64,3 +64,7 @@ Attach every workflow artifact/log to issue #63 before changing the completion l
 ## Lock rule
 
 Do not change `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md` from `NOT LOCKED` to `LOCKED` until every P0 gate has linked evidence and owner approval.
+
+## 2026-10-03 authority reconciliation
+
+The legacy `docs/PRODUCTION_VERIFICATION_REPORT.md` and `docs/POST_PRODUCTION_HARDENING.md` were relabeled as historical production-slice evidence. Their historical deployment/smoke details are preserved, but they no longer assert current V200 production verification. `LOCK.md` and `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md` remain the current lock authorities.
