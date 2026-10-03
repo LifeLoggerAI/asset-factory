@@ -1,8 +1,8 @@
 # Production Verification Report
 
-Status: **PRODUCTION VERIFIED**
+Status: **HISTORICAL PRODUCTION-SLICE EVIDENCE — NOT CURRENT V200 VERIFICATION**
 
-Asset Factory is live on Firebase for project `urai-4dc1d` with production Functions, Hosting rewrites, Firestore rules, Storage rules, and live smoke verification completed.
+This report preserves historical Firebase production-slice evidence for project `urai-4dc1d`. It is not current release authority and must not be read as proof that the present Asset Factory V200 system is production-locked.
 
 ## Scope Implemented On Main
 
@@ -106,4 +106,4 @@ Post-hardening deterministic predeploy smoke result:
 
 ## Final Status
 
-All required local build/test/readiness gates, Firebase Functions deployment, deterministic `npm ci` predeploy, and live production smoke checks passed. Asset Factory is production verified on Firebase Hosting and Functions for `urai-4dc1d`.
+The recorded local build/test/readiness gates, Firebase Functions deployment, deterministic predeploy, and live smoke checks are retained as historical evidence for the specific slice described above. They do not establish current V200 production verification, provider-backed generation, tenancy isolation, billing/entitlement, worker/queue/DLQ, observability, rollback, custom-domain, or independent-release closure. Current authority is `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, which remains **NOT LOCKED**.
