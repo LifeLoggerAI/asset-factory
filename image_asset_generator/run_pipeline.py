@@ -58,6 +58,9 @@ def collect_asset_records(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]
                 "size": int(size),
                 "path": relative_path,
                 "exists": file_path.exists(),
+                "authority": entry.get("authority"),
+                "acceptance": entry.get("acceptance"),
+                "promotion_eligible": entry.get("promotion_eligible") is True,
             }
             if file_path.exists():
                 record["bytes"] = file_path.stat().st_size
@@ -73,6 +76,8 @@ def write_report(errors: List[str], zip_path: Path) -> Dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pipeline": "urai-image-asset-generator",
         "status": "passed" if not errors else "failed",
+        "production_visual_authority": False,
+        "authority_note": "Pipeline success proves deterministic generation/validation only; generated visuals require explicit human/reference acceptance before promotion.",
         "manifest": str(MANIFEST_PATH.relative_to(BASE_DIR)),
         "preview": "preview.html",
         "firebase_seed": "firebase_seed.json" if FIREBASE_SEED_PATH.exists() else None,

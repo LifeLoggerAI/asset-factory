@@ -36,3 +36,16 @@ Recommended status flow:
 ```text
 prompted -> generated -> validated -> previewed -> approved -> committed -> shipped
 ```
+
+
+## Visual authority boundary
+
+Pipeline success is **not** visual acceptance.
+
+- `renderer: offline-safe` outputs are deterministic **proof-only** placeholders.
+- provider-rendered outputs are **candidates**, not accepted art.
+- every newly generated output is `acceptance: unreviewed`.
+- generation alone always leaves `promotion_eligible: false`.
+- only a separate inspect → accept/reject → promote decision may create production visual authority.
+
+The preview gallery and Firebase seed preserve this boundary so a valid pipeline artifact cannot masquerade as a Gold Master or approved product reference.
