@@ -1,0 +1,9 @@
+{
+  "contract": "urai://contracts/ecosystem-schema-v1",
+  "state": "historical-compatibility",
+  "legacySourceRepository": "LifeLoggerAI/UrAi",
+  "estateRule": "UrAi is legacy containment / NEVER DEPLOY; V1 is retained for compatibility history only.",
+  "successorContract": "urai://contracts/ecosystem-schema-v2",
+  "successorAuthorityRepository": "LifeLoggerAI/urai-content",
+  "successorAuthorityCandidatePr": 84
+}
