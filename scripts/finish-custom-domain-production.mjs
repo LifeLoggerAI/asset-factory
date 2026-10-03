@@ -2,6 +2,17 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const baseUrl = process.env.ASSET_FACTORY_BASE_URL || "https://uraiassetfactory.com";
+const firebaseProject = String(process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID || process.env.ASSET_FACTORY_FIREBASE_PROJECT || "").trim();
+const firebaseHostingSite = String(process.env.ASSET_FACTORY_FIREBASE_HOSTING_SITE || process.env.ASSET_FACTORY_FIREBASE_SITE || "").trim();
+
+if (!firebaseProject || !firebaseHostingSite) {
+  console.error("Dedicated Asset Factory Firebase project and Hosting site are required before custom-domain verification.");
+  process.exit(1);
+}
+if (firebaseProject === "urai-4dc1d" || firebaseHostingSite === "urai-4dc1d") {
+  console.error("Refusing shared consumer URAI Firebase authority for Asset Factory custom-domain verification.");
+  process.exit(1);
+}
 
 function run(command, args, env = {}) {
   const result = spawnSync(command, args, {
@@ -43,7 +54,8 @@ writeFileSync(
 - Branch: main
 - Commit SHA: ${sha}
 - Date/time: ${now}
-- Firebase project: urai-4dc1d
+- Firebase project: ${firebaseProject}
+- Firebase Hosting site: ${firebaseHostingSite}
 - Canonical API base: ${baseUrl}
 
 ## Commands
