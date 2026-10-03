@@ -87,7 +87,7 @@ assertIncludes(policy, "canonicalType === 'video'", 'video cost policy');
 assertIncludes(policy, 'estimatedCostCents', 'policy cost estimate');
 assertIncludes(billing, 'stripe-price-metadata', 'Stripe price metadata quota source');
 assertIncludes(billing, 'maxMonthlyCostCents', 'monthly cost quota');
-assertIncludes(storagePaths, 'tenants/${tenantId}/jobs/${jobId}/v${version}', 'canonical storage path convention');
+assertIncludes(storagePaths, 'tenants/\${tenantId}/jobs/\${jobId}/v\${version}', 'canonical storage path convention');
 assertIncludes(cloudStore, 'assetFactoryJobs', 'Firestore jobs collection');
 assertIncludes(cloudStore, 'cloudWriteGenerated', 'Cloud Storage artifact writer');
 assertIncludes(backend, 'activeAssetBackend', 'active backend selector');
@@ -95,7 +95,7 @@ assertIncludes(queueDispatcher, 'ASSET_FACTORY_QUEUE_MODE', 'durable queue mode 
 assertIncludes(queueDispatcher, 'ASSET_FACTORY_WORKER_URL', 'HTTP worker dispatch configuration');
 assertIncludes(queue, 'dispatchAssetJob', 'queue dispatcher integration');
 assertIncludes(auth, 'x-asset-roles', 'tenant RBAC role header');
-assertIncludes(auth, 'Role ${requiredRole} required', 'RBAC rejection message');
+assertIncludes(auth, 'Role \${requiredRole} required', 'RBAC rejection message');
 assertIncludes(store, 'activeAssetBackend', 'store backend selection');
 assertIncludes(store, 'artifactUri', 'cloud artifact URI attachment');
 assertIncludes(store, "status: 'rendering'", 'rendering lifecycle status');
@@ -118,13 +118,14 @@ for (const marker of [
   'runtimeAssetKey',
   'sha256',
   'accepted-for-runtime',
+  'source-authority-required',
+  'Array.isArray(input.sourceAuthorityIds)',
 ]) {
   assertIncludes(lifeMovie, marker, `Life Movie promotion contract marker ${marker}`);
 }
 assertIncludes(lifeMovie, 'synthetic-cannot-be-recorded-source-truth', 'synthetic truth fail-closed rule');
 assertIncludes(lifeMovie, 'qa-incomplete', 'Life Movie QA promotion gate');
 assertIncludes(lifeMovie, 'provenanceRetained', 'Life Movie provenance retention');
-
 
 if (!fs.existsSync(studio)) {
   console.error(`Missing studio directory: ${studio}`);
