@@ -5,6 +5,7 @@
   "truthClass": "interpretive",
   "autobiographical": false,
   "provider": "runway",
+  "retentionWorkflowPr": 339,
   "sourceAuthority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialMainSha": "da94837c2457b0a7590e26a7a644cd728de8afb8",
