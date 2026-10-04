@@ -8,6 +8,14 @@ on:
       - "scripts/retain-existing-runway-tasks.mjs"
       - "model_forge/evidence/home-runway-world001-tasks-20261004.json"
       - ".github/workflows/home-runway-existing-task-retention.yml"
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - "scripts/retain-existing-runway-tasks.mjs"
+      - "model_forge/evidence/home-runway-world001-tasks-20261004.json"
+      - ".github/workflows/home-runway-existing-task-retention.yml"
   workflow_dispatch:
 
 permissions:
