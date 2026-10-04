@@ -149,7 +149,7 @@ async function diagnoseTarget(target) {
   } else {
     console.log('FAIL custom domain API health is not routed to Asset Factory.');
   }
-  console.log('Fix by attaching this host to Firebase Hosting site urai-4dc1d or by adding the /api/:path* proxy rewrite on the current host.');
+  console.log('Fix by attaching this host to the provider-proven dedicated Asset Factory Hosting site, or proxy /api/:path* to the provider-proven dedicated Asset Factory runtime URL. Never route Asset Factory production traffic through the shared consumer URAI host.');
   return false;
 }
 

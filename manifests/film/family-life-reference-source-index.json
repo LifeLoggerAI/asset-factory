@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "classification": "public-production-policy",
   "purpose": "Public-safe orchestration policy for private real-life reference assets. No private source URLs, file IDs, family names, or identity assertions belong in this repository.",
   "privateAuthority": {
@@ -43,7 +43,85 @@
     "documentary-research",
     "life-film-and-replay",
     "narration-research",
-    "biographical-continuity"
+    "biographical-continuity",
+    "source-evidence-packet-validation",
+    "same-event-cluster-resolution",
+    "metadata-grounded-scene-canon"
   ],
-  "implementationNote": "The complete source index is intentionally private. Public code should reference stable abstract asset keys or approval-gated runtime records rather than private cloud identifiers."
+  "implementationNote": "The complete source index is intentionally private. Public code should reference stable abstract asset keys or approval-gated runtime records rather than private cloud identifiers.",
+  "sourceEvidenceContract": {
+    "packetOwner": "UrAi private source authority + Studio scene truth",
+    "manufacturingConsumer": "Asset Factory",
+    "requiredPublicSafeFields": [
+      "sourceAssetKey",
+      "sourceClass",
+      "mimeType",
+      "byteSize",
+      "sha256",
+      "dimensions",
+      "orientation",
+      "containerOrCodec",
+      "colorProfile",
+      "deviceState",
+      "timestampStates",
+      "gpsPresence",
+      "batchKey",
+      "sameEventClusterKey",
+      "neighborSourceKeys",
+      "privacyClass",
+      "sourceConfidence",
+      "derivativeOfSourceKey"
+    ],
+    "privateValuesNeverCommitted": [
+      "preciseGpsCoordinates",
+      "exactPrivateAddress",
+      "privateDriveId",
+      "privateGmailId",
+      "familyIdentityAssertion",
+      "rawPrivateMedia"
+    ],
+    "invariants": [
+      "immutable originals are never overwritten",
+      "derivatives retain parent-source linkage",
+      "equal byte size is not deduplication proof",
+      "capture time is not promoted from file/cloud timestamps without proof",
+      "filenames and folders are provenance labels, not identity proof",
+      "generated media never becomes recorded source truth",
+      "precise GPS remains private by default",
+      "same-event clustering requires supporting evidence",
+      "source specificity caps generated specificity"
+    ]
+  },
+  "sameEventClustering": {
+    "allowedSignals": [
+      "capture-time proximity",
+      "shared device",
+      "shared GPS region",
+      "same visible people",
+      "same wardrobe",
+      "same vehicle or object",
+      "same architecture",
+      "same environment",
+      "same batch or album",
+      "sequential filenames",
+      "continuous burst or clip",
+      "matching testimony"
+    ],
+    "hardStops": [
+      "conflicting identity",
+      "conflicting place",
+      "conflicting era",
+      "generated derivative mistaken for original",
+      "unresolved duplicate provenance"
+    ]
+  },
+  "lifeModelContract": {
+    "schemaVersion": "urai-life-model-v1",
+    "contractPath": "contracts/life-model-v1.json",
+    "evidenceAndPresentationAreSeparate": true,
+    "syntheticOutputMayBecomeHistoricalSource": false,
+    "providerOwnsCanonicalIdentity": false,
+    "correctionPolicy": "overlay-and-invalidate-derivatives",
+    "revocationPolicy": "invalidate-and-unload-dependent-derivatives"
+  }
 }
