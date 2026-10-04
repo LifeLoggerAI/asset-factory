@@ -1,0 +1,85 @@
+name: Home Runway Existing Task Retention
+
+on:
+  push:
+    branches:
+      - execution/home-runway-retention-20261004
+    paths:
+      - "scripts/retain-existing-runway-tasks.mjs"
+      - "model_forge/evidence/home-runway-world001-tasks-20261004.json"
+      - ".github/workflows/home-runway-existing-task-retention.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retain-existing-home-world:
+    name: Retain existing Runway Home outputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
+      RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
+      RUNWAY_API_VERSION: "2024-11-06"
+      URAI_RUNWAY_RETENTION_MAX_BYTES: "536870912"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail closed unless an UrAi-owned Runway credential is bound
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${RUNWAY_API_KEY:-}" ] && [ -z "${RUNWAYML_API_SECRET:-}" ]; then
+            echo "UrAi Runway credential is not bound to this trusted workflow." >&2
+            exit 1
+          fi
+
+      - name: Verify retention lane has no generation endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq '/v1/(image_to_video|text_to_image|text_to_video|video_to_video|recipes/)' scripts/retain-existing-runway-tasks.mjs
+          grep -F '/v1/tasks/' scripts/retain-existing-runway-tasks.mjs
+          grep -F "generationCallsExecuted: 0" scripts/retain-existing-runway-tasks.mjs
+          grep -F "providerMutationPerformed: false" scripts/retain-existing-runway-tasks.mjs
+
+      - name: Retain existing task bytes and immutable hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/retain-existing-runway-tasks.mjs             model_forge/evidence/home-runway-world001-tasks-20261004.json             .artifacts/home-runway-world001
+
+      - name: Verify retained receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          const p = '.artifacts/home-runway-world001/retention-receipt.json'
+          const r = JSON.parse(fs.readFileSync(p, 'utf8'))
+          if (r.operation !== 'GET_EXISTING_TASK_OUTPUT_ONLY') throw new Error('wrong operation')
+          if (r.generationCallsExecuted !== 0) throw new Error('generation call boundary violated')
+          if (r.providerMutationPerformed !== false) throw new Error('provider mutation boundary violated')
+          if (r.outputUrlsRetained !== false) throw new Error('ephemeral output URL must not be retained')
+          if (!Array.isArray(r.items) || r.items.length !== 12) throw new Error('expected 12 retained tasks')
+          const surveys = r.items.filter((x) => x.role === 'survey')
+          if (surveys.length !== 8) throw new Error('expected 8 survey videos')
+          for (const item of r.items) {
+            if (item.taskStatus !== 'SUCCEEDED') throw new Error(`${item.id} not succeeded`)
+            if (!Array.isArray(item.outputs) || item.outputs.length < 1) throw new Error(`${item.id} has no retained output`)
+            for (const out of item.outputs) {
+              if (!/^[a-f0-9]{64}$/.test(out.sha256)) throw new Error(`${item.id} invalid sha256`)
+              if (!(out.bytes > 0)) throw new Error(`${item.id} empty output`)
+            }
+          }
+          console.log('PASS existing Runway Home outputs retained with hashes; zero generation calls')
+          NODE
+
+      - name: Upload private workflow evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: home-runway-world001-retained-${{ github.sha }}
+          path: .artifacts/home-runway-world001/
+          if-no-files-found: error
+          retention-days: 7
