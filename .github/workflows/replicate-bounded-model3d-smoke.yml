@@ -627,7 +627,15 @@ jobs:
             local status=$?
             set -e
             if [ "$status" -ne 0 ] || [ -z "$value" ]; then
-              echo "Protected Secret Manager value $name is unavailable to this exact WIF identity." >&2
+              classification="other"
+              if grep -Eqi 'NOT_FOUND|not found|does not exist' "$err"; then
+                classification="not-found"
+              elif grep -Eqi 'PERMISSION_DENIED|permission denied|does not have permission|denied on resource' "$err"; then
+                classification="permission-denied"
+              elif [ "$status" -eq 0 ] && [ -z "$value" ]; then
+                classification="empty-value"
+              fi
+              echo "Protected Secret Manager value $name is unavailable to this exact WIF identity; classification=$classification." >&2
               printf '%s' ""
               return 0
             fi
