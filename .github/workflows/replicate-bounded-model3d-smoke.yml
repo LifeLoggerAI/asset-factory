@@ -272,8 +272,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        with:
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Read provider credentials and query balances only
         env:
@@ -606,6 +608,7 @@ jobs:
       - name: Load UrAi Runway credential from Secret Manager without exposing it
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.runway_google_auth.outputs.credentials_file_path }}
+          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.runway_google_auth.outputs.credentials_file_path }}
         shell: bash
         run: |
           set -euo pipefail
@@ -615,11 +618,13 @@ jobs:
           read_secret() {
             local name="$1"
             local value=""
+            local err="$RUNNER_TEMP/$name.stderr"
             set +e
-            value="$(firebase apphosting:secrets:access "$name" --project "$PROJECT_ID" --non-interactive 2>"$RUNNER_TEMP/$name.stderr")"
+            value="$(gcloud secrets versions access latest --secret="$name" --project="$PROJECT_ID" 2>"$err")"
             local status=$?
             set -e
             if [ "$status" -ne 0 ] || [ -z "$value" ]; then
+              echo "Protected Secret Manager value $name is unavailable to this exact WIF identity." >&2
               printf '%s' ""
               return 0
             fi
