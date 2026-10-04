@@ -1,63 +1,152 @@
 name: Home Runway Existing Task Retention
 
 on:
-  push:
-    branches:
-      - main
-      - execution/home-runway-retention-20261004
-    paths:
-      - "scripts/retain-existing-runway-tasks.mjs"
-      - "model_forge/evidence/home-runway-world001-tasks-20261004.json"
-      - ".github/workflows/home-runway-existing-task-retention.yml"
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
-    paths:
-      - "scripts/retain-existing-runway-tasks.mjs"
-      - "model_forge/evidence/home-runway-world001-tasks-20261004.json"
-      - ".github/workflows/home-runway-existing-task-retention.yml"
-  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
+  issues: read
+
+env:
+  PROJECT_ID: urai-4dc1d
+  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
+  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
 
 jobs:
   retain-existing-home-world:
     name: Retain existing Runway Home outputs
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
-      RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
-      RUNWAY_API_VERSION: "2024-11-06"
-      URAI_RUNWAY_RETENTION_MAX_BYTES: "536870912"
-    steps:
-      - uses: actions/checkout@v4
+    if: >-
+      github.event.issue.number == 326 &&
+      github.event.comment.body == 'RETAIN_EXISTING_HOME_RUNWAY_OUTPUTS_NO_SPEND' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: asset-factory-production
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
 
-      - name: Fail closed unless an UrAi-owned Runway credential is bound
+    steps:
+      - name: Prove exact no-spend owner authorization event
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${RUNWAY_API_KEY:-}" ] && [ -z "${RUNWAYML_API_SECRET:-}" ]; then
-            echo "UrAi Runway credential is not bound to this trusted workflow." >&2
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test '${{ github.event.issue.number }}' = '326'
+          test '${{ github.event.comment.author_association }}' = 'OWNER'
+          test '${{ github.event.comment.body }}' = 'RETAIN_EXISTING_HOME_RUNWAY_OUTPUTS_NO_SPEND'
+
+      - name: Checkout exact trusted main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify pinned WIF identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PROJECT_ID" = 'urai-4dc1d'
+          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
+          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+
+      - name: Authenticate to Google Cloud with trusted WIF
+        id: runway_google_auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Load UrAi Runway credential from Secret Manager without exposing it
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.runway_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_APPLICATION_CREDENTIALS"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+          read_secret() {
+            local name="$1"
+            local value=""
+            set +e
+            value="$(firebase apphosting:secrets:access "$name" --project "$PROJECT_ID" --non-interactive 2>"$RUNNER_TEMP/$name.stderr")"
+            local status=$?
+            set -e
+            if [ "$status" -ne 0 ] || [ -z "$value" ]; then
+              printf '%s' ""
+              return 0
+            fi
+            printf '%s' "$value"
+          }
+
+          runway="$(read_secret RUNWAY_API_KEY)"
+          if [ -z "$runway" ]; then
+            runway="$(read_secret RUNWAYML_API_SECRET)"
+          fi
+          if [ -z "$runway" ]; then
+            echo "No UrAi Runway credential was readable from the protected Secret Manager boundary." >&2
             exit 1
           fi
 
-      - name: Verify retention lane has no generation endpoint
+          # Mask after capture: workflow commands inside $(...) become key bytes.
+          echo "::add-mask::$runway"
+          if [[ "$runway" == *$'\n'* || "$runway" == *$'\r'* ]]; then
+            echo 'Runway credential must be a single-line value.' >&2
+            exit 1
+          fi
+          printf 'RUNWAY_API_KEY=%s\n' "$runway" >> "$GITHUB_ENV"
+          unset runway
+
+      - name: Remove ephemeral Google credential before provider read
+        env:
+          CREDENTIAL_PATH: ${{ steps.runway_google_auth.outputs.credentials_file_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CREDENTIAL_PATH"
+          case "$CREDENTIAL_PATH" in
+            "$GITHUB_WORKSPACE"/gha-creds-*.json) ;;
+            *) echo "Unexpected ADC credential path; refusing cleanup outside generated WIF file." >&2; exit 1 ;;
+          esac
+          rm -f -- "$CREDENTIAL_PATH"
+          test ! -e "$CREDENTIAL_PATH"
+
+      - name: Verify retention lane cannot generate or mutate provider tasks
         shell: bash
         run: |
           set -euo pipefail
           ! grep -Eq '/v1/(image_to_video|text_to_image|text_to_video|video_to_video|recipes/)' scripts/retain-existing-runway-tasks.mjs
           grep -F '/v1/tasks/' scripts/retain-existing-runway-tasks.mjs
+          grep -F "method: 'GET'" scripts/retain-existing-runway-tasks.mjs
           grep -F "generationCallsExecuted: 0" scripts/retain-existing-runway-tasks.mjs
           grep -F "providerMutationPerformed: false" scripts/retain-existing-runway-tasks.mjs
 
       - name: Retain existing task bytes and immutable hashes
+        env:
+          RUNWAY_API_VERSION: "2024-11-06"
+          URAI_RUNWAY_RETENTION_MAX_BYTES: "536870912"
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/retain-existing-runway-tasks.mjs             model_forge/evidence/home-runway-world001-tasks-20261004.json             .artifacts/home-runway-world001
+          test -z "${GOOGLE_APPLICATION_CREDENTIALS:-}"
+          node scripts/retain-existing-runway-tasks.mjs             model_forge/evidence/home-runway-world001-tasks-20261004.json             "$RUNNER_TEMP/home-runway-world001"
 
       - name: Verify retained receipt
         shell: bash
@@ -65,30 +154,54 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs'
-          const p = '.artifacts/home-runway-world001/retention-receipt.json'
+          const p = process.env.RUNNER_TEMP + '/home-runway-world001/retention-receipt.json'
           const r = JSON.parse(fs.readFileSync(p, 'utf8'))
           if (r.operation !== 'GET_EXISTING_TASK_OUTPUT_ONLY') throw new Error('wrong operation')
           if (r.generationCallsExecuted !== 0) throw new Error('generation call boundary violated')
           if (r.providerMutationPerformed !== false) throw new Error('provider mutation boundary violated')
           if (r.outputUrlsRetained !== false) throw new Error('ephemeral output URL must not be retained')
           if (!Array.isArray(r.items) || r.items.length !== 12) throw new Error('expected 12 retained tasks')
-          const surveys = r.items.filter((x) => x.role === 'survey')
-          if (surveys.length !== 8) throw new Error('expected 8 survey videos')
+          if (r.items.filter((x) => x.role === 'survey').length !== 8) throw new Error('expected 8 survey videos')
           for (const item of r.items) {
-            if (item.taskStatus !== 'SUCCEEDED') throw new Error(`${item.id} not succeeded`)
-            if (!Array.isArray(item.outputs) || item.outputs.length < 1) throw new Error(`${item.id} has no retained output`)
+            if (item.taskStatus !== 'SUCCEEDED') throw new Error(item.id + ' not succeeded')
+            if (!Array.isArray(item.outputs) || item.outputs.length < 1) throw new Error(item.id + ' has no retained output')
             for (const out of item.outputs) {
-              if (!/^[a-f0-9]{64}$/.test(out.sha256)) throw new Error(`${item.id} invalid sha256`)
-              if (!(out.bytes > 0)) throw new Error(`${item.id} empty output`)
+              if (!/^[a-f0-9]{64}$/.test(out.sha256)) throw new Error(item.id + ' invalid sha256')
+              if (!(out.bytes > 0)) throw new Error(item.id + ' empty output')
             }
           }
           console.log('PASS existing Runway Home outputs retained with hashes; zero generation calls')
           NODE
 
-      - name: Upload private workflow evidence
-        uses: actions/upload-artifact@v4
+      - name: Upload private retained Home evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: home-runway-world001-retained-${{ github.sha }}
-          path: .artifacts/home-runway-world001/
+          name: home-runway-world001-retained-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/home-runway-world001/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+          compression-level: 6
+
+      - name: Record successful no-spend retention
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 326 --repo "$GITHUB_REPOSITORY" --body "HOME_RUNWAY_RETENTION_COMPLETED=$GITHUB_RUN_ID; exact_sha=$GITHUB_SHA; existing_tasks=12; survey_videos=8; generation_calls=0; provider_mutation=false; artifact=home-runway-world001-retained-$GITHUB_SHA-$GITHUB_RUN_ID; workflow=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Record fail-closed retention result
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue comment 326 --repo "$GITHUB_REPOSITORY" --body "HOME_RUNWAY_RETENTION_FAILED=$GITHUB_RUN_ID; generation_calls=0; provider_mutation=false; inspect protected workflow before retry: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Remove temporary provider and credential files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP"/RUNWAY_API_KEY.stderr "$RUNNER_TEMP"/RUNWAYML_API_SECRET.stderr
+          rm -f "${{ steps.runway_google_auth.outputs.credentials_file_path }}" || true
+          printf 'RUNWAY_API_KEY=\n' >> "$GITHUB_ENV"
