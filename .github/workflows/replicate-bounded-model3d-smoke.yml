@@ -752,14 +752,11 @@ jobs:
 
   grant-runway-retention-secret-access:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.number == 326 &&
-        github.event.comment.body == 'GRANT_RUNWAY_RETENTION_SECRET_ACCESS' &&
-        github.event.comment.author_association == 'OWNER' &&
-        github.actor == github.repository_owner
-      )
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 326 &&
+      github.event.comment.body == 'GRANT_RUNWAY_RETENTION_SECRET_ACCESS' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.actor == github.repository_owner
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: asset-factory-production
@@ -791,7 +788,7 @@ jobs:
             test "${{ github.event.comment.author_association }}" = 'OWNER'
             test "${{ github.actor }}" = "${{ github.repository_owner }}"
           fi
-          test "$EXPECTED_PROJECT_ID" = 'urai-4dc1d'
+          test "$PROJECT_ID" = 'urai-4dc1d'
           test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
           test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
           test "$GITHUB_WORKFLOW_REF" = 'LifeLoggerAI/asset-factory/.github/workflows/replicate-bounded-model3d-smoke.yml@refs/heads/main'
@@ -799,7 +796,7 @@ jobs:
       - name: Authenticate exact Asset Factory WIF identity
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
-          project_id: ${{ env.EXPECTED_PROJECT_ID }}
+          project_id: ${{ env.PROJECT_ID }}
           workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
           service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
           create_credentials_file: true
@@ -808,7 +805,7 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
         with:
-          project_id: ${{ env.EXPECTED_PROJECT_ID }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Grant exact resource-scoped Secret Accessor where canonical Runway secret exists
         id: grant
@@ -818,10 +815,10 @@ jobs:
           found=0
           granted=0
           for secret in RUNWAY_API_KEY RUNWAYML_API_SECRET; do
-            if gcloud secrets describe "$secret" --project="$EXPECTED_PROJECT_ID" --quiet >/dev/null 2>&1; then
+            if gcloud secrets describe "$secret" --project="$PROJECT_ID" --quiet >/dev/null 2>&1; then
               found=$((found+1))
-              gcloud secrets add-iam-policy-binding "$secret"                 --project="$EXPECTED_PROJECT_ID"                 --member="serviceAccount:$GCP_DEPLOY_SERVICE_ACCOUNT"                 --role='roles/secretmanager.secretAccessor'                 --quiet >/dev/null
-              gcloud secrets versions access latest                 --secret="$secret"                 --project="$EXPECTED_PROJECT_ID"                 --quiet >/dev/null
+              gcloud secrets add-iam-policy-binding "$secret"                 --project="$PROJECT_ID"                 --member="serviceAccount:$GCP_DEPLOY_SERVICE_ACCOUNT"                 --role='roles/secretmanager.secretAccessor'                 --quiet >/dev/null
+              gcloud secrets versions access latest                 --secret="$secret"                 --project="$PROJECT_ID"                 --quiet >/dev/null
               granted=$((granted+1))
               echo "Secret metadata/access verified for $secret; value not emitted."
             fi
