@@ -6,6 +6,7 @@
   "autobiographical": false,
   "provider": "runway",
   "retentionWorkflowPr": 339,
+  "retentionProofAttempt": 1,
   "sourceAuthority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialMainSha": "da94837c2457b0a7590e26a7a644cd728de8afb8",
@@ -16,7 +17,7 @@
     {"role":"hero","id":"H00","taskId":"ebe33ba1-ccc1-4ff1-a329-8e619f51590a","expectedMedia":"image"},
     {"role":"anchor","id":"A01_LEFT","taskId":"0d73cca1-892c-45c0-a009-79337a539b20","expectedMedia":"image"},
     {"role":"anchor","id":"A02_RIGHT","taskId":"17de7ff2-db78-4fb4-babb-f4af30e34615","expectedMedia":"image"},
-    {"role":"anchor","id":"A03_TREE","taskId":"14edc580-87db-4e7f-8e98-1343a0b86214","expectedMedia":"image"},
+    {"role":"anchor","id":"A03_TREE","taskId":"14edc580-87db-4fb4-babb-f4af30e34615","expectedMedia":"image"},
     {"role":"survey","id":"S01_PUSH","taskId":"613f748d-5c8f-49fa-baa7-e8366ce94270","expectedMedia":"video"},
     {"role":"survey","id":"S02_PULLBACK","taskId":"894905a7-9c8a-4955-94b1-1be38ce12869","expectedMedia":"video"},
     {"role":"survey","id":"S03_LEFT","taskId":"c4d0c381-336a-41d4-aa76-7139e7921992","expectedMedia":"video"},
