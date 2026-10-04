@@ -21,6 +21,7 @@ const operationsRunbook = read('docs/OPERATIONS_RUNBOOK.md');
 const openapiRoute = read('assetfactory-studio/app/api/system/openapi/route.ts');
 const accountDataRoute = read('assetfactory-studio/app/api/support/account-data/route.ts');
 const accountDeletionRoute = read('assetfactory-studio/app/api/support/account-deletion/route.ts');
+const accountDeletionExecuteRoute = read('assetfactory-studio/app/api/support/account-deletion/execute/route.ts');
 
 const requiredPrivacySafetyStrings = [
   'ASSET_FACTORY_REQUIRE_JWT_SIGNATURE=true',
@@ -64,5 +65,21 @@ for (const expected of requiredSupportRouteStrings) {
 assertIncludes(accountDataRoute, "authorizeAssetRequest(req, undefined, 'admin')", 'assetfactory-studio/app/api/support/account-data/route.ts');
 assertIncludes(accountDeletionRoute, "authorizeAssetRequest(req, undefined, 'admin')", 'assetfactory-studio/app/api/support/account-deletion/route.ts');
 assertIncludes(accountDeletionRoute, 'pending-manual-review', 'assetfactory-studio/app/api/support/account-deletion/route.ts');
+for (const expected of [
+  'ASSET_FACTORY_DATA_RIGHTS_EXECUTION_MODE',
+  'protected-staging',
+  'ASSET_FACTORY_DATA_RIGHTS_ALLOWED_PROJECT',
+  'ASSET_FACTORY_DATA_RIGHTS_PRODUCTION_AUTHORIZED',
+  'retentionDecisionReceiptId',
+  'backupReceiptId',
+  'DELETE ${tenantId}',
+  'centralPrivacyCompletionRequired: true',
+]) {
+  assertIncludes(accountDeletionExecuteRoute, expected, 'assetfactory-studio/app/api/support/account-deletion/execute/route.ts');
+}
+assert(
+  !accountDeletionExecuteRoute.includes("ASSET_FACTORY_DATA_RIGHTS_PRODUCTION_AUTHORIZED === 'false'"),
+  'protected deletion executor must fail closed instead of trusting a caller-provided false production flag'
+);
 
 console.log('PASS privacy/safety readiness static checks');
