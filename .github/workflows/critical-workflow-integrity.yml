@@ -12,6 +12,8 @@ on:
       - .github/workflows/v1-checkpoint-finalize.yml
       - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
+      - .github/workflows/home-runway-existing-task-retention.yml
+      - .github/workflows/replicate-bounded-model3d-smoke.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
       - scripts/check-paid-workflow-boundary-current.py
@@ -30,6 +32,8 @@ on:
       - .github/workflows/v1-checkpoint-finalize.yml
       - .github/workflows/v1-promote-finalized-checkpoint.yml
       - .github/workflows/critical-workflow-integrity.yml
+      - .github/workflows/home-runway-existing-task-retention.yml
+      - .github/workflows/replicate-bounded-model3d-smoke.yml
       - scripts/check-critical-workflow-pins.py
       - scripts/check-paid-workflow-boundary.py
       - scripts/check-paid-workflow-boundary-current.py
