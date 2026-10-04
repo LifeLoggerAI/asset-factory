@@ -21,6 +21,7 @@ export function activeAssetBackend() {
         listUsage: cloud.cloudListUsage,
         writeGenerated: cloud.cloudWriteGenerated,
         readGenerated: cloud.cloudReadGenerated,
+        purgeTenantData: cloud.cloudPurgeTenantData,
       }
     : {
         mode: 'local-json' as const,
@@ -35,5 +36,6 @@ export function activeAssetBackend() {
         listUsage: local.localListUsage,
         writeGenerated: local.localWriteGenerated,
         readGenerated: local.localReadGenerated,
+        purgeTenantData: local.localPurgeTenantData,
       };
 }
