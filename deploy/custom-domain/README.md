@@ -1,33 +1,45 @@
-# Asset Factory Custom Domain API Routing
+# Asset Factory Custom Domain Routing
 
-Asset Factory is live and verified on Firebase default hosting:
+The canonical Asset Factory domain is:
 
-- https://urai-4dc1d.web.app
+- https://uraiassetfactory.com
 
-The canonical domain is currently blocked because:
+Current public state is **not production-bound**. A 404 or a response from an unrelated/shared UrAi host is not acceptable evidence.
 
-- https://uraiassetfactory.com/api/health returns a Next.js 404
-- That means /api/* is being handled by the current custom-domain host, not by Asset Factory Firebase Hosting.
+## Dedicated production authority required
 
-## Required production routing
+Asset Factory custom-domain verification is fail-closed until both of these are explicitly provisioned:
 
-Choose one:
+- a dedicated Asset Factory Firebase/GCP project ID;
+- a dedicated Asset Factory Firebase Hosting site ID.
 
-### Option A - Firebase owns the domain
+The verifier in `scripts/finish-custom-domain-production.mjs` intentionally rejects `urai-4dc1d` as either value. The shared consumer UrAi project/site must not be used merely to eliminate the custom-domain 404.
 
-Attach uraiassetfactory.com to Firebase Hosting site urai-4dc1d.
+Set the dedicated identities only after they actually exist:
 
-### Option B - Current web host keeps the domain
+```bash
+export ASSET_FACTORY_FIREBASE_PROJECT_ID='<dedicated-asset-factory-project>'
+export ASSET_FACTORY_FIREBASE_HOSTING_SITE='<dedicated-asset-factory-hosting-site>'
+export ASSET_FACTORY_BASE_URL='https://uraiassetfactory.com'
+```
 
-Add this rewrite/proxy on the host that serves uraiassetfactory.com:
+Then run the governed custom-domain verification:
 
-{
-  "source": "/api/:path*",
-  "destination": "https://urai-4dc1d.web.app/api/:path*"
-}
+```bash
+node scripts/finish-custom-domain-production.mjs
+```
 
-A Vercel-compatible example is provided in:
+That verifier runs the website and production smokes and writes exact-SHA evidence only after both succeed.
 
-deploy/custom-domain/asset-factory-api-proxy.vercel.json
+## Historical shared-project evidence
 
-Copy the rewrites block into the active custom-domain web app config, then redeploy that app.
+Older documentation and retained evidence may mention `urai-4dc1d.web.app`. That is historical production-slice evidence only. It does **not** authorize the current Asset Factory custom domain to be attached to the shared `urai-4dc1d` project/site.
+
+## Current decision
+
+Until the dedicated project/site exists, is bound to the domain, and the governed smoke succeeds:
+
+- custom-domain state: **NO-GO**;
+- provider generation: unchanged;
+- shared-project fallback: **forbidden**;
+- no production readiness claim may be inferred from DNS, TLS, or an HTTP response alone.
