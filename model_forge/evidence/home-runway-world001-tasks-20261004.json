@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "urai-runway-existing-task-retention-v1",
+  "worldId": "URAI-IW-001-QUIET-RESET",
+  "purpose": "Zero-generation materialization of existing Runway Home interpretive-world outputs for literal motion review and reconstruction suitability.",
+  "truthClass": "interpretive",
+  "autobiographical": false,
+  "provider": "runway",
+  "sourceAuthority": {
+    "spatialRepository": "LifeLoggerAI/urai-spatial",
+    "spatialMainSha": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+    "assetFactoryIssue": 326,
+    "rule": "Retrieve existing completed tasks only. No generation, remix, retry, cancel, delete, or provider mutation is authorized by this manifest."
+  },
+  "items": [
+    {"role":"hero","id":"H00","taskId":"ebe33ba1-ccc1-4ff1-a329-8e619f51590a","expectedMedia":"image"},
+    {"role":"anchor","id":"A01_LEFT","taskId":"0d73cca1-892c-45c0-a009-79337a539b20","expectedMedia":"image"},
+    {"role":"anchor","id":"A02_RIGHT","taskId":"17de7ff2-db78-4fb4-babb-f4af30e34615","expectedMedia":"image"},
+    {"role":"anchor","id":"A03_TREE","taskId":"14edc580-87db-4e7f-8e98-1343a0b86214","expectedMedia":"image"},
+    {"role":"survey","id":"S01_PUSH","taskId":"613f748d-5c8f-49fa-baa7-e8366ce94270","expectedMedia":"video"},
+    {"role":"survey","id":"S02_PULLBACK","taskId":"894905a7-9c8a-4955-94b1-1be38ce12869","expectedMedia":"video"},
+    {"role":"survey","id":"S03_LEFT","taskId":"c4d0c381-336a-41d4-aa76-7139e7921992","expectedMedia":"video"},
+    {"role":"survey","id":"S04_RIGHT","taskId":"67b988f1-aaaf-4b1f-afe0-f003bebf10c4","expectedMedia":"video"},
+    {"role":"survey","id":"S05_CW_ARC","taskId":"3be52a25-dfa0-45c7-abdf-3ccc02aacbe7","expectedMedia":"video"},
+    {"role":"survey","id":"S06_CCW_ARC","taskId":"77a33ac6-f598-4b56-98fd-0386e4e4719b","expectedMedia":"video"},
+    {"role":"survey","id":"S07_ELEVATION","taskId":"4b0d49a6-4f24-4b56-9585-933b481a66ce","expectedMedia":"video"},
+    {"role":"survey","id":"S08_DIAGONAL","taskId":"32ffb018-6f5c-4d50-b1c6-7a572abd7e50","expectedMedia":"video"}
+  ]
+}
