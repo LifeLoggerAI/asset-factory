@@ -147,3 +147,50 @@ export async function cloudListQueueItems() {
   const snapshot = await dbOrThrow().collection(collections.queue).orderBy('updatedAt', 'desc').limit(500).get();
   return snapshot.docs.map((doc) => doc.data());
 }
+
+
+export async function cloudPurgeTenantData(tenantId: string) {
+  if (!tenantId || tenantId.includes('/')) throw new Error('canonical tenantId is required for purge');
+  const db = dbOrThrow();
+  const bucket = bucketOrThrow();
+  const entries = await Promise.all(
+    Object.entries(collections).map(async ([key, collection]) => {
+      const snapshot = await db.collection(collection).where('tenantId', '==', tenantId).limit(1001).get();
+      if (snapshot.size > 1000) throw new Error(`Tenant purge exceeds bounded ${key} limit; reconcile before retry`);
+      return [key, snapshot] as const;
+    })
+  );
+  const snapshots = Object.fromEntries(entries) as Record<string, FirebaseFirestore.QuerySnapshot>;
+  const storageObjects = new Set<string>();
+  for (const document of snapshots.assets.docs) {
+    const asset = document.data() as GenericRecord;
+    const paths = asset.storagePaths as GenericRecord | undefined;
+    for (const key of ['artifact', 'manifest']) {
+      const value = paths?.[key];
+      if (typeof value === 'string' && value && !value.includes('..') && !value.startsWith('/')) storageObjects.add(value);
+    }
+  }
+  let storageDeleted = 0;
+  for (const objectPath of storageObjects) {
+    try {
+      await bucket.file(objectPath).delete();
+      storageDeleted += 1;
+    } catch (error) {
+      const code = Number((error as { code?: unknown })?.code);
+      if (code !== 404) throw error;
+    }
+  }
+  const documents = Object.values(snapshots).flatMap((snapshot) => snapshot.docs);
+  for (let offset = 0; offset < documents.length; offset += 400) {
+    const batch = db.batch();
+    for (const document of documents.slice(offset, offset + 400)) batch.delete(document.ref);
+    await batch.commit();
+  }
+  return {
+    jobsDeleted: snapshots.jobs.size,
+    assetsDeleted: snapshots.assets.size,
+    usageDeleted: snapshots.usage.size,
+    queueDeleted: snapshots.queue.size,
+    storageDeleted,
+  };
+}
