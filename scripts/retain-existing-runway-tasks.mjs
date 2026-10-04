@@ -23,9 +23,11 @@ const taskIdPattern = /^[0-9a-f-]{36}$/i
 const seen = new Set()
 const seenNames = new Set()
 for (const item of manifest.items) {
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(String(item?.id || ''))) throw new Error('Invalid output identifier')
-  if (seenNames.has(item.id)) throw new Error('Duplicate output identifier')
-  seenNames.add(item.id)
+  const normalizedId = String(item?.id || '')
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(normalizedId)) throw new Error('Invalid output identifier')
+  if (seenNames.has(normalizedId)) throw new Error('Duplicate output identifier')
+  seenNames.add(normalizedId)
+  item.id = normalizedId
   if (!taskIdPattern.test(String(item?.taskId || ''))) throw new Error(`Invalid task ID for ${item?.id || 'unknown'}`)
   if (seen.has(item.taskId)) throw new Error(`Duplicate task ID ${item.taskId}`)
   seen.add(item.taskId)
