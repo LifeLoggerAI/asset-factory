@@ -9,12 +9,24 @@ if [ -z "$ROOT" ] || [ -z "$OUT" ]; then
   exit 64
 fi
 
+test -d "$ROOT" || { echo "retained-media directory does not exist" >&2; exit 66; }
+# Review evidence must be written to a new directory. Never erase retained
+# media or an earlier review when a caller passes the wrong output path.
+if [ -e "$OUT" ] || [ -L "$OUT" ]; then
+  echo "review output already exists; choose a new directory" >&2
+  exit 64
+fi
+
 command -v ffprobe >/dev/null 2>&1 || { echo "ffprobe required" >&2; exit 69; }
 command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg required" >&2; exit 69; }
 command -v sha256sum >/dev/null 2>&1 || { echo "sha256sum required" >&2; exit 69; }
+command -v jq >/dev/null 2>&1 || { echo "jq required" >&2; exit 69; }
+command -v node >/dev/null 2>&1 || { echo "node required" >&2; exit 69; }
 
-rm -rf "$OUT"
-mkdir -p "$OUT/frames"
+mkdir -p -- "$(dirname -- "$OUT")"
+# Atomic creation also rejects a path introduced after the check above.
+mkdir -- "$OUT"
+mkdir -- "$OUT/frames"
 
 manifest="$OUT/media-validation.json"
 tmp="$OUT/.items.jsonl"
