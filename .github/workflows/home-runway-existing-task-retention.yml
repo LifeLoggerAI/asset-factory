@@ -3,6 +3,7 @@ name: Home Runway Existing Task Retention
 on:
   push:
     branches:
+      - main
       - execution/home-runway-retention-20261004
     paths:
       - "scripts/retain-existing-runway-tasks.mjs"
