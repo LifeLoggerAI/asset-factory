@@ -125,3 +125,36 @@ export async function localReadGenerated(fileName: string) {
     return null;
   }
 }
+
+export async function localPurgeTenantData(tenantId: string) {
+  if (!tenantId || tenantId.includes('/')) throw new Error('canonical tenantId is required for purge');
+  const db = await readDb();
+  const assets = Object.values(db.assets).filter((entry) => entry.tenantId === tenantId);
+  let generatedDeleted = 0;
+  for (const asset of assets) {
+    for (const key of ['fileName', 'manifestFile']) {
+      const value = asset[key];
+      if (typeof value === 'string' && value && !value.includes('/') && !value.includes('..')) {
+        try {
+          await fs.rm(path.join(generatedDir, value), { force: true });
+          generatedDeleted += 1;
+        } catch {}
+      }
+    }
+  }
+  const removeTenant = (records: Record<string, GenericRecord>) => {
+    let removed = 0;
+    for (const [key, record] of Object.entries(records)) {
+      if (record.tenantId === tenantId) {
+        delete records[key];
+        removed += 1;
+      }
+    }
+    return removed;
+  };
+  const jobsDeleted = removeTenant(db.jobs);
+  const assetsDeleted = removeTenant(db.assets);
+  const usageDeleted = removeTenant(db.usage);
+  await writeDb(db);
+  return { jobsDeleted, assetsDeleted, usageDeleted, queueDeleted: 0, storageDeleted: generatedDeleted };
+}
