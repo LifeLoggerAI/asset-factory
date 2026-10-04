@@ -398,3 +398,7 @@ export async function createAssetVersion(jobId: string, versionPatch: GenericRec
 
   return updated;
 }
+
+export async function purgeTenantData(tenantId: string) {
+  return activeAssetBackend().purgeTenantData(tenantId);
+}
