@@ -79,8 +79,8 @@ function shellStep(name) {
 }
 test('credential masking is emitted separately and never becomes credential bytes', t => {
   const f = fixture(t)
-  const bin = path.join(f.dir, 'firebase')
-  fs.writeFileSync(bin, '#!/bin/sh\nprintf synthetic-retention-key\n', { mode: 0o700 })
+  const bin = path.join(f.dir, 'gcloud')
+  fs.writeFileSync(bin, '#!/bin/sh\nif [ "$1 $2 $3" = "secrets versions access" ]; then printf synthetic-retention-key; else exit 2; fi\n', { mode: 0o700 })
   const envFile = path.join(f.dir, 'github-env')
   const result = spawnSync('bash', ['-c', shellStep('Load UrAi Runway credential from Secret Manager without exposing it')], { encoding: 'utf8', env: { ...process.env, PATH: `${f.dir}:${process.env.PATH}`, PROJECT_ID: 'synthetic-project', RUNNER_TEMP: f.dir, GOOGLE_APPLICATION_CREDENTIALS: f.manifest, GITHUB_ENV: envFile } })
   assert.equal(result.status, 0, result.stderr)
