@@ -74,15 +74,14 @@ Higgsfield output must never be labeled RECORDED SOURCE TRUTH or SPATIALLY RECON
 
 ## Google / App Hosting hookup
 
-Current Asset Factory authority:
+Current Asset Factory runtime authority is supplied by the protected `asset-factory-production` environment, not by a hard-coded Google project:
 
-- Google project: `urai-4dc1d`
-- Project number: `952723774155`
-- App Hosting backend: `assetfactory-studio`
-- WIF provider: `projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github`
-- Deploy service account: `asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com`
+- `ASSET_FACTORY_FIREBASE_PROJECT_ID` — provider-proven dedicated Asset Factory project; `urai-4dc1d` is forbidden as current runtime authority.
+- `GCP_WIF_PROVIDER` — protected Workload Identity Provider resource.
+- `GCP_DEPLOY_SERVICE_ACCOUNT` — protected least-privilege service-account identity.
+- App Hosting backend — must be discovered from authenticated inventory for the dedicated target; do not assume that historical `assetfactory-studio` exists in the shared consumer project.
 
-Do not create a service-account JSON key.
+Do not create a service-account JSON key. Successful WIF exchange alone is not proof of runtime/backend binding.
 
 After Higgsfield credentials actually exist in Secret Manager:
 

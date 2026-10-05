@@ -19,9 +19,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT_ID: urai-4dc1d
-  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
-  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+  PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
   MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
 
 jobs:
@@ -29,6 +29,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       issues: read
@@ -63,14 +67,15 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify pinned WIF identity contract
+      - name: Verify protected dedicated target and WIF contract
         if: steps.preflight.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test -n "$PROJECT_ID" || { echo '::error::ASSET_FACTORY_FIREBASE_PROJECT_ID is required in the protected environment.'; exit 1; }
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider runtime.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
 
       - name: Authenticate to Google Cloud with WIF
         id: google_auth
@@ -234,6 +239,9 @@ jobs:
       contents: read
       id-token: write
     env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       URAI_MODEL_FORGE_SPEND_AUTHORIZED: '0'
     steps:
       - name: Checkout exact trusted main
@@ -370,6 +378,9 @@ jobs:
       issues: write
       id-token: write
     env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       HOME_AUTHORIZATION_ISSUE: '${{ github.event.issue.number }}'
       HOME_EXPECTED_SPEC_BLOB: 0b6490e075ae3078286e2adbd040cce7a9a7608c
       URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1'
@@ -422,9 +433,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider/runtime authority.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
 
       - name: Authenticate to Google Cloud with trusted WIF
         id: home_google_auth
@@ -553,6 +564,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       issues: write
@@ -581,9 +596,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider/runtime authority.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
 
       - name: Authenticate to Google Cloud with trusted WIF
         id: runway_google_auth
@@ -760,6 +775,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       id-token: write
@@ -788,9 +807,9 @@ jobs:
             test "${{ github.event.comment.author_association }}" = 'OWNER'
             test "${{ github.actor }}" = "${{ github.repository_owner }}"
           fi
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider/runtime authority.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
           test "$GITHUB_WORKFLOW_REF" = 'LifeLoggerAI/asset-factory/.github/workflows/replicate-bounded-model3d-smoke.yml@refs/heads/main'
 
       - name: Authenticate exact Asset Factory WIF identity
@@ -871,6 +890,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       issues: write
@@ -894,7 +917,7 @@ jobs:
           test '${{ github.event.comment.author_association }}' = 'OWNER'
           test '${{ github.event.comment.body }}' = 'READBACK_ASSET_FACTORY_CUSTOM_DOMAIN'
           test "$GITHUB_WORKFLOW_REF" = 'LifeLoggerAI/asset-factory/.github/workflows/replicate-bounded-model3d-smoke.yml@refs/heads/main'
-          test "$PROJECT_ID" = 'urai-4dc1d'
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider/runtime authority.'; exit 1; }
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
 
@@ -1072,6 +1095,10 @@ jobs:
       github.event.comment.body == 'DIAGNOSE_HOME_CHALLENGER_FAILURE'
     runs-on: ubuntu-latest
     environment: asset-factory-production
+    env:
+      PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
     permissions:
       contents: read
       issues: write
@@ -1088,9 +1115,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider/runtime authority.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
 
       - name: Authenticate to Google Cloud with trusted WIF
         id: diagnostic_google_auth
