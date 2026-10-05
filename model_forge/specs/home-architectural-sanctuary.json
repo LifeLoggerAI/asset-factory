@@ -20,7 +20,7 @@
   },
   "authority": {
     "route": "/home",
-    "source": "UrAi Home Reference Pack.png + current locked Home canon + Spatial #1598 exact-head 3482c84c194b5c538755528f85f758ccfb234247 release-lineage evidence",
+    "source": "UrAi Home Reference Pack.png + current locked Home canon + Spatial #1598 exact-head b620614593ffd499d7561760d7b34e079034305b release-lineage evidence",
     "referenceAuthority": {
       "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
       "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
@@ -29,7 +29,7 @@
     },
     "exactHeadGapEvidence": {
       "spatialPr": 1598,
-      "spatialHead": "3482c84c194b5c538755528f85f758ccfb234247",
+      "spatialHead": "b620614593ffd499d7561760d7b34e079034305b",
       "evidence": "Asset Factory issue #326 + Spatial #1598 exact-head Continuous Spatial Visual Proof run 37266770522",
       "finding": "Home remains machine-verified as a functioning spatial runtime while Gold Master final-art acceptance remains explicitly blocked; candidate assets must not ship until literal final review."
     },
