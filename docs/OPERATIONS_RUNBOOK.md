@@ -287,6 +287,7 @@ Prefer the GitHub Actions workflow. Use manual commands only when debugging a fa
 
 ```bash
 test -n "$ASSET_FACTORY_BASE_URL"
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_SMOKE_READONLY=true \
 npm run smoke:website
 ```
@@ -295,6 +296,7 @@ npm run smoke:website
 
 ```bash
 test -n "$ASSET_FACTORY_BASE_URL"
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
