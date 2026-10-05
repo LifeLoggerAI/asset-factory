@@ -7,7 +7,7 @@ Status: PARTIALLY VERIFIED / BLOCKED
 
 | Target | Status | Notes |
 | --- | --- | --- |
-| Firebase default API base | Verified by repo evidence | `https://urai-4dc1d.web.app` is recorded as the verified Firebase production API base. |
+| Historical shared Firebase slice | Historical evidence only | `https://urai-4dc1d.web.app` is retained as historical evidence and is forbidden as current Asset Factory production authority. |
 | Studio framework deploy path | Repo-owned fix merged | Use `npm run deploy:studio` for the Studio/Firebase framework surface. Do not use the older broad root deploy path as the default production workflow. |
 | Apex custom domain | Needs proof / blocked until evidence | `https://uraiassetfactory.com` must pass read-only and authenticated smoke and return Asset Factory API health at `/api/health`. |
 | WWW custom domain | Needs proof / blocked until evidence | `https://www.uraiassetfactory.com` must redirect to canonical host or serve the same Firebase-backed API surface. |
@@ -17,7 +17,7 @@ Status: PARTIALLY VERIFIED / BLOCKED
 
 ## Deployment safety rule
 
-Do not run production deploys against a shared Firebase project unless the deploy scope is explicit and collision risk is reviewed.
+Do not run current Asset Factory production deploys or verification against a legacy/shared Firebase project, Hosting site, or runtime. Production authority must be the provider-proven dedicated Asset Factory target.
 
 Required deployment evidence fields:
 
@@ -50,14 +50,21 @@ Recommended sequence:
 3. `environment=production`, `deploy=false`, `smoke_mode=readonly`
 4. `environment=production`, `deploy=true`, `smoke_mode=both`
 
-Required GitHub environment/repository secrets:
+Required protected production configuration:
 
 ```text
-FIREBASE_TOKEN
+ASSET_FACTORY_FIREBASE_PROJECT_ID
+ASSET_FACTORY_FIREBASE_HOSTING_SITE
+ASSET_FACTORY_BASE_URL
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
+ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
+
+Long-lived `FIREBASE_TOKEN` and service-account JSON are prohibited for current production deployment.
 
 The workflow must run with:
 
@@ -105,8 +112,8 @@ The broader `npm run deploy:firebase` path is available for explicit hosting/fun
 4. Confirm Stripe live webhook endpoint and secret are active.
 5. Confirm public docs do not claim unsupported capabilities.
 6. Deploy production with explicit Firebase project and scope.
-7. Run Firebase default API read-only smoke.
-8. Run Firebase default API authenticated smoke.
+7. Run dedicated production API read-only smoke.
+8. Run dedicated production API authenticated smoke.
 9. Verify custom-domain DNS/TLS and API routing.
 10. Run custom-domain read-only smoke.
 11. Run custom-domain authenticated smoke.
@@ -118,7 +125,7 @@ The broader `npm run deploy:firebase` path is available for explicit hosting/fun
 
 The custom-domain blocker is closed only when all of these are true:
 
-- `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
+- `uraiassetfactory.com` is attached to the provider-proven dedicated Asset Factory Hosting site, or the current frontend host proxies `/api/*` to the provider-proven dedicated Asset Factory runtime.
 - `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
 - `https://uraiassetfactory.com/api/health` returns expected Asset Factory health JSON, not a Next.js 404 page.
 - Read-only smoke passes with `ASSET_FACTORY_BASE_URL=https://uraiassetfactory.com`.
@@ -145,18 +152,22 @@ deploy=true
 smoke_mode=both
 ```
 
-### Firebase default API read-only smoke
+### Dedicated production API read-only smoke
 
 ```bash
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
-### Firebase default API authenticated smoke
+### Dedicated production API authenticated smoke
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
