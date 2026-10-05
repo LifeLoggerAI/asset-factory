@@ -286,7 +286,9 @@ Prefer the GitHub Actions workflow. Use manual commands only when debugging a fa
 7. Run read-only smoke against the provider-proven dedicated production base.
 
 ```bash
-test -n "$ASSET_FACTORY_BASE_URL"
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_SMOKE_READONLY=true \
 npm run smoke:website
 ```
@@ -294,7 +296,9 @@ npm run smoke:website
 8. Run authenticated production smoke against the same dedicated production base.
 
 ```bash
-test -n "$ASSET_FACTORY_BASE_URL"
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
