@@ -128,14 +128,21 @@ production / deploy=false / smoke_mode=readonly
 production / deploy=true / smoke_mode=both
 ```
 
-Required GitHub environment/repository secrets:
+Required protected production configuration:
 
 ```text
-FIREBASE_TOKEN
+ASSET_FACTORY_FIREBASE_PROJECT_ID
+ASSET_FACTORY_FIREBASE_HOSTING_SITE
+ASSET_FACTORY_BASE_URL
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ASSET_FACTORY_API_KEY
 ASSET_FACTORY_BEARER_TOKEN
+ASSET_FACTORY_OTHER_BEARER_TOKEN
 CRON_SECRET
 ```
+
+The deployment target must be a provider-proven dedicated Asset Factory project/site/base URL. Long-lived Firebase tokens and service-account JSON are forbidden for current production deployment.
 
 ## Manual smoke commands
 
