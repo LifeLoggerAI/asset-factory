@@ -1,8 +1,27 @@
 import { execFileSync } from 'node:child_process';
 
-const defaultBase = 'https://urai-4dc1d.web.app';
 const apexBase = 'https://uraiassetfactory.com';
 const wwwBase = 'https://www.uraiassetfactory.com';
+const legacyHosts = new Set([
+  'urai-4dc1d.web.app',
+  'urai-4dc1d.firebaseapp.com',
+  'asset-factory-dev-id.web.app',
+  'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
+  'urai.app',
+  'www.urai.app',
+]);
+
+function dedicatedBase() {
+  const raw = String(process.env.ASSET_FACTORY_BASE_URL || '').trim();
+  if (!raw) throw new Error('ASSET_FACTORY_BASE_URL is required for launch verification.');
+  const parsed = new URL(raw);
+  if (parsed.protocol !== 'https:') throw new Error('ASSET_FACTORY_BASE_URL must use HTTPS.');
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+  if (legacyHosts.has(host)) throw new Error(`Refusing legacy/shared Asset Factory launch host ${host}.`);
+  return parsed.origin;
+}
 
 function run(command, args, env = {}) {
   console.log(`\n$ ${[command, ...args].join(' ')}`);
@@ -25,12 +44,9 @@ async function fetchJsonHealth(baseUrl) {
   if (server) console.log(`server=${server}`);
   if (poweredBy) console.log(`x-powered-by=${poweredBy}`);
 
-  if (res.status !== 200) {
-    throw new Error(`${url} expected 200, got ${res.status}. Body starts: ${body.slice(0, 240)}`);
-  }
-
+  if (res.status !== 200) throw new Error(`${url} expected 200, got ${res.status}. Body starts: ${body.slice(0, 240)}`);
   if (poweredBy.toLowerCase().includes('next') || body.includes('404: This page could not be found')) {
-    throw new Error(`${url} is still routed to the old Next.js host.`);
+    throw new Error(`${url} is routed to the wrong host.`);
   }
 
   let json;
@@ -39,26 +55,26 @@ async function fetchJsonHealth(baseUrl) {
   } catch {
     throw new Error(`${url} did not return JSON. Body starts: ${body.slice(0, 240)}`);
   }
-
   if (json.ok !== true || json.service !== 'asset-factory') {
     throw new Error(`${url} returned unexpected health payload: ${JSON.stringify(json)}`);
   }
-
   console.log(`[PASS] ${url}`);
   return json;
 }
 
 async function main() {
+  const base = dedicatedBase();
+
   run('npm', ['run', 'check:deploy-workflow']);
   run('npm', ['run', 'test:completion-lock']);
-  run('npm', ['run', 'smoke:website'], { ASSET_FACTORY_BASE_URL: defaultBase });
+  run('npm', ['run', 'smoke:website'], { ASSET_FACTORY_BASE_URL: base });
 
-  await fetchJsonHealth(defaultBase);
+  await fetchJsonHealth(base);
 
   let customOk = true;
-  for (const base of [apexBase, wwwBase]) {
+  for (const customBase of [apexBase, wwwBase]) {
     try {
-      await fetchJsonHealth(base);
+      await fetchJsonHealth(customBase);
     } catch (error) {
       customOk = false;
       console.error(`[FAIL] ${error instanceof Error ? error.message : String(error)}`);
@@ -66,11 +82,11 @@ async function main() {
   }
 
   if (!customOk) {
-    console.error('\n[BLOCKED] Asset Factory app/origin is healthy, but custom-domain routing is not complete.');
-    console.error('Open Firebase Hosting site urai-4dc1d and attach/provision both domains:');
+    console.error('\n[BLOCKED] Dedicated Asset Factory runtime is healthy, but custom-domain routing is not complete.');
+    console.error('Attach/provision both domains on the provider-proven dedicated Asset Factory Hosting authority:');
     console.error('- uraiassetfactory.com');
     console.error('- www.uraiassetfactory.com');
-    console.error('Then rerun: npm run verify:launch');
+    console.error('Then rerun with the same dedicated ASSET_FACTORY_BASE_URL.');
     process.exit(2);
   }
 
