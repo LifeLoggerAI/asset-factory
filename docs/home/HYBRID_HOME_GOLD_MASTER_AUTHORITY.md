@@ -2,7 +2,7 @@
 
 **Status:** Architecture locked; production implementation and final-art acceptance remain pending evidence-backed asset availability.  
 **Original decision:** 2026-10-01  
-**Current authority rebind:** Spatial PR #1598 @ `3482c84c194b5c538755528f85f758ccfb234247`  
+**Current authority rebind:** Spatial PR #1598 @ `b620614593ffd499d7561760d7b34e079034305b`  
 **Owner:** React / React Three Fiber Home runtime, with Asset Factory governing production assets.
 
 ## Decision
