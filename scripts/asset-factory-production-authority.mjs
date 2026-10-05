@@ -90,12 +90,17 @@ async function staticCheck() {
     }
   }
 
-  if (pkg.scripts?.['deploy:bind-hosting-target']?.includes('ASSET_FACTORY_FIREBASE_HOSTING_SITE') !== true) {
-    fail('deploy:bind-hosting-target must require an explicit provider-proven Hosting site.');
+  for (const name of ['deploy:firebase', 'deploy:hosting-rules', 'deploy:functions', 'deploy:studio']) {
+    const command = String(pkg.scripts?.[name] || '');
+    if (!command.includes('run-dedicated-firebase-deploy.mjs')) {
+      fail(`${name} must route through the dedicated Firebase deploy wrapper.`);
+    }
   }
-  if (pkg.scripts?.['deploy:verify']?.includes('require-base-url') !== true
-      || pkg.scripts?.['deploy:verify-readonly']?.includes('require-base-url') !== true) {
-    fail('Production verification scripts must require an explicit provider-proven base URL.');
+  for (const name of ['deploy:verify', 'deploy:verify-readonly']) {
+    const command = String(pkg.scripts?.[name] || '');
+    if (!command.includes('validate:production-target')) {
+      fail(`${name} must validate the explicit provider-proven project/site/base URL before smoke.`);
+    }
   }
 
   const rootHosting = firebase.hosting;
