@@ -1,87 +1,52 @@
-# Firebase Custom Domain Checklist
+# Asset Factory Custom Domain Checklist
 
-Target custom domain:
+Canonical public production target:
 
 ```text
 https://www.uraiassetfactory.com
 ```
 
-Verified Firebase production URL:
+## Authority boundary
 
-```text
-https://urai-4dc1d.web.app
-```
+The backing Firebase/GCP project and Hosting site must be the **provider-proven dedicated Asset Factory targets** supplied through the protected production environment.
 
-## Current Diagnostic Evidence
+The historical shared consumer project `urai-4dc1d` and its default Hosting URLs are historical evidence only. They are explicitly forbidden as current Asset Factory production authority and must not be used as a shortcut for domain attachment or release evidence.
 
-Latest diagnostics show:
+Required current authority values:
 
-```text
-A records: 192.178.210.121
-AAAA records: 2607:f8b0:4001:c11::79
-CNAME records: ghs.googlehosted.com
-TLS certificate: FAIL Client network socket disconnected before secure TLS connection was established
-GET https://www.uraiassetfactory.com/api/health: FAIL Client network socket disconnected before secure TLS connection was established
-```
+- `ASSET_FACTORY_FIREBASE_PROJECT_ID`
+- `ASSET_FACTORY_FIREBASE_HOSTING_SITE`
+- `ASSET_FACTORY_BASE_URL`
+- `GCP_WIF_PROVIDER`
+- `GCP_DEPLOY_SERVICE_ACCOUNT`
 
-Interpretation:
+## Provider checks
 
-- DNS is resolving.
-- `www.uraiassetfactory.com` is pointed at Google-hosted infrastructure.
-- TLS does not complete, so no HTTP response is available.
-- The verified Firebase runtime remains healthy at `https://urai-4dc1d.web.app`.
+- [ ] Dedicated project ID is provider-proven and is not `urai-4dc1d`.
+- [ ] Dedicated Hosting site is provider-proven.
+- [ ] `www.uraiassetfactory.com` is attached to that dedicated site.
+- [ ] Any Firebase/Google ownership TXT challenge is satisfied with the exact current provider-generated value.
+- [ ] Current DNS instructions match authoritative registrar records exactly.
+- [ ] TLS is active/provisioned for the intended hostname.
+- [ ] Apex/www redirect behavior matches the canonical policy.
 
-## Firebase Console Checks
+## DNS checks
 
-Open:
+- [ ] No stale parking/Squarespace record still wins for the production hostname.
+- [ ] No conflicting A, AAAA, or CNAME record exists for the same host.
+- [ ] Legitimate ownership TXT records are preserved.
+- [ ] HTTP redirects to HTTPS.
+- [ ] The rendered surface and `/api/health` response belong to Asset Factory rather than a parked or unrelated host.
 
-```text
-https://console.firebase.google.com/project/urai-4dc1d/hosting/sites
-```
+## Terminal verification
 
-Then verify:
-
-- [ ] Hosting site is `urai-4dc1d`.
-- [ ] Custom domain `www.uraiassetfactory.com` is listed under the same Hosting site.
-- [ ] Domain status is connected / active, not pending.
-- [ ] SSL certificate status is active / provisioned, not pending.
-- [ ] Firebase is not asking for additional TXT ownership verification.
-- [ ] Firebase DNS instructions match the registrar records exactly.
-
-## DNS Registrar Checks
-
-At the DNS provider for `uraiassetfactory.com`, verify:
-
-- [ ] `www` is configured exactly as Firebase instructs.
-- [ ] There are no conflicting `www` CNAME records.
-- [ ] There are no conflicting `www` A / AAAA records if Firebase requested a CNAME.
-- [ ] There is no proxy/CDN layer intercepting HTTPS for `www.uraiassetfactory.com` unless intentionally configured.
-- [ ] If using Cloudflare or similar, temporarily set `www` to DNS-only while Firebase provisions the certificate.
-
-## Terminal Verification
-
-Run after every Firebase/DNS change:
+Run only after the provider and DNS control-plane changes are complete:
 
 ```bash
 npm run diagnose:custom-domain
 npm run deploy:verify-custom-domain
 ```
 
-Passing read-only custom-domain smoke should show:
+The custom-domain gate closes only when TLS, `/api/health`, read-only smoke, authenticated own-tenant allow, cross-tenant denial, canonical metadata, exact deployed SHA, and dedicated project/site authority all agree.
 
-```text
-Production finalization smoke target: https://www.uraiassetfactory.com
-PASS /api/health
-PASS read-only production finalization smoke
-```
-
-## Close Criteria For Issue #55
-
-Close Issue #55 only after:
-
-- [ ] `npm run diagnose:custom-domain` shows a valid TLS certificate.
-- [ ] `npm run diagnose:custom-domain` gets an HTTP response from `/api/health`.
-- [ ] `npm run deploy:verify-custom-domain` passes.
-- [ ] `docs/PRODUCTION_VERIFICATION_REPORT.md` records custom-domain evidence.
-
-Production remains verified at `https://urai-4dc1d.web.app` regardless of this custom-domain checklist.
+Do not promote historical shared-project smoke to current production proof.
