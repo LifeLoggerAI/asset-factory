@@ -20,8 +20,10 @@ for (const file of [smokePath, grantPath]) {
 
 const smoke = fs.readFileSync(smokePath, 'utf8');
 const grant = fs.readFileSync(grantPath, 'utf8');
-const exactProvider = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github';
-const exactServiceAccount = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com';
+const projectVar = 'PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}';
+const grantProjectVar = 'EXPECTED_PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}';
+const providerVar = 'GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}';
+const serviceAccountVar = 'GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}';
 const exactConfirmation = 'RUN_ONE_REPLICATE_MODEL3D_SMOKE';
 
 for (const required of [
@@ -30,8 +32,10 @@ for (const required of [
   exactConfirmation,
   "test \"$GITHUB_REF\" = 'refs/heads/main'",
   'environment: asset-factory-production',
-  exactProvider,
-  exactServiceAccount,
+  projectVar,
+  providerVar,
+  serviceAccountVar,
+  "test \"$PROJECT_ID\" != 'urai-4dc1d'",
   'REPLICATE_MODEL3D_SMOKE_COMPLETED=',
   'https://api.replicate.com/v1/predictions',
   'Automatic prediction retries: **0**',
@@ -109,8 +113,13 @@ for (const ref of smokeAuthRefs) {
   if (ref !== exactGoogleAuth) fail(`Replicate smoke workflow contains noncanonical Google auth reference ${JSON.stringify(ref)}`);
 }
 
-for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093']) {
-  if (!grant.includes(required)) fail(`grant workflow missing pinned WIF contract ${JSON.stringify(required)}`);
+for (const required of [grantProjectVar, providerVar, serviceAccountVar, "test \"$EXPECTED_PROJECT_ID\" != 'urai-4dc1d'", 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093']) {
+  if (!grant.includes(required)) fail(`grant workflow missing protected dedicated-target/WIF contract ${JSON.stringify(required)}`);
+}
+for (const [label, workflow] of [['smoke', smoke], ['grant', grant]]) {
+  for (const forbidden of ['PROJECT_ID: urai-4dc1d', 'EXPECTED_PROJECT_ID: urai-4dc1d', 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com']) {
+    if (workflow.includes(forbidden)) fail(`${label} workflow still hard-codes shared provider authority ${JSON.stringify(forbidden)}`);
+  }
 }
 for (const forbidden of ['REPLICATE_API_TOKEN=%', 'https://api.replicate.com/v1/predictions', 'workflow_run:', 'google-github-actions/auth@v3']) {
   if (grant.includes(forbidden)) fail(`no-spend grant workflow contains paid/provider execution capability ${JSON.stringify(forbidden)}`);
