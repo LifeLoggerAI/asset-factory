@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -65,7 +65,7 @@ jobs:
           test -z "$(git config --local --get-all http.https://github.com/.extraheader || true)"
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
           cache: npm
@@ -134,7 +134,7 @@ jobs:
           test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "GCP_DEPLOY_SERVICE_ACCOUNT is required; long-lived Firebase deployment credentials are prohibited." >&2; exit 1; }
 
       - name: Checkout exact main candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -153,7 +153,7 @@ jobs:
           test "$ASSET_FACTORY_SMOKE_READONLY" = true
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
 
