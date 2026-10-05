@@ -30,7 +30,7 @@ const smokeRequired = [
   'test "$ASSET_FACTORY_SMOKE_READONLY" = true', 'Deployment performed: false',
   'Production deploy workflow: Asset Factory Production Readiness', 'Production deploy confirmation: DEPLOY_ASSET_FACTORY',
   'Read-only smoke enforced globally: true', 'Authenticated read-only smoke requested:', 'Firebase mutation allowed: false',
-  'Upload smoke evidence', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+  'Upload smoke evidence', 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2',
   'This artifact verifies an existing deployment. It performs no Firebase deployment',
   'Final evidence template: docs/templates/ASSET_FACTORY_RELEASE_EVIDENCE.md',
   'Final evidence path: docs/release-evidence/YYYY-MM-DD-environment.md',
