@@ -102,6 +102,13 @@ if (smoke.indexOf('Record irreversible Home attempt marker') > smoke.indexOf('Ex
   fail('Home challenger attempt marker must precede provider execution');
 }
 
+const exactGoogleAuth = 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093';
+const smokeAuthRefs = [...smoke.matchAll(/google-github-actions\/auth@([^\s#]+)/g)].map((match) => match[0]);
+if (smokeAuthRefs.length === 0) fail('Replicate smoke workflow is missing Google WIF auth');
+for (const ref of smokeAuthRefs) {
+  if (ref !== exactGoogleAuth) fail(`Replicate smoke workflow contains noncanonical Google auth reference ${JSON.stringify(ref)}`);
+}
+
 for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093']) {
   if (!grant.includes(required)) fail(`grant workflow missing pinned WIF contract ${JSON.stringify(required)}`);
 }
