@@ -81,13 +81,7 @@ https://assetfactory.app
 
 ### 5. CI Deploy Readiness
 
-GitHub Actions deployment requires the repo secret described in:
-
-```text
-docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md
-```
-
-After the secret is added, run the `Asset Factory Production Readiness` workflow manually once and compare its smoke output with the production verification report.
+GitHub Actions deployment uses the protected WIF/dedicated-target configuration documented in `docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md`; the historical filename no longer means a JSON-key setup. Do not create long-lived Firebase tokens or service-account JSON. Run `Asset Factory Production Readiness` only after the dedicated target and WIF identity are provider-proven.
 
 ## Current V200 Boundary
 
