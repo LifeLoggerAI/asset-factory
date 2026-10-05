@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload production validation log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: asset-factory-release-readiness-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           path: artifacts/release-readiness/asset-validation.log
@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload image pipeline proof
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: asset-factory-image-pipeline-proof-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ github.run_id }}
           path: |
