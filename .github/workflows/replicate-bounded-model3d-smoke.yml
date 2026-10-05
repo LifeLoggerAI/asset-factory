@@ -921,21 +921,24 @@ jobs:
           token="$(gcloud auth print-access-token)"
           test -n "$token"
           echo "::add-mask::$token"
-          curl --silent --show-error --fail \
+          sites_status="$(curl --silent --show-error \
+            -o "$RUNNER_TEMP/domain-readback/sites.json" \
+            -w '%{http_code}' \
             -H "Authorization: Bearer $token" \
-            "https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites" \
-            > "$RUNNER_TEMP/domain-readback/sites.json"
-          set +e
-          curl --silent --show-error --fail \
-            -H "Authorization: Bearer $token" \
-            "https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites/$PROJECT_ID/customDomains" \
-            > "$RUNNER_TEMP/domain-readback/custom-domains.json" 2>"$RUNNER_TEMP/domain-readback/custom-domains.stderr"
-          custom_status=$?
-          set -e
+            "https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites")"
+          custom_status='not-attempted'
+          if test "$sites_status" = '200'; then
+            custom_status="$(curl --silent --show-error \
+              -o "$RUNNER_TEMP/domain-readback/custom-domains.json" \
+              -w '%{http_code}' \
+              -H "Authorization: Bearer $token" \
+              "https://firebasehosting.googleapis.com/v1beta1/projects/$PROJECT_ID/sites/$PROJECT_ID/customDomains")"
+          fi
           unset token
-          CUSTOM_STATUS="$custom_status" node <<'NODE'
+          SITES_STATUS="$sites_status" CUSTOM_STATUS="$custom_status" node <<'NODE'
           const fs = require('node:fs');
-          const sites = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/domain-readback/sites.json','utf8'));
+          let sites = null;
+          try { sites = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/domain-readback/sites.json','utf8')); } catch {}
           let custom = null;
           try { custom = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/domain-readback/custom-domains.json','utf8')); } catch {}
           const wanted = new Set(['uraiassetfactory.com','www.uraiassetfactory.com']);
@@ -951,14 +954,25 @@ jobs:
             schemaVersion:'urai-asset-factory-custom-domain-readback-1',
             projectId:process.env.PROJECT_ID,
             exactMain:process.env.GITHUB_SHA,
-            customDomainApiStatus:Number(process.env.CUSTOM_STATUS),
-            sites:(sites.sites||[]).map((s)=>({name:s.name||null,defaultUrl:s.defaultUrl||null,type:s.type||null})),
+            sitesApiStatus:process.env.SITES_STATUS,
+            customDomainApiStatus:process.env.CUSTOM_STATUS,
+            authorityReadable:process.env.SITES_STATUS === '200' && process.env.CUSTOM_STATUS === '200',
+            sites:(sites?.sites||[]).map((s)=>({name:s.name||null,defaultUrl:s.defaultUrl||null,type:s.type||null})),
             targetDomains:domains,
+            nextAction: process.env.SITES_STATUS === '403'
+              ? 'Current WIF service account lacks Firebase Hosting site-list read authority; grant only the minimum read permission through the governed IAM lane before retry.'
+              : process.env.SITES_STATUS !== '200'
+                ? 'Investigate Firebase Hosting site-list API status before any domain mutation.'
+                : process.env.CUSTOM_STATUS !== '200'
+                  ? 'Investigate Firebase Hosting custom-domain read authority/API state before any domain mutation.'
+                  : 'Use hostState/certState to decide the smallest governed domain repair.',
             providerMutationPerformed:false,
             secretValuesRead:false,
           };
           fs.writeFileSync(process.env.RUNNER_TEMP + '/domain-readback/receipt.json', JSON.stringify(receipt,null,2)+'\n');
+          console.log('SITES_API_STATUS='+receipt.sitesApiStatus);
           console.log('CUSTOM_DOMAIN_API_STATUS='+receipt.customDomainApiStatus);
+          console.log('AUTHORITY_READABLE='+receipt.authorityReadable);
           console.log('TARGET_CUSTOM_DOMAIN_COUNT='+domains.length);
           for (const d of domains) console.log('CUSTOM_DOMAIN='+String(d.name).split('/').pop()+' HOST_STATE='+d.hostState+' CERT_STATE='+d.certState);
           NODE
@@ -969,7 +983,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          summary="$(node -e "const r=require(process.env.RUNNER_TEMP+'/domain-readback/receipt.json'); console.log('api_status='+r.customDomainApiStatus+' target_count='+r.targetDomains.length+' targets='+r.targetDomains.map(d=>(d.name||'').split('/').pop()+':host='+d.hostState+':cert='+d.certState).join(','))")"
+          summary="$(node -e "const r=require(process.env.RUNNER_TEMP+'/domain-readback/receipt.json'); console.log('sites_api_status='+r.sitesApiStatus+' custom_api_status='+r.customDomainApiStatus+' authority_readable='+r.authorityReadable+' target_count='+r.targetDomains.length+' targets='+r.targetDomains.map(d=>(d.name||'').split('/').pop()+':host='+d.hostState+':cert='+d.certState).join(',')+' next_action='+r.nextAction)")"
           gh issue comment 55 --repo "$GITHUB_REPOSITORY" --body "ASSET_FACTORY_CUSTOM_DOMAIN_READBACK=$GITHUB_RUN_ID; exact_main=$GITHUB_SHA; $summary; provider_mutation=false; secret_values_read=false"
 
       - name: Upload sanitized custom-domain metadata
