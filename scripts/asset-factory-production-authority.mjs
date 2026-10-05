@@ -1,10 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 
-const FORBIDDEN_CONSUMER_SITE = 'urai-4dc1d';
-const FORBIDDEN_CONSUMER_HOSTS = new Set([
+const FORBIDDEN_PROJECTS = new Set(['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub']);
+const FORBIDDEN_HOSTING_SITES = new Set([...FORBIDDEN_PROJECTS, 'asset-factory-prod', 'asset-factory-admin']);
+const FORBIDDEN_HOSTS = new Set([
   'urai-4dc1d.web.app',
   'urai-4dc1d.firebaseapp.com',
+  'asset-factory-dev-id.web.app',
+  'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
+  'urai.app',
+  'www.urai.app',
 ]);
 const HOSTING_TARGET = 'asset-factory-production';
 
@@ -20,14 +27,18 @@ function requiredEnv(name) {
 }
 
 function requireProject() {
-  return requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT');
+  const project = requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT');
+  if (FORBIDDEN_PROJECTS.has(project)) {
+    fail(`Refusing legacy/shared Firebase project ${project}. Supply the provider-proven dedicated Asset Factory project.`);
+  }
+  return project;
 }
 
 function requireHosting() {
   requireProject();
   const site = requiredEnv('ASSET_FACTORY_FIREBASE_SITE');
-  if (site === FORBIDDEN_CONSUMER_SITE) {
-    fail('Refusing consumer URAI Hosting site urai-4dc1d. Supply the provider-proven dedicated Asset Factory Hosting site.');
+  if (FORBIDDEN_HOSTING_SITES.has(site)) {
+    fail(`Refusing legacy/shared Hosting site ${site}. Supply the provider-proven dedicated Asset Factory Hosting site.`);
   }
   return site;
 }
@@ -41,8 +52,9 @@ function requireBaseUrl() {
     fail('ASSET_FACTORY_BASE_URL must be a valid absolute URL.');
   }
   if (parsed.protocol !== 'https:') fail('ASSET_FACTORY_BASE_URL must use HTTPS for production verification.');
-  if (FORBIDDEN_CONSUMER_HOSTS.has(parsed.hostname)) {
-    fail(`Refusing consumer URAI host ${parsed.hostname}; supply the provider-proven Asset Factory runtime URL.`);
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+  if (FORBIDDEN_HOSTS.has(host)) {
+    fail(`Refusing legacy/shared host ${host}; supply the provider-proven dedicated Asset Factory runtime URL.`);
   }
   return parsed;
 }
@@ -73,8 +85,8 @@ async function staticCheck() {
   for (const name of boundedScripts) {
     const command = String(pkg.scripts?.[name] || '');
     if (!command) fail(`Missing required bounded script ${name}.`);
-    if (command.includes(FORBIDDEN_CONSUMER_SITE) || [...FORBIDDEN_CONSUMER_HOSTS].some((host) => command.includes(host))) {
-      fail(`${name} still embeds consumer URAI deployment authority.`);
+    if ([...FORBIDDEN_PROJECTS].some((project) => command.includes(project)) || [...FORBIDDEN_HOSTS].some((host) => command.includes(host))) {
+      fail(`${name} still embeds legacy/shared Asset Factory deployment authority.`);
     }
   }
 
@@ -97,8 +109,8 @@ async function staticCheck() {
   if (studioHosting.target !== HOSTING_TARGET) fail(`Studio Hosting must use symbolic target ${HOSTING_TARGET}.`);
 
   const rcText = JSON.stringify(firebaseRc);
-  if (rcText.includes(FORBIDDEN_CONSUMER_SITE)) {
-    fail('.firebaserc still binds Asset Factory to the consumer URAI Firebase project/site.');
+  if ([...FORBIDDEN_PROJECTS].some((project) => rcText.includes(project))) {
+    fail('.firebaserc still binds Asset Factory to a legacy/shared Firebase project/site.');
   }
 
   console.log('Asset Factory production authority boundary OK: symbolic target only; provider project/site/base URL remain explicit runtime inputs.');
@@ -113,10 +125,10 @@ if (mode === 'check') {
   console.log('Asset Factory Firebase project input present.');
 } else if (mode === 'require-hosting') {
   requireHosting();
-  console.log('Asset Factory provider-proven project/site inputs present; consumer Hosting site is rejected.');
+  console.log('Asset Factory provider-proven project/site inputs present; legacy/shared Hosting sites are rejected.');
 } else if (mode === 'require-base-url') {
   requireBaseUrl();
-  console.log('Asset Factory provider-proven HTTPS verification URL present; consumer URAI hosts are rejected.');
+  console.log('Asset Factory provider-proven HTTPS verification URL present; legacy/shared hosts are rejected.');
 } else {
   fail(`Unknown mode: ${mode}`);
 }
