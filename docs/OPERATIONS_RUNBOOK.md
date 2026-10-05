@@ -8,9 +8,9 @@ Asset Factory is not live until staging and production smoke tests pass and the 
 
 Local proof mode is useful for development. It is not proof of production readiness.
 
-## Current verified production status
+## Historical production-slice status
 
-As of the latest release evidence, the Firebase default production API is verified at:
+Historical release evidence recorded the following shared Firebase API slice; it is not current Asset Factory production authority:
 
 ```text
 https://urai-4dc1d.web.app
