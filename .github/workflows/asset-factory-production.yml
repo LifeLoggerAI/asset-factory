@@ -40,7 +40,7 @@ jobs:
         working-directory: assetfactory-studio
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -55,7 +55,7 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
 
@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload production validation log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: asset-factory-production-validation-${{ env.ASSET_FACTORY_EXACT_HEAD }}
           path: artifacts/production-checks/asset-validation.log
