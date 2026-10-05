@@ -19,15 +19,11 @@ Use `LAUNCH_READINESS.md` as the current source of truth for launch blockers, re
 
 For repeatable AI-assisted repo audits and implementation passes, use `docs/ASSET_FACTORY_IMPLEMENTATION_AUDIT_PROMPT.md`. Keep it aligned with the launch-readiness contract by running `npm run test:implementation-audit-prompt` or the broader `npm run test:completion-lock` gate.
 
-### Current verified production surface
+### Historical production-slice evidence
 
-- Verified Firebase production API base: `https://urai-4dc1d.web.app`
-- Verified production smoke evidence: `docs/release-evidence/2026-05-16-production-api-smoke.md`
-- Verified Firebase deploy evidence: `docs/release-evidence/2026-05-16-firebase-deploy.md`
-- Verified final local gate evidence: `docs/release-evidence/2026-05-16-final-local-gates.md`
-- Known custom-domain API blocker: `docs/release-evidence/2026-05-16-custom-domain-blocker.md`
+Historical evidence exists for `https://urai-4dc1d.web.app`, including `docs/release-evidence/2026-05-16-production-api-smoke.md` and `docs/release-evidence/2026-05-16-firebase-deploy.md`. That shared consumer project/host is **not** current Asset Factory production authority and must not be used for current release smoke or evidence.
 
-Do not use `https://uraiassetfactory.com` or `https://www.uraiassetfactory.com` as the API base until the custom-domain blocker is closed. Those domains currently do not prove the Firebase Hosting API rewrites for this repo.
+Current production requires the provider-proven dedicated `ASSET_FACTORY_FIREBASE_PROJECT_ID`, `ASSET_FACTORY_FIREBASE_HOSTING_SITE`, and `ASSET_FACTORY_BASE_URL`. Custom-domain readiness for `uraiassetfactory.com` / `www.uraiassetfactory.com` remains separate live evidence.
 
 ## Repo structure
 - `engine/`: sealed headless V1 engine API/runtime.
@@ -246,7 +242,7 @@ npm run smoke:staging
 Verified Firebase production API smoke uses the Firebase Hosting URL until the custom-domain blocker closes:
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$ASSET_FACTORY_BASE_URL \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
@@ -271,7 +267,7 @@ For read-only diagnostics checks on the verified Firebase URL:
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+ASSET_FACTORY_BASE_URL=$ASSET_FACTORY_BASE_URL \
 npm run smoke:website
 ```
 
