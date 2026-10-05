@@ -113,6 +113,9 @@ const activeDomainAuthorityFiles = [
   'scripts/diagnose-custom-domain.mjs',
   'deploy/custom-domain/asset-factory-api-proxy.vercel.json',
   'scripts/finish-custom-domain-production.mjs',
+  'scripts/verify-asset-factory-origin.mjs',
+  'scripts/verify-asset-factory-launch.mjs',
+  'scripts/asset-factory-production-authority.mjs',
 ];
 
 for (const file of activeDomainAuthorityFiles) {
@@ -132,6 +135,59 @@ const customDomainScript = String(packageJson.scripts?.['deploy:verify-custom-do
 if (!customDomainScript.includes('npm run smoke:production-finalization') || customDomainScript.includes('npm run smoke-production-finalization')) {
   console.error('PRODUCTION_TARGET_BOUNDARY=RED: deploy:verify-custom-domain must invoke the existing smoke:production-finalization script');
   process.exit(1);
+}
+
+const authorityScript = readFileSync('scripts/asset-factory-production-authority.mjs', 'utf8');
+for (const required of ['ASSET_FACTORY_FIREBASE_PROJECT_ID', 'ASSET_FACTORY_FIREBASE_HOSTING_SITE', 'ASSET_FACTORY_BASE_URL']) {
+  if (!authorityScript.includes(required)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: canonical authority script missing ${required}`);
+    process.exit(1);
+  }
+}
+for (const forbidden of ["requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT')", "requiredEnv('ASSET_FACTORY_FIREBASE_SITE')"]) {
+  if (authorityScript.includes(forbidden)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: canonical authority script still uses stale env contract ${forbidden}`);
+    process.exit(1);
+  }
+}
+
+const legacyVerifierHosts = [
+  'urai-4dc1d.web.app',
+  'urai-4dc1d.firebaseapp.com',
+  'asset-factory-dev-id.web.app',
+  'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
+  'urai.app',
+  'www.urai.app',
+];
+
+const finishCustomDomain = readFileSync('scripts/finish-custom-domain-production.mjs', 'utf8');
+for (const staleAlias of ['ASSET_FACTORY_FIREBASE_PROJECT ||', 'ASSET_FACTORY_FIREBASE_SITE ||']) {
+  if (finishCustomDomain.includes(staleAlias)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: finish-custom-domain still accepts stale env alias ${staleAlias}`);
+    process.exit(1);
+  }
+}
+for (const required of ['validate:production-target', 'asset-factory-dev-id', 'geturai-landing-hub', 'asset-factory-prod', 'asset-factory-admin']) {
+  if (!finishCustomDomain.includes(required)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: finish-custom-domain missing dedicated authority guard ${required}`);
+    process.exit(1);
+  }
+}
+
+for (const verifierPath of ['scripts/verify-asset-factory-origin.mjs', 'scripts/verify-asset-factory-launch.mjs']) {
+  const verifier = readFileSync(verifierPath, 'utf8');
+  if (verifier.includes("|| 'https://urai-4dc1d.web.app'") || verifier.includes("const defaultBase = 'https://urai-4dc1d.web.app'")) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: ${verifierPath} still defaults to shared consumer Hosting`);
+    process.exit(1);
+  }
+  for (const host of legacyVerifierHosts) {
+    if (!verifier.includes(host)) {
+      console.error(`PRODUCTION_TARGET_BOUNDARY=RED: ${verifierPath} does not explicitly reject known legacy host ${host}`);
+      process.exit(1);
+    }
+  }
 }
 
 console.log('PRODUCTION_TARGET_BOUNDARY=GREEN');
