@@ -1,6 +1,6 @@
 {
   "schemaVersion": "urai-model-reference-resolution-v1",
-  "recoveredSpatialHead": "3482c84c194b5c538755528f85f758ccfb234247",
+  "recoveredSpatialHead": "b620614593ffd499d7561760d7b34e079034305b",
   "rule": "Hero provider generation must not claim reference fidelity unless the canonical reference file or an explicitly source-derived approved multiview pack is resolved and hashed.",
   "authority": [
     {
@@ -125,9 +125,9 @@
     "currentProductionProviderTargetsAuthorized": false,
     "currentGapProofRequiredBeforeProviderSpend": true,
     "currentSpatialPr": 1598,
-    "currentSpatialHead": "3482c84c194b5c538755528f85f758ccfb234247"
+    "currentSpatialHead": "b620614593ffd499d7561760d7b34e079034305b"
   },
-  "successorReconciliation": "Active Spatial dependency is now pre-review PR #1598 at 3482c84c194b5c538755528f85f758ccfb234247. The seven reference identities and SHA-256 values remain unchanged. Exact-head machine proofs do not transfer final visual acceptance; paid production targets remain unauthorized unless separately governed.",
+  "successorReconciliation": "Active Spatial dependency is now pre-review PR #1598 at b620614593ffd499d7561760d7b34e079034305b. The seven reference identities and SHA-256 values remain unchanged. Exact-head machine proofs do not transfer final visual acceptance; paid production targets remain unauthorized unless separately governed.",
   "spatialPr": 1598,
   "dependencyReconciliationHistory": [
     {
