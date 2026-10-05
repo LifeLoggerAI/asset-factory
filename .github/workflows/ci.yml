@@ -150,7 +150,7 @@ jobs:
       - name: Install Studio dependencies
         run: npm --prefix assetfactory-studio install
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
       - name: Run Firestore and Storage emulator smoke test
         run: |
           firebase emulators:exec --only firestore,storage --project demo-asset-factory "node scripts/test-asset-factory-emulator.mjs"

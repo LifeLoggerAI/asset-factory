@@ -91,7 +91,7 @@ jobs:
 
       - name: Install Firebase CLI
         if: steps.preflight.outputs.skip != 'true'
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
 
       - name: Load Replicate token from Secret Manager
         if: steps.preflight.outputs.skip != 'true'
@@ -273,7 +273,7 @@ jobs:
           node-version: '22'
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
 
       - name: Read provider credentials and query balances only
         env:
@@ -442,7 +442,7 @@ jobs:
           node-version: '22'
 
       - name: Install Firebase CLI for trusted secret read
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
 
       - name: Load Replicate token without exposing it
         env:
@@ -601,7 +601,7 @@ jobs:
           node-version: '22'
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
 
       - name: Setup gcloud for canonical Secret Manager read
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
@@ -1108,7 +1108,7 @@ jobs:
           node-version: '22'
 
       - name: Install Firebase CLI for trusted secret read
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools@15.24.0
 
       - name: Load Replicate token without exposing it
         env:
