@@ -27,7 +27,7 @@ function requiredEnv(name) {
 }
 
 function requireProject() {
-  const project = requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT');
+  const project = requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT_ID');
   if (FORBIDDEN_PROJECTS.has(project)) {
     fail(`Refusing legacy/shared Firebase project ${project}. Supply the provider-proven dedicated Asset Factory project.`);
   }
@@ -36,7 +36,7 @@ function requireProject() {
 
 function requireHosting() {
   requireProject();
-  const site = requiredEnv('ASSET_FACTORY_FIREBASE_SITE');
+  const site = requiredEnv('ASSET_FACTORY_FIREBASE_HOSTING_SITE');
   if (FORBIDDEN_HOSTING_SITES.has(site)) {
     fail(`Refusing legacy/shared Hosting site ${site}. Supply the provider-proven dedicated Asset Factory Hosting site.`);
   }
@@ -90,7 +90,7 @@ async function staticCheck() {
     }
   }
 
-  if (pkg.scripts?.['deploy:bind-hosting-target']?.includes('ASSET_FACTORY_FIREBASE_SITE') !== true) {
+  if (pkg.scripts?.['deploy:bind-hosting-target']?.includes('ASSET_FACTORY_FIREBASE_HOSTING_SITE') !== true) {
     fail('deploy:bind-hosting-target must require an explicit provider-proven Hosting site.');
   }
   if (pkg.scripts?.['deploy:verify']?.includes('require-base-url') !== true
