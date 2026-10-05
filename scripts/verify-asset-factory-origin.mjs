@@ -1,4 +1,19 @@
-const defaultBase = process.env.ASSET_FACTORY_ORIGIN_BASE_URL || 'https://urai-4dc1d.web.app';
+const rawBase = String(process.env.ASSET_FACTORY_BASE_URL || process.env.ASSET_FACTORY_ORIGIN_BASE_URL || '').trim();
+if (!rawBase) {
+  console.error('[FAIL] ASSET_FACTORY_BASE_URL (or ASSET_FACTORY_ORIGIN_BASE_URL for diagnostics) is required; no shared Firebase fallback is allowed.');
+  process.exit(1);
+}
+const parsedBase = new URL(rawBase);
+if (parsedBase.protocol !== 'https:') {
+  console.error('[FAIL] Asset Factory origin verification requires HTTPS.');
+  process.exit(1);
+}
+const forbiddenHosts = new Set(['urai-4dc1d.web.app', 'urai-4dc1d.firebaseapp.com']);
+if (forbiddenHosts.has(parsedBase.hostname.toLowerCase().replace(/\.$/, ''))) {
+  console.error('[FAIL] Shared consumer URAI Firebase hosts are forbidden as current Asset Factory production authority.');
+  process.exit(1);
+}
+const defaultBase = parsedBase.origin;
 
 async function main() {
   const url = `${defaultBase}/api/health`;
