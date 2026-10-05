@@ -10,7 +10,7 @@ Status: NOT COMPLETE / NOT LOCKED / LIVE EVIDENCE REQUIRED
 | Repo source of truth identified | Verified | `LAUNCH_READINESS.md`, `docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md`, `docs/contracts/ASSET_FACTORY_API.md`, `docs/OPERATIONS_RUNBOOK.md`, and issue #63 are the current evidence spine. |
 | Current commit identified | Verified | Use the release evidence file for the exact inspected `HEAD` SHA; do not hardcode a mutable branch SHA here. |
 | Repo-side hardening | Complete for current pass | README, launch readiness, completion lock, privacy/safety, operations runbook, deploy workflow, smoke compatibility, and evidence validator have been synced. |
-| Firebase default API slice | Verified by repo evidence | Current docs record `https://urai-4dc1d.web.app` as verified. Fresh workflow evidence is still required before final lock. |
+| Historical shared Firebase slice | Historical evidence only | `https://urai-4dc1d.web.app` remains historical evidence and is forbidden as current Asset Factory production authority. Fresh dedicated-project workflow evidence is required before final lock. |
 | Custom-domain API routing | Blocked / needs fresh proof | Must prove apex and `www` routes return Asset Factory API responses and pass read-only + authenticated smoke. |
 | API contract version | Verified from docs/scripts | Contract and checks use `asset-factory-api-v1`. |
 | Required bridge routes documented | Verified | `/api/health`, `/api/assets`, `/api/assets/{assetId}`, `/api/lifemap/events`. |
@@ -122,18 +122,22 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
-## Exact production Firebase default verification commands
+## Exact dedicated production verification commands
 
-Use these manually only when debugging the GitHub Actions workflow.
+Use these manually only when debugging the GitHub Actions workflow after `ASSET_FACTORY_BASE_URL` is set to the provider-proven dedicated production base.
 
 ```bash
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \

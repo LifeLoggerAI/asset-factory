@@ -94,11 +94,48 @@ for (const literal of requiredLiterals) {
 }
 
 const firebaseProject = requireConcreteField('firebase_project');
-if (firebaseProject === 'urai-4dc1d') {
-  fail('firebase_project must be the provider-proven dedicated Asset Factory project; shared consumer project urai-4dc1d is forbidden');
+const forbiddenLegacyProjects = new Set(['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub']);
+if (forbiddenLegacyProjects.has(firebaseProject)) {
+  fail(`firebase_project must be the provider-proven dedicated Asset Factory project; legacy/shared project ${firebaseProject} is forbidden`);
 }
 if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProject)) {
   fail(`firebase_project must be a concrete Google Cloud project id, got ${JSON.stringify(firebaseProject)}`);
+}
+
+const forbiddenLegacyHosts = new Set([
+  'urai-4dc1d.web.app',
+  'urai-4dc1d.firebaseapp.com',
+  'asset-factory-dev-id.web.app',
+  'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
+  'urai.app',
+  'www.urai.app',
+]);
+
+function rejectLegacyHosts(source, label) {
+  const urlPattern = /https?:\/\/[^\s)\]}>,"']+/gi;
+  for (const raw of source.match(urlPattern) || []) {
+    try {
+      const parsed = new URL(raw);
+      const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+      if (forbiddenLegacyHosts.has(host)) {
+        fail(`${label} contains forbidden legacy/shared production host ${host}`);
+      }
+    } catch {
+      // Ignore malformed URL-like text; concrete evidence validation handles required fields separately.
+    }
+  }
+}
+
+rejectLegacyHosts(evidence, 'release evidence');
+
+const productionSmokeRun = fieldValue('production_smoke_run');
+if (productionSmokeRun && !/^https?:\/\//i.test(productionSmokeRun)) {
+  const referencedPath = path.resolve(root, productionSmokeRun);
+  if (fs.existsSync(referencedPath) && fs.statSync(referencedPath).isFile()) {
+    rejectLegacyHosts(read(referencedPath), `production_smoke_run evidence ${productionSmokeRun}`);
+  }
 }
 
 const requiredSections = [
