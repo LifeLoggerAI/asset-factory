@@ -3,7 +3,7 @@
   "authority": {
     "spatialRepository": "LifeLoggerAI/urai-spatial",
     "spatialPr": 1598,
-    "recoveredSpatialHead": "8656de3a6497b691a5814d24bd6a765252ac8a9a",
+    "recoveredSpatialHead": "3482c84c194b5c538755528f85f758ccfb234247",
     "sourceDocuments": [
       "docs/reference/URAI_REFERENCE_AUTHORITY_LEDGER_2026-09-19.md",
       "docs/URAI_GROUND_DEFINITIVE_CANON_V1.md",
@@ -13,7 +13,7 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Active Spatial dependency refreshed to pre-review PR #1598 at 8656de3a6497b691a5814d24bd6a765252ac8a9a. Exact-head machine visual/accessibility proofs are green, while launch-critical asset final review remains fail-closed. No predecessor visual acceptance, provider authorization, promotion authority, deployment proof, or Gold Master status transfers.",
+    "successorReconciliation": "Active Spatial dependency refreshed to pre-review PR #1598 at 3482c84c194b5c538755528f85f758ccfb234247. Exact-head machine visual/accessibility proofs are green, while launch-critical asset final review remains fail-closed. No predecessor visual acceptance, provider authorization, promotion authority, deployment proof, or Gold Master status transfers.",
     "dependencyReconciliation": {
       "previousDeclaredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
       "admittedSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
@@ -219,7 +219,7 @@
       "id": "home-entry-chamber-v1",
       "route": "/home",
       "class": "custom_procedural_urai_native",
-      "currentAuthority": "current Spatial #1598 Home candidate at 8656de3a6497b691a5814d24bd6a765252ac8a9a; literal exact-head review proves a full-vision AAA fidelity gap",
+      "currentAuthority": "current Spatial #1598 Home candidate at 3482c84c194b5c538755528f85f758ccfb234247; literal exact-head review proves a full-vision AAA fidelity gap",
       "providerAction": "challenger-spec-ready-paid-execution-blocked",
       "candidateSpec": "model_forge/specs/home-architectural-sanctuary.json",
       "reason": "Exact-head retained Home pixels materially diverge from the resolved Home Reference Pack: current runtime reads as sparse procedural/blockout landscape rather than a photoreal inhabited architectural sanctuary. A reference-bound challenger spec now exists, but provider spend remains unauthorized until a fresh immutable owner authorization binds the exact Asset Factory execution authority."
@@ -267,7 +267,7 @@
   "providerExecutionBoundary": {
     "status": "specific-home-gap-proven-current-lineage-paid-execution-still-blocked",
     "spatialPr": 1598,
-    "spatialHead": "8656de3a6497b691a5814d24bd6a765252ac8a9a",
+    "spatialHead": "3482c84c194b5c538755528f85f758ccfb234247",
     "evidence": "Asset Factory issue #326 current Gold Master blocker; Spatial #1598 exact-head visual proof is machine-green but final-art acceptance remains absent",
     "reference": "UrAi Home Reference Pack.png sha256:5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
     "rule": "The Home gap remains proven and final art remains unaccepted. No provider call is authorized by this record. Provider execution requires the separately governed provider/secret/spend authority and retained output receipt."
