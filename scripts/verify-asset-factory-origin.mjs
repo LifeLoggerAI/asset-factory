@@ -1,7 +1,29 @@
-const defaultBase = process.env.ASSET_FACTORY_ORIGIN_BASE_URL || 'https://urai-4dc1d.web.app';
+const legacyHosts = new Set([
+  'urai-4dc1d.web.app',
+  'urai-4dc1d.firebaseapp.com',
+  'asset-factory-dev-id.web.app',
+  'asset-factory-dev-id.firebaseapp.com',
+  'geturai-landing-hub.web.app',
+  'geturai-landing-hub.firebaseapp.com',
+  'urai.app',
+  'www.urai.app',
+]);
+
+function resolveBaseUrl() {
+  const raw = String(process.env.ASSET_FACTORY_ORIGIN_BASE_URL || process.env.ASSET_FACTORY_BASE_URL || '').trim();
+  if (!raw) {
+    throw new Error('ASSET_FACTORY_ORIGIN_BASE_URL or ASSET_FACTORY_BASE_URL is required; no shared/historical production default is allowed.');
+  }
+  const parsed = new URL(raw);
+  if (parsed.protocol !== 'https:') throw new Error('Asset Factory origin verification requires HTTPS.');
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+  if (legacyHosts.has(host)) throw new Error(`Refusing legacy/shared Asset Factory verification host ${host}.`);
+  return parsed.origin;
+}
 
 async function main() {
-  const url = `${defaultBase}/api/health`;
+  const base = resolveBaseUrl();
+  const url = `${base}/api/health`;
   console.log(`GET ${url}`);
 
   const res = await fetch(url);
@@ -16,7 +38,7 @@ async function main() {
   }
 
   if (poweredBy.toLowerCase().includes('next') || body.includes('404: This page could not be found')) {
-    throw new Error(`${url} is routed to the old Next.js host, not Asset Factory.`);
+    throw new Error(`${url} is routed to the wrong host, not the dedicated Asset Factory runtime.`);
   }
 
   let json;
@@ -30,7 +52,7 @@ async function main() {
     throw new Error(`${url} returned unexpected payload: ${JSON.stringify(json)}`);
   }
 
-  console.log(`[PASS] Asset Factory Firebase origin is healthy: ${url}`);
+  console.log(`[PASS] Dedicated Asset Factory origin is healthy: ${url}`);
 }
 
 main().catch((error) => {
