@@ -1,6 +1,21 @@
 import { execFileSync } from 'node:child_process';
 
-const defaultBase = 'https://urai-4dc1d.web.app';
+const rawBase = String(process.env.ASSET_FACTORY_BASE_URL || '').trim();
+if (!rawBase) {
+  console.error('[FAIL] ASSET_FACTORY_BASE_URL is required; current launch verification has no shared Firebase fallback.');
+  process.exit(1);
+}
+const parsedBase = new URL(rawBase);
+if (parsedBase.protocol !== 'https:') {
+  console.error('[FAIL] ASSET_FACTORY_BASE_URL must use HTTPS.');
+  process.exit(1);
+}
+const forbiddenHosts = new Set(['urai-4dc1d.web.app', 'urai-4dc1d.firebaseapp.com']);
+if (forbiddenHosts.has(parsedBase.hostname.toLowerCase().replace(/\.$/, ''))) {
+  console.error('[FAIL] Shared consumer URAI Firebase hosts are forbidden as current Asset Factory production authority.');
+  process.exit(1);
+}
+const defaultBase = parsedBase.origin;
 const apexBase = 'https://uraiassetfactory.com';
 const wwwBase = 'https://www.uraiassetfactory.com';
 
@@ -67,7 +82,7 @@ async function main() {
 
   if (!customOk) {
     console.error('\n[BLOCKED] Asset Factory app/origin is healthy, but custom-domain routing is not complete.');
-    console.error('Open Firebase Hosting site urai-4dc1d and attach/provision both domains:');
+    console.error('Attach/provision both domains on the provider-proven dedicated Asset Factory hosting authority:');
     console.error('- uraiassetfactory.com');
     console.error('- www.uraiassetfactory.com');
     console.error('Then rerun: npm run verify:launch');
