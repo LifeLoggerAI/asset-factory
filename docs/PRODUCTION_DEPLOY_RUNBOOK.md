@@ -1,130 +1,33 @@
-# Production Deploy Runbook
+# Asset Factory Production Deploy Runbook
 
-This runbook is the canonical terminal flow for taking Asset Factory from verified local code to live Firebase production.
+Current authority: `.github/workflows/production-readiness.yml`, `scripts/run-dedicated-firebase-deploy.mjs`, and `scripts/asset-factory-production-authority.mjs`.
 
-## Current Production Target
+## Production boundary
 
-- Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Hosting URL: `https://urai-4dc1d.web.app`
-- Firebase config: `firebase.json`
-- Deployed Functions source: `life-map-pipeline/functions`
-- Runtime: Node 20
+Asset Factory production requires a **provider-proven dedicated** Firebase/GCP project, Hosting site, and HTTPS base URL. The shared consumer project/site `urai-4dc1d` and its `web.app` / `firebaseapp.com` hosts are forbidden as current Asset Factory production targets.
 
-## One-Time Local Setup
+Do not use `FIREBASE_TOKEN`, service-account JSON, embedded private keys, or historical deploy commands as a shortcut.
 
-```bash
-git checkout main
-git pull origin main
-npm run install:all
-```
+## Required protected environment variables
 
-## Local Verification Gate
+- `ASSET_FACTORY_FIREBASE_PROJECT_ID`
+- `ASSET_FACTORY_FIREBASE_HOSTING_SITE`
+- `ASSET_FACTORY_BASE_URL`
+- `GCP_WIF_PROVIDER`
+- `GCP_DEPLOY_SERVICE_ACCOUNT`
 
-```bash
-npm run verify:local
-```
+The project/site/base URL must be current provider values and must pass `npm run validate:production-target`.
 
-This runs:
+## Safe production flow
 
-```bash
-npm run build
-npm test --if-present
-npm run test:launch-readiness --if-present
-```
+1. Refresh current `main` and issue #63 authority.
+2. Run repository verification and production-target validation.
+3. Dispatch **Asset Factory Production Readiness** from current `main`.
+4. Set `deploy=true` and confirmation `DEPLOY_ASSET_FACTORY`.
+5. Let GitHub OIDC -> Google WIF mint the short-lived deployment identity.
+6. Deploy through `scripts/run-dedicated-firebase-deploy.mjs`.
+7. Remove the ephemeral ADC file.
+8. Run read-only smoke against the configured dedicated `ASSET_FACTORY_BASE_URL`.
+9. Retain exact SHA, workflow run, deployed target, smoke output and rollback evidence.
 
-Expected result:
-
-- `life-map-pipeline/functions` TypeScript build passes.
-- Legacy `functions/index.js` syntax check passes.
-- Engine tests pass.
-- Deploy Functions test/build passes.
-- Launch readiness static checks pass.
-
-## Firebase Auth Gate
-
-If deploy fails with `Authentication Error: Your credentials are no longer valid`, reauthenticate before retrying:
-
-```bash
-firebase login --reauth
-firebase use urai-4dc1d
-```
-
-For a headless CI session, use a repository secret/service account as described in `docs/FIREBASE_SERVICE_ACCOUNT_SETUP.md`.
-
-## Production Deploy
-
-```bash
-npm run deploy:firebase
-```
-
-Equivalent raw command:
-
-```bash
-firebase deploy --project urai-4dc1d --only hosting,functions,firestore,storage
-```
-
-## Live Smoke Test
-
-```bash
-npm run deploy:verify
-```
-
-Equivalent raw command:
-
-```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:production-finalization
-```
-
-The smoke test must pass:
-
-- `GET /api/health`
-- `POST /api/assets`
-- `GET /api/assets/{assetId}`
-- `POST /api/lifemap/events`
-
-## Full Combined Command
-
-Use this only after Firebase auth and project access are confirmed:
-
-```bash
-npm run deploy:production
-```
-
-## Current Known Deploy Failure and Fix
-
-Observed failure:
-
-```text
-Authentication Error: Your credentials are no longer valid. Please run firebase login --reauth
-Error: Assertion failed: resolving hosting target of a site with no site name or target name.
-```
-
-Repo-side fix applied:
-
-- `firebase.json` now sets the explicit Hosting site: `urai-4dc1d`.
-
-Operator-side fix required:
-
-```bash
-firebase login --reauth
-git pull origin main
-npm run deploy:production
-```
-
-## Final Lock Procedure
-
-Only after local verification, Firebase deploy, and live smoke tests pass:
-
-1. Update `docs/PRODUCTION_VERIFICATION_REPORT.md` with:
-   - deployed commit hash
-   - deploy timestamp
-   - Firebase deploy output summary
-   - hosting URL
-   - health response
-   - asset intake/status smoke output
-   - Life Map ingestion smoke output
-2. Update `LOCK.md` to `STATUS: PRODUCTION VERIFIED`.
-3. Close Issue #53.
-
-Do not update `LOCK.md` before live smoke tests pass.
+A historical successful deployment to `urai-4dc1d` is historical evidence only.
