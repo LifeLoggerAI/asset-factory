@@ -94,8 +94,9 @@ for (const literal of requiredLiterals) {
 }
 
 const firebaseProject = requireConcreteField('firebase_project');
-if (firebaseProject === 'urai-4dc1d') {
-  fail('firebase_project must be the provider-proven dedicated Asset Factory project; shared consumer project urai-4dc1d is forbidden');
+const forbiddenLegacyProjects = new Set(['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub']);
+if (forbiddenLegacyProjects.has(firebaseProject)) {
+  fail(`firebase_project must be the provider-proven dedicated Asset Factory project; legacy/shared project ${firebaseProject} is forbidden`);
 }
 if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProject)) {
   fail(`firebase_project must be a concrete Google Cloud project id, got ${JSON.stringify(firebaseProject)}`);
