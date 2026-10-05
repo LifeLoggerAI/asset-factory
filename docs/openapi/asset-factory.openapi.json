@@ -6,7 +6,6 @@
     "description": "Canonical HTTP contract for Asset Factory Firebase API, Life Map ingestion, and Core integration."
   },
   "servers": [
-    { "url": "https://urai-4dc1d.web.app", "description": "Production-smoked Firebase API slice" },
     { "url": "https://staging.uraiassetfactory.com", "description": "Staging target" },
     { "url": "https://www.uraiassetfactory.com", "description": "Production public-domain target" }
   ],

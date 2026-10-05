@@ -69,8 +69,10 @@ Prefer the GitHub Actions workflow documented in `docs/OPERATIONS_RUNBOOK.md` an
 ```bash
 npm run test:launch-readiness
 npm run test:completion-lock
-ASSET_FACTORY_SMOKE_READONLY=true ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app npm run smoke:website
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_TENANT_ID=prod-smoke ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied CRON_SECRET=$PROD_CRON_SECRET npm run smoke:prod
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" ASSET_FACTORY_SMOKE_READONLY=true npm run smoke:website
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN ASSET_FACTORY_TENANT_ID=prod-smoke ASSET_FACTORY_OTHER_TENANT_ID=prod-smoke-denied CRON_SECRET=$PROD_CRON_SECRET npm run smoke:prod
 ```
 
 Custom domain after routing is fixed:

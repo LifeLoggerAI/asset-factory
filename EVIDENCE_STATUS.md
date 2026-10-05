@@ -13,12 +13,12 @@ Completion lock: docs/contracts/ASSET_FACTORY_COMPLETION_LOCK.md
 
 Asset Factory is **not LOCKED** and must not be described as fully done, fully production-ready, live verified, or complete.
 
-Repo-side hardening and authority reconciliation are complete for the current pass, and historical Firebase-default production smoke evidence exists for `https://urai-4dc1d.web.app`, but the full product system is still blocked on live staging/production workflow evidence and P0 launch gates.
+Repo-side hardening is still converging on dedicated production authority. Historical Firebase-default smoke evidence exists for `https://urai-4dc1d.web.app`, but that shared runtime is not current production authority and the full product system remains blocked on fresh dedicated staging/production evidence and P0 launch gates.
 
 ## Evidence accepted so far
 
 - Repo-side hardening and release-gate docs are present.
-- Firebase default production API base is documented as `https://urai-4dc1d.web.app`.
+- Historical shared Firebase smoke is documented for `https://urai-4dc1d.web.app`; it is not current production authority.
 - Historical issue evidence records Firebase-default read-only and authenticated smoke passing for bridge routes.
 
 ## Evidence still required before LOCKED
