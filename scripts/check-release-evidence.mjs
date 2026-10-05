@@ -72,7 +72,6 @@ if (/\b(TODO|TBD)\b/i.test(evidence)) {
 const requiredLiterals = [
   'repo: LifeLoggerAI/asset-factory',
   'api_contract_version: asset-factory-api-v1',
-  'firebase_project: urai-4dc1d',
   'staging_url: https://staging.uraiassetfactory.com',
   'production_url: https://www.uraiassetfactory.com',
   'fallback_disabled: true',
@@ -92,6 +91,14 @@ for (const literal of requiredLiterals) {
   if (!evidence.includes(literal)) {
     fail(`missing required literal ${JSON.stringify(literal)}`);
   }
+}
+
+const firebaseProject = requireConcreteField('firebase_project');
+if (firebaseProject === 'urai-4dc1d') {
+  fail('firebase_project must be the provider-proven dedicated Asset Factory project; shared consumer project urai-4dc1d is forbidden');
+}
+if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProject)) {
+  fail(`firebase_project must be a concrete Google Cloud project id, got ${JSON.stringify(firebaseProject)}`);
 }
 
 const requiredSections = [

@@ -43,7 +43,7 @@ Asset metadata is typed in `life-map-pipeline/functions/src/lifemap.types.ts`. T
 
 ### 9. CI/CD
 
-`.github/workflows/production-readiness.yml` runs install, build, tests, and launch readiness on pull requests and main. On main, if `FIREBASE_SERVICE_ACCOUNT` is present, it deploys hosting, functions, Firestore rules, and Storage rules to `urai-4dc1d`.
+`.github/workflows/production-readiness.yml` runs install, build, tests, and launch readiness on pull requests and main. Production deployment is manual, exact-main-only, protected by the `asset-factory-production` environment, and uses GitHub OIDC -> Google WIF with provider-proven dedicated Asset Factory target values. The shared consumer project `urai-4dc1d` is rejected.
 
 ### 10. Verification
 
@@ -62,9 +62,12 @@ Production is not considered complete until these pass:
 
 ## Environment and Secrets
 
-Required CI secret:
+Required deployment identity configuration:
 
-- `FIREBASE_SERVICE_ACCOUNT` — JSON service account with permission to deploy Firebase Hosting, Functions, Firestore rules, and Storage rules.
+- `GCP_WIF_PROVIDER` and `GCP_DEPLOY_SERVICE_ACCOUNT` for short-lived WIF impersonation.
+- `ASSET_FACTORY_FIREBASE_PROJECT_ID`, `ASSET_FACTORY_FIREBASE_HOSTING_SITE`, and `ASSET_FACTORY_BASE_URL` for the dedicated target.
+
+Long-lived Firebase tokens and service-account JSON are prohibited.
 
 Optional runtime environment:
 

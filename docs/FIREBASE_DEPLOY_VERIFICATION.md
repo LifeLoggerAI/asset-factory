@@ -1,71 +1,20 @@
-# Firebase Deploy Verification
+# Asset Factory Firebase Deploy Verification
 
-This repo is considered release-ready only after both repo checks and live health verification pass.
+Current production verification is valid only for the provider-proven dedicated Asset Factory project/site/base URL supplied through the protected GitHub environment.
 
-## 1. Run release readiness
+The shared consumer project `urai-4dc1d` is historical evidence only and is explicitly rejected by current production-target guards.
 
-In GitHub Actions, run the manual workflow:
-
-- `Asset Factory Release Readiness`
-
-Use one of these live URL inputs only after a Firebase deploy exists:
-
-- `https://urai-4dc1d.web.app`
-- `https://urai-4dc1d.firebaseapp.com`
-
-The workflow runs:
-
-- production asset validation
-- runtime spatial contract validation
-- Firebase rules surface validation
-- Firebase deploy preflight validation
-- studio lint
-- studio typecheck
-- studio tests
-- studio build
-- Firebase Functions install
-- Firebase Functions build
-- optional live `/api/health` verification
-
-## 2. Local release commands
-
-From `assetfactory-studio`:
+## Source gates
 
 ```bash
-npm install
-npm run validate:production
-npm run check
+npm run verify:local
+npm run test:launch-readiness
+npm run check:deploy-workflow
+npm run validate:production-target
 ```
 
-From `life-map-pipeline/functions`:
+Production deployment must use GitHub OIDC -> Google Workload Identity Federation -> least-privilege deploy service account. Long-lived Firebase tokens and service-account JSON are prohibited.
 
-```bash
-npm ci
-npm run build
-```
+Required protected variables: `ASSET_FACTORY_FIREBASE_PROJECT_ID`, `ASSET_FACTORY_FIREBASE_HOSTING_SITE`, `ASSET_FACTORY_BASE_URL`, `GCP_WIF_PROVIDER`, and `GCP_DEPLOY_SERVICE_ACCOUNT`.
 
-## 3. Deploy
-
-Deploy with Firebase credentials that can deploy project `urai-4dc1d`:
-
-```bash
-firebase deploy --project urai-4dc1d --only hosting,functions,firestore:rules,storage
-```
-
-## 4. Verify live health
-
-From `assetfactory-studio`:
-
-```bash
-ASSET_FACTORY_LIVE_URL="https://urai-4dc1d.web.app" npm run verify:live
-```
-
-If needed, also test:
-
-```bash
-ASSET_FACTORY_LIVE_URL="https://urai-4dc1d.firebaseapp.com" npm run verify:live
-```
-
-## 5. Release rule
-
-Do not mark the asset factory as live verified until one deployed URL passes `npm run verify:live`.
+After a current exact-main deploy, verify the configured dedicated HTTPS base with `npm run deploy:verify-readonly`. Do not mark deployment verified until exact deployed revision, dedicated project/site, live base URL, TLS, health response, current SHA and rollback target are retained together.
