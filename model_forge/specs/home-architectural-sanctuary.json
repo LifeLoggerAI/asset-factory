@@ -30,7 +30,7 @@
     "exactHeadGapEvidence": {
       "spatialPr": 1598,
       "spatialHead": "ff6f3df71a18b7ac6a2e5b7872b2fd0e802dbe3b",
-      "evidence": "Asset Factory issue #326 + Spatial #1598 current-head Continuous Spatial Visual Proof pending terminal run on ff6f3df71a18b7ac6a2e5b7872b2fd0e802dbe3b",
+      "evidence": "Asset Factory issue #326 + Spatial #1598 exact-head Continuous Spatial Visual Proof is terminal green on ff6f3df71a18b7ac6a2e5b7872b2fd0e802dbe3b; final-art acceptance remains separately blocked",
       "finding": "Home remains machine-verified as a functioning spatial runtime while Gold Master final-art acceptance remains explicitly blocked; candidate assets must not ship until literal final review."
     },
     "requiredRead": "believable inhabited architectural home with realistic materials, close-camera fidelity, warm lived details, open-sky continuity, restrained UI and natural Ground/Life Map continuity",
