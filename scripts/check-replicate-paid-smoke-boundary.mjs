@@ -35,6 +35,7 @@ for (const required of [
   'REPLICATE_MODEL3D_SMOKE_COMPLETED=',
   'https://api.replicate.com/v1/predictions',
   'Automatic prediction retries: **0**',
+  'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093',
 ]) {
   if (!smoke.includes(required)) fail(`smoke workflow missing ${JSON.stringify(required)}`);
 }
@@ -45,6 +46,7 @@ for (const forbidden of [
   'push:',
   'pull_request:',
   'repository_dispatch:',
+  'google-github-actions/auth@v3',
 ]) {
   if (smoke.includes(forbidden)) fail(`smoke workflow contains forbidden automatic trigger ${JSON.stringify(forbidden)}`);
 }
