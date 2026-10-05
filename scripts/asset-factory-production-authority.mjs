@@ -20,12 +20,12 @@ function requiredEnv(name) {
 }
 
 function requireProject() {
-  return requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT');
+  return requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT_ID');
 }
 
 function requireHosting() {
   requireProject();
-  const site = requiredEnv('ASSET_FACTORY_FIREBASE_SITE');
+  const site = requiredEnv('ASSET_FACTORY_FIREBASE_HOSTING_SITE');
   if (site === FORBIDDEN_CONSUMER_SITE) {
     fail('Refusing consumer URAI Hosting site urai-4dc1d. Supply the provider-proven dedicated Asset Factory Hosting site.');
   }
