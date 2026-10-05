@@ -31,7 +31,7 @@ function safeEndpointId(endpointId: string) {
 function assertHiggsfieldApiUrl(value: unknown) {
   if (typeof value !== 'string' || !value) throw new Error('Higgsfield request URL is missing');
   const parsed = new URL(value);
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'api.higgsfield.ai') {
+  if (parsed.origin !== HIGGSFIELD_BASE_URL || parsed.username || parsed.password) {
     throw new Error('Higgsfield request URL escaped the approved API origin');
   }
   return parsed.toString();
@@ -57,16 +57,19 @@ function assertPublicArtifactUrl(value: unknown) {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
     throw new Error('Higgsfield output URL uses an unsupported protocol');
   }
-  const host = parsed.hostname.toLowerCase();
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
   if (
     host === ['local', 'host'].join('') ||
-    host === '::1' ||
+    host.includes(':') ||
     host.endsWith(`.${['local', 'host'].join('')}`) ||
     host.endsWith('.local') ||
     isPrivateIpv4(host)
   ) {
     throw new Error('Higgsfield output URL points to a private or local host');
   }
+  if (parsed.username || parsed.password) throw new Error('Higgsfield output URL must not contain credentials');
+  const approvedOrigins = env('ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS').split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (!approvedOrigins.includes(parsed.origin)) throw new Error('Higgsfield output origin is not approved by server policy');
   return parsed.toString();
 }
 
@@ -86,10 +89,7 @@ async function readJson(response: Response): Promise<JsonRecord> {
     body = { detail: text.slice(0, 1000) };
   }
   if (!response.ok) {
-    const detail = typeof body === 'object' && body
-      ? JSON.stringify(body).slice(0, 1000)
-      : String(body).slice(0, 1000);
-    throw new Error(`Higgsfield request failed ${response.status}: ${detail}`);
+    throw new Error(`Higgsfield request failed ${response.status}`);
   }
   return (body && typeof body === 'object' ? body : {}) as JsonRecord;
 }
@@ -131,6 +131,7 @@ export async function runHiggsfieldGeneration(
     method: 'POST',
     headers,
     body: JSON.stringify(input),
+    redirect: 'error',
     signal: AbortSignal.timeout(Math.min(timeoutMs, 120_000)),
   });
   let current = await readJson(submit);
@@ -140,7 +141,7 @@ export async function runHiggsfieldGeneration(
   let status = String(current.status ?? '').trim();
   if (status === 'completed') return current as HiggsfieldCompletedRequest;
   if (terminalFailure(status)) {
-    throw new Error(`Higgsfield generation ended with status ${status}: ${JSON.stringify(current.error ?? '').slice(0, 1000)}`);
+    throw new Error(`Higgsfield generation ended with status ${status}`);
   }
 
   const statusUrl = assertHiggsfieldApiUrl(
@@ -153,13 +154,14 @@ export async function runHiggsfieldGeneration(
     const response = await fetch(statusUrl, {
       method: 'GET',
       headers: { authorization: headers.authorization },
+      redirect: 'error',
       signal: AbortSignal.timeout(Math.min(120_000, Math.max(1_000, deadline - Date.now()))),
     });
     current = await readJson(response);
     status = String(current.status ?? '').trim();
     if (status === 'completed') return current as HiggsfieldCompletedRequest;
     if (terminalFailure(status)) {
-      throw new Error(`Higgsfield generation ended with status ${status}: ${JSON.stringify(current.error ?? '').slice(0, 1000)}`);
+      throw new Error(`Higgsfield generation ended with status ${status}`);
     }
     if (status !== 'queued' && status !== 'in_progress') {
       throw new Error(`Higgsfield returned unknown request status: ${status || 'missing'}`);
@@ -192,18 +194,37 @@ export async function downloadHiggsfieldArtifact(
   options: { maxBytes: number; timeoutMs: number }
 ) {
   const safeUrl = assertPublicArtifactUrl(url);
-  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(options.timeoutMs) });
+  if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0 || !Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) throw new Error('Invalid Higgsfield artifact budget');
+  const controller = new AbortController();
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(options.timeoutMs)]);
+  const response = await fetch(safeUrl, { signal, redirect: 'error' });
   if (!response.ok) throw new Error(`Higgsfield artifact fetch failed ${response.status}`);
 
   const contentLength = Number(response.headers.get('content-length') ?? 0);
   if (contentLength > options.maxBytes) {
+    controller.abort();
+    await response.body?.cancel().catch(() => undefined);
     throw new Error(`Higgsfield artifact exceeds max bytes: ${contentLength}`);
   }
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.byteLength > options.maxBytes) {
-    throw new Error(`Higgsfield artifact exceeds max bytes after download: ${buffer.byteLength}`);
-  }
+  if (!response.body) throw new Error('Higgsfield artifact response body is missing');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > options.maxBytes) throw new Error('Higgsfield artifact exceeds max bytes while streaming');
+      chunks.push(value);
+    }
+  } catch (error) {
+    controller.abort();
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally { reader.releaseLock(); }
+  const buffer = Buffer.concat(chunks, bytes);
 
   return {
     buffer,
