@@ -1,76 +1,47 @@
 # Replicate Google WIF bootstrap — Asset Factory
 
-Status: Google control-plane bootstrap completed 2026-08-16; GitHub verification pending.
+Status: historical Google identity bootstrap exists; current dedicated Asset Factory runtime binding remains provider/control-plane open.
 
 Repository: `LifeLoggerAI/asset-factory`
-Repository numeric ID: `1150887894`
-Repository owner numeric ID: `215797546`
-Google Cloud / Firebase project: `urai-4dc1d`
-Google Cloud project number: `952723774155`
-App Hosting backend: `assetfactory-studio`
-Region: `us-central1`
 
-## Active identity contract
+## Current authority
+
+Current provider/runtime workflows do not hard-code a Firebase/GCP project, WIF provider, or deploy service account. They consume protected `asset-factory-production` environment variables:
 
 ```text
-GCP_WIF_PROVIDER=projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
-GCP_DEPLOY_SERVICE_ACCOUNT=asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+ASSET_FACTORY_FIREBASE_PROJECT_ID
+GCP_WIF_PROVIDER
+GCP_DEPLOY_SERVICE_ACCOUNT
 ```
 
-The dedicated provider is inside the existing production pool `urai-github-prod`. The existing `github-actions` provider in that pool remains dedicated to `LifeLoggerAI/urai-spatial` and must not be broadened.
+`ASSET_FACTORY_FIREBASE_PROJECT_ID` must identify the provider-proven dedicated Asset Factory project and must not be the shared consumer project `urai-4dc1d`.
 
-## Verified Google Cloud state — 2026-08-16
+The WIF provider and service account may live in a separate identity/control-plane project if Google IAM is intentionally configured that way; their location does not transfer runtime authority to that project.
 
-- Workload Identity Pool `urai-github-prod`: `ACTIVE`.
-- Dedicated provider `asset-factory-github`: created and `ACTIVE`.
-- Dedicated service account `asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com`: created.
-- `roles/iam.workloadIdentityUser` binding grants only repository numeric ID `1150887894` through the `urai-github-prod` pool.
-- Provider trust is restricted to owner numeric ID `215797546`, repository numeric ID `1150887894`, branch `refs/heads/main`, and the two governed Asset Factory workflow refs.
-- The service account has App Hosting deploy rights required by the verification lane.
-- `roles/secretmanager.admin` is scoped to the existing `REPLICATE_API_TOKEN` secret for the dedicated service account.
-- No service-account JSON key was created for this lane.
+## Historical bootstrap evidence — 2026-08-16
+
+A WIF pool/provider and service account were previously established in Google project `urai-4dc1d`. That historical identity bootstrap remains evidence that short-lived GitHub OIDC exchange can work, but it is **not** current Asset Factory runtime/project authority.
+
+The historical App Hosting expectation `assetfactory-studio` in `urai-4dc1d` was not found by the authenticated backend inventory on 2026-10-05. Do not create or rename a backend there merely to satisfy the old expectation.
 
 ## Security boundary
 
-Do not create, download, restore, or upload a service-account JSON key for this workflow.
-
-GitHub uses a shared OIDC issuer, so the provider condition must remain restricted to immutable GitHub numeric IDs and the governed workflow refs. Do not broaden the existing `github-actions` provider used by `urai-spatial`.
-
-The Asset Factory provider condition is intentionally restricted to:
-
-```text
-attribute.repository_owner_id == '215797546'
-attribute.repository_id == '1150887894'
-attribute.ref == 'refs/heads/main'
-workflow_ref is either:
-  LifeLoggerAI/asset-factory/.github/workflows/grant-replicate-apphosting-secret.yml@refs/heads/main
-  LifeLoggerAI/asset-factory/.github/workflows/replicate-bounded-model3d-smoke.yml@refs/heads/main
-```
+- Do not create, download, restore, or upload a service-account JSON key.
+- Keep GitHub OIDC trust restricted to immutable repository/owner identity and governed workflow refs.
+- Keep provider selectors dormant until credential readiness and spend authorization are separately proven.
+- Do not treat successful WIF exchange as proof that the target runtime project/backend exists.
 
 ## Verification sequence
 
-1. Run `Grant Replicate App Hosting Secret Access` on exact current `main`.
-2. Confirm GitHub OIDC exchanges successfully through `urai-github-prod/providers/asset-factory-github`.
-3. Confirm the active Google identity is `asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com`.
-4. Confirm App Hosting backend `assetfactory-studio` can access `REPLICATE_API_TOKEN` without printing the secret value.
-5. Confirm a fresh App Hosting rollout completes.
-6. Confirm the public manifest reports only sanitized Replicate readiness booleans as true.
-7. Stop. The no-spend verification must not trigger a paid Replicate prediction.
-8. Only after separate explicit spend authorization, manually dispatch `Replicate Bounded Model3D Smoke` from `main` with `RUN_ONE_REPLICATE_MODEL3D_SMOKE`.
-9. The smoke must refuse a second paid prediction if issue #63 already contains a completion marker.
+1. Provision or identify the dedicated Asset Factory Firebase/GCP project.
+2. Provision or identify its App Hosting backend and Hosting authority.
+3. Set the protected environment variables above to the provider-read-back values.
+4. Ensure the WIF service account has only the required rights on that dedicated target.
+5. Run `Grant Provider App Hosting Secret Access` on exact current `main`.
+6. Verify exact project readback, backend inventory, secret metadata access, fresh rollout, and sanitized provider-readiness booleans.
+7. Stop. The grant/verification lane must not make a paid provider call.
+8. Only after separate explicit spend authorization may the bounded Replicate smoke execute.
 
 ## Completion evidence
 
-Record in Asset Factory issue #63 and URAI Launch Control:
-
-- provider resource name
-- service-account email
-- Google project number `952723774155`
-- exact GitHub workflow run URL
-- exact commit SHA
-- successful OIDC/WIF authentication proof
-- secret-read readiness result without secret disclosure
-- rollout result
-- separately authorized one-time Replicate prediction ID and bounded cost
-- GLB validation/hash/size
-- confirmation that no service-account JSON key exists for this lane
+Retain the exact target project, backend resource/location, WIF provider, service-account email, workflow run, source SHA, rollout, sanitized secret-readiness result, and confirmation that no long-lived key was used.
