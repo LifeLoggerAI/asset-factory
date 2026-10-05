@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -30,7 +30,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Run launch readiness static checks
@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -51,7 +51,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Install root dependencies
@@ -72,7 +72,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -82,7 +82,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Install engine dependencies
@@ -95,7 +95,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -105,7 +105,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
       - name: Install Studio dependencies
@@ -129,7 +129,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -139,7 +139,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
       - name: Use Java 21 for Firebase emulators
@@ -166,7 +166,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -176,7 +176,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Install functions dependencies
@@ -191,7 +191,7 @@ jobs:
     runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
           fetch-depth: 0
@@ -201,7 +201,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
       - name: Install LifeMap dependencies
