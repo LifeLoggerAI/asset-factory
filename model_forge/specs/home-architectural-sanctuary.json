@@ -20,7 +20,7 @@
   },
   "authority": {
     "route": "/home",
-    "source": "UrAi Home Reference Pack.png + current locked Home canon + Spatial #1596 exact-head 0d9ec240ffa71619947d508866af627cdd5286f9 release-lineage evidence",
+    "source": "UrAi Home Reference Pack.png + current locked Home canon + Spatial #1598 exact-head 20b8c2da9f602bcf2d4d977623cad48d8c7e91ce release-lineage evidence",
     "referenceAuthority": {
       "libraryFileId": "libfile_761cf4f05b4c81918b90555d7ce6924f",
       "sha256": "5460cfbe29ff6f57773ced71695f706c28f6a1dfe6ffda32def7e8ff9ee54ae0",
@@ -28,9 +28,9 @@
       "materializationRequired": true
     },
     "exactHeadGapEvidence": {
-      "spatialPr": 1596,
-      "spatialHead": "0d9ec240ffa71619947d508866af627cdd5286f9",
-      "evidence": "Asset Factory issue #326 + Spatial #1596 exact-head Continuous Spatial Visual Proof run 37266770522",
+      "spatialPr": 1598,
+      "spatialHead": "20b8c2da9f602bcf2d4d977623cad48d8c7e91ce",
+      "evidence": "Asset Factory issue #326 + Spatial #1598 exact-head Continuous Spatial Visual Proof run 37266770522",
       "finding": "Home remains machine-verified as a functioning spatial runtime while Gold Master final-art acceptance remains explicitly blocked; candidate assets must not ship until literal final review."
     },
     "requiredRead": "believable inhabited architectural home with realistic materials, close-camera fidelity, warm lived details, open-sky continuity, restrained UI and natural Ground/Life Map continuity",
