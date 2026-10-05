@@ -1,16 +1,38 @@
 import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const baseUrl = process.env.ASSET_FACTORY_BASE_URL || "https://uraiassetfactory.com";
-const firebaseProject = String(process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID || process.env.ASSET_FACTORY_FIREBASE_PROJECT || "").trim();
-const firebaseHostingSite = String(process.env.ASSET_FACTORY_FIREBASE_HOSTING_SITE || process.env.ASSET_FACTORY_FIREBASE_SITE || "").trim();
+const baseUrl = String(process.env.ASSET_FACTORY_BASE_URL || "").trim();
+const firebaseProject = String(process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID || "").trim();
+const firebaseHostingSite = String(process.env.ASSET_FACTORY_FIREBASE_HOSTING_SITE || "").trim();
 
-if (!firebaseProject || !firebaseHostingSite) {
-  console.error("Dedicated Asset Factory Firebase project and Hosting site are required before custom-domain verification.");
+const legacyProjects = new Set(["urai-4dc1d", "asset-factory-dev-id", "geturai-landing-hub"]);
+const legacyHostingSites = new Set([...legacyProjects, "asset-factory-prod", "asset-factory-admin"]);
+const legacyHosts = new Set([
+  "urai-4dc1d.web.app",
+  "urai-4dc1d.firebaseapp.com",
+  "asset-factory-dev-id.web.app",
+  "asset-factory-dev-id.firebaseapp.com",
+  "geturai-landing-hub.web.app",
+  "geturai-landing-hub.firebaseapp.com",
+  "urai.app",
+  "www.urai.app",
+]);
+
+if (!baseUrl || !firebaseProject || !firebaseHostingSite) {
+  console.error("ASSET_FACTORY_BASE_URL, ASSET_FACTORY_FIREBASE_PROJECT_ID, and ASSET_FACTORY_FIREBASE_HOSTING_SITE are required before custom-domain verification.");
   process.exit(1);
 }
-if (firebaseProject === "urai-4dc1d" || firebaseHostingSite === "urai-4dc1d") {
-  console.error("Refusing shared consumer URAI Firebase authority for Asset Factory custom-domain verification.");
+
+let parsedBase;
+try {
+  parsedBase = new URL(baseUrl);
+} catch {
+  console.error("ASSET_FACTORY_BASE_URL must be a valid absolute URL.");
+  process.exit(1);
+}
+const normalizedHost = parsedBase.hostname.toLowerCase().replace(/\.$/, "");
+if (parsedBase.protocol !== "https:" || legacyHosts.has(normalizedHost) || legacyProjects.has(firebaseProject) || legacyHostingSites.has(firebaseHostingSite)) {
+  console.error("Refusing legacy/shared Asset Factory authority for custom-domain verification.");
   process.exit(1);
 }
 
@@ -27,6 +49,12 @@ function run(command, args, env = {}) {
 }
 
 console.log(`Verifying Asset Factory custom domain: ${baseUrl}`);
+
+run("npm", ["run", "validate:production-target"], {
+  ASSET_FACTORY_BASE_URL: baseUrl,
+  ASSET_FACTORY_FIREBASE_PROJECT_ID: firebaseProject,
+  ASSET_FACTORY_FIREBASE_HOSTING_SITE: firebaseHostingSite,
+});
 
 run("npm", ["run", "smoke:website"], {
   ASSET_FACTORY_BASE_URL: baseUrl,
