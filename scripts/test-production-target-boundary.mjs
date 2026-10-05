@@ -113,6 +113,9 @@ const activeDomainAuthorityFiles = [
   'scripts/diagnose-custom-domain.mjs',
   'deploy/custom-domain/asset-factory-api-proxy.vercel.json',
   'scripts/finish-custom-domain-production.mjs',
+  'scripts/verify-asset-factory-origin.mjs',
+  'scripts/verify-asset-factory-launch.mjs',
+  'scripts/asset-factory-production-authority.mjs',
 ];
 
 for (const file of activeDomainAuthorityFiles) {
@@ -137,3 +140,25 @@ if (!customDomainScript.includes('npm run smoke:production-finalization') || cus
 console.log('PRODUCTION_TARGET_BOUNDARY=GREEN');
 console.log('PROVIDER_CALLS=0');
 console.log('DEPLOYMENT_PERFORMED=false');
+
+
+const authorityScript = readFileSync('scripts/asset-factory-production-authority.mjs', 'utf8');
+for (const required of ['ASSET_FACTORY_FIREBASE_PROJECT_ID', 'ASSET_FACTORY_FIREBASE_HOSTING_SITE', 'ASSET_FACTORY_BASE_URL']) {
+  if (!authorityScript.includes(required)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: canonical authority script missing ${required}`);
+    process.exit(1);
+  }
+}
+for (const forbidden of ["requiredEnv('ASSET_FACTORY_FIREBASE_PROJECT')", "requiredEnv('ASSET_FACTORY_FIREBASE_SITE')"]) {
+  if (authorityScript.includes(forbidden)) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: canonical authority script still uses stale env contract ${forbidden}`);
+    process.exit(1);
+  }
+}
+for (const verifierPath of ['scripts/verify-asset-factory-origin.mjs', 'scripts/verify-asset-factory-launch.mjs']) {
+  const verifier = readFileSync(verifierPath, 'utf8');
+  if (verifier.includes("|| 'https://urai-4dc1d.web.app'") || verifier.includes("const defaultBase = 'https://urai-4dc1d.web.app'")) {
+    console.error(`PRODUCTION_TARGET_BOUNDARY=RED: ${verifierPath} still defaults to shared consumer Hosting`);
+    process.exit(1);
+  }
+}
