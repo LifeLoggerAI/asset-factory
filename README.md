@@ -239,10 +239,10 @@ CRON_SECRET=$STAGING_CRON_SECRET \
 npm run smoke:staging
 ```
 
-Verified Firebase production API smoke uses the Firebase Hosting URL until the custom-domain blocker closes:
+Current production smoke must use the provider-proven dedicated Asset Factory base URL:
 
 ```bash
-ASSET_FACTORY_BASE_URL=$ASSET_FACTORY_BASE_URL \
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
@@ -267,7 +267,7 @@ For read-only diagnostics checks on the verified Firebase URL:
 
 ```bash
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=$ASSET_FACTORY_BASE_URL \
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 npm run smoke:website
 ```
 
