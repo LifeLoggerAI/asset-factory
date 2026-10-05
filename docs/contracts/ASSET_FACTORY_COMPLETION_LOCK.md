@@ -137,7 +137,7 @@ release:
   local_proof_run: <link-or-log-path>
   staging_smoke_run: <link-or-log-path>
   production_smoke_run: <link-or-log-path>
-  firebase_project: urai-4dc1d
+  firebase_project: <dedicated-asset-factory-project-id>
   staging_url: https://staging.uraiassetfactory.com
   production_url: https://www.uraiassetfactory.com
   fallback_disabled: true
