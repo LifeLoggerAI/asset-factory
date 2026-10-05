@@ -127,13 +127,17 @@ npm run smoke:staging
 Use these manually only when debugging the GitHub Actions workflow after `ASSET_FACTORY_BASE_URL` is set to the provider-proven dedicated production base.
 
 ```bash
-test -n "$ASSET_FACTORY_BASE_URL"
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_SMOKE_READONLY=true \
 npm run smoke:website
 ```
 
 ```bash
-test -n "$ASSET_FACTORY_BASE_URL"
+test -n "$ASSET_FACTORY_BASE_URL" || exit 1
+npm run validate:production-target
+ASSET_FACTORY_BASE_URL="$ASSET_FACTORY_BASE_URL" \
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
