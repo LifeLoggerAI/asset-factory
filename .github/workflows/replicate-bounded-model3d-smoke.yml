@@ -19,9 +19,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT_ID: urai-4dc1d
-  GCP_WIF_PROVIDER: projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github
-  GCP_DEPLOY_SERVICE_ACCOUNT: asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com
+  PROJECT_ID: ${{ vars.ASSET_FACTORY_FIREBASE_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
   MODEL_VERSION: tencent/hunyuan-3d-3.1:a2838628b41a2e0ee2eb19b3ea98a40d75f8d7639bf5a1ddd37ea299bb334854
 
 jobs:
@@ -63,14 +63,15 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Verify pinned WIF identity contract
+      - name: Verify protected dedicated target and WIF contract
         if: steps.preflight.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          test "$PROJECT_ID" = 'urai-4dc1d'
-          test "$GCP_WIF_PROVIDER" = 'projects/952723774155/locations/global/workloadIdentityPools/urai-github-prod/providers/asset-factory-github'
-          test "$GCP_DEPLOY_SERVICE_ACCOUNT" = 'asset-factory-deploy@urai-4dc1d.iam.gserviceaccount.com'
+          test -n "$PROJECT_ID" || { echo '::error::ASSET_FACTORY_FIREBASE_PROJECT_ID is required in the protected environment.'; exit 1; }
+          test "$PROJECT_ID" != 'urai-4dc1d' || { echo '::error::Shared consumer project urai-4dc1d is forbidden for current Asset Factory provider runtime.'; exit 1; }
+          test -n "$GCP_WIF_PROVIDER" || { echo '::error::GCP_WIF_PROVIDER is required in the protected environment.'; exit 1; }
+          test -n "$GCP_DEPLOY_SERVICE_ACCOUNT" || { echo '::error::GCP_DEPLOY_SERVICE_ACCOUNT is required in the protected environment.'; exit 1; }
 
       - name: Authenticate to Google Cloud with WIF
         id: google_auth
