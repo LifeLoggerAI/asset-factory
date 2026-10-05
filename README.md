@@ -330,4 +330,4 @@ Ensure project, service account, and env are configured before deploy.
 - If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
 - If provider mode fails, switch back to `ASSET_FACTORY_MEDIA_PROVIDER=local-proof` and confirm the proof pipeline is green first.
 - If image asset validation fails, run `python image_asset_generator/generate_assets.py` first, then rerun `python image_asset_generator/validate_assets.py`.
-- If `https://uraiassetfactory.com/api/system/health` or `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to Firebase Hosting site `urai-4dc1d` or proxy `/api/*` to `https://urai-4dc1d.web.app/api/*`, then rerun smoke.
+- If `https://uraiassetfactory.com/api/system/health` or `https://uraiassetfactory.com/api/health` returns a Next.js 404, do not rerun smoke expecting a different result. Attach the custom domain to the provider-proven dedicated Asset Factory Hosting site or proxy `/api/*` to the provider-proven dedicated Asset Factory runtime, then rerun smoke.
