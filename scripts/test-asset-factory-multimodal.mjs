@@ -76,7 +76,7 @@ assertIncludes(renderer, 'temporal-flicker', 'video temporal QA gate');
 assertIncludes(renderer, "truthClass: 'INTERPRETIVE'", 'synthetic provider truth class');
 assertIncludes(higgsfieldClient, 'authorization', 'Higgsfield server auth contract');
 assertIncludes(higgsfieldClient, 'Idempotency-Key', 'Higgsfield idempotency contract');
-assertIncludes(higgsfieldClient, "hostname !== 'api.higgsfield.ai'", 'Higgsfield API origin allowlist');
+assertIncludes(higgsfieldClient, 'parsed.origin !== HIGGSFIELD_BASE_URL', 'Higgsfield exact API origin allowlist');
 assertIncludes(higgsfieldClient, "status === 'completed'", 'Higgsfield async completion contract');
 assertIncludes(manifestRoute, 'higgsfieldCredentialVisible', 'Higgsfield sanitized credential diagnostic');
 assertIncludes(manifestRoute, 'supportedAssetTypes', 'system manifest supported asset types');
