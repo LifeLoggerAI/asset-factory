@@ -1,10 +1,12 @@
 # Custom Domain Verification
 
-Asset Factory is production verified at:
+Historical shared-runtime evidence exists for:
 
 ```text
 https://urai-4dc1d.web.app
 ```
+
+That host is historical evidence only and is forbidden as current Asset Factory production authority.
 
 The custom domain target is:
 
@@ -23,7 +25,7 @@ Production finalization smoke target: https://www.uraiassetfactory.com
 FAIL /api/health fetch failed for https://www.uraiassetfactory.com/api/health: fetch failed (code=ECONNRESET, host=www.uraiassetfactory.com, port=443)
 ```
 
-This means the verified Firebase runtime is not the blocker. The request reaches the custom domain host over HTTPS, then the connection resets before the `/api/health` response. Treat this as a DNS / TLS certificate / Firebase Hosting domain mapping issue until proven otherwise.
+This historical failure showed the custom-domain path resetting before `/api/health`. Current closure must be re-proven against the provider-proven dedicated Asset Factory runtime and Hosting site; do not infer current runtime health from the historical shared slice.
 
 ## One-Command Diagnostic
 
@@ -49,18 +51,18 @@ ASSET_FACTORY_CUSTOM_DOMAIN=www.uraiassetfactory.com npm run diagnose:custom-dom
 
 ## Prerequisites
 
-- Firebase project: `urai-4dc1d`
-- Hosting site: `urai-4dc1d`
-- Production smoke passes on `https://urai-4dc1d.web.app`
+- `ASSET_FACTORY_FIREBASE_PROJECT_ID` is the provider-proven dedicated Asset Factory project.
+- `ASSET_FACTORY_FIREBASE_HOSTING_SITE` is the provider-proven dedicated Asset Factory Hosting site.
+- `ASSET_FACTORY_BASE_URL` is the provider-proven dedicated HTTPS runtime and passes production-target validation.
 - Access to DNS settings for `uraiassetfactory.com`
 - Access to Firebase Hosting custom domain settings
 
 ## Firebase Hosting Setup
 
 1. Open Firebase Console.
-2. Select project `urai-4dc1d`.
+2. Select the provider-proven dedicated Asset Factory project.
 3. Go to `Hosting`.
-4. Select the hosting site for `urai-4dc1d`.
+4. Select the provider-proven dedicated Asset Factory Hosting site.
 5. Add custom domain:
 
 ```text
@@ -138,8 +140,8 @@ Expected output:
 | `fetch failed` with `ECONNRESET` on port 443 | HTTPS reaches a host, but TLS/proxy/Firebase Hosting mapping is not completing cleanly | Confirm Firebase Hosting custom domain is connected, certificate is provisioned, and DNS points only to Firebase-provided records |
 | Certificate error | Firebase certificate is not provisioned yet | Wait until Firebase Hosting shows certificate ready |
 | HTTP 404 | Domain points somewhere else or Firebase domain mapping is incomplete | Confirm Firebase Hosting custom domain setup |
-| `/api/health` fails | Hosting rewrite or Functions deployment issue | Verify `https://urai-4dc1d.web.app/api/health` still passes |
-| web.app passes but custom domain fails | Domain/DNS/cert issue, not production runtime | Keep Issue #55 open |
+| `/api/health` fails | Hosting rewrite, Functions deployment, or runtime issue | Verify the provider-proven dedicated `ASSET_FACTORY_BASE_URL` passes production-target validation and `/api/health` |
+| dedicated runtime passes but custom domain fails | Domain/DNS/cert mapping issue | Keep Issue #55 open |
 
 ## Completion Criteria
 
@@ -151,4 +153,4 @@ Issue #55 can close only after:
 4. `npm run deploy:verify-custom-domain` passes.
 5. `docs/PRODUCTION_VERIFICATION_REPORT.md` is updated with custom-domain evidence.
 
-Production remains verified on `https://urai-4dc1d.web.app` while this is open.
+Historical shared-host evidence remains historical only while this is open; current production authority requires fresh dedicated-runtime proof.
