@@ -102,10 +102,10 @@ if (smoke.indexOf('Record irreversible Home attempt marker') > smoke.indexOf('Ex
   fail('Home challenger attempt marker must precede provider execution');
 }
 
-for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@v3']) {
+for (const required of [exactProvider, exactServiceAccount, 'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093']) {
   if (!grant.includes(required)) fail(`grant workflow missing pinned WIF contract ${JSON.stringify(required)}`);
 }
-for (const forbidden of ['REPLICATE_API_TOKEN=%', 'https://api.replicate.com/v1/predictions', 'workflow_run:']) {
+for (const forbidden of ['REPLICATE_API_TOKEN=%', 'https://api.replicate.com/v1/predictions', 'workflow_run:', 'google-github-actions/auth@v3']) {
   if (grant.includes(forbidden)) fail(`no-spend grant workflow contains paid/provider execution capability ${JSON.stringify(forbidden)}`);
 }
 
