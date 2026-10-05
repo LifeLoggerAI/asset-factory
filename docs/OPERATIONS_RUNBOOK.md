@@ -8,9 +8,9 @@ Asset Factory is not live until staging and production smoke tests pass and the 
 
 Local proof mode is useful for development. It is not proof of production readiness.
 
-## Current verified production status
+## Historical production-slice status
 
-As of the latest release evidence, the Firebase default production API is verified at:
+Historical release evidence recorded the following shared Firebase API slice; it is not current Asset Factory production authority:
 
 ```text
 https://urai-4dc1d.web.app
@@ -283,18 +283,18 @@ Prefer the GitHub Actions workflow. Use manual commands only when debugging a fa
 4. Confirm Stripe live webhook endpoint and secret are active.
 5. Confirm public docs do not claim unsupported capabilities.
 6. Deploy production.
-7. Run read-only smoke against the currently verified Firebase production API base.
+7. Run read-only smoke against the provider-proven dedicated production base.
 
 ```bash
+test -n "$ASSET_FACTORY_BASE_URL"
 ASSET_FACTORY_SMOKE_READONLY=true \
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
 npm run smoke:website
 ```
 
-8. Run authenticated production smoke against the currently verified Firebase production API base.
+8. Run authenticated production smoke against the same dedicated production base.
 
 ```bash
-ASSET_FACTORY_BASE_URL=https://urai-4dc1d.web.app \
+test -n "$ASSET_FACTORY_BASE_URL"
 ASSET_FACTORY_API_KEY=$PROD_ASSET_FACTORY_API_KEY \
 ASSET_FACTORY_BEARER_TOKEN=$PROD_ASSET_FACTORY_BEARER_TOKEN \
 ASSET_FACTORY_TENANT_ID=prod-smoke \
@@ -328,7 +328,7 @@ npm run smoke:prod
 
 The custom-domain blocker is closed only when all of these are true:
 
-- `uraiassetfactory.com` is attached to Firebase Hosting site `urai-4dc1d`, or the current frontend host proxies `/api/*` to `https://urai-4dc1d.web.app/api/*`.
+- `uraiassetfactory.com` is attached to the provider-proven dedicated Asset Factory Hosting site, or the current frontend host proxies `/api/*` to the provider-proven dedicated Asset Factory runtime.
 - `www.uraiassetfactory.com` either redirects to the canonical apex domain or serves the same Firebase-backed API surface.
 - `https://uraiassetfactory.com/api/system/health` returns the expected Asset Factory Studio health response.
 - `https://uraiassetfactory.com/api/health` returns the compatibility health response, not a Next.js 404 page.
