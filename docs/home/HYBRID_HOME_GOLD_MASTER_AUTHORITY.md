@@ -3,7 +3,7 @@
 **Status:** Architecture locked; production implementation and final-art acceptance remain pending evidence-backed asset availability.  
 **Original decision:** 2026-10-01  
 **Last admitted machine authority:** Spatial PR #1600 @ `59ba5476b832ddc3c3724b26f37d4e3e77313bd2` — predecessor evidence only after literal visual Gold Master rejection.  
-**Active visual successor:** Spatial PR #1601 @ `45d760334ef7f0d5f475f1e71cb536c2c7c1cd5b` — unadmitted/unfrozen pending fresh exact-head machine proof and literal visual acceptance.  
+**Active visual successor:** Spatial PR #1601 @ `2f4512b7fdfb32701db738f390fab8659d7815e4` — unadmitted/unfrozen pending fresh exact-head machine proof and literal visual acceptance.  
 **Owner:** React / React Three Fiber Home runtime, with Asset Factory governing production assets.
 
 ## Decision
