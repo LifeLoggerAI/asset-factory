@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "urai-home-gaussian-execution-plan-v1",
+  "worldId": "URAI-IW-001-QUIET-RESET",
+  "observedDateUtc": "2026-10-06",
+  "classification": "PREPARED_HARD_OFF_NO_PAID_EXECUTION",
+  "truthClass": "INTERPRETIVE",
+  "autobiographical": false,
+  "sourceAuthority": {
+    "assetFactorySha": "73799ed0f54e504cdb095e04925990d021a95cef",
+    "evidencePath": "model_forge/evidence/home-materialized-sfm-20261006.json",
+    "sourceManifest": "model_forge/evidence/home-runway-world001-tasks-20261004.json",
+    "driveProductionPacketId": "1NI_3TEhjhJPmscVUJ-Vd6Cc3feBvLMbETxRlZkasAy8"
+  },
+  "verifiedPreflight": {
+    "registeredViews": 54,
+    "totalViews": 54,
+    "sparsePoints": 17394,
+    "meanReprojectionErrorPixels": 1.0627135980550644,
+    "cameraModel": "SIMPLE_PINHOLE",
+    "metricScaleKnown": false,
+    "focalCalibrationKnown": false,
+    "sparsePlySha256": "24a7bf0f9ce60f0fa0eabc81655c5e33a0354f1eab735e8fde12bb7bd8c87834",
+    "temporalCertificationComplete": false
+  },
+  "executionPrerequisites": {
+    "acceptedFramesMaterialized": false,
+    "cudaWorkerAuthorized": false,
+    "providerSpendAuthorized": false,
+    "paidComputeAllowed": false,
+    "sourceHashesMustMatchEvidence": true,
+    "temporalQcMustPassBeforePromotion": true,
+    "founderAcceptanceRequired": true,
+    "independentApprovalRequired": true
+  },
+  "canonicalTrainingPath": {
+    "implementation": "Nerfstudio Splatfacto",
+    "commands": [
+      "ns-process-data images --data 04_frames_accepted --output-dir 05_colmap_processed",
+      "ns-train splatfacto --data 05_colmap_processed",
+      "ns-export gaussian-splat --load-config <trained-config> --output-dir 07_archival"
+    ],
+    "notes": [
+      "Use splatfacto-big only after the baseline scene is visually coherent and added quality is justified.",
+      "Enable scale regularization only when long spiky Gaussians are observed.",
+      "No command in this plan may execute until accepted source bytes are materialized and an authorized CUDA worker exists."
+    ]
+  },
+  "requiredOutputs": [
+    {
+      "id": "camera-solve",
+      "type": "receipt",
+      "required": true
+    },
+    {
+      "id": "training",
+      "type": "receipt",
+      "required": true
+    },
+    {
+      "id": "source-vs-reconstruction",
+      "type": "receipt",
+      "required": true
+    },
+    {
+      "id": "archival-gaussian",
+      "format": "ply-3dgs",
+      "required": true
+    },
+    {
+      "id": "runtime-splat",
+      "format": "splat",
+      "required": true
+    },
+    {
+      "id": "collision-proxy",
+      "format": "glb-or-navmesh-json",
+      "required": true,
+      "independentFromVisualSplat": true
+    }
+  ],
+  "acceptance": {
+    "denseSurface": "UNVERIFIED",
+    "trainedGaussianSplat": "UNVERIFIED",
+    "collisionNavmesh": "UNVERIFIED",
+    "runtimeSplat": "UNVERIFIED",
+    "sourceVsReconstructionQc": "UNVERIFIED",
+    "shippingArt": "NOT_ACCEPTED",
+    "founderAcceptance": false,
+    "independentApproval": false,
+    "productionPromotion": false
+  },
+  "stopConditions": [
+    "Do not execute if source bytes cannot be materialized with verified hashes.",
+    "Do not execute paid GPU work without explicit authorization.",
+    "Do not promote sparse SfM evidence to dense/Gaussian acceptance.",
+    "Do not infer collision safety from the visual splat.",
+    "Do not change INTERPRETIVE truth class."
+  ]
+}
