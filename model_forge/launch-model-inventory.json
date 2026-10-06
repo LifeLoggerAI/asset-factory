@@ -13,7 +13,7 @@
       "Google Drive: URAI Final Asset Lock Master — 2026-08-11"
     ],
     "rule": "A provider candidate never replaces a current custom/runtime authority unless literal in-scene pixels prove the candidate is materially better and governance accepts the replacement.",
-    "successorReconciliation": "Spatial #1600 / 59ba5476b832ddc3c3724b26f37d4e3e77313bd2 is predecessor machine evidence only after literal visual Gold Master acceptance was withheld. Active visual successor #1601 / 585258429dd7d68cf1e5c88a01b53bdd682fb58f is not admitted, frozen, promoted, provider-authorized, or production-deployed; fresh exact-head machine proof and literal final-art review are required before any authority transfer.",
+    "successorReconciliation": "Spatial #1600 / 59ba5476b832ddc3c3724b26f37d4e3e77313bd2 is predecessor machine evidence only after literal visual Gold Master acceptance was withheld. Active visual successor #1601 / eb6f57c06aae0df9758211a128f64f1acb0d73d0 is not admitted, frozen, promoted, provider-authorized, or production-deployed; fresh exact-head machine proof and literal final-art review are required before any authority transfer.",
     "dependencyReconciliation": {
       "previousDeclaredSpatialHead": "1b14dcbd9ce3a811e4d117921cbd8a00c7c42e66",
       "admittedSpatialHead": "e30b28dd023835c5b97cefe96332e4daa4b6088f",
@@ -110,7 +110,7 @@
     "lastAdmittedSpatialPr": 1600,
     "lastAdmittedSpatialHead": "59ba5476b832ddc3c3724b26f37d4e3e77313bd2",
     "activeVisualSuccessorPr": 1601,
-    "activeVisualSuccessorHead": "585258429dd7d68cf1e5c88a01b53bdd682fb58f",
+    "activeVisualSuccessorHead": "eb6f57c06aae0df9758211a128f64f1acb0d73d0",
     "activeVisualSuccessorAdmitted": false
   },
   "classes": {
