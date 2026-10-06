@@ -104,9 +104,9 @@
       "use": "Ground physical-world/negative canon"
     },
     {
-      "name": "URAI Final Asset Lock Master — 2026-08-11",
+      "name": "SUPERSEDED / HISTORICAL — URAI Final Asset Lock Master — 2026-08-11",
       "driveId": "10l8UZ0mi_DrrhZU-fgAfiv2i4F0Vuqd3bvEKriudp1Y",
-      "use": "current cross-system asset lock; names Spatial PR #1296 and current exact head at use"
+      "use": "historical provenance only; Drive title explicitly marks this asset-lock workbook superseded/historical. It must not serve as current Gold Master byte-lock authority. Current shipping bytes require fresh exact-file hashes, provenance, runtime binding, visual acceptance, and promotion receipts."
     },
     {
       "name": "docs/reference/URAI_SOURCE_VERIFIED_CANON_AUDIT_2026-09-22.md",
@@ -127,7 +127,7 @@
     "currentSpatialPr": 1600,
     "currentSpatialHead": "59ba5476b832ddc3c3724b26f37d4e3e77313bd2"
   },
-  "successorReconciliation": "Active Spatial dependency is now pre-review PR #1600 at 59ba5476b832ddc3c3724b26f37d4e3e77313bd2. The seven reference identities and SHA-256 values remain unchanged. Exact-head machine proofs do not transfer final visual acceptance; paid production targets remain unauthorized unless separately governed.",
+  "successorReconciliation": "Spatial #1600 is retained as predecessor reference-resolution evidence only. Active visual successor #1601 is unadmitted until its final unchanged head passes fresh exact-head machine proof and literal visual acceptance; no provider spend, reference-byte change, promotion, or Gold Master authority transfers automatically.",
   "spatialPr": 1600,
   "dependencyReconciliationHistory": [
     {
@@ -146,5 +146,15 @@
       "spatialHead": "6a6a8564014cf88502aac638b03270300ac3f971",
       "successorReconciliation": "Active Spatial dependency reconciled from 3d39dfcfbb173bc7d7c32b71e9e3f7712f3b7529 to 6a6a8564014cf88502aac638b03270300ac3f971. All seven reference file identities and SHA-256 values remain unchanged. This record admits the inspected source lineage only; current exact-head proof remains required and no predecessor evidence transfers. Paid production targets remain unauthorized pending a specific literal route-quality gap and governed approval."
     }
-  ]
+  ],
+  "lastAdmittedSpatialPr": 1600,
+  "lastAdmittedSpatialHead": "59ba5476b832ddc3c3724b26f37d4e3e77313bd2",
+  "activeVisualSuccessorPr": 1601,
+  "activeVisualSuccessorHead": "31766012477d3be026a680f13f3da961a7017f71",
+  "activeVisualSuccessorAdmitted": false,
+  "currentAssetLockAuthority": {
+    "status": "missing-current-final-byte-lock",
+    "historicalDriveId": "10l8UZ0mi_DrrhZU-fgAfiv2i4F0Vuqd3bvEKriudp1Y",
+    "rule": "Do not call the launch asset estate locked until a new current immutable asset manifest binds the exact shipped bytes/hashes, provenance, licenses, runtime consumers, LOD/compression/fallback, literal visual acceptance, and promotion state."
+  }
 }

@@ -45,5 +45,12 @@
       "dashboard dominance",
       "invented human likeness"
     ]
+  },
+  "referenceAuthority": {
+    "lastAdmittedSpatialPr": 1600,
+    "lastAdmittedSpatialHead": "59ba5476b832ddc3c3724b26f37d4e3e77313bd2",
+    "activeVisualSuccessorPr": 1601,
+    "activeVisualSuccessorHead": "31766012477d3be026a680f13f3da961a7017f71",
+    "activeVisualSuccessorAdmitted": false
   }
 }
