@@ -150,7 +150,7 @@
   "lastAdmittedSpatialPr": 1600,
   "lastAdmittedSpatialHead": "59ba5476b832ddc3c3724b26f37d4e3e77313bd2",
   "activeVisualSuccessorPr": 1601,
-  "activeVisualSuccessorHead": "d78ed893037ad5f66149df8a92023c2a85b9733f",
+  "activeVisualSuccessorHead": "740a66ff7597e67ba7c55cd6475d3c5e86fa845a",
   "activeVisualSuccessorAdmitted": false,
   "currentAssetLockAuthority": {
     "status": "missing-current-final-byte-lock",
