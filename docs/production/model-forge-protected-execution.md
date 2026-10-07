@@ -49,7 +49,7 @@ Artifact downloads require exact signed HTTPS hosts, public resolved addresses, 
 
 ## Verification and exact remaining admission gates
 
-The dedicated source workflow checks the PR head SHA directly and runs actual shipped behavior, retained structural/promotion contracts, adapter wire contracts, pinned DNS streaming, and Studio paid containment using Node22 with no provider credentials or paid calls. Local results use Node24 and are recorded separately. Test signatures, accounts, media bytes, receipts, transports and serialized transaction persistence are explicitly synthetic. They are software evidence, not native Firestore contention, provider/account, real billing, deployed rules, hardware or release acceptance.
+The dedicated source workflow checks the PR head SHA directly and runs actual shipped behavior, retained structural/promotion contracts, adapter wire contracts, pinned DNS streaming, and Studio paid containment using Node22 with no provider credentials or paid calls. Its frozen-graph Studio job runs lint/types and the retained Studio suites. The existing targeted unit harness tests the actual public export's zero-transport denial, while preserving private adapter transport regressions through exports appended solely to an isolated temporary transpiled test copy. Production exports, runtime gates and source bytes are unchanged by that harness; every transport there is mocked. Local results use Node24 and are recorded separately. Test signatures, accounts, media bytes, receipts, transports and serialized transaction persistence are explicitly synthetic. They are software evidence, not native Firestore contention, provider/account, real billing, deployed rules, hardware or release acceptance.
 
 | Gate | State / exact action |
 |---|---|

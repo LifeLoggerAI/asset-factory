@@ -20,10 +20,13 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-factory-units-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
 
-function compileTsModule(relativePath, patches = []) {
+function compileTsModule(relativePath, patches = [], testExports = '') {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
   for (const [from, to] of patches) source = source.replace(from, to);
+  // Isolated temporary module only: preserve private adapter transport tests
+  // without granting any production/public export permission to dispatch.
+  source += testExports;
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -53,12 +56,12 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
   ["import type { AssetTypeDefinition } from './assetTypeCatalog';", "type AssetTypeDefinition = { canonicalType: 'graphic' | 'model3d' | 'audio' | 'bundle'; extension: string };"] ,
   ["import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';", "import { configuredProviderName } from './assetProviderAdapters.mjs'; type AssetProviderName = 'local-proof' | 'openai' | 'replicate' | 'fal' | 'elevenlabs' | 'stability' | 'higgsfield';"],
   ["from './higgsfieldClient';", "from './higgsfieldClient.mjs';"],
-]);
+], '\nexport { renderProvider as renderProviderForTransportTest };\n');
 
 const { buildStripeEntitlement } = await import(pathToFileURL(stripeModulePath).href);
 const { requeueAssetQueueJob } = await import(pathToFileURL(queueModulePath).href);
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
-const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+const { renderWithConfiguredProvider, renderProviderForTransportTest } = await import(pathToFileURL(providerRuntimeModulePath).href);
 
 function testStripeEntitlementFromCheckoutSession() {
   const entitlement = buildStripeEntitlement({
@@ -335,7 +338,7 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
   };
 
   try {
-    const result = await renderWithConfiguredProvider(
+    const result = await renderProviderForTransportTest('replicate',
       { jobId: 'provider-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
       resolveAssetType('graphic')
     );
@@ -381,7 +384,7 @@ async function testProviderArtifactRejectsPrivateUrls() {
 
   try {
     await assert.rejects(
-      () => renderWithConfiguredProvider(
+      () => renderProviderForTransportTest('replicate',
         { jobId: 'private-url-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
         resolveAssetType('graphic')
       ),
@@ -432,7 +435,7 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
 
   try {
     await assert.rejects(
-      () => renderWithConfiguredProvider(
+      () => renderProviderForTransportTest('replicate',
         { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
         resolveAssetType('graphic')
       ),
@@ -480,7 +483,7 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
   };
 
   try {
-    const result = await renderWithConfiguredProvider(
+    const result = await renderProviderForTransportTest('fal',
       { jobId: 'fal-provider-test', tenantId: 'tenant-a', prompt: 'governed fal smoke', type: 'graphic' },
       resolveAssetType('graphic')
     );
@@ -498,6 +501,30 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
   }
 }
 
+async function testPublicProviderDispatchRemainsBlockedWithConfiguredCredentials() {
+  const originalFetch = globalThis.fetch;
+  const originalProvider = process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+  const originalToken = process.env.REPLICATE_API_TOKEN;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('public paid dispatch must not reach transport'); };
+  process.env.REPLICATE_API_TOKEN = 'synthetic-software-test-only';
+  try {
+    process.env.ASSET_FACTORY_MEDIA_PROVIDER = 'local-proof';
+    assert.equal(await renderWithConfiguredProvider({ prompt: 'fictional' }, resolveAssetType('graphic')), null);
+    for (const provider of ['openai', 'elevenlabs', 'stability', 'replicate', 'fal', 'higgsfield']) {
+      process.env.ASSET_FACTORY_MEDIA_PROVIDER = provider;
+      await assert.rejects(renderWithConfiguredProvider({ prompt: 'fictional' }, resolveAssetType('graphic')), /disabled pending authenticated shared protected-executor integration/);
+    }
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalProvider === undefined) delete process.env.ASSET_FACTORY_MEDIA_PROVIDER;
+    else process.env.ASSET_FACTORY_MEDIA_PROVIDER = originalProvider;
+    if (originalToken === undefined) delete process.env.REPLICATE_API_TOKEN;
+    else process.env.REPLICATE_API_TOKEN = originalToken;
+  }
+}
+
 try {
   testStripeEntitlementFromCheckoutSession();
   testStripeEntitlementFromSubscriptionPriceMetadata();
@@ -505,6 +532,7 @@ try {
   await testRequeueDeadLetteredJob();
   await testRejectsTenantMismatch();
   await testRejectsNonRequeueableStatus();
+  await testPublicProviderDispatchRemainsBlockedWithConfiguredCredentials();
   await testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact();
   await testProviderArtifactRejectsPrivateUrls();
   await testProviderArtifactRejectsChunkedOverLimitDownload();

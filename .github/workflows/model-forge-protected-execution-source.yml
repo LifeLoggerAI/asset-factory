@@ -7,6 +7,7 @@ on:
       - scripts/test-model-forge-*.mjs
       - scripts/test-protected-*.mjs
       - scripts/test-studio-paid-dispatch-containment.mjs
+      - scripts/test-asset-factory-units.mjs
       - assetfactory-studio/lib/server/assetProviderRuntime.ts
       - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
       - docs/production/model-forge-protected-execution.md
@@ -17,6 +18,7 @@ on:
       - scripts/test-model-forge-*.mjs
       - scripts/test-protected-*.mjs
       - scripts/test-studio-paid-dispatch-containment.mjs
+      - scripts/test-asset-factory-units.mjs
       - assetfactory-studio/lib/server/assetProviderRuntime.ts
       - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
       - docs/production/model-forge-protected-execution.md
@@ -99,3 +101,4 @@ jobs:
           set -euo pipefail
           npm --prefix assetfactory-studio run lint
           npm --prefix assetfactory-studio run typecheck
+          npm --prefix assetfactory-studio test
