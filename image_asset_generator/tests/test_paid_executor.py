@@ -25,7 +25,7 @@ from PIL import Image
 
 ENTRY = {"name": "synthetic-image", "category": "fixture", "prompt": "Synthetic geometry only", "aspect_ratio": "1:1", "alpha": False}
 REAL_SOURCE_SHA = guard.executor_source_sha
-ENV = {"URAI_SOURCE_SHA": "a" * 40, "ASSET_RENDERER_MODE": "provider", "ASSET_RENDERER_PROVIDER": "custom", "ASSET_RENDERER_MODEL": "synthetic-model", "ASSET_RENDERER_ENDPOINT": "https://example.invalid/render", "ASSET_FORGE_SPEND_JOB_ID": "synthetic-pilot", "ASSET_FORGE_SPEND_GATEWAY_URL": "https://example.invalid/api/worker/production-spend", "ASSET_FORGE_SPEND_WORKER_TOKEN": "SYNTHETIC-NOT-AUTHORIZATION-0123456789"}
+ENV = {"URAI_SOURCE_SHA": "a" * 40, "ASSET_RENDERER_MODE": "provider", "ASSET_RENDERER_PROVIDER": "custom", "ASSET_RENDERER_MODEL": "synthetic-model", "ASSET_RENDERER_API_KEY": "SYNTHETIC-PROVIDER-KEY", "ASSET_RENDERER_ENDPOINT": "https://example.invalid/render", "ASSET_FORGE_SPEND_JOB_ID": "synthetic-pilot", "ASSET_FORGE_SPEND_GATEWAY_URL": "https://example.invalid/api/worker/production-spend", "ASSET_FORGE_SPEND_GATEWAY_ORIGIN": "https://example.invalid", "ASSET_FORGE_SPEND_WORKER_TOKEN": "SYNTHETIC-NOT-AUTHORIZATION-0123456789"}
 
 
 def envelope(fields):
@@ -34,10 +34,16 @@ def envelope(fields):
     binding = {"repository": "synthetic/fixture", "sha": "a" * 40}
     rates = {"usd_micros_per_unit": 1000000, "credits_per_unit": 10, "receipt": "SYNTHETIC-PRICE", "verified_at": before, "expires_at": after}
     job = {"schema_version": 1, "job_id": fields["job_id"], "provider": fields["provider"], "account_id": "synthetic-api", "operation": "render", "model_version": fields["model"], "owner_lane": "fixture", "consumer": "fixture", "truth_class": "GENERIC", "rights_reviewed": True, "authority": binding, "input_sha256": ["b" * 64], "reuse_review": {"input_sha256": ["b" * 64], "decision": "MISSING_COMPONENT", "receipt": "SYNTHETIC-REUSE"}, "acceptance": {"stage": "SPECIFIED", "criteria": "synthetic", "verification": "synthetic"}, "expected_outputs": ["image", "receipt"], "budget": {"currency": "USD", "max_usd_micros": 2500000, "max_credits": 20, "units": 1, "max_retries": 1, "max_runtime_seconds": 2, "hard_stop_supported": True, "auto_top_up": False, "storage_egress_overhead_usd_micros": 100000, "rates": rates}, "attempts": [], "executor": {"source_sha": fields["executor_source_sha"], "request_sha256": fields["request_sha256"], "endpoint": fields["endpoint"]}}
+    job["executor"].update({key: fields[key] for key in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type", "asset", "request_size"]})
+    job["input_sha256"] = [fields["source_input_sha256"], fields["request_sha256"]]; job["reuse_review"]["input_sha256"] = job["input_sha256"]
     job["approval"] = {"status": "APPROVED", "kind": "EXPLICIT_BOUNDED_SPEND", "receipt": "SYNTHETIC-NOT-AUTHORIZATION", "approver": "synthetic", "issued_at": before, "expires_at": after, "job_digest": digest(job), "max_usd_micros": 2500000, "max_credits": 20}
     account = {"provider": job["provider"], "account_id": job["account_id"], "balance_type": "API", "trusted_readback": True, "available_usd_micros": 3000000, "available_credits": 30, "observed_at": before, "expires_at": after, "reservations": [{"job_id": job["job_id"], "usd_micros": 2500000, "credits": 20}]}
+    account.update({"credential_sha256":fields["credential_sha256"], "credential_binding_verified":True, "credential_binding_receipt":"SYNTHETIC-ACCOUNT-READBACK"})
     authority = {"binding": binding, "trusted_readback": True, "observed_at": before, "expires_at": after}
-    return {"job": job, "account": account, "authority": authority}
+    controls = {key: fields[key] for key in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type", "provider"]}
+    controls["account_id"] = job["account_id"]
+    price = {**controls, "model_version":fields["model"], "request_sha256":fields["request_sha256"], "trusted_readback":True, "receipt":"SYNTHETIC-PRICE-PROOF", "observed_at":before, "expires_at":after, "rates":rates}
+    return {"job": job, "account": account, "authority": authority, "protected_controls":controls, "protected_pricing":price}
 
 
 class SyntheticGateway:
@@ -47,10 +53,10 @@ class SyntheticGateway:
         if action == "preflight":
             if self.reserved: raise guard.PaidRequestUnauthorized("SYNTHETIC pending task cannot retry")
             self.env = envelope(fields)
-            return {"ok": True, "envelope": self.env, "provider_call_authorized": False, "execution_performed": False}
+            return {"ok": True, "envelope": self.env, "admission_expires_at": self.env["job"]["approval"]["expires_at"], "provider_call_authorized": False, "execution_performed": False}
         if action == "reserve":
             self.reserved = True
-            return {"ok": True, "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False}
+            return {"ok": True, "reserved_at": datetime.now(timezone.utc).isoformat(), "admission_expires_at": (datetime.now(timezone.utc)+timedelta(seconds=1.9)).isoformat(), "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]}}
         if action == "record":
             self.env["job"]["attempts"] = [{"attempt_id": fields["attempt_id"], "status": "RECONCILIATION_REQUIRED", "charges_reconciled": False}]
             return {"ok": True, "reconciliation_required": True}
@@ -76,6 +82,29 @@ class ExecutorTests(unittest.TestCase):
         self.env_patch = patch.dict(os.environ, ENV, clear=True); self.env_patch.start()
         self.source_patch = patch.object(guard, "executor_source_sha", return_value="a" * 40); self.source_patch.start()
     def tearDown(self): self.source_patch.stop(); self.env_patch.stop(); guard._active.clear()
+    def test_missing_or_expired_absolute_reservation_never_dispatches(self):
+        for field in ["reserved_at", "admission_expires_at"]:
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "reserve": result.pop(field)
+                return result
+            with patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+                self.assertTrue(gateway.reserved); opener.assert_not_called()
+    def test_preflight_expiry_prevents_reserve_and_dispatch(self):
+        gateway = SyntheticGateway()
+        def changed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "preflight": result["admission_expires_at"] = (datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat()
+            return result
+        with patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+            with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+            self.assertFalse(gateway.reserved); opener.assert_not_called()
+    def test_protected_gateway_origin_mismatch_never_sends_worker_credential(self):
+        with patch.dict(os.environ, {"ASSET_FORGE_SPEND_GATEWAY_ORIGIN":"https://foreign.invalid"}), patch.object(guard.urllib.request, "build_opener") as opener:
+            with self.assertRaises(guard.PaidRequestUnauthorized): guard._gateway("snapshot", job_id="synthetic")
+            opener.assert_not_called()
     def test_legacy_env_authorization_cannot_bypass_gateway(self):
         with patch.dict(os.environ, {"ASSET_FORGE_PAID_RUN_AUTHORIZED": "1", "ASSET_FORGE_MAX_PROVIDER_CALLS": "99", "ASSET_FORGE_MAX_COST_USD": "1000", "ASSET_FORGE_SPEND_WORKER_TOKEN": ""}), patch.object(renderer.urllib.request, "build_opener") as opener:
             with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
@@ -130,7 +159,7 @@ class ExecutorTests(unittest.TestCase):
             gateway.assert_not_called()
     def test_forged_offline_authorization_flag_cannot_reserve(self):
         with patch.object(guard, "_gateway", return_value={"ok": True, "provider_call_authorized": True, "execution_performed": False}) as gateway:
-            with self.assertRaises(guard.PaidRequestUnauthorized): guard.reserve(provider="custom", model="synthetic", asset="synthetic", request_size="64x64", endpoint="https://example.invalid", request_sha256="a"*64)
+            with self.assertRaises(guard.PaidRequestUnauthorized): guard.reserve(provider="custom", model="synthetic", asset="synthetic", request_size="64x64", endpoint="https://example.invalid", request_sha256="a"*64, credential_sha256="b"*64, semantic_headers_sha256="c"*64, source_input_sha256="d"*64, content_type="application/json")
             self.assertEqual(gateway.call_count, 1)
     def test_boolean_gateway_runtime_cannot_authorize_submission(self):
         gateway = SyntheticGateway()
@@ -155,7 +184,7 @@ class ExecutorTests(unittest.TestCase):
     def test_actual_execution_deadline_interrupts_transport_and_restores_timer(self):
         before_handler = signal.getsignal(signal.SIGALRM); started = time.monotonic()
         with self.assertRaises(guard.PaidRequestLimitReached):
-            with guard.runtime_limit({"maxRuntimeSeconds": 1}): time.sleep(2)
+            with guard.runtime_limit({"sourceSha": "a"*40, "envelope": envelope({"job_id":"synthetic-pilot", "provider":"custom", "model":"synthetic", "executor_source_sha":"a"*40, "request_sha256":"b"*64, "endpoint":"https://example.invalid", "credential_sha256":"b"*64, "semantic_headers_sha256":"c"*64, "source_input_sha256":"d"*64, "content_type":"application/json", "asset":"synthetic", "request_size":"64x64"}), "deadline":datetime.now(timezone.utc)+timedelta(seconds=1), "monotonicDeadline":time.monotonic()+1}): time.sleep(2)
         self.assertLess(time.monotonic()-started, 1.5); self.assertEqual(signal.getsignal(signal.SIGALRM), before_handler); self.assertEqual(signal.getitimer(signal.ITIMER_REAL)[0], 0)
     def test_non_main_thread_executor_is_denied_before_reserve(self):
         errors = []
@@ -222,5 +251,78 @@ class ExecutorTests(unittest.TestCase):
         with patch.object(guard.subprocess, "run", side_effect=FileNotFoundError("synthetic missing git")):
             with self.assertRaises(guard.PaidRequestUnauthorized): REAL_SOURCE_SHA()
 
+    def test_actual_openai_and_custom_credential_account_drift_cannot_dispatch(self):
+        for provider in ["openai", "custom"]:
+            gateway = SyntheticGateway()
+            credential_a, credential_b = "SYNTHETIC-ACCOUNT-A", "SYNTHETIC-ACCOUNT-B"
+            expected = guard.source_input_digest({"authorization": "Bearer " + credential_a})
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "preflight":
+                    env = result["envelope"]
+                    env["job"]["executor"]["credential_sha256"] = expected
+                    env["account"]["credential_sha256"] = expected
+                    env["protected_controls"]["credential_sha256"] = expected
+                    env["job"]["approval"]["job_digest"] = digest(env["job"])
+                return result
+            with self.subTest(provider=provider), patch.dict(os.environ, {"ASSET_RENDERER_PROVIDER":provider,"OPENAI_API_KEY":credential_b,"ASSET_RENDERER_API_KEY":credential_b}), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY,64)
+                opener.assert_not_called(); self.assertEqual([a for a,_ in gateway.calls],["preflight"])
+    def test_missing_or_drifted_protected_fingerprints_fail_before_provider(self):
+        changes = [lambda e:e["account"].pop("credential_binding_receipt"),lambda e:e["account"].update(credential_binding_verified=False),lambda e:e["protected_controls"].pop("credential_sha256"),lambda e:e["protected_controls"].update(semantic_headers_sha256="c"*64),lambda e:e["job"]["executor"].pop("source_input_sha256"),lambda e:e["job"].update(account_id="ANOTHER-ACCOUNT")]
+        for change in changes:
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result=gateway(action,**fields)
+                if action=="preflight": change(result["envelope"]); result["envelope"]["job"]["approval"]["job_digest"]=digest(result["envelope"]["job"])
+                return result
+            with patch.object(guard,"_gateway",changed),patch.object(renderer.urllib.request,"build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized):renderer.render_with_provider(ENTRY,64)
+                opener.assert_not_called()
+    def test_custom_named_auth_headers_are_bound_and_case_duplicates_rejected(self):
+        gateway=SyntheticGateway()
+        with patch.dict(os.environ,{"ASSET_RENDERER_AUTH_HEADER":"X-Synthetic-Account-Key","ASSET_RENDERER_AUTH_SCHEME":""}),patch.object(guard,"_gateway",gateway),patch.object(renderer.urllib.request,"build_opener") as opener:
+            opener.return_value.open.return_value=image_response();renderer.render_with_provider(ENTRY,64)
+            expected=guard.source_input_digest({"x-synthetic-account-key":ENV["ASSET_RENDERER_API_KEY"]})
+            self.assertEqual(gateway.calls[0][1]["credential_sha256"],expected)
+            self.assertNotIn(ENV["ASSET_RENDERER_API_KEY"],json.dumps(gateway.calls))
+        for headers in [{"Content-Type":"application/json","Authorization":"Bearer A","authorization":"Bearer B"},{"Content-Type":"Bearer A","Accept":"application/json"}]:
+            with self.assertRaises(guard.PaidRequestUnauthorized):guard.request_header_bindings(headers,{"authorization","content-type"} if "Authorization" not in headers else {"authorization"})
+    def test_environment_credential_changes_after_admission_cannot_replace_frozen_request(self):
+        gateway=SyntheticGateway()
+        def changed(action,**fields):
+            result=gateway(action,**fields)
+            if action=="preflight":os.environ["ASSET_RENDERER_API_KEY"]="SYNTHETIC-MUTATED-AFTER-PREFLIGHT"
+            return result
+        with patch.object(guard,"_gateway",changed),patch.object(renderer.urllib.request,"build_opener") as opener:
+            opener.return_value.open.return_value=image_response();renderer.render_with_provider(ENTRY,64)
+            self.assertEqual(opener.return_value.open.call_args.args[0].get_header("Authorization"),"Bearer "+ENV["ASSET_RENDERER_API_KEY"])
+    def test_reserved_account_or_fingerprint_reply_drift_prevents_dispatch_and_keeps_unknown_hold(self):
+        for field in ["account_id","credential_sha256","semantic_headers_sha256","source_input_sha256","content_type"]:
+            gateway=SyntheticGateway()
+            def changed(action,**fields):
+                result=gateway(action,**fields)
+                if action=="reserve":result[field]="SYNTHETIC-DRIFT"
+                return result
+            with patch.object(guard,"_gateway",changed),patch.object(renderer.urllib.request,"build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized):renderer.render_with_provider(ENTRY,64)
+                self.assertTrue(gateway.reserved);opener.assert_not_called()
+
+    def test_missing_drifted_or_stale_actual_bound_pricing_never_reserves_or_dispatches(self):
+        changes = [lambda e:e.pop("protected_pricing")]
+        for name in ["provider", "account_id", "model_version", "request_sha256", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type", "receipt", "observed_at", "expires_at"]:
+            changes.append(lambda e,name=name:e["protected_pricing"].pop(name))
+        changes.extend([lambda e:e["protected_pricing"].update(trusted_readback=False), lambda e:e["protected_pricing"].update(expires_at="2000-01-01T00:00:00Z"), lambda e:e["protected_pricing"].update(observed_at="2100-01-01T00:00:00Z"), lambda e:e["protected_pricing"].update(semantic_headers_sha256="c"*64), lambda e:e["protected_pricing"].update(rates={**e["job"]["budget"]["rates"], "usd_micros_per_unit":1})])
+        for change in changes:
+            gateway = SyntheticGateway()
+            def changed(action,**fields):
+                result=gateway(action,**fields)
+                if action=="preflight":change(result["envelope"])
+                return result
+            with patch.object(guard,"_gateway",changed),patch.object(renderer.urllib.request,"build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized):renderer.render_with_provider(ENTRY,64)
+                opener.assert_not_called();self.assertFalse(gateway.reserved)
+
 
 if __name__ == '__main__': unittest.main()
+

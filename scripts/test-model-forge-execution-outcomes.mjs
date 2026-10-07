@@ -12,7 +12,7 @@ function fixture(t) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-forge-outcomes-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   fs.mkdirSync(path.join(cwd, 'model_forge'));
-  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs', 'triangle-budget.mjs', 'glb-container.mjs']) {
+  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs', 'triangle-budget.mjs', 'glb-container.mjs', 'model-spend-client.mjs']) {
     fs.copyFileSync(path.join(root, 'model_forge', file), path.join(cwd, 'model_forge', file));
   }
   fs.writeFileSync(path.join(cwd, 'no-network.mjs'), `
@@ -62,7 +62,8 @@ test('forge exits nonzero after provider failure rather than certifying an empty
   const receipt = JSON.parse(result.stdout);
   assert.equal(receipt.status, 'failed');
   assert.equal(receipt.providers[0].status, 'failed');
-  assert.match(receipt.providers[0].attempts[0].error, /no network attempted/);
+  assert.match(receipt.providers[0].attempts[0].error, /immutable executor source SHA required/);
+  assert.equal(receipt.providers[0].spendAttempts.length, 0);
 });
 
 for (const credential of [false, true]) {

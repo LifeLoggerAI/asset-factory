@@ -1,3 +1,4 @@
+import { syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs'
 import assert from 'node:assert/strict'
 import test, { after } from 'node:test'
 import { createRequire } from 'node:module'
@@ -9,9 +10,12 @@ const require = createRequire(new URL('../assetfactory-studio/package.json', imp
 const ts = require('typescript')
 const scratch = mkdtempSync(path.join(tmpdir(), 'urai-higgsfield-offline-tests-'))
 const compiled = path.join(scratch, 'client.mjs')
-writeFileSync(compiled, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/higgsfieldClient.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
+const protectedFile = path.join(scratch, 'protectedProviderRequest.mjs')
+writeFileSync(protectedFile, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/protectedProviderRequest.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
+writeFileSync(compiled, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/higgsfieldClient.ts', import.meta.url), 'utf8').replace("from './protectedProviderRequest';", "from './protectedProviderRequest.mjs';"), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
 after(() => rmSync(scratch, { recursive: true, force: true }))
 const { downloadHiggsfieldArtifact, higgsfieldArtifactUrl, runHiggsfieldGeneration } = await import(pathToFileURL(compiled).href)
+const protector = await import(pathToFileURL(protectedFile).href)
 const limits = { maxBytes: 8, timeoutMs: 1000 }
 function policy(t) {
   const previous = process.env.ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS
@@ -51,22 +55,30 @@ test('declared oversize cancels body and invalid budgets issue no request', asyn
   await assert.rejects(downloadHiggsfieldArtifact('https://outputs.example.test/a', { maxBytes: -1, timeoutMs: 1 }), /Invalid/)
   assert.equal(calls, 1)
 })
-test('submit and polling reject redirects and API errors omit provider body', async (t) => {
+test('protected submit and polling reject redirects and API errors omit provider body', async (t) => {
   const keys = ['HIGGSFIELD_API_KEY_ID','HIGGSFIELD_API_KEY_SECRET','ASSET_FACTORY_HIGGSFIELD_POLL_MS']
   const previous = keys.map(key => process.env[key])
   process.env.HIGGSFIELD_API_KEY_ID = 'offline-fixture'
   process.env.HIGGSFIELD_API_KEY_SECRET = 'offline-fixture'
   process.env.ASSET_FACTORY_HIGGSFIELD_POLL_MS = '1'
-  t.after(() => keys.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index] }))
+  const build = syntheticCleanBuild()
+  t.after(() => { build.restore(); keys.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index] }) })
+  const sourceInput = { jobId: 'offline-fixture', tenantId: 'synthetic', type: 'video', prompt: 'Synthetic non-private input' }
+  function install(providerFetch) {
+    const f = syntheticStudioSpend(sourceInput, { endpoint: 'https://api.higgsfield.ai/approved/model', provider: 'higgsfield', model: 'approved/model', lane: 'video', body: '{}', headers: { authorization: 'Key offline-fixture:offline-fixture', 'content-type': 'application/json', 'Idempotency-Key': 'offline-key' } }, protector)
+    globalThis.fetch = f.wrap(providerFetch)
+    return f
+  }
+  const original = globalThis.fetch; t.after(() => { globalThis.fetch = original })
   let calls = 0
-  mock(t, async (url, options) => {
+  install(async (url, options) => {
     assert.equal(options.redirect, 'error')
     calls++
     return new Response(JSON.stringify(calls === 1 ? { request_id:'offline-fixture', status:'queued', status_url:'https://api.higgsfield.ai/requests/offline-fixture/status' } : { request_id:'offline-fixture', status:'completed' }))
   })
-  assert.equal((await runHiggsfieldGeneration('approved/model', {}, 'offline-key')).status, 'completed')
-  globalThis.fetch = async () => new Response(JSON.stringify({ request_id: 'offline-fixture', status: 'queued', status_url: 'https://api.higgsfield.ai:8443/status' }))
-  await assert.rejects(runHiggsfieldGeneration('approved/model', {}, 'offline-key'), /escaped the approved API origin/)
-  globalThis.fetch = async () => new Response('private-provider-body', { status: 401 })
-  await assert.rejects(runHiggsfieldGeneration('approved/model', {}, 'offline-key'), error => error.message === 'Higgsfield request failed 401')
+  assert.equal((await runHiggsfieldGeneration('approved/model', {}, 'offline-key', sourceInput)).status, 'completed')
+  install(async () => new Response(JSON.stringify({ request_id: 'offline-fixture', status: 'queued', status_url: 'https://api.higgsfield.ai:8443/status' })))
+  await assert.rejects(runHiggsfieldGeneration('approved/model', {}, 'offline-key', sourceInput), /escaped the approved API origin/)
+  install(async () => new Response('private-provider-body', { status: 401 }))
+  await assert.rejects(runHiggsfieldGeneration('approved/model', {}, 'offline-key', sourceInput), error => error.message === 'Higgsfield request failed 401')
 })

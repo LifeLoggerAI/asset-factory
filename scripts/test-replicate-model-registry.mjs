@@ -1,3 +1,4 @@
+import { syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -23,6 +24,7 @@ function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
   for (const [from, to] of patches) source = source.replace(from, to);
+  source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -44,6 +46,7 @@ compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
   "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts');
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
@@ -63,6 +66,8 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
 
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
 const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+const protector = await import(pathToFileURL(protectedModulePath).href);
+const syntheticBuild = syntheticCleanBuild();
 
 const trackedEnv = [
   'ASSET_FACTORY_MEDIA_PROVIDER',
@@ -124,6 +129,8 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
     throw new Error(`Unexpected fetch URL: ${urlString}`);
   };
 
+  const protectedFixture = syntheticStudioSpend(request, { endpoint: expectedUrl, provider: 'replicate', model: expectedModel, lane: expectedLane, body: JSON.stringify(expectedBody), headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
   const result = await renderWithConfiguredProvider(request, resolveAssetType(typeName));
   assert.equal(result.metadata.provider, 'replicate');
   assert.equal(result.metadata.providerModel, expectedModel);
@@ -215,5 +222,7 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   restoreEnv();
+  syntheticBuild.restore();
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
+

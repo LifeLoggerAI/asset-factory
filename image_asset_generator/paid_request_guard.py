@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from spend_preflight_contract import Rejected, check, unique_object
+from spend_preflight_contract import Rejected, check, instant, unique_object
 
 
 class PaidRequestGuardError(RuntimeError):
@@ -46,6 +46,9 @@ def _gateway(action: str, **fields: Any) -> dict[str, Any]:
     token = os.environ.get("ASSET_FORGE_SPEND_WORKER_TOKEN", "")
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment or parsed.query or len(token) < 32:
         raise PaidRequestUnauthorized("authenticated HTTPS spend gateway is required")
+    origin = urllib.parse.urlsplit(os.environ.get("ASSET_FORGE_SPEND_GATEWAY_ORIGIN", ""))
+    if origin.scheme != "https" or origin.netloc != parsed.netloc or origin.path not in {"", "/"} or origin.query or origin.fragment or origin.username or origin.password or not parsed.path.endswith("/api/worker/production-spend"):
+        raise PaidRequestUnauthorized("gateway differs from protected issuer origin")
     request = urllib.request.Request(endpoint, data=json.dumps({"action": action, **fields}, allow_nan=False).encode(), headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, method="POST")
     try:
         # No automatic retry: a lost reserve response may already hold funds.
@@ -80,6 +83,34 @@ def request_digest(endpoint: str, body: bytes) -> str:
     return hashlib.sha256(b"POST\n" + endpoint.encode("utf-8") + b"\n" + body).hexdigest()
 
 
+def source_input_digest(value: Any) -> str:
+    try:
+        raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (ValueError, TypeError) as exc:
+        raise PaidRequestUnauthorized("source input cannot be bound exactly") from exc
+    return hashlib.sha256(raw).hexdigest()
+
+
+def request_header_bindings(headers: dict[str, str], credential_names: set[str]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for name, value in headers.items():
+        key = name.lower()
+        if not re.fullmatch(r"[!#$%&'*+.^_`|~0-9a-z-]+", key) or key in normalized or not isinstance(value, str) or "\r" in value or "\n" in value:
+            raise PaidRequestUnauthorized("ambiguous provider headers")
+        normalized[key] = value.strip()
+    credential_names = {name.lower() for name in credential_names}
+    if credential_names & {"content-type", "accept", "user-agent", "host", "content-length", "connection"}:
+        raise PaidRequestUnauthorized("credential header conflicts with request semantics")
+    credentials = {key: value for key, value in normalized.items() if key in credential_names}
+    if not credentials or not all(credentials.values()) or ("authorization" in credentials and not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*\s+\S+", credentials["authorization"])):
+        raise PaidRequestUnauthorized("actual provider account credential is required")
+    semantics = {key: value for key, value in normalized.items() if key not in credential_names and key not in {"content-length", "host", "connection"}}
+    content_type = normalized.get("content-type", "")
+    if not content_type:
+        raise PaidRequestUnauthorized("provider content type is required")
+    return {"credential_sha256": source_input_digest(credentials), "semantic_headers_sha256": source_input_digest(semantics), "content_type": content_type}
+
+
 def require_deadline_support() -> None:
     if not hasattr(signal, "setitimer") or threading.current_thread() is not threading.main_thread():
         raise PaidRequestUnauthorized("bounded image executor requires main-thread interval timer")
@@ -104,28 +135,59 @@ def executor_source_sha() -> str:
     return head
 
 
-def reserve(*, provider: str, model: str | None, asset: str, request_size: str, request_sha256: str | None = None, endpoint: str | None = None) -> dict[str, Any]:
+def reserve(*, provider: str, model: str | None, asset: str, request_size: str, request_sha256: str | None = None, endpoint: str | None = None, credential_sha256: str | None = None, semantic_headers_sha256: str | None = None, source_input_sha256: str | None = None, content_type: str | None = None) -> dict[str, Any]:
     require_deadline_support()
     if not request_sha256 or not endpoint or not model:
         raise PaidRequestUnauthorized("exact request bytes endpoint and model binding are required")
+    if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in [credential_sha256, semantic_headers_sha256, source_input_sha256]) or not isinstance(content_type, str) or not content_type:
+        raise PaidRequestUnauthorized("actual credential headers and source input binding are required")
     source_sha = executor_source_sha()
     job_id = _job_id(request_sha256)
-    fields = {"job_id": job_id, "provider": provider, "model": model, "asset": asset, "request_size": request_size, "request_sha256": request_sha256, "endpoint": endpoint, "executor_source_sha": source_sha}
+    fields = {"job_id": job_id, "provider": provider, "model": model, "asset": asset, "request_size": request_size, "request_sha256": request_sha256, "endpoint": endpoint, "executor_source_sha": source_sha, "credential_sha256": credential_sha256, "semantic_headers_sha256": semantic_headers_sha256, "source_input_sha256": source_input_sha256, "content_type": content_type}
     prepared = _gateway("preflight", **fields)
     if prepared.get("provider_call_authorized") is not False or prepared.get("execution_performed") is not False:
         raise PaidRequestUnauthorized("preflight must remain non-executing")
+    try:
+        proof_deadline = instant(prepared.get("admission_expires_at"))
+        if datetime.now(timezone.utc) >= proof_deadline:
+            raise Rejected("absolute preflight admission expired")
+    except (Rejected, ValueError, TypeError) as exc:
+        raise PaidRequestUnauthorized("absolute preflight admission missing or expired") from exc
     envelope = prepared.get("envelope", {})
     try:
         receipt = check(envelope["job"], envelope["account"], envelope["authority"], datetime.now(timezone.utc))
-        if envelope["job"].get("executor", {}).get("source_sha") != source_sha:
-            raise Rejected("approved image executor source differs from actual clean build")
+        job, account, controls, price = envelope["job"], envelope["account"], envelope["protected_controls"], envelope["protected_pricing"]
+        executor = job["executor"]
+        if executor.get("source_sha") != source_sha or account.get("account_id") != job["account_id"] or account.get("provider") != provider or account.get("credential_sha256") != credential_sha256 or account.get("credential_binding_verified") is not True or not isinstance(account.get("credential_binding_receipt"), str) or not account["credential_binding_receipt"]:
+            raise Rejected("approved image executor or authentic account mapping changed")
+        for name in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]:
+            if executor.get(name) != fields[name] or controls.get(name) != fields[name] or price.get(name) != fields[name]:
+                raise Rejected("actual image credential headers or input differ from approval")
+        if controls.get("provider") != provider or controls.get("account_id") != job["account_id"] or source_input_sha256 not in job["input_sha256"] or request_sha256 not in job["input_sha256"]:
+            raise Rejected("image account or input fixity changed")
+        now = datetime.now(timezone.utc)
+        if price.get("provider") != provider or price.get("account_id") != job["account_id"] or price.get("model_version") != model or price.get("request_sha256") != request_sha256 or price.get("trusted_readback") is not True or not isinstance(price.get("receipt"), str) or not price["receipt"].strip() or not instant(price.get("observed_at")) <= now < instant(price.get("expires_at")) or price.get("rates") != job["budget"]["rates"]:
+            raise Rejected("actual-bound protected image pricing changed or stale")
+        fields["account_id"] = job["account_id"]
     except (Rejected, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise PaidRequestUnauthorized("canonical offline preflight rejected request") from exc
+    if executor_source_sha() != source_sha:
+        raise PaidRequestUnauthorized("image source changed after preflight")
+    admission_started = time.monotonic()
     admitted = _gateway("reserve", **fields, job_digest=receipt["job_digest"])
     runtime = admitted.get("max_runtime_seconds")
     if admitted.get("provider_call_authorized") is not True or admitted.get("execution_performed") is not False or admitted.get("executor_source_sha") != source_sha or admitted.get("job_digest") != receipt["job_digest"] or type(runtime) is not int or not 0 < runtime <= 86400 or not isinstance(admitted.get("attempt_id"), str) or not admitted["attempt_id"]:
         raise PaidRequestUnauthorized("invalid protected reservation response")
-    reservation = {"attemptId": admitted["attempt_id"], "jobId": job_id, "maxRuntimeSeconds": runtime, "offlineReceipt": receipt}
+    if any(admitted.get(name) != fields[name] for name in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]):
+        raise PaidRequestUnauthorized("reserved account credential headers or input changed")
+    try:
+        reserved_at, admitted_until = instant(admitted.get("reserved_at")), instant(admitted.get("admission_expires_at"))
+        now = datetime.now(timezone.utc)
+        if not reserved_at <= now < admitted_until <= proof_deadline or (admitted_until - reserved_at).total_seconds() > runtime:
+            raise Rejected("absolute reservation window changed")
+    except (Rejected, ValueError, TypeError) as exc:
+        raise PaidRequestUnauthorized("absolute reservation admission missing or expired") from exc
+    reservation = {"attemptId": admitted["attempt_id"], "jobId": job_id, "maxRuntimeSeconds": runtime, "offlineReceipt": receipt, "bindingFields": fields, "deadline": admitted_until, "monotonicDeadline": min(admission_started + runtime, time.monotonic() + (admitted_until - now).total_seconds()), "sourceSha": source_sha, "envelope": envelope}
     _active[reservation["attemptId"]] = reservation
     return reservation
 
@@ -136,7 +198,15 @@ def runtime_limit(reservation: dict[str, Any]):
     old_handler = signal.getsignal(signal.SIGALRM)
     old_timer = signal.getitimer(signal.ITIMER_REAL)
     start = time.monotonic()
-    limit = reservation["maxRuntimeSeconds"]
+    if executor_source_sha() != reservation["sourceSha"]:
+        raise PaidRequestUnauthorized("image source changed after reservation")
+    try:
+        check(reservation["envelope"]["job"], reservation["envelope"]["account"], reservation["envelope"]["authority"], datetime.now(timezone.utc))
+    except (Rejected, ValueError, TypeError) as exc:
+        raise PaidRequestUnauthorized("image authority changed after reservation") from exc
+    limit = min((reservation["deadline"] - datetime.now(timezone.utc)).total_seconds(), reservation["monotonicDeadline"] - start)
+    if limit <= 0:
+        raise PaidRequestLimitReached("protected image execution deadline exceeded; reconcile before retry")
     if old_timer[0] > 0:
         limit = min(limit, old_timer[0])
     def timeout(_signal, _frame):
@@ -145,6 +215,8 @@ def runtime_limit(reservation: dict[str, Any]):
     signal.setitimer(signal.ITIMER_REAL, limit)
     try:
         yield
+        if datetime.now(timezone.utc) >= reservation["deadline"] or time.monotonic() >= reservation["monotonicDeadline"]:
+            timeout(None, None)
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)
@@ -158,14 +230,15 @@ def record(attempt_id: str, *, status: str, request_id: str | None = None, error
     if not reservation or status not in {"succeeded", "failed"}:
         raise PaidRequestUnauthorized("unknown protected attempt or invalid outcome")
     # Never send provider error bodies, prompts, source media, or caller-supplied costs.
-    _gateway("record", job_id=reservation["jobId"], attempt_id=attempt_id, status=status, request_id=request_id)
+    _gateway("record", **reservation["bindingFields"], attempt_id=attempt_id, status=status, request_id=request_id)
 
 
 def snapshot() -> dict[str, Any]:
-    job_ids = {r["jobId"] for r in _active.values()}
-    if not job_ids:
-        job_ids = {_job_id()}
-    jobs = [_gateway("snapshot", job_id=job_id)["job"] for job_id in sorted(job_ids)]
+    bindings = {r["jobId"]: r["bindingFields"] for r in _active.values()}
+    if not bindings:
+        raise PaidRequestUnauthorized("a locally admitted exact request is required for outcome readback")
+    jobs = [_gateway("snapshot", **fields)["job"] for _job, fields in sorted(bindings.items())]
     attempts = [a for job in jobs for a in job["attempts"]]
     reconciled = all(a.get("charges_reconciled") is True for a in attempts)
     return {"providerCallsReserved": len(attempts), "providerCallsExecuted": len(attempts) if reconciled else None, "reservedEstimatedCostUsd": str(sum(j["budget"]["max_usd_micros"] for j in jobs) / 1_000_000), "actualCostUsd": sum(a["actual_usd_micros"] for a in attempts) / 1_000_000 if reconciled else None, "chargesReconciled": reconciled, "attempts": attempts, "provider_call_authorized": False, "execution_performed": False}
+
