@@ -395,3 +395,50 @@ test('preflight and non-authorizing snapshot expose the same exact protected pri
   }
 });
 
+
+test('preflight serializes genuine approval and exposes the minimum verified authorization window', async () => {
+  for (const make of [fixture, crossFixture]) for (const record of ['approval', 'authority', 'account', 'controls', 'pricing', 'rates', ...(make === crossFixture ? ['deployment'] : [])]) {
+    const f = make(), end = new Date(NOW + 1000).toISOString();
+    if (record === 'approval') f.approval.expires_at = end;
+    else if (record === 'pricing') f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`).expires_at = end;
+    else if (record === 'rates') { f.job.budget.rates.expires_at = end; f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`).rates.expires_at = end; }
+    else f[record].expires_at = end;
+    if (make === crossFixture) refreshCrossProofs(f);
+    else f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing({ ...f.approval, job_digest: jobDigest(f.job) }));
+    f.input.job_digest = jobDigest(f.job);
+    const preflight = JSON.parse(JSON.stringify(await act(f, 'preflight', {}, f.opts || options)));
+    assert.equal(preflight.admission_expires_at, end, record);
+    assert.equal(preflight.envelope.job.approval.status, 'APPROVED');
+    const reservation = await act(f, 'reserve', {}, f.opts || options);
+    assert.equal(reservation.reserved_at, new Date(NOW).toISOString());
+    assert.equal(reservation.admission_expires_at, end, record);
+    const stored = f.db.rows.get(f.jobPath).job.attempts[0];
+    assert.equal(stored.reserved_at, reservation.reserved_at);
+    assert.equal(stored.admission_expires_at, reservation.admission_expires_at);
+    assert.equal(preflight.envelope.job.approval.status, 'APPROVED');
+    assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000);
+  }
+});
+test('reservation expiry is also bounded by the server reservation time plus runtime', async () => {
+  for (const make of [fixture, crossFixture]) {
+    const f = make(), a = await act(f, 'reserve', {}, f.opts || options);
+    assert.equal(Date.parse(a.admission_expires_at), NOW + 2000);
+    assert.equal(Date.parse(a.reserved_at), NOW);
+  }
+});
+test('deployment expiry during later authority reads prevents commit without any durable writes', async () => {
+  const f = crossFixture(); f.deployment.expires_at = new Date(NOW + 1000).toISOString(); refreshCrossProofs(f);
+  let clock = NOW; const original = f.db.runTransaction.bind(f.db);
+  f.db.runTransaction = fn => original(tx => fn({ ...tx, get: async ref => { const result = await tx.get(ref); if (ref.path.startsWith('assetFactorySpendAuthorities/')) clock = NOW + 1000; return result; } }));
+  const before = structuredClone(f.db.rows);
+  await assert.rejects(act(f, 'reserve', {}, { ...f.opts, now: () => clock }), SpendRejected);
+  assert.deepEqual(f.db.rows, before);
+});
+test('expiry on the final reservation clock read cannot create an expired attempt or hold', async () => {
+  const calibration = fixture(); let count = 0; await act(calibration, 'reserve', {}, { ...options, now: () => { count++; return NOW; } });
+  const f = fixture(); f.approval.expires_at = new Date(NOW + 1000).toISOString();
+  f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing(f.approval));
+  let current = 0; const before = structuredClone(f.db.rows);
+  await assert.rejects(act(f, 'reserve', {}, { ...options, now: () => ++current === count ? NOW + 1000 : NOW }), SpendRejected);
+  assert.deepEqual(f.db.rows, before);
+});

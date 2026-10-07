@@ -159,7 +159,7 @@ async function verifyCrossRepository(tx: Tx, job: SpendJob, input: RecordValue, 
     nonempty(record.proof_receipt, 'deployment proof identity'); nonempty(record.deployment_id, 'deployment identity');
   }
   need(deployment.deployment_id === controls.deployment_id && controls.enforcement_source_sha === binding.gateway_source_sha, 'current deployed enforcement changed');
-  return controls;
+  return { controls, deployment };
 }
 
 function verifyActualRequest(job: SpendJob, account: SpendAccount, controls: RecordValue, input: RecordValue, action: string, now: number) {
@@ -250,7 +250,8 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     const crossRepository = job.executor.binding_version !== undefined || job.executor.repository !== undefined;
     need(crossRepository || !options.worker, 'scoped workers cannot access legacy jobs');
     // Scope even non-authorizing reads and outcome observations before exposing a job.
-    const crossControls = crossRepository && action !== 'reconcile' ? await verifyCrossRepository(tx, job, input, options) : undefined;
+    const crossProofs = crossRepository && action !== 'reconcile' ? await verifyCrossRepository(tx, job, input, options) : undefined;
+    const crossControls = crossProofs?.controls;
     const accountRef = db.doc(`assetFactorySpendAccounts/${hash(`${job.provider}\n${job.account_id}`)}`);
     const accountSnapshot = await tx.get(accountRef); need(accountSnapshot.exists, 'protected account missing'); const account = spendAccount(structuredClone(accountSnapshot.data()));
     let boundControls = crossControls, boundApproval: RecordValue | undefined, boundPrice: RecordValue | undefined;
@@ -324,13 +325,22 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     const existing = account.reservations.find((r: RecordValue) => r.job_id === jobId);
     need(!existing || existing.settled === undefined || existing.settled === false, 'settled debit cannot reopen as a reservation');
     if (!existing) account.reservations.push({ job_id: jobId, usd_micros: job.budget.max_usd_micros, credits: job.budget.max_credits });
-    validateSpend(job, account, authority, options.now());
+    const admittedAt = options.now();
+    validateSpend(job, account, authority, admittedAt);
+    verifyActualRequest(job, account, controls, input, action, admittedAt);
+    verifyProtectedPricing(job, boundPrice, admittedAt);
+    if (crossProofs) fresh(crossProofs.deployment, 'observed_at', 'expires_at', admittedAt);
+    const proofExpiry = Math.min(...[approval, authority, account, controls, boundPrice, job.budget.rates, ...(crossProofs ? [crossProofs.deployment] : [])].map(record => date(record.expires_at)));
+    need(proofExpiry > admittedAt, 'authorization window elapsed');
     const envelope = { job, account, authority, protected_controls: controls, protected_pricing: boundPrice };
-    if (action === 'preflight') return { ok: true, envelope, provider_call_authorized: false, execution_performed: false };
+    if (action === 'preflight') return { ok: true, envelope, admission_expires_at: new Date(proofExpiry).toISOString(), provider_call_authorized: false, execution_performed: false };
     need(input.job_digest === jobDigest(job), 'offline job digest changed');
-    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at: new Date(options.now()).toISOString(), request_sha256: input.request_sha256, charges_reconciled: false };
+    const reservedAt = options.now(), executionExpiry = Math.min(proofExpiry, reservedAt + job.budget.max_runtime_seconds * 1000);
+    need(reservedAt < proofExpiry, 'authorization expired before reservation commit');
+    const reserved_at = new Date(reservedAt).toISOString(), admission_expires_at = new Date(executionExpiry).toISOString();
+    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at, admission_expires_at, request_sha256: input.request_sha256, charges_reconciled: false };
     job.attempts.push(attempt); delete job.approval; tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
-    return { ok: true, attempt_id: id, job_digest: input.job_digest, executor_source_sha: job.executor.source_sha, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, ...(crossRepository ? { gateway_source_sha: currentSource, worker_id: job.executor.worker_id } : {}), max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
+    return { ok: true, attempt_id: id, reserved_at, admission_expires_at, job_digest: input.job_digest, executor_source_sha: job.executor.source_sha, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, ...(crossRepository ? { gateway_source_sha: currentSource, worker_id: job.executor.worker_id } : {}), max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
   });
 }
 
