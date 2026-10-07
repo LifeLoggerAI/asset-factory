@@ -1,17 +1,37 @@
 /** Internal image-executor admission; an offline receipt never grants execution. */
 import { createHash, createPublicKey, randomUUID, timingSafeEqual, verify } from 'node:crypto';
 
-type RecordValue = Record<string, any>;
+type RecordValue = Record<string, unknown>;
 type Ref = { path: string };
-type Tx = { get(ref: Ref): Promise<{ exists: boolean; data(): RecordValue }>; set(ref: Ref, value: RecordValue): void };
+type Tx = { get(ref: Ref): Promise<{ exists: boolean; data(): unknown }>; set(ref: Ref, value: RecordValue): void };
 export type SpendDb = { doc(path: string): Ref; runTransaction<T>(f: (tx: Tx) => Promise<T>): Promise<T> };
 export type SpendKeys = Record<string, { subject: string; publicKey: string }>;
+type SpendBudget = RecordValue & { max_usd_micros: number; max_credits: number; max_retries: number; max_runtime_seconds: number; rates: RecordValue };
+type SpendJob = RecordValue & { job_id: string; provider: string; account_id: string; authority: RecordValue; reuse_review: RecordValue; acceptance: RecordValue; budget: SpendBudget; executor: RecordValue; attempts: RecordValue[] };
+type SpendAccount = RecordValue & { reservations: RecordValue[] };
 export class SpendRejected extends Error { code = 'spend_admission_rejected'; }
 function need(test: unknown, reason: string): asserts test { if (!test) throw new SpendRejected(reason); }
+function isRecord(value: unknown): value is RecordValue {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.prototype.toString.call(value) === '[object Object]';
+}
+export function spendRecord(value: unknown, name: string): RecordValue { need(isRecord(value), `invalid ${name}`); return value; }
+function recordList(value: unknown, name: string): RecordValue[] {
+  need(Array.isArray(value) && value.every(isRecord), `invalid ${name}`); return value;
+}
 function integer(value: unknown, name: string, min = 0): number {
   need(typeof value === 'number' && Number.isSafeInteger(value) && value >= min, `invalid ${name}`); return value;
 }
 function nonempty(value: unknown, name: string): string { need(typeof value === 'string' && value.trim(), `missing ${name}`); return value; }
+function spendJob(value: unknown): SpendJob {
+  const job = spendRecord(value, 'job'), budget = spendRecord(job.budget, 'budget');
+  return {
+    ...job, job_id: nonempty(job.job_id, 'job id'), provider: nonempty(job.provider, 'provider'), account_id: nonempty(job.account_id, 'account id'),
+    authority: spendRecord(job.authority, 'job authority'), reuse_review: spendRecord(job.reuse_review, 'reuse review'),
+    acceptance: spendRecord(job.acceptance, 'acceptance'), executor: spendRecord(job.executor, 'executor'), attempts: recordList(job.attempts, 'attempts'),
+    budget: { ...budget, max_usd_micros: integer(budget.max_usd_micros, 'USD cap', 1), max_credits: integer(budget.max_credits, 'credit cap'), max_retries: integer(budget.max_retries, 'retries'), max_runtime_seconds: integer(budget.max_runtime_seconds, 'runtime', 1), rates: spendRecord(budget.rates, 'rates') },
+  };
+}
+function spendAccount(value: unknown): SpendAccount { const account = spendRecord(value, 'account'); return { ...account, reservations: recordList(account.reservations, 'reservations') }; }
 function sha(value: unknown, length = 64): string { need(typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`).test(value), 'invalid digest'); return value; }
 function date(value: unknown): number {
   need(typeof value === 'string', 'timestamp requires timezone');
@@ -26,16 +46,16 @@ function fresh(record: RecordValue, observed: string, expires: string, now: numb
   need(date(record[observed]) <= now && now < date(record[expires]), 'stale or future trusted record');
 }
 /** Python ensure_ascii=True, sorted keys. Fractional values and ambiguous keys fail closed. */
-export function canonical(value: any): string {
+export function canonical(value: unknown): string {
   if (value === null) return 'null';
   if (typeof value === 'string') return JSON.stringify(value).replace(/[\u007f-\uffff]/g, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
   if (typeof value === 'boolean') return String(value);
   if (typeof value === 'number') { integer(Math.abs(value), 'canonical integer'); return String(value); }
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  need(value && typeof value === 'object', 'unsupported canonical value');
-  const keys = Object.keys(value).sort();
+  const record = spendRecord(value, 'canonical value');
+  const keys = Object.keys(record).sort();
   need(keys.every(k => /^[A-Za-z_][A-Za-z0-9_]*$/.test(k)), 'ambiguous canonical key');
-  return `{${keys.map(k => `${canonical(k)}:${canonical(value[k])}`).join(',')}}`;
+  return `{${keys.map(k => `${canonical(k)}:${canonical(record[k])}`).join(',')}}`;
 }
 export function hash(value: string) { return createHash('sha256').update(value, 'utf8').digest('hex'); }
 export function jobDigest(job: RecordValue) { return hash(canonical(Object.fromEntries(Object.entries(job).filter(([k]) => k !== 'approval' && k !== 'attempts')))); }
@@ -53,17 +73,18 @@ export function authenticateSpend(secret: string | undefined, supplied: string |
 }
 
 /** Enforces the Labs #229 consistency contract again within the account transaction. */
-export function validateSpend(job: RecordValue, account: RecordValue, authority: RecordValue, now: number) {
+export function validateSpend(jobValue: unknown, accountValue: unknown, authorityValue: unknown, now: number) {
+  const job = spendJob(jobValue), account = spendAccount(accountValue), authority = spendRecord(authorityValue, 'authority');
   need(integer(job.schema_version, 'schema', 1) === 1, 'unsupported schema');
   for (const name of ['job_id', 'provider', 'account_id', 'operation', 'model_version', 'owner_lane', 'consumer']) nonempty(job[name], name);
-  need(['GENERIC', 'INTERPRETIVE', 'SPATIALLY_RECONSTRUCTABLE'].includes(job.truth_class), 'invalid truth class');
+  need(typeof job.truth_class === 'string' && ['GENERIC', 'INTERPRETIVE', 'SPATIALLY_RECONSTRUCTABLE'].includes(job.truth_class), 'invalid truth class');
   need(job.rights_reviewed === true, 'rights not reviewed');
   need(canonical(job.authority) === canonical(authority.binding), 'authority changed');
   sha(job.authority.sha, 40); nonempty(job.authority.repository, 'repository');
   need(authority.trusted_readback === true, 'untrusted authority'); fresh(authority, 'observed_at', 'expires_at', now);
   const inputs = job.input_sha256; need(Array.isArray(inputs) && inputs.length && new Set(inputs).size === inputs.length, 'invalid inputs'); inputs.forEach((s: unknown) => sha(s));
   const reuse = job.reuse_review;
-  need(canonical(reuse.input_sha256) === canonical(inputs) && ['MISSING_COMPONENT', 'REWORK_EXISTING'].includes(reuse.decision), 'reuse not reviewed'); nonempty(reuse.receipt, 'reuse receipt');
+  need(canonical(reuse.input_sha256) === canonical(inputs) && typeof reuse.decision === 'string' && ['MISSING_COMPONENT', 'REWORK_EXISTING'].includes(reuse.decision), 'reuse not reviewed'); nonempty(reuse.receipt, 'reuse receipt');
   need(job.acceptance.stage === 'SPECIFIED', 'already generated or ambiguous stage');
   nonempty(job.acceptance.criteria, 'acceptance'); nonempty(job.acceptance.verification, 'verification');
   const outputs = job.expected_outputs; need(Array.isArray(outputs) && outputs.length && new Set(outputs).size === outputs.length, 'invalid outputs'); outputs.forEach((v: unknown) => nonempty(v, 'output'));
@@ -92,39 +113,40 @@ export function validateSpend(job: RecordValue, account: RecordValue, authority:
     spentUsd = integer(spentUsd + integer(a.actual_usd_micros, 'actual USD'), 'spent USD'); spentCredits = integer(spentCredits + integer(a.actual_credits, 'actual credits'), 'spent credits');
   }
   need(spentUsd + units * usdRate + overhead <= cap && spentCredits + units * creditRate <= credits, 'remaining cap insufficient');
-  const approval = job.approval; need(approval.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND', 'explicit approval missing');
+  const approval = spendRecord(job.approval, 'approval'); need(approval.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND', 'explicit approval missing');
   nonempty(approval.receipt, 'approval receipt'); nonempty(approval.approver, 'approver'); fresh(approval, 'issued_at', 'expires_at', now);
   need(approval.job_digest === jobDigest(job) && integer(approval.max_usd_micros, 'approved USD', 1) === cap && integer(approval.max_credits, 'approved credits') === credits, 'approval binding changed');
 }
 
-export async function spendAction(db: SpendDb, action: string, input: RecordValue, options: { now: () => number; approvalKeys: SpendKeys; reconciliationKeys: SpendKeys; sourceSha: string }) {
+export async function spendAction(db: SpendDb, action: string, inputValue: unknown, options: { now: () => number; approvalKeys: SpendKeys; reconciliationKeys: SpendKeys; sourceSha: string }) {
   need(['preflight', 'reserve', 'record', 'reconcile', 'snapshot'].includes(action), 'unsupported action');
+  const input = spendRecord(inputValue, 'spend request');
   const jobId = nonempty(input.job_id, 'job id'); const jobRef = db.doc(`assetFactorySpendJobs/${hash(jobId)}`);
   // Stable account identity is provider + API account, never a run-specific path.
   return db.runTransaction(async tx => {
-    const snapshot = await tx.get(jobRef); need(snapshot.exists, 'protected job missing'); const state = snapshot.data();
-    const job = structuredClone(state.job); need(job.job_id === jobId, 'job identity changed');
+    const snapshot = await tx.get(jobRef); need(snapshot.exists, 'protected job missing'); const state = spendRecord(snapshot.data(), 'job state');
+    const job = spendJob(structuredClone(state.job)); need(job.job_id === jobId, 'job identity changed');
     const accountRef = db.doc(`assetFactorySpendAccounts/${hash(`${job.provider}\n${job.account_id}`)}`);
-    const accountSnapshot = await tx.get(accountRef); need(accountSnapshot.exists, 'protected account missing'); const account = structuredClone(accountSnapshot.data());
+    const accountSnapshot = await tx.get(accountRef); need(accountSnapshot.exists, 'protected account missing'); const account = spendAccount(structuredClone(accountSnapshot.data()));
     const attemptId = input.attempt_id;
 
     if (action === 'snapshot') return { ok: true, job, account, provider_call_authorized: false, execution_performed: false };
 
     if (action === 'record') {
       const index = job.attempts.findIndex((a: RecordValue) => a.attempt_id === attemptId); need(index >= 0, 'unknown attempt'); const attempt = job.attempts[index];
-      need(attempt.status === 'RESERVED', 'attempt already recorded'); need(['succeeded', 'failed'].includes(input.status), 'invalid outcome');
+      need(attempt.status === 'RESERVED', 'attempt already recorded'); need(typeof input.status === 'string' && ['succeeded', 'failed'].includes(input.status), 'invalid outcome');
       // Caller outcomes are never trusted charge receipts or retry permission.
       attempt.status = 'RECONCILIATION_REQUIRED'; attempt.reported_outcome = input.status; attempt.reported_task_id = typeof input.request_id === 'string' ? input.request_id.slice(0, 256) : null;
       tx.set(jobRef, { ...state, job }); return { ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true };
     }
 
     if (action === 'reconcile') {
-      const receiptRef = db.doc(`assetFactorySpendChargeReceipts/${sha(input.receipt_sha256)}`); const receiptSnapshot = await tx.get(receiptRef); need(receiptSnapshot.exists, 'trusted charge receipt missing'); const receipt = receiptSnapshot.data();
+      const receiptRef = db.doc(`assetFactorySpendChargeReceipts/${sha(input.receipt_sha256)}`); const receiptSnapshot = await tx.get(receiptRef); need(receiptSnapshot.exists, 'trusted charge receipt missing'); const receipt = spendRecord(receiptSnapshot.data(), 'charge receipt');
       signed(receipt, options.reconciliationKeys, 'reconciler'); need(hash(canonical(receipt)) === input.receipt_sha256, 'charge receipt hash changed');
       const index = job.attempts.findIndex((a: RecordValue) => a.attempt_id === attemptId); need(index >= 0, 'unknown attempt'); const attempt = job.attempts[index];
-      need(['RESERVED', 'RECONCILIATION_REQUIRED'].includes(attempt.status), 'attempt already reconciled');
+      need(typeof attempt.status === 'string' && ['RESERVED', 'RECONCILIATION_REQUIRED'].includes(attempt.status), 'attempt already reconciled');
       need(receipt.job_id === jobId && receipt.attempt_id === attemptId && receipt.provider === job.provider && receipt.account_id === job.account_id && receipt.job_digest === jobDigest(job), 'charge receipt binding changed');
-      need(['FAILED', 'SUCCEEDED', 'CANCELLED'].includes(receipt.status) && receipt.final === true, 'receipt not final'); nonempty(receipt.task_id, 'provider task');
+      need(typeof receipt.status === 'string' && ['FAILED', 'SUCCEEDED', 'CANCELLED'].includes(receipt.status) && receipt.final === true, 'receipt not final'); nonempty(receipt.task_id, 'provider task');
       need(!job.attempts.some((a: RecordValue, i: number) => i !== index && a.task_id === receipt.task_id), 'provider task already reconciled to another attempt');
       need(date(receipt.observed_at) <= options.now() && date(receipt.observed_at) >= date(attempt.reserved_at), 'receipt time invalid');
       attempt.status = receipt.status; attempt.task_id = receipt.task_id; attempt.charges_reconciled = true; attempt.actual_usd_micros = integer(receipt.actual_usd_micros, 'actual USD'); attempt.actual_credits = integer(receipt.actual_credits, 'actual credits'); attempt.charge_receipt_sha256 = input.receipt_sha256;
@@ -153,7 +175,7 @@ export async function spendAction(db: SpendDb, action: string, input: RecordValu
       tx.get(db.doc(`assetFactorySpendControls/${sha(job.executor.controls_ref)}`)),
     ]);
     need(approvalSnapshot.exists && authoritySnapshot.exists && priceSnapshot.exists && controlsSnapshot.exists, 'trusted execution records missing');
-    const approval = approvalSnapshot.data(), authority = authoritySnapshot.data(), price = priceSnapshot.data(), controls = controlsSnapshot.data();
+    const approval = spendRecord(approvalSnapshot.data(), 'approval'), authority = spendRecord(authoritySnapshot.data(), 'authority'), price = spendRecord(priceSnapshot.data(), 'price'), controls = spendRecord(controlsSnapshot.data(), 'controls');
     signed(approval, options.approvalKeys, 'approver'); job.approval = approval;
     need(price.provider === job.provider && price.account_id === job.account_id && price.model_version === job.model_version && price.request_sha256 === job.executor.request_sha256 && price.trusted_readback === true, 'price binding changed');
     need(canonical(price.rates) === canonical(job.budget.rates), 'pricing changed');
@@ -176,3 +198,4 @@ export async function spendAction(db: SpendDb, action: string, input: RecordValu
     return { ok: true, attempt_id: id, job_digest: input.job_digest, executor_source_sha: currentSource, max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
   });
 }
+

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
-import { authenticateSpend, canonical, hash, jobDigest, spendAction, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
+import { authenticateSpend, canonical, hash, jobDigest, spendAction, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
 
 const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
@@ -104,6 +104,36 @@ const rejects = [
 for (const [name, change] of rejects) test(name + ' cannot commit reservation', async () => { const f = fixture(); change(f); await assert.rejects(act(f, 'reserve')); assert.equal(f.db.rows.get(f.accountPath).reservations.some(r => r.job_id === f.job.job_id), false); });
 test('missing or changed current gateway source cannot reserve', async () => { for (const sourceSha of ['', 'c'.repeat(40)]) { const f = fixture(); await assert.rejects(act(f, 'reserve', {}, { ...options, sourceSha }), SpendRejected); assert.equal(f.db.rows.get(f.accountPath).reservations.length, 0); } });
 test('unconfigured authentic signer keys cannot reserve', async () => { const f = fixture(); await assert.rejects(act(f, 'reserve', {}, { ...options, approvalKeys: {} }), SpendRejected); });
+test('malformed protected job and nested structures reject before any write', async () => {
+  const changes = [
+    f => { f.db.rows.set(f.jobPath, null); },
+    f => { f.db.rows.get(f.jobPath).job = []; },
+    ...['authority', 'reuse_review', 'acceptance', 'budget', 'executor'].map(field => f => { f.job[field] = null; }),
+    f => { f.job.budget.rates = []; },
+    f => { f.job.budget.max_usd_micros = true; },
+    f => { f.job.attempts = [null]; },
+    f => { f.account.reservations = [null]; },
+  ];
+  for (const change of changes) {
+    const f = fixture(); change(f); const before = structuredClone(f.db.rows);
+    await assert.rejects(act(f, 'reserve'), SpendRejected); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('present but malformed trusted Firestore records cannot authorize or write', async () => {
+  for (const prefix of ['Approvals', 'Authorities', 'Pricing', 'Controls']) {
+    for (const value of [null, [], false, 'untrusted']) {
+      const f = fixture(), path = [...f.db.rows.keys()].find(key => key.startsWith(`assetFactorySpend${prefix}/`));
+      f.db.rows.set(path, value); const before = structuredClone(f.db.rows);
+      await assert.rejects(act(f, 'reserve'), SpendRejected); assert.deepEqual(f.db.rows, before);
+    }
+  }
+});
+test('malformed stored charge receipt retains the durable hold and pending attempt', async () => {
+  const f = fixture(), attempt = await act(f, 'reserve'), digest = hash('SYNTHETIC-MALFORMED-RECEIPT');
+  f.db.rows.set(`assetFactorySpendChargeReceipts/${digest}`, null); const before = structuredClone(f.db.rows);
+  await assert.rejects(act(f, 'reconcile', { attempt_id: attempt.attempt_id, receipt_sha256: digest }), SpendRejected);
+  assert.deepEqual(f.db.rows, before); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000);
+});
 test('worker success is not charge truth, holds funds and does not allow another call', async () => {
   const f = fixture(); const a = await act(f, 'reserve'); await act(f, 'record', { attempt_id: a.attempt_id, status: 'succeeded', request_id: 'synthetic-id', actual_usd_micros: 0 });
   const attempt = f.db.rows.get(f.jobPath).job.attempts[0]; assert.equal(attempt.status, 'RECONCILIATION_REQUIRED'); assert.equal(attempt.charges_reconciled, false); assert.equal(attempt.actual_usd_micros, undefined); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000); await assert.rejects(act(f, 'reserve'));
@@ -151,7 +181,7 @@ async function route(f, envChange = {}) {
   const sources = {
     'next/server': next,
     '@/lib/server/firebaseAdmin': { getAdminDb: () => { initializations++; return f.db; } },
-    '@/lib/server/productionSpend': { authenticateSpend, spendAction, SpendRejected },
+    '@/lib/server/productionSpend': { authenticateSpend, spendAction, spendRecord, SpendRejected },
   };
   const source = stripTypeScriptTypes(readFileSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { context });
@@ -163,6 +193,31 @@ async function route(f, envChange = {}) {
 test('actual HTTP route rejects missing/wrong credentials before opening Firestore', async () => {
   const f = fixture(), r = await route(f); const result = await r.post({ ...f.input, action: 'reserve' }, 'wrong'); assert.equal(result.status, 401); assert.equal(r.initializations(), 0);
 });
+test('actual HTTP route rejects non-object bodies and non-string actions before opening Firestore', async () => {
+  for (const payload of ['null', '[]', 'false', '3', '"scalar"', '{}', '{"action":[]}']) {
+    const f = fixture(), r = await route(f), result = await r.post(payload);
+    assert.equal(result.status, 409); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 0);
+  }
+});
+test('actual HTTP route validates individual signer records before admission', async () => {
+  for (const value of [null, [], { subject: 7, publicKey }, { subject: 'synthetic-approver', publicKey: false }]) {
+    const f = fixture(), r = await route(f, { ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS: JSON.stringify({ synthetic: value }) });
+    const before = structuredClone(f.db.rows), result = await r.post({ ...f.input, action: 'reserve' });
+    assert.equal(result.status, 409); assert.equal(result.data.provider_call_authorized, false); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('actual HTTP transaction adapter supplies SDK-owned references on every read and write', async () => {
+  const f = fixture(), marker = Symbol('SDK reference'), run = f.db.runTransaction;
+  let reads = 0, writes = 0;
+  f.db.doc = path => ({ path, owner: marker });
+  f.db.runTransaction = fn => run.call(f.db, tx => fn({
+    get: ref => { assert.equal(ref.owner, marker); reads++; return tx.get(ref); },
+    set: (ref, value) => { assert.equal(ref.owner, marker); writes++; return tx.set(ref, value); },
+  }));
+  const r = await route(f), result = await r.post({ ...f.input, action: 'reserve' });
+  assert.equal(result.status, 200); assert.equal(reads, 6); assert.equal(writes, 2);
+  assert.equal(f.db.rows.get(f.jobPath).job.attempts.length, 1);
+});
 test('actual HTTP route blocks shared/mismatched store and missing exact deployment source', async () => {
   for (const change of [{ ASSET_FACTORY_FIREBASE_PROJECT_ID: '' }, { FIREBASE_PROJECT_ID: 'other' }, { ASSET_FACTORY_FIREBASE_PROJECT_ID: 'urai-4dc1d', FIREBASE_PROJECT_ID: 'urai-4dc1d' }, { URAI_SOURCE_SHA: '' }]) { const f = fixture(), r = await route(f, change); const result = await r.post({ ...f.input, action: 'reserve' }); assert.equal(result.status, 503); assert.equal(r.initializations(), 0); }
 });
@@ -173,3 +228,4 @@ test('actual HTTP reconciliation route requires a distinct independently authent
   const f = fixture(), r = await route(f); const a = await act(f, 'reserve'); const fields = { ...f.input, action: 'reconcile', ...charge(f, a, 'SUCCEEDED') }; assert.equal((await r.post(fields)).status, 401); assert.equal((await r.post(fields, r.env.ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN)).status, 200);
   const same = await route(f, { ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN: r.env.ASSET_FACTORY_SPEND_WORKER_TOKEN }); assert.equal((await same.post(fields)).status, 503);
 });
+
