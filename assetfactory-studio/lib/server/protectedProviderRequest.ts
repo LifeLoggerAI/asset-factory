@@ -166,6 +166,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   checkDeadline(session);
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed after reservation');
   checkProofs();
+  checkDeadline(session);
   // Dispatch the materialized method/headers/body that were actually admitted.
   return fetch(endpoint, { ...init, method: 'POST', headers, body: bytes, redirect: 'error', signal: joinedSignal(session, init.signal) });
 }

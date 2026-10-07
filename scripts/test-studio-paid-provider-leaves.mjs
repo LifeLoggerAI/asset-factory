@@ -211,6 +211,11 @@ test('a delayed reservation cannot restart the signed runtime at response receip
   const c = config('openai', 'graphic'); c.fixture.mutateReserve = () => { Date.now = () => started + 31_000; };
   try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
 });
+test('local provenance and proof checks cannot consume the runtime then reach the paid POST', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutateReserve = () => { let reads = 0; Date.now = () => started + (++reads >= 5 ? 31_000 : 0); };
+  try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
+});
 test('protected pricing requires its receipt, trusted identity and every actual transport fingerprint', async () => {
   const changes = [e => { delete e.protected_pricing; }, e => { e.protected_pricing = []; }, e => { e.protected_pricing.trusted_readback = false; }, e => { e.protected_pricing.receipt = ''; }, ...['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type'].map(field => e => { e.protected_pricing[field] = 'SYNTHETIC-other-price'; })];
   for (const mutate of changes) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
