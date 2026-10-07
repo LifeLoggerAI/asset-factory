@@ -111,6 +111,23 @@ test('worker success is not charge truth, holds funds and does not allow another
 test('signed charge receipt settles success and prevents duplicate generation permanently', async () => {
   const f = fixture(); const a = await act(f, 'reserve'); const result = await act(f, 'reconcile', charge(f, a, 'SUCCEEDED')); assert.equal(result.terminal, true); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 400000); await assert.rejects(act(f, 'reserve')); await assert.rejects(act(f, 'reconcile', charge(f, a, 'SUCCEEDED')));
 });
+test('settled debit identity cannot collide with a different job or reopen a consumed hold', async () => {
+  const f = fixture(); const a = await act(f, 'reserve'); await act(f, 'reconcile', charge(f, a, 'SUCCEEDED'));
+  const account = f.db.rows.get(f.accountPath); account.available_usd_micros = 500000; account.available_credits = 3;
+  function boundedToActual(g) {
+    g.job.budget.max_usd_micros = 400000; g.job.budget.max_credits = 2;
+    g.job.budget.rates.usd_micros_per_unit = 100000; g.job.budget.rates.credits_per_unit = 1;
+    g.controls.max_usd_micros = 400000; g.controls.max_credits = 2;
+    g.input.job_digest = jobDigest(g.job);
+    g.db.rows.set(`assetFactorySpendApprovals/${g.job.approval_ref}`, signing({ ...g.approval, job_digest: g.input.job_digest, max_usd_micros: 400000, max_credits: 2 }));
+  }
+  const other = fixture(f.db, `settled:${f.job.job_id}`); boundedToActual(other);
+  await assert.rejects(act(other, 'reserve'), SpendRejected);
+  // Even a protected-writer history reset cannot consume the same settled debit again.
+  const reopened = fixture(f.db, f.job.job_id); boundedToActual(reopened);
+  await assert.rejects(act(reopened, 'reserve'), SpendRejected);
+  assert.equal(f.db.rows.get(f.accountPath).reservations.length, 1);
+});
 test('only signed final failed charge reconciliation enables one corrective retry', async () => {
   const f = fixture(); const a = await act(f, 'reserve'); await act(f, 'record', { attempt_id: a.attempt_id, status: 'failed' }); await assert.rejects(act(f, 'reserve'));
   await act(f, 'reconcile', charge(f, a, 'FAILED')); const b = await act(f, 'reserve'); assert.notEqual(a.attempt_id, b.attempt_id); const r = await act(f, 'reconcile', charge(f, b, 'FAILED')); assert.equal(r.terminal, true); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 800000); await assert.rejects(act(f, 'reserve'));

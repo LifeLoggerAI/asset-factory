@@ -137,7 +137,7 @@ export async function spendAction(db: SpendDb, action: string, input: RecordValu
         const held = account.reservations.findIndex((r: RecordValue) => r.job_id === jobId); need(held >= 0, 'reservation disappeared');
         // Keep actual debits held against the same snapshot. A later balance read may
         // double-count until explicit account reconciliation, never undercount.
-        account.reservations[held] = { job_id: `settled:${jobId}`, usd_micros: spentUsd, credits: spentCredits };
+        account.reservations[held] = { job_id: jobId, usd_micros: spentUsd, credits: spentCredits, settled: true };
         state.terminal = true;
       }
       if (overrun) { account.frozen = true; state.cap_overrun = true; }
@@ -165,6 +165,7 @@ export async function spendAction(db: SpendDb, action: string, input: RecordValu
     need(controls.trusted_readback === true && controls.provider === job.provider && controls.account_id === job.account_id && controls.endpoint === job.executor.endpoint && controls.request_sha256 === job.executor.request_sha256 && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && controls.max_runtime_seconds === job.budget.max_runtime_seconds, 'provider hard controls unproven');
     need(input.request_sha256 === sha(job.executor.request_sha256) && input.endpoint === job.executor.endpoint && input.provider === job.provider && input.model === job.model_version && input.asset === job.executor.asset && input.request_size === job.executor.request_size, 'actual request differs from approved request');
     const existing = account.reservations.find((r: RecordValue) => r.job_id === jobId);
+    need(!existing || existing.settled === undefined || existing.settled === false, 'settled debit cannot reopen as a reservation');
     if (!existing) account.reservations.push({ job_id: jobId, usd_micros: job.budget.max_usd_micros, credits: job.budget.max_credits });
     validateSpend(job, account, authority, options.now());
     const envelope = { job, account, authority };
