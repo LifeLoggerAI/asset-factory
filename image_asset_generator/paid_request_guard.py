@@ -248,7 +248,7 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
 
 
 @contextmanager
-def runtime_limit(reservation: dict[str, Any]):
+def runtime_limit(reservation: dict[str, Any], *, final_check=None):
     require_deadline_support()
     check_admission(reservation)
     old_handler = signal.getsignal(signal.SIGALRM)
@@ -264,6 +264,9 @@ def runtime_limit(reservation: dict[str, Any]):
     try:
         yield
         check_admission(reservation)
+        if final_check is not None:
+            final_check()
+        remaining_seconds(reservation)
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)

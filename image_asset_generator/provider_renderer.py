@@ -173,7 +173,7 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
         if paid_request_guard.request_digest(request.full_url, request.data) != reservation["bindingFields"]["request_sha256"] or paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
             raise paid_request_guard.PaidRequestUnauthorized("admitted image request input or credentials changed")
     try:
-        with paid_request_guard.runtime_limit(reservation):
+        with paid_request_guard.runtime_limit(reservation, final_check=check_request):
             if paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
                 raise paid_request_guard.PaidRequestUnauthorized("admitted image input or credentials changed before dispatch")
             # Exactly one submission. Redirects and network failures cannot resubmit it.

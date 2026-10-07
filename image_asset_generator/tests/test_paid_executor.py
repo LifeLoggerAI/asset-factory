@@ -467,7 +467,7 @@ class ExecutorTests(unittest.TestCase):
             opener.return_value.open.return_value = image_response()
             with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
             opener.return_value.open.assert_called_once(); self.assertEqual(active_during_record, [True]); self.assertTrue(gateway.reserved)
-            self.assertIsFalse(guard.snapshot()["chargesReconciled"])
+            self.assertFalse(guard.snapshot()["chargesReconciled"])
 
     def test_source_drift_during_outcome_delivery_cannot_return_image(self):
         gateway = SyntheticGateway(); source = {"sha":"a"*40}
@@ -515,6 +515,32 @@ class ExecutorTests(unittest.TestCase):
         with patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
             with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
             self.assertTrue(gateway.reserved); opener.assert_not_called()
+
+
+    def test_mutation_during_final_source_check_cannot_escape_current_request_hashes(self):
+        for changed_field in ["input", "credential", "body"]:
+            gateway = SyntheticGateway(); entry = copy.deepcopy(ENTRY)
+            state = {"recorded":False, "after_record_sources":0}; captured = {}
+            def source():
+                if state["recorded"]:
+                    state["after_record_sources"] += 1
+                    if state["after_record_sources"] == 2:
+                        if changed_field == "input": entry["prompt"] = "SYNTHETIC-CHANGED-AFTER-FINAL-SOURCE"
+                        elif changed_field == "credential": captured["request"].add_header("Authorization", "Bearer SYNTHETIC-DRIFT")
+                        else: captured["request"].data = b'{"synthetic":"changed"}'
+                return "a"*40
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "record" and fields["status"] == "succeeded": state["recorded"] = True
+                return result
+            def opened(request, **kwargs):
+                captured["request"] = request
+                return image_response()
+            with self.subTest(field=changed_field), patch.object(guard, "executor_source_sha", side_effect=source), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                opener.return_value.open.side_effect = opened
+                with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(entry, 64)
+                opener.return_value.open.assert_called_once(); self.assertTrue(gateway.reserved)
+                self.assertGreaterEqual(state["after_record_sources"], 2)
 
 
 if __name__ == '__main__': unittest.main()
