@@ -163,16 +163,44 @@ jobs:
                       aborted_for_new_head = True
                       break
 
-                  cancel = urllib.request.Request(
-                      f'{api_root}/repos/{repository}/actions/runs/{run_id}/cancel',
-                      headers=headers,
-                      method='POST',
-                      data=b'',
-                  )
-                  try:
-                      with opener.open(cancel, timeout=30) as response:
-                          if response.status not in (202, 204):
-                              raise RuntimeError(f'unexpected cancel status {response.status}')
+                  cancel_url = f'{api_root}/repos/{repository}/actions/runs/{run_id}/cancel'
+                  cancelled_this_run = False
+                  for attempt in range(1, 6):
+                      cancel = urllib.request.Request(
+                          cancel_url,
+                          headers=headers,
+                          method='POST',
+                          data=b'',
+                      )
+                      try:
+                          with opener.open(cancel, timeout=30) as response:
+                              if response.status not in (202, 204):
+                                  raise RuntimeError(f'unexpected cancel status {response.status}')
+                          cancelled_this_run = True
+                          break
+                      except urllib.error.HTTPError as exc:
+                          if exc.code in {301, 302, 303, 307, 308}:
+                              exc.close()
+                              raise RuntimeError('unexpected redirect from GitHub Actions cancellation API') from exc
+                          if exc.code in (409, 422):
+                              exc.close()
+                              break
+                          if exc.code not in {429, 500, 502, 503, 504} or attempt == 5:
+                              raise
+                          exc.close()
+                      except urllib.error.URLError:
+                          if attempt == 5:
+                              raise
+                      delay = min(2 ** (attempt - 1), 8)
+                      print(f'transient GitHub Actions cancellation failure for run {run_id} on attempt {attempt}; retrying in {delay}s', flush=True)
+                      time.sleep(delay)
+                      _, _, latest_sha = live_pr_state()
+                      if latest_sha != live_sha:
+                          aborted_for_new_head = True
+                          break
+                  if aborted_for_new_head:
+                      break
+                  if cancelled_this_run:
                       cancelled.append({
                           'id': run_id,
                           'name': run.get('name'),
@@ -180,12 +208,6 @@ jobs:
                           'createdAt': run.get('created_at'),
                           'status': run.get('status'),
                       })
-                  except urllib.error.HTTPError as exc:
-                      if exc.code in {301, 302, 303, 307, 308}:
-                          exc.close()
-                          raise RuntimeError('unexpected redirect from GitHub Actions cancellation API') from exc
-                      if exc.code not in (409, 422):
-                          raise
               if aborted_for_new_head:
                   break
 
