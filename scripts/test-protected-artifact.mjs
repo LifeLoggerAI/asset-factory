@@ -29,7 +29,7 @@ test('one DNS answer pins the socket while retaining the original HTTPS certific
 for (const url of ['http://outputs.example.test/a', 'https://foreign.example.test/a', 'https://user:pw@outputs.example.test/a', 'https://outputs.example.test:444/a', 'https://outputs.example.test/a#other']) test(`artifact origin blocked before DNS: ${url}`, async () => {
   const f = fixture(); await assert.rejects(f.read(url), /ARTIFACT_BLOCKED/); assert.equal(f.state.lookups, 0); assert.equal(f.state.requests, 0);
 });
-for (const address of ['0.0.0.0', '10.1.2.3', '100.64.0.1', '127.0.0.1', '169.254.169.254', '172.16.0.1', '192.168.1.1', '198.18.0.1', '224.0.0.1', '::1', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1', '::ffff:7f00:1', '::ffff:a00:1', '2001:db8::1', '2002:7f00:1::1']) test(`all DNS addresses must be global public unicast: ${address}`, async () => {
+for (const address of ['0.0.0.0', '10.1.2.3', '100.64.0.1', '127.0.0.1', '169.254.169.254', '172.16.0.1', '192.168.1.1', '198.18.0.1', '224.0.0.1', '::1', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1', '::ffff:7f00:1', '::ffff:a00:1', '2001:db8::1', '2001:2::1', '2001:0002::1', '3fff::1', '3fff:fff::1', '3fff:0001::1', '2002:7f00:1::1']) test(`all DNS addresses must be global public unicast: ${address}`, async () => {
   const family = address.includes(':') ? 6 : 4, f = fixture({ addresses: [{ address: '1.1.1.1', family: 4 }, { address, family }] });
   assert.equal(publicArtifactAddress(address, family), false); await assert.rejects(f.read(), /nonpublic/); assert.equal(f.state.requests, 0);
 });
