@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {Document,NodeIO} from '@gltf-transform/core';
+import {ALL_EXTENSIONS} from '@gltf-transform/extensions';
+import {MeshoptDecoder} from 'meshoptimizer';
+import {prepareModel} from './prepare-launch-assets.mjs';
+
+const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder});
+async function fixture({skin=false,normalMap=false}={}) {
+  const d=new Document();const buffer=d.createBuffer();
+  const accessor=(type,array)=>d.createAccessor().setType(type).setArray(array).setBuffer(buffer);
+  const p=d.createPrimitive().setAttribute('POSITION',accessor('VEC3',new Float32Array([0,0,0,1,0,0,0,1,0]))).setAttribute('NORMAL',accessor('VEC3',new Float32Array([0,0,1,0,0,1,0,0,1]))).setAttribute('TEXCOORD_0',accessor('VEC2',new Float32Array([0,0,1,0,0,1]))).setIndices(accessor('SCALAR',new Uint16Array([0,1,2])));
+  const material=d.createMaterial();p.setMaterial(material);
+  if(normalMap){const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aKX0AAAAASUVORK5CYII=','base64');material.setNormalTexture(d.createTexture().setImage(png).setMimeType('image/png'));}
+  const mesh=d.createMesh().addPrimitive(p);const node=d.createNode().setMesh(mesh);const scene=d.createScene().addChild(node);d.getRoot().setDefaultScene(scene);
+  if(skin){
+    p.setAttribute('JOINTS_0',accessor('VEC4',new Uint16Array([0,1,2,3,0,1,2,3,0,1,2,3]))).setAttribute('WEIGHTS_0',accessor('VEC4',new Float32Array([1,0,0,0,1,0,0,0,1,0,0,0])));
+    const bones=Array.from({length:4},(_,i)=>d.createNode('bone'+i));bones.slice(1).forEach(b=>bones[0].addChild(b));scene.addChild(bones[0]);const s=d.createSkin().setSkeleton(bones[0]);bones.forEach(b=>s.addJoint(b));node.setSkin(s);
+    const animation=d.createAnimation('translation-proof');const sampler=d.createAnimationSampler().setInput(accessor('SCALAR',new Float32Array([0,1]))).setOutput(accessor('VEC3',new Float32Array([0,0,0,0,0.1,0])));animation.addSampler(sampler).addChannel(d.createAnimationChannel().setSampler(sampler).setTargetNode(bones[0]).setTargetPath('translation'));
+  }
+  return io.writeBinary(d);
+}
+test('Raw meshopt preserves geometry/animation/transforms and emits identical bytes twice',async()=>{
+  const input=await fixture({skin:true});const a=await prepareModel(input);const b=await prepareModel(input);
+  assert.equal(a.receipt.outputSha256,b.receipt.outputSha256);assert.equal(a.receipt.decodedSemanticReadbackExact,true);assert.equal(a.receipt.decodedKhronos.numErrors,0);assert.equal(a.receipt.zeroWeightJointsCleared,9);
+  const decoded=await io.readBinary(a.bytes);assert.deepEqual(Array.from(decoded.getRoot().listMeshes()[0].listPrimitives()[0].getAttribute('JOINTS_0').getArray()),Array(12).fill(0));assert.equal(decoded.getRoot().listAnimations().length,1);
+});
+test('Optional tangent proposal supplies finite normalized handed tangents and retains face positions',async()=>{
+  const a=await prepareModel(await fixture({normalMap:true}),{prepareTangents:true});assert.equal(a.receipt.tangentPrimitivesPrepared,1);assert.equal(a.receipt.decodedKhronos.numWarnings,0);
+  const p=(await io.readBinary(a.bytes)).getRoot().listMeshes()[0].listPrimitives()[0];assert.deepEqual(Array.from(p.getAttribute('POSITION').getArray()),[0,0,0,1,0,0,0,1,0]);const t=p.getAttribute('TANGENT').getArray();
+  for(let i=0;i<t.length;i+=4){assert.ok(Math.abs(Math.hypot(t[i],t[i+1],t[i+2])-1)<1e-5);assert.ok(t[i+3]===1||t[i+3]===-1);}
+});
+test('Malformed GLB input fails closed',async()=>{await assert.rejects(prepareModel(new Uint8Array([0,1,2,3])));});
+test('CLI rejects hash mismatch and refuses output inside source tree',async()=>{
+  const temp=await fs.mkdtemp(path.join(os.tmpdir(),'urai-asset-prepare-'));const source=path.join(temp,'source'),out=path.join(temp,'candidate');await fs.mkdir(source);const bytes=await fixture();await fs.writeFile(path.join(source,'test.glb'),bytes);const matrix=path.join(temp,'matrix.json');await fs.writeFile(matrix,JSON.stringify({assetMatrix:[{id:'test',path:'test.glb',sha256:'0'.repeat(64),measured:{format:'glb'},budgets:{}}]}));const recipe=fileURLToPath(new URL('./prepare-launch-assets.mjs',import.meta.url));
+  try {assert.throws(()=>execFileSync(process.execPath,[recipe,source,matrix,out],{stdio:'pipe'}));assert.deepEqual(await fs.readdir(path.join(out,'models')),[]);assert.throws(()=>execFileSync(process.execPath,[recipe,source,matrix,path.join(source,'candidates')],{stdio:'pipe'}));assert.equal(crypto.createHash('sha256').update(await fs.readFile(path.join(source,'test.glb'))).digest('hex'),crypto.createHash('sha256').update(bytes).digest('hex'));} finally {await fs.rm(temp,{recursive:true,force:true});}
+});
