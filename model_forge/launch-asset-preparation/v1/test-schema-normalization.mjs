@@ -20,3 +20,9 @@ test('Only demonstrably unreferenced materials are removed',()=>{
  d.createMesh().addPrimitive(d.createPrimitive().setMaterial(used));
  const r=pruneUnusedMaterials(d);assert.equal(r.unusedMaterialsRemoved,1);assert.deepEqual(d.getRoot().listMaterials(),[used]);assert.equal(unused.isDisposed(),true);
 });
+
+test('Unsupported later mesh rejects before any earlier mesh is moved',()=>{
+ const {d,root,body,scene}=fixture(),badRoot=d.createNode('bad').setTranslation([1,0,0]);
+ badRoot.addChild(d.createNode('otherBody').setMesh(d.createMesh()).setSkin(d.createSkin()));scene.addChild(badRoot);
+ assert.throws(()=>normalizeSkinRoots(d),/Nonidentity/);assert.equal(body.getParentNode(),root);
+});

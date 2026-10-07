@@ -7,7 +7,7 @@ export function normalizeSkinRoots(document) {
  const targeted=new Set(root.listAnimations().flatMap(a=>a.listChannels().map(c=>c.getTargetNode())));
  const worldBefore=root.listNodes().map(n=>n.getWorldMatrix());
  const preserved=snapshot(document);preserved.nodes.forEach(n=>delete n.children);
- const before=JSON.stringify(preserved);let changed=0;
+ const before=JSON.stringify(preserved);let changed=0;const plans=[];
  for(const node of root.listNodes()){
   if(!node.getSkin()||!node.getParentNode())continue;
   assert.ok(members.has(node),'Skinned mesh must belong to the bound default scene');
@@ -21,8 +21,9 @@ export function normalizeSkinRoots(document) {
    assert.ok(m.every((n,i)=>Math.abs(n-identity[i])<1e-12),'Nonidentity skin ancestor requires binding correction');
    parent=parent.getParentNode();
   }
-  node.getParentNode().removeChild(node);scene.addChild(node);changed++;
+  plans.push(node);
  }
+ for(const node of plans){node.getParentNode().removeChild(node);scene.addChild(node);changed++;}
  assert.equal(JSON.stringify(root.listNodes().map(n=>n.getWorldMatrix())),JSON.stringify(worldBefore));
  const after=snapshot(document);after.nodes.forEach(n=>delete n.children);assert.equal(JSON.stringify(after),before);
  return {identityAncestorSkinMeshesPromoted:changed,worldMatricesExact:true,
