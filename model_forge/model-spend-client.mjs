@@ -111,6 +111,21 @@ function protectedBinding(envelope, binding, expectedAccount = null) {
   return job;
 }
 
+function admissionInstant(value) {
+  need(typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(value), 'absolute admission timestamp missing or malformed');
+  const result = Date.parse(value); need(Number.isFinite(result), 'absolute admission timestamp invalid'); return result;
+}
+function admissionWindow(envelope, binding, advertised) {
+  const job = envelope?.job, authority = envelope?.authority, approval = job?.approval;
+  need(job?.authority?.repository === 'LifeLoggerAI/asset-factory' && job.authority.sha === binding.executor_source_sha && authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority), 'protected source authority changed');
+  need(admissionInstant(authority.observed_at) <= binding.checked_at && binding.checked_at < admissionInstant(authority.expires_at), 'protected source authority expired');
+  need(approval?.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND' && typeof approval.receipt === 'string' && approval.receipt && typeof approval.approver === 'string' && approval.approver && approval.job_digest === jobDigest(job) && approval.max_usd_micros === job.budget.max_usd_micros && approval.max_credits === job.budget.max_credits, 'verified bounded approval changed');
+  need(admissionInstant(approval.issued_at) <= binding.checked_at && binding.checked_at < admissionInstant(approval.expires_at), 'verified bounded approval expired');
+  need(Number.isSafeInteger(job.budget.max_runtime_seconds) && job.budget.max_runtime_seconds > 0 && job.budget.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
+  const end = admissionInstant(advertised), minimum = Math.min(...[approval, authority, envelope.account, envelope.protected_controls, envelope.protected_pricing, job.budget.rates].map(record => admissionInstant(record.expires_at)));
+  need(end <= minimum && binding.checked_at < end, 'absolute preflight window expired or enlarged');
+  return end;
+}
 async function boundedJson(response, maximum) {
   const declared = Number(response.headers.get('content-length')); need(!Number.isFinite(declared) || declared <= maximum, 'response exceeds bound');
   need(response.body, 'response body missing'); const reader = response.body.getReader(); const chunks = []; let bytes = 0;
@@ -175,19 +190,29 @@ export class ModelSpendClient {
     const job = protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
     input.account_id = job.account_id;
     const digest = jobDigest(job);
+    const preflightExpiry = admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at);
+    const reserveStarted = this.now();
+    this.deadline = Math.min(this.deadline, preflightExpiry, reserveStarted + job.budget.max_runtime_seconds * 1000);
+    this.submitted.add(request.request_sha256);
     const reservation = await this.gateway('reserve', { ...input, job_digest: digest });
     need(reservation.provider_call_authorized === true && reservation.execution_performed === false && reservation.job_digest === digest && reservation.executor_source_sha === sourceSha && typeof reservation.attempt_id === 'string' && reservation.attempt_id, 'atomic reservation did not authorize this exact request');
     for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(reservation[field] === input[field], 'atomic reservation binding differs from actual transport');
     need(Number.isSafeInteger(reservation.max_runtime_seconds) && reservation.max_runtime_seconds > 0 && reservation.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
     need(reservation.max_runtime_seconds === job.budget.max_runtime_seconds, 'atomic reservation changed approved runtime cap');
-    this.submitted.add(request.request_sha256);
-    this.deadline = Math.min(this.deadline, this.now() + reservation.max_runtime_seconds * 1000);
     const record = { job_id: jobId, account_id: input.account_id, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type, status: 'unknown-outcome', reconciliation_required: true };
     this.records.push(record);
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
     try {
+      const reservedAt = admissionInstant(reservation.reserved_at), admittedExpiry = admissionInstant(reservation.admission_expires_at);
+      need(reservedAt <= this.now() && admittedExpiry > reservedAt && admittedExpiry <= preflightExpiry && admittedExpiry <= reservedAt + reservation.max_runtime_seconds * 1000, 'atomic absolute reservation window invalid');
+      this.deadline = Math.min(this.deadline, admittedExpiry, reservedAt + reservation.max_runtime_seconds * 1000);
+      need(verifiedSourceSha(this.env) === sourceSha, 'actual executor source changed after reservation');
+      protectedBinding(preflight.envelope, { ...input, checked_at: this.now() }, input.account_id);
+      admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at);
       const response = await this.fetch(request.endpoint, { method: 'POST', headers: request.headers, body: request.body, redirect: 'error', signal: AbortSignal.timeout(this.remainingMs(120000)) });
       const payload = await boundedJson(response, MAX_GATEWAY_BYTES);
+      this.remainingMs(1);
+      need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during provider response');
       record.http_status = response.status;
       need(response.ok, `paid provider returned HTTP ${response.status}; no automatic retry`);
       record.status = 'submission-returned';
@@ -198,6 +223,7 @@ export class ModelSpendClient {
       // authentic independent charge reconciliation; no local charge or retry claim.
       try { await this.gateway('record', { ...input, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
       if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
+      if (record.status === 'submission-returned') { this.remainingMs(1); need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during outcome delivery'); }
     }
   }
 }
