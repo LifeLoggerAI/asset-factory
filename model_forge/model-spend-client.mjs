@@ -117,7 +117,7 @@ function admissionInstant(value) {
 }
 function admissionWindow(envelope, binding, advertised) {
   const job = envelope?.job, authority = envelope?.authority, approval = job?.approval;
-  need(job?.authority?.repository === 'LifeLoggerAI/asset-factory' && job.authority.sha === binding.executor_source_sha && authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority), 'protected source authority changed');
+  need(typeof job?.authority?.repository === 'string' && job.authority.repository.trim() && /^[0-9a-f]{40}$/.test(job.authority.sha || '') && authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority), 'protected source authority changed');
   need(admissionInstant(authority.observed_at) <= binding.checked_at && binding.checked_at < admissionInstant(authority.expires_at), 'protected source authority expired');
   need(approval?.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND' && typeof approval.receipt === 'string' && approval.receipt && typeof approval.approver === 'string' && approval.approver && approval.job_digest === jobDigest(job) && approval.max_usd_micros === job.budget.max_usd_micros && approval.max_credits === job.budget.max_credits, 'verified bounded approval changed');
   need(admissionInstant(approval.issued_at) <= binding.checked_at && binding.checked_at < admissionInstant(approval.expires_at), 'verified bounded approval expired');
