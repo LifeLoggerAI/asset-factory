@@ -206,7 +206,7 @@ export async function downloadHiggsfieldArtifact(
   if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0 || !Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) throw new Error('Invalid Higgsfield artifact budget');
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(options.timeoutMs)]);
-  const response = await readStudioProvider(safeUrl, { signal, redirect: 'error' });
+  const response = await readStudioProvider(safeUrl, { signal, redirect: 'error' }, { maxBytes: options.maxBytes });
   if (!response.ok) throw new Error(`Higgsfield artifact fetch failed ${response.status}`);
 
   const contentLength = Number(response.headers.get('content-length') ?? 0);

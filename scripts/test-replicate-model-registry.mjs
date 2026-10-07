@@ -19,10 +19,13 @@ const ts = await import(pathToFileURL(typescriptPath).href);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'replicate-registry-contract-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
+fs.mkdirSync(path.join(tmpDir, 'model_forge'), { recursive: true });
+fs.copyFileSync(path.join(root, 'model_forge', 'protected-artifact.mjs'), path.join(tmpDir, 'model_forge', 'protected-artifact.mjs'));
 
 function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
+  source = source.replace("import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';", `import { admittedArtifactHosts } from '../../../model_forge/protected-artifact.mjs';\nimport { syntheticArtifactRetrieve as retrievePublicArtifact } from '${pathToFileURL(path.join(root, 'scripts/lib/studio-spend-test-fixture.mjs')).href}';`);
   for (const [from, to] of patches) source = source.replace(from, to);
   source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
@@ -40,6 +43,8 @@ function compileTsModule(relativePath, patches = []) {
   fs.writeFileSync(outputPath, output);
   return outputPath;
 }
+
+fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? null; }\n');
 
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetProviderAdapters.ts', [[
@@ -147,7 +152,7 @@ async function testGraphicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions',
     expectedBody: { input: { prompt: 'symbolic moonlit orb', num_outputs: 1, aspect_ratio: '16:9', output_format: 'webp', output_quality: 80 } },
     mimeType: 'image/webp',
-    artifactUrl: 'https://cdn.example.com/graphic.webp',
+    artifactUrl: 'https://outputs.example.test/graphic.webp',
     expectedModel: 'black-forest-labs/flux-schnell',
     expectedLane: 'graphic',
   });
@@ -161,7 +166,7 @@ async function testModel3dLaneUsesPinnedVersionRoute() {
     expectedUrl: 'https://api.replicate.com/v1/predictions',
     expectedBody: { version, input: { prompt: 'glass memory shrine', enable_pbr: true, face_count: 40000, generate_type: 'Normal' } },
     mimeType: 'model/gltf-binary',
-    artifactUrl: 'https://cdn.example.com/model.glb',
+    artifactUrl: 'https://outputs.example.test/model.glb',
     expectedModel: `tencent/hunyuan-3d-3.1:${version}`,
     expectedLane: 'model3d',
   });
@@ -174,7 +179,7 @@ async function testMusicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/google/lyria-2/predictions',
     expectedBody: { input: { prompt: 'slow atmospheric recovery theme', negative_prompt: 'vocals' } },
     mimeType: 'audio/wav',
-    artifactUrl: 'https://cdn.example.com/music.wav',
+    artifactUrl: 'https://outputs.example.test/music.wav',
     expectedModel: 'google/lyria-2',
     expectedLane: 'audio',
   });
@@ -187,7 +192,7 @@ async function testSpeechLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/minimax/speech-02-hd/predictions',
     expectedBody: { input: { text: 'Welcome back, Adam.', voice_id: 'Friendly_Person', emotion: 'auto', language_boost: 'English', english_normalization: true } },
     mimeType: 'audio/mpeg',
-    artifactUrl: 'https://cdn.example.com/speech.mp3',
+    artifactUrl: 'https://outputs.example.test/speech.mp3',
     expectedModel: 'minimax/speech-02-hd',
     expectedLane: 'speech',
   });

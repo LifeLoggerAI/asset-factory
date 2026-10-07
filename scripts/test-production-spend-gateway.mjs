@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { cpSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { stripTypeScriptTypes } from 'node:module';
@@ -10,6 +10,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { authenticateSpend, authenticateSpendWorker, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendGatewaySourceSha, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
 import { ModelSpendClient, freezeRequest } from '../model_forge/model-spend-client.mjs';
+import { syntheticCleanBuild } from './lib/studio-spend-test-fixture.mjs';
 
 const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
@@ -56,7 +57,7 @@ function fixture(db = new Db(), id = 'synthetic-pilot') {
   return { db, job, input, jobPath, accountPath, account, authority, approval, controls };
 }
 const act = (f, action, extra = {}, opts = options) => spendAction(f.db, action, { ...f.input, ...extra }, opts);
-async function actualModelGatewayFixture({ delayedReserve = false } = {}) {
+async function actualModelGatewayFixture({ delayedReserve = false, distinctSpecification = false } = {}) {
   const sourceSha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
   const endpoint = 'https://api.replicate.com/v1/models/synthetic/model/predictions', model = 'synthetic/model';
   const init = { method: 'POST', headers: { authorization: 'Bearer SYNTHETIC-PROVIDER-ONLY', 'content-type': 'application/json' }, body: '{"input":{"prompt":"synthetic"}}' };
@@ -64,7 +65,7 @@ async function actualModelGatewayFixture({ delayedReserve = false } = {}) {
   let now = Date.now(), calls = 0;
   const observed = new Date(now - 60_000).toISOString(), expires = new Date(now + 600_000).toISOString();
   f.job.provider = 'replicate'; f.job.model_version = model;
-  f.job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }; f.authority.binding = f.job.authority;
+  f.job.authority = distinctSpecification ? { repository: 'LifeLoggerAI/urai-reality', sha: 'b'.repeat(40) } : { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }; f.authority.binding = f.job.authority;
   Object.assign(f.job.executor, { source_sha: sourceSha, endpoint, request_sha256: request.request_sha256, request_size: request.request_size, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, semantic_input_sha256: request.semantic_input_sha256, content_type: request.content_type });
   f.job.input_sha256 = [f.job.executor.source_input_sha256, request.request_sha256]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
   f.job.budget.max_runtime_seconds = 10;
@@ -100,6 +101,13 @@ test('actual gateway reservation delivered after expiry cannot cause an actual M
   await assert.rejects(t.client().submit(t.endpoint, t.init, t.model), /deadline/);
   assert.equal(t.calls(), 0); assert.equal(t.f.db.rows.get(t.f.accountPath).reservations.length, 1);
   assert.equal(t.f.db.rows.get(t.f.jobPath).job.attempts[0].status, 'RESERVED');
+});
+test('actual Forge and gateway preserve accepted specification authority distinct from executing source', async () => {
+  const t = await actualModelGatewayFixture({ distinctSpecification: true });
+  assert.equal((await t.client().submit(t.endpoint, t.init, t.model)).payload.id, 'SYNTHETIC-TASK');
+  assert.equal(t.calls(), 1);
+  assert.equal(t.f.db.rows.get(t.f.jobPath).job.authority.repository, 'LifeLoggerAI/urai-reality');
+  assert.equal(t.f.db.rows.get(t.f.jobPath).job.attempts[0].status, 'RECONCILIATION_REQUIRED');
 });
 function charge(f, attempt, status, usd = 400000, credits = 2, change = {}) {
   const receipt = signing({ job_id: f.job.job_id, attempt_id: attempt.attempt_id, provider: f.job.provider, account_id: f.job.account_id, job_digest: jobDigest(f.job), status, final: true, task_id: `SYNTHETIC-TASK-${attempt.attempt_id}`, actual_usd_micros: usd, actual_credits: credits, corrective_action: 'Synthetic reviewed correction', observed_at: '2026-10-07T16:30:00Z', reconciler: 'synthetic-reconciler', key_id: 'synthetic', ...change });
@@ -226,15 +234,15 @@ test('request authority changing after preflight is revalidated at the atomic re
   const f = fixture(); await act(f, 'preflight'); f.authority.binding.sha = 'c'.repeat(40); await assert.rejects(act(f, 'reserve'));
 });
 
-async function route(f, envChange = {}) {
+async function route(f, envChange = {}, runtime = {}) {
   const env = { ASSET_FACTORY_SPEND_WORKER_TOKEN: 'synthetic-worker-'.repeat(4), ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN: 'synthetic-reconciler-'.repeat(4), ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-dedicated', FIREBASE_PROJECT_ID: 'synthetic-dedicated', URAI_SOURCE_SHA: 'a'.repeat(40), ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS: JSON.stringify(options.approvalKeys), ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS: JSON.stringify(options.reconciliationKeys), ...envChange };
-  f.db.projectId = 'synthetic-dedicated'; let initializations = 0;
-  const context = vm.createContext({ process: { env }, Buffer, Date: class extends Date { static now() { return NOW; } } });
+  f.db.projectId = runtime.projectId || 'synthetic-dedicated'; let initializations = 0;
+  const context = vm.createContext({ process: { env }, Buffer, Date: class extends Date { static now() { return runtime.now ? runtime.now() : NOW; } } });
   const next = { NextRequest: class {}, NextResponse: { json: (data, args = {}) => ({ data, status: args.status || 200 }) } };
   const sources = {
     'next/server': next,
     '@/lib/server/firebaseAdmin': { getAdminDb: () => { initializations++; return f.db; } },
-    '@/lib/server/productionSpend': { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha: () => options.sourceSha, spendRecord, SpendRejected },
+    '@/lib/server/productionSpend': { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha: runtime.verifySource || (() => options.sourceSha), spendRecord, SpendRejected },
   };
   const source = stripTypeScriptTypes(readFileSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { context });
@@ -487,6 +495,96 @@ test('expiry on the final reservation clock read cannot create an expired attemp
   let current = 0; const before = structuredClone(f.db.rows);
   await assert.rejects(act(f, 'reserve', {}, { ...options, now: () => ++current === count ? NOW + 1000 : NOW }), SpendRejected);
   assert.deepEqual(f.db.rows, before);
+});
+
+// Actual Studio source, actual protected HTTP auth, and actual signed transaction.
+// Only storage, keys and provider transport are synthetic; no live provider is contacted.
+async function actualStudioGatewayFixture({ delayedReserve = false } = {}) {
+  const sourceRoot = new URL('../assetfactory-studio/lib/server/', import.meta.url);
+  const source = stripTypeScriptTypes(readFileSync(new URL('protectedProviderRequest.ts', sourceRoot), 'utf8'), { mode: 'strip' });
+  let issuerDb;
+  const module = new vm.SourceTextModule(source);
+  await module.link(async specifier => {
+    if (specifier === './firebaseAdmin') return new vm.SyntheticModule(['getAdminDb'], function () { this.setExport('getAdminDb', () => issuerDb); });
+    const values = await import(specifier.startsWith('../') ? new URL(specifier, new URL('protectedProviderRequest.ts', sourceRoot)) : specifier);
+    return new vm.SyntheticModule(Object.keys(values), function () { for (const [key, value] of Object.entries(values)) this.setExport(key, value); });
+  });
+  await module.evaluate();
+  const protector = module.namespace, build = syntheticCleanBuild();
+  const originalFetch = globalThis.fetch, originalNow = Date.now;
+  try {
+  // The real gateway provenance checker must see its real tracked source as well.
+  cpSync(new URL('productionSpend.ts', sourceRoot), join(build.directory, 'assetfactory-studio/lib/server/productionSpend.ts'));
+  mkdirSync(join(build.directory, 'assetfactory-studio/app/api/worker/production-spend'), { recursive: true });
+  cpSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), join(build.directory, 'assetfactory-studio/app/api/worker/production-spend/route.ts'));
+  build.git('add', '.'); build.git('-c', 'user.name=Synthetic Fixture', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'Synthetic combined consumer and gateway source');
+  const sourceSha = build.git('rev-parse', 'HEAD'); process.env.URAI_SOURCE_SHA = sourceSha;
+  let now = originalNow(), calls = 0;
+  Date.now = () => now;
+  const endpoint = 'https://api.openai.com/v1/images/generations', model = 'SYNTHETIC-MODEL', lane = 'graphic';
+  const input = { tenantId: 'SYNTHETIC-TENANT', jobId: 'SYNTHETIC-GENERATION', prompt: 'Synthetic input', type: 'graphic' };
+  const init = { method: 'POST', headers: { authorization: 'Bearer SYNTHETIC-PROVIDER-ONLY', 'content-type': 'application/json' }, body: '{"prompt":"Synthetic input","model":"SYNTHETIC-MODEL"}' };
+  const headers = new Headers(init.headers), credentials = Object.fromEntries([...headers.entries()].filter(([key]) => ['authorization', 'xi-api-key', 'x-api-key'].includes(key)));
+  const semantic = Object.fromEntries([...headers.entries()].filter(([key]) => !Object.hasOwn(credentials, key)));
+  const request = { semantic_input_sha256: protector.studioSemanticInputDigest(Buffer.from(init.body), headers.get('content-type')), request_sha256: protector.studioRequestDigest(endpoint, Buffer.from(init.body)), request_size: Buffer.byteLength(init.body), credential_sha256: protector.studioSourceInputDigest(credentials), semantic_headers_sha256: protector.studioSourceInputDigest(semantic), content_type: headers.get('content-type') }, f = fixture();
+  const observed = new Date(now - 60_000).toISOString(), expires = new Date(now + 600_000).toISOString();
+  f.job.provider = 'openai'; f.job.model_version = model; f.job.consumer = 'factory-studio';
+  f.job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }; f.authority.binding = f.job.authority;
+  const executor = { source_sha: sourceSha, endpoint, request_sha256: request.request_sha256, request_size: String(request.request_size), asset: `${input.tenantId}/${input.jobId}/${lane}`, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: protector.studioSourceInputDigest(input), semantic_input_sha256: request.semantic_input_sha256, content_type: request.content_type };
+  Object.assign(f.job.executor, executor);
+  f.job.input_sha256 = [executor.source_input_sha256, executor.request_sha256]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
+  f.job.budget.max_runtime_seconds = 10;
+  Object.assign(f.controls, { provider: f.job.provider, endpoint, request_sha256: executor.request_sha256, enforcement_source_sha: sourceSha, max_runtime_seconds: 10, credential_sha256: executor.credential_sha256, semantic_headers_sha256: executor.semantic_headers_sha256, source_input_sha256: executor.source_input_sha256, semantic_input_sha256: executor.semantic_input_sha256, artifact_hosts: f.job.executor.artifact_hosts });
+  Object.assign(f.account, { provider: f.job.provider, credential_sha256: executor.credential_sha256 });
+  f.accountPath = `assetFactorySpendAccounts/${hash(`${f.job.provider}\n${f.job.account_id}`)}`; f.db.rows.set(f.accountPath, f.account);
+  const price = f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`);
+  Object.assign(price, { provider: f.job.provider, model_version: model, request_sha256: executor.request_sha256, credential_sha256: executor.credential_sha256, semantic_headers_sha256: executor.semantic_headers_sha256, source_input_sha256: executor.source_input_sha256, semantic_input_sha256: executor.semantic_input_sha256, artifact_hosts: f.job.executor.artifact_hosts });
+  for (const proof of [f.approval, f.authority, f.controls, f.account, price, f.job.budget.rates]) { proof.expires_at = expires; proof[proof === f.approval ? 'issued_at' : proof === f.job.budget.rates ? 'verified_at' : 'observed_at'] = observed; }
+  f.approval.job_digest = jobDigest(f.job); f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing(f.approval));
+  process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = JSON.stringify({ [executor.request_sha256]: f.job.job_id });
+  const gateway = process.env.ASSET_FORGE_SPEND_GATEWAY_URL, token = process.env.ASSET_FORGE_SPEND_WORKER_TOKEN, project = process.env.FIREBASE_PROJECT_ID;
+  const fields = { job_id: f.job.job_id, provider: f.job.provider, model, asset: executor.asset, request_size: executor.request_size, endpoint, request_sha256: executor.request_sha256, executor_source_sha: sourceSha, credential_sha256: executor.credential_sha256, semantic_headers_sha256: executor.semantic_headers_sha256, source_input_sha256: executor.source_input_sha256, semantic_input_sha256: executor.semantic_input_sha256, content_type: executor.content_type };
+  const issuer = { ...fields, executor_repository: 'LifeLoggerAI/asset-factory', consumer: 'factory-studio', tenant_id: input.tenantId, generation_job_id: input.jobId, lane, account_id: f.job.account_id, gateway_url: gateway, worker_token_sha256: hash(JSON.stringify({ authorization: `Bearer ${token}` })), trusted_readback: true, receipt: 'SYNTHETIC-NOT-ISSUER-PROOF', observed_at: observed, expires_at: expires };
+  issuerDb = { projectId: project, collection(name) { assert.equal(name, 'assetFactoryStudioSpendBindings'); return { doc(id) { assert.equal(id, protector.studioIssuerBindingId(input, lane, executor.request_sha256)); return { async get() { return { exists: true, data: () => structuredClone(issuer) }; } }; } }; } };
+  const http = await route(f, { URAI_SOURCE_SHA: sourceSha, ASSET_FACTORY_SPEND_WORKER_TOKEN: token, FIREBASE_PROJECT_ID: project, ASSET_FACTORY_FIREBASE_PROJECT_ID: project }, { now: () => now, projectId: project, verifySource: spendGatewaySourceSha });
+  globalThis.fetch = async (url, options) => {
+    if (String(url) === gateway) {
+      const action = JSON.parse(options.body).action;
+      const authorization = new Headers(options.headers).get('authorization'); assert.equal(authorization, `Bearer ${token}`);
+      const result = await http.post(options.body, authorization.slice(7));
+      if (delayedReserve && action === 'reserve') now += 10_001;
+      return Response.json(result.data, { status: result.status });
+    }
+    assert.equal(String(url), endpoint); assert.equal(options.method, 'POST'); calls++;
+    return Response.json({ id: 'SYNTHETIC-OUTPUT' });
+  };
+  const submit = () => protector.withProtectedStudioSession(input, async () => {
+    const response = await protector.paidStudioFetch('openai', model, lane, endpoint, init);
+    const output = JSON.parse((await protector.readStudioBytes(response, 65_536)).toString('utf8'));
+    protector.observeStudioProviderTask(output.id); return output;
+  });
+  return { f, submit, calls: () => calls, restore() { globalThis.fetch = originalFetch; Date.now = originalNow; build.restore(); } };
+  } catch (error) { globalThis.fetch = originalFetch; Date.now = originalNow; build.restore(); throw error; }
+}
+test('actual Studio consumer consumes the real authenticated gateway with signed approval and one account hold', async () => {
+  const t = await actualStudioGatewayFixture();
+  try {
+    assert.equal((await t.submit()).id, 'SYNTHETIC-OUTPUT'); assert.equal(t.calls(), 1);
+    const account = t.f.db.rows.get(t.f.accountPath), attempt = t.f.db.rows.get(t.f.jobPath).job.attempts[0];
+    assert.equal(account.reservations.length, 1); assert.equal(attempt.status, 'RECONCILIATION_REQUIRED');
+    assert.equal(attempt.charges_reconciled, false);
+    await assert.rejects(t.submit()); assert.equal(t.calls(), 1);
+  } finally { t.restore(); }
+});
+test('actual Studio HTTP reservation delayed beyond its window keeps the full hold and dispatches no provider POST', async () => {
+  const t = await actualStudioGatewayFixture({ delayedReserve: true });
+  try {
+    await assert.rejects(t.submit(), /admission deadline|deadline/);
+    assert.equal(t.calls(), 0); assert.equal(t.f.db.rows.get(t.f.accountPath).reservations.length, 1);
+    const attempt = t.f.db.rows.get(t.f.jobPath).job.attempts[0];
+    assert.equal(attempt.status, 'RECONCILIATION_REQUIRED'); assert.equal(attempt.charges_reconciled, false);
+    assert.equal(t.f.db.rows.get(t.f.accountPath).reservations[0].usd_micros, t.f.job.budget.max_usd_micros);
+  } finally { t.restore(); }
 });
 
 test('renamed source job and reencoded request cannot reopen a permanent semantic claim', async () => {

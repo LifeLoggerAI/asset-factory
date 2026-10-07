@@ -5,13 +5,32 @@ on:
     paths:
       - image_asset_generator/**
       - assetfactory-studio/lib/server/productionSpend.ts
+      - assetfactory-studio/lib/server/protectedProviderRequest.ts
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
       - assetfactory-studio/app/api/worker/production-spend/**
       - scripts/check_paid_forge_gate.py
       - scripts/test-production-spend-gateway.mjs
+      - scripts/lib/studio-spend-test-fixture.mjs
+      - scripts/run_protected_cinema.py
+      - film_foundry/finite_time/generate-openai-production.py
       - scripts/generate_exact_version_assets.py
       - scripts/generate_before_rest_world_proof.py
       - scripts/generate_before_rest_world_repair.py
       - scripts/recover_exact_v4_failed_assets.py
+      - scripts/generate_before_rest_world_cinematic_motion.py
+      - scripts/generate_before_rest_world_full_master_t1.py
+      - scripts/generate_built_from_survival_hero_cinema.py
+      - scripts/resume_built_from_survival_hero_cinema.py
+      - .github/workflows/one-time-finite-time-openai-physics-validation.yml
+      - .github/workflows/one-time-finite-time-openai-physics-validation-v2.yml
+      - .github/workflows/one-time-finite-time-openai-representative-validation.yml
+      - .github/workflows/one-time-finite-time-openai-representative-retry-v2.yml
+      - .github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml
+      - .github/workflows/one-time-finite-time-openai-semantic-canary.yml
+      - .github/workflows/one-time-finite-time-openai-semantic-continuation.yml
+      - .github/workflows/one-time-before-rest-world-cinematic-motion.yml
+      - .github/workflows/one-time-before-rest-world-full-master-t1.yml
+      - .github/workflows/one-time-built-from-survival-hero-cinema.yml
       - docs/production/image-spend-executor.md
       - docs/production/image-spend-executor-receipt.json
       - .github/workflows/production-image-spend-executor.yml
@@ -20,13 +39,32 @@ on:
     paths:
       - image_asset_generator/**
       - assetfactory-studio/lib/server/productionSpend.ts
+      - assetfactory-studio/lib/server/protectedProviderRequest.ts
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
       - assetfactory-studio/app/api/worker/production-spend/**
       - scripts/check_paid_forge_gate.py
       - scripts/test-production-spend-gateway.mjs
+      - scripts/lib/studio-spend-test-fixture.mjs
+      - scripts/run_protected_cinema.py
+      - film_foundry/finite_time/generate-openai-production.py
       - scripts/generate_exact_version_assets.py
       - scripts/generate_before_rest_world_proof.py
       - scripts/generate_before_rest_world_repair.py
       - scripts/recover_exact_v4_failed_assets.py
+      - scripts/generate_before_rest_world_cinematic_motion.py
+      - scripts/generate_before_rest_world_full_master_t1.py
+      - scripts/generate_built_from_survival_hero_cinema.py
+      - scripts/resume_built_from_survival_hero_cinema.py
+      - .github/workflows/one-time-finite-time-openai-physics-validation.yml
+      - .github/workflows/one-time-finite-time-openai-physics-validation-v2.yml
+      - .github/workflows/one-time-finite-time-openai-representative-validation.yml
+      - .github/workflows/one-time-finite-time-openai-representative-retry-v2.yml
+      - .github/workflows/one-time-finite-time-openai-nonprivate-story-wave.yml
+      - .github/workflows/one-time-finite-time-openai-semantic-canary.yml
+      - .github/workflows/one-time-finite-time-openai-semantic-continuation.yml
+      - .github/workflows/one-time-before-rest-world-cinematic-motion.yml
+      - .github/workflows/one-time-before-rest-world-full-master-t1.yml
+      - .github/workflows/one-time-built-from-survival-hero-cinema.yml
       - docs/production/image-spend-executor.md
       - docs/production/image-spend-executor-receipt.json
       - .github/workflows/production-image-spend-executor.yml
@@ -88,6 +126,6 @@ jobs:
       - name: Exercise actual image leaf and retained offline contract without provider calls
         run: python scripts/check_paid_forge_gate.py
       - name: Compile migrated image callers
-        run: python -m py_compile image_asset_generator/paid_request_guard.py image_asset_generator/provider_renderer.py image_asset_generator/cost_guarded_renderer.py scripts/generate_exact_version_assets.py scripts/generate_before_rest_world_proof.py scripts/generate_before_rest_world_repair.py scripts/recover_exact_v4_failed_assets.py
+        run: PYTHONPYCACHEPREFIX="$RUNNER_TEMP/protected-spend-pycache" python -m py_compile image_asset_generator/paid_request_guard.py image_asset_generator/provider_renderer.py image_asset_generator/cost_guarded_renderer.py image_asset_generator/cinema_provider.py scripts/run_protected_cinema.py film_foundry/finite_time/generate-openai-production.py scripts/generate_before_rest_world_cinematic_motion.py scripts/generate_before_rest_world_full_master_t1.py scripts/generate_built_from_survival_hero_cinema.py scripts/resume_built_from_survival_hero_cinema.py scripts/generate_exact_version_assets.py scripts/generate_before_rest_world_proof.py scripts/generate_before_rest_world_repair.py scripts/recover_exact_v4_failed_assets.py
       - name: Final clean tracked source proof
         run: git diff --exit-code HEAD

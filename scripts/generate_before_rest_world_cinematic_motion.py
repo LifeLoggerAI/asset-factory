@@ -11,6 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'image_asset_generator'))
+import cinema_provider
+
 API = "https://api.openai.com/v1"
 EXPECTED_AUTHORITY = "LifeLoggerAI/asset-factory#224"
 EXPECTED_SHOTS = 6
@@ -38,60 +43,19 @@ def curl_json(args: list[str]) -> dict[str, Any]:
 
 
 def create_video(api_key: str, model: str, size: str, seconds: str, prompt: str) -> dict[str, Any]:
-    return curl_json([
-        f"{API}/videos",
-        "-H", f"Authorization: Bearer {api_key}",
-        "-F", f"model={model}",
-        "-F", f"size={size}",
-        "-F", f"seconds={seconds}",
-        "-F", f"prompt={prompt}",
-    ])
+    return cinema_provider.create_video(api_key, str(model), str(size), str(seconds), str(prompt))
 
 
 def wait_video(api_key: str, video_id: str, timeout_seconds: int = 3600) -> dict[str, Any]:
-    start = time.monotonic()
-    while True:
-        data = curl_json([
-            f"{API}/videos/{video_id}",
-            "-H", f"Authorization: Bearer {api_key}",
-        ])
-        status = data.get("status")
-        print(json.dumps({"video": video_id, "status": status, "progress": data.get("progress")}), flush=True)
-        if status == "completed":
-            return data
-        if status in {"failed", "cancelled"}:
-            raise RuntimeError(f"video {video_id} ended with status {status}: {data}")
-        if time.monotonic() - start > timeout_seconds:
-            raise TimeoutError(f"video {video_id} timed out")
-        time.sleep(20)
+    return cinema_provider.wait_video(api_key, video_id, timeout_seconds)
 
 
 def download_video(api_key: str, video_id: str, output: Path) -> None:
-    run([
-        "curl", "--fail-with-body", "--location", "--silent", "--show-error",
-        f"{API}/videos/{video_id}/content",
-        "-H", f"Authorization: Bearer {api_key}",
-        "--output", str(output),
-    ], capture=False)
+    return cinema_provider.download_video(api_key, video_id, output)
 
 
 def create_speech(api_key: str, model: str, voice: str, text: str, output: Path) -> dict[str, Any]:
-    payload = {
-        "model": model,
-        "voice": voice,
-        "input": text,
-        "response_format": "wav",
-        "instructions": "Speak as a calm, confident prestige-documentary narrator. Emotionally restrained, intelligent, grounded, never salesy. Deliberate pace with cinematic pauses. Pronounce UrAi as 'your eye'.",
-    }
-    run([
-        "curl", "--fail-with-body", "--silent", "--show-error",
-        f"{API}/audio/speech",
-        "-H", f"Authorization: Bearer {api_key}",
-        "-H", "Content-Type: application/json",
-        "-d", json.dumps(payload),
-        "--output", str(output),
-    ], capture=False)
-    return {"model": model, "voice": voice, "characters": len(text)}
+    return cinema_provider.create_speech(api_key, str(model), str(voice), str(text), output, "Speak as a calm, confident prestige-documentary narrator. Emotionally restrained, intelligent, grounded, never salesy. Deliberate pace with cinematic pauses. Pronounce UrAi as 'your eye'.")
 
 
 def main() -> None:
@@ -110,6 +74,7 @@ def main() -> None:
 
     manifest = json.loads(manifest_path.read_text())
     auth = json.loads(auth_path.read_text())
+    cinema_provider.bind_sources(manifest, auth)
     if manifest.get("executionAuthority") != EXPECTED_AUTHORITY:
         raise ValueError("manifest execution authority drift")
     if auth.get("executionAuthority") != EXPECTED_AUTHORITY:
@@ -135,6 +100,8 @@ def main() -> None:
         "publicReleaseAuthorized": False,
         "providerCallsAuthorized": 7,
         "providerCallsExecuted": 0,
+        "chargesReconciled": False,
+        "actualSpendUsd": None,
         "videos": [],
         "speech": None,
         "status": "running",
@@ -152,6 +119,9 @@ def main() -> None:
             receipt["videos"].append({
                 "shotId": shot["id"],
                 "videoId": video_id,
+                "budgetAttemptId": completed["budget_attempt_id"],
+                "budgetJobId": completed["budget_job_id"],
+                "chargesReconciled": False,
                 "status": completed.get("status"),
                 "model": completed.get("model", manifest["videoModel"]),
                 "seconds": completed.get("seconds", manifest["secondsPerShot"]),

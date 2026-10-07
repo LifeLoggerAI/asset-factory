@@ -61,35 +61,20 @@ jobs:
         id: generate
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          ASSET_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.ASSET_FORGE_SPEND_JOB_IDS_JSON }}
         shell: bash
         run: |
           set -euo pipefail
           test -n "$OPENAI_API_KEY"
           mkdir -p artifacts/finite-time/physics-validation
           prompt='Photoreal cinematic autobiographical-memory reconstruction at an East Texas lake. A classic low white ski boat with restrained blue-teal striping rocks naturally beside a wooden dock in clean morning light. The shot must be genuinely moving cinema, not a still image, not a slideshow, not Ken Burns. Water has physically believable small waves, reflections, hull displacement and wake interaction; dock ropes flex and tighten naturally; the hull has stable geometry and mass; a tow rope lies coiled with believable gravity. A person may remain anonymous and non-identifying in the background only if needed for scale. Restrained 35mm camera, subtle handheld inertia, natural exposure, filmic highlight rolloff, realistic wood, fiberglass and water. No text, no logos, no warped hull, no melting geometry, no impossible reflections, no floating objects, no excessive slow motion.'
-          curl --fail-with-body -sS https://api.openai.com/v1/videos \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -F "model=sora-2" \
-            -F "size=1280x720" \
-            -F "seconds=8" \
-            -F "prompt=$prompt" \
-            > artifacts/finite-time/physics-validation/create.json
-          video_id="$(jq -r '.id // empty' artifacts/finite-time/physics-validation/create.json)"
-          test -n "$video_id"
-          printf '%s' "$video_id" > artifacts/finite-time/physics-validation/video-id.txt
-          status=''
-          for i in $(seq 1 90); do
-            curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id" \
-              -H "Authorization: Bearer $OPENAI_API_KEY" \
-              > artifacts/finite-time/physics-validation/status.json
-            status="$(jq -r '.status // empty' artifacts/finite-time/physics-validation/status.json)"
-            if [ "$status" = completed ] || [ "$status" = failed ]; then break; fi
-            sleep 10
-          done
-          test "$status" = completed
-          curl --fail-with-body -sS "https://api.openai.com/v1/videos/$video_id/content" \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -o artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4
+          python scripts/run_protected_cinema.py \
+            --authorization "$AUTHORIZATION_MARKER" --model sora-2 --size 1280x720 --seconds 8 \
+            --prompt "$prompt" --output-root "artifacts/finite-time/physics-validation" --output-name "ft-fl-028-physics-validation.mp4"
           test -s artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4
           sha256sum artifacts/finite-time/physics-validation/ft-fl-028-physics-validation.mp4 > artifacts/finite-time/physics-validation/SHA256SUMS.txt
           python - <<'PY'
@@ -106,6 +91,10 @@ jobs:
             'generatedSeconds':int(status.get('seconds') or create.get('seconds') or 8),
             'size':status.get('size') or create.get('size'),
             'providerCallsExecuted':1,
+            'chargesReconciled':False,
+            'actualSpendUsd':None,
+            'budgetAttemptId':status['budget_attempt_id'],
+            'budgetJobId':status['budget_job_id'],
             'automaticRetryAuthorized':False,
             'privateProductionOnly':True,
             'publicReleaseAuthorized':False,

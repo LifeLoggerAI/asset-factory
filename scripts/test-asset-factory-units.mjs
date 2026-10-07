@@ -20,10 +20,13 @@ const ts = await import(pathToFileURL(typescriptPath).href);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-factory-units-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
+fs.mkdirSync(path.join(tmpDir, 'model_forge'), { recursive: true });
+fs.copyFileSync(path.join(root, 'model_forge', 'protected-artifact.mjs'), path.join(tmpDir, 'model_forge', 'protected-artifact.mjs'));
 
 function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
+  source = source.replace("import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';", `import { admittedArtifactHosts } from '../../../model_forge/protected-artifact.mjs';\nimport { syntheticArtifactRetrieve as retrievePublicArtifact } from '${pathToFileURL(path.join(root, 'scripts/lib/studio-spend-test-fixture.mjs')).href}';`);
   for (const [from, to] of patches) source = source.replace(from, to);
   source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
@@ -42,7 +45,7 @@ function compileTsModule(relativePath, patches = []) {
   return outputPath;
 }
 
-fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
+fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
 
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
@@ -324,12 +327,12 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-1') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://cdn.example.com/out.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://outputs.example.test/out.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/out.png') {
+    if (String(url) === 'https://outputs.example.test/out.png') {
       assert.equal(options.method ?? 'GET', 'GET');
       return new Response(new Uint8Array([137, 80, 78, 71]), {
         status: 200,
@@ -429,12 +432,12 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-3') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://cdn.example.com/chunked.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://outputs.example.test/chunked.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/chunked.png') {
+    if (String(url) === 'https://outputs.example.test/chunked.png') {
       return new Response(new Uint8Array([1, 2, 3, 4]), {
         status: 200,
         headers: { 'content-type': 'image/png' },
@@ -453,7 +456,7 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
         { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
         resolveAssetType('graphic')
       ),
-      /exceeds max bytes during download|exceeds max bytes after download/
+      /artifact stream exceeds byte ceiling/
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -482,12 +485,12 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
       assert.equal(options.method, 'POST');
       assert.equal(new Headers(options.headers).get('authorization'), 'Key test-fal-key');
       assert.deepEqual(JSON.parse(options.body), { prompt: 'governed fal smoke' });
-      return new Response(JSON.stringify({ images: [{ url: 'https://cdn.example.com/fal.webp' }] }), {
+      return new Response(JSON.stringify({ images: [{ url: 'https://outputs.example.test/fal.webp' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/fal.webp') {
+    if (String(url) === 'https://outputs.example.test/fal.webp') {
       return new Response(new Uint8Array([82, 73, 70, 70]), {
         status: 200,
         headers: { 'content-type': 'image/webp', 'content-length': '4' },
