@@ -11,7 +11,7 @@
     "test": "npm run build"
   },
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
