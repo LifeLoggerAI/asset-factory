@@ -33,8 +33,14 @@ need visual and memory review. The default recipe does not make this change.
 Meshopt reduces transfer size and needs decoder support; it does not establish
 GPU memory, draw calls, frame time or device acceptance. Decoded Khronos results
 do not substitute for testing the compressed stream with the actual runtime
-decoder. Required numeric byte budgets absent from a matrix are reported as
-`UNSET_UNMEASURED`, not silently passed. Bounds are recorded without resizing
+decoder. Model candidates use the exact retained Spatial c75 policy: 3,145,728 bytes per
+model and 2,500,000 bytes for the complete initial asset payload. A stricter
+matrix declaration remains binding; malformed declarations fail closed. Policy
+bytes are verified by their Git blob SHA before use. Receipt byteBudgetPass is
+only a single-model transfer comparison. An individual model above 2,500,000
+bytes cannot fit the initial payload; a model below it does not prove that the
+whole first-visible scene fits. Scene composition remains unmeasured until its
+full payload is bound. A policy successor needs deliberate review and repinning. Bounds are recorded without resizing
 rooms, bodies, portals, navigation or animation envelopes.
 
 WebP conversion verifies exact decoded RGBA pixels and repeat-identical bytes.

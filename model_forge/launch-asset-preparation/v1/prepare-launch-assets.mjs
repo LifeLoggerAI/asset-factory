@@ -8,6 +8,7 @@ import {NodeIO} from '@gltf-transform/core';
 import {ALL_EXTENSIONS,EXTMeshoptCompression} from '@gltf-transform/extensions';
 import {MeshoptEncoder,MeshoptDecoder} from 'meshoptimizer';
 import validator from 'gltf-validator';
+import {evaluateModelByteBudget} from './asset-byte-budgets.mjs';
 
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const typedBytes = array => Buffer.from(array.buffer,array.byteOffset,array.byteLength);
@@ -110,9 +111,10 @@ if(process.argv[1]===fileURLToPath(import.meta.url)) {
     assert.ok(!path.isAbsolute(asset.path)&&!asset.path.split(/[\\/]/).includes('..'),'Source paths must stay inside the source tree');
     const source=await fs.readFile(path.join(sourceRoot,asset.path));assert.equal(sha(source),asset.sha256,`Source mismatch ${asset.id}`);
     const prepared=await prepareModel(source);
+    const byteBudget=evaluateModelByteBudget(prepared.bytes.length,asset.budgets.maxBytes);
     const outputPath=`models/${asset.id}.meshopt.glb`;await fs.writeFile(path.join(outputDir,outputPath),prepared.bytes);
     await fs.writeFile(path.join(outputDir,outputPath+'.gz'),zlib.gzipSync(prepared.bytes,{level:9,mtime:0}));
-    const receipt={id:asset.id,sourceRepository:asset.sourceRepository,sourceSha:asset.sourceSha,sourcePath:asset.path,outputPath,classification:'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED',...prepared.receipt,sourceBoundsMeters:asset.budgets.actualBoundsMeters,targetBoundsMeters:asset.budgets.targetBoundsMeters,boundsPass:asset.budgets.boundsPass,sourceTriangleCount:asset.budgets.actualTriangles,byteBudgetPass:asset.budgets.maxBytes==null?'UNSET_UNMEASURED':prepared.bytes.length<=asset.budgets.maxBytes,sourceAnd22LosslessReviewCopiesPreserved:true};
+    const receipt={id:asset.id,sourceRepository:asset.sourceRepository,sourceSha:asset.sourceSha,sourcePath:asset.path,outputPath,classification:'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED',...prepared.receipt,sourceBoundsMeters:asset.budgets.actualBoundsMeters,targetBoundsMeters:asset.budgets.targetBoundsMeters,boundsPass:asset.budgets.boundsPass,sourceTriangleCount:asset.budgets.actualTriangles,byteBudgetPass:byteBudget.byteBudgetPass,byteBudget,sourceAnd22LosslessReviewCopiesPreserved:true};
     await fs.writeFile(path.join(outputDir,'receipts',asset.id+'.json'),JSON.stringify(receipt,null,2)+'\n');receipts.push(receipt);
     process.stdout.write(JSON.stringify({id:asset.id,bytes:prepared.bytes.length,warnings:receipt.decodedKhronos.numWarnings,cleared:receipt.zeroWeightJointsCleared})+'\n');
   }
