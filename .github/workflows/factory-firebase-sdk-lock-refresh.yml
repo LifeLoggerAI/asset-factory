@@ -1,0 +1,68 @@
+name: Factory Firebase SDK lock refresh proof
+
+on:
+  pull_request:
+    branches:
+      - repair/model-forge-current-main-20261007
+    paths:
+      - package.json
+      - functions/package.json
+      - life-map-pipeline/functions/package.json
+      - pnpm-lock.yaml
+      - life-map-pipeline/functions/package-lock.json
+      - .github/workflows/factory-firebase-sdk-lock-refresh.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-firebase-sdk-lock-refresh-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-and-prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact donor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Regenerate workspace and deployment locks without scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack pnpm@9.15.9 install --lockfile-only --ignore-scripts
+          npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Prove node-forge leaves governed lock graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -n "node-forge" pnpm-lock.yaml life-map-pipeline/functions/package-lock.json; then
+            echo "node-forge remains in a governed lock graph" >&2
+            exit 1
+          fi
+      - name: Install regenerated frozen graphs
+        run: |
+          corepack pnpm@9.15.9 install --frozen-lockfile --ignore-scripts
+          npm --prefix life-map-pipeline/functions ci --ignore-scripts --no-audit --no-fund
+      - name: Build and test Firebase packages
+        run: |
+          npm --prefix life-map-pipeline/functions run build
+          npm --prefix life-map-pipeline/functions test
+          npm --prefix functions test
+      - name: Retain generated lock candidates
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-firebase-sdk-locks-${{ env.EXACT_SOURCE_SHA }}
+          retention-days: 14
+          path: |
+            pnpm-lock.yaml
+            life-map-pipeline/functions/package-lock.json
