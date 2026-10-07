@@ -136,6 +136,35 @@ def executor_source_sha() -> str:
     return head
 
 
+def _checked_envelope(envelope: dict[str, Any], fields: dict[str, Any]) -> dict[str, Any]:
+    source_sha, provider, model = fields["executor_source_sha"], fields["provider"], fields["model"]
+    credential_sha256, source_input_sha256, request_sha256 = fields["credential_sha256"], fields["source_input_sha256"], fields["request_sha256"]
+    try:
+        receipt = check(envelope["job"], envelope["account"], envelope["authority"], datetime.now(timezone.utc))
+        job, account, controls, price = envelope["job"], envelope["account"], envelope["protected_controls"], envelope["protected_pricing"]
+        executor = job["executor"]
+        if executor.get("source_sha") != source_sha or account.get("account_id") != job["account_id"] or account.get("provider") != provider or account.get("credential_sha256") != credential_sha256 or account.get("credential_binding_verified") is not True or not isinstance(account.get("credential_binding_receipt"), str) or not account["credential_binding_receipt"]:
+            raise Rejected("approved image executor or authentic account mapping changed")
+        for name in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]:
+            if executor.get(name) != fields[name] or controls.get(name) != fields[name] or price.get(name) != fields[name]:
+                raise Rejected("actual image credential headers or input differ from approval")
+        if controls.get("provider") != provider or controls.get("account_id") != job["account_id"] or source_input_sha256 not in job["input_sha256"] or request_sha256 not in job["input_sha256"]:
+            raise Rejected("image account or input fixity changed")
+        if job.get("job_id") != fields["job_id"] or job.get("provider") != provider or job.get("model_version") != model or any(executor.get(name) != fields[name] for name in ["endpoint", "request_sha256", "request_size", "asset"]):
+            raise Rejected("actual image request identity differs from approval")
+        now = datetime.now(timezone.utc)
+        if controls.get("trusted_readback") is not True or controls.get("enforcement_source_sha") != source_sha or controls.get("hard_stop_supported") is not True or controls.get("cost_cap_enforced") is not True or controls.get("auto_top_up") is not False or not isinstance(controls.get("proof_receipt"), str) or not controls["proof_receipt"].strip() or not instant(controls.get("observed_at")) <= now < instant(controls.get("expires_at")):
+            raise Rejected("actual image hard controls changed or stale")
+        if any(controls.get(name) != job["budget"][name] for name in ["max_runtime_seconds", "max_usd_micros", "max_credits"]) or controls.get("endpoint") != fields["endpoint"] or controls.get("request_sha256") != request_sha256:
+            raise Rejected("actual image control caps or request changed")
+        if price.get("provider") != provider or price.get("account_id") != job["account_id"] or price.get("model_version") != model or price.get("request_sha256") != request_sha256 or price.get("trusted_readback") is not True or not isinstance(price.get("receipt"), str) or not price["receipt"].strip() or not instant(price.get("observed_at")) <= now < instant(price.get("expires_at")) or price.get("rates") != job["budget"]["rates"]:
+            raise Rejected("actual-bound protected image pricing changed or stale")
+        fields["account_id"] = job["account_id"]
+    except (Rejected, ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise PaidRequestUnauthorized("canonical offline preflight rejected request") from exc
+    return receipt
+
+
 def _admission_expiry(envelope: dict[str, Any], now: datetime) -> float:
     job = envelope["job"]
     check(job, envelope["account"], envelope["authority"], now)
@@ -160,6 +189,9 @@ def check_admission(reservation: dict[str, Any]) -> None:
     if executor_source_sha() != reservation["sourceSha"]:
         raise PaidRequestUnauthorized("image source changed after reservation")
     try:
+        receipt = _checked_envelope(reservation["envelope"], reservation["bindingFields"])
+        if receipt["job_digest"] != reservation["offlineReceipt"]["job_digest"]:
+            raise Rejected("image approval changed after reservation")
         _admission_expiry(reservation["envelope"], datetime.now(timezone.utc))
     except (Rejected, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise PaidRequestUnauthorized("image admission proof expired or changed") from exc
@@ -178,22 +210,11 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
     prepared = _gateway("preflight", **fields)
     if prepared.get("provider_call_authorized") is not False or prepared.get("execution_performed") is not False:
         raise PaidRequestUnauthorized("preflight must remain non-executing")
-    envelope = prepared.get("envelope", {})
+    envelope = copy.deepcopy(prepared.get("envelope", {}))
+    receipt = _checked_envelope(envelope, fields)
+    job = envelope["job"]
     try:
-        receipt = check(envelope["job"], envelope["account"], envelope["authority"], datetime.now(timezone.utc))
-        job, account, controls, price = envelope["job"], envelope["account"], envelope["protected_controls"], envelope["protected_pricing"]
-        executor = job["executor"]
-        if executor.get("source_sha") != source_sha or account.get("account_id") != job["account_id"] or account.get("provider") != provider or account.get("credential_sha256") != credential_sha256 or account.get("credential_binding_verified") is not True or not isinstance(account.get("credential_binding_receipt"), str) or not account["credential_binding_receipt"]:
-            raise Rejected("approved image executor or authentic account mapping changed")
-        for name in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]:
-            if executor.get(name) != fields[name] or controls.get(name) != fields[name] or price.get(name) != fields[name]:
-                raise Rejected("actual image credential headers or input differ from approval")
-        if controls.get("provider") != provider or controls.get("account_id") != job["account_id"] or source_input_sha256 not in job["input_sha256"] or request_sha256 not in job["input_sha256"]:
-            raise Rejected("image account or input fixity changed")
         now = datetime.now(timezone.utc)
-        if price.get("provider") != provider or price.get("account_id") != job["account_id"] or price.get("model_version") != model or price.get("request_sha256") != request_sha256 or price.get("trusted_readback") is not True or not isinstance(price.get("receipt"), str) or not price["receipt"].strip() or not instant(price.get("observed_at")) <= now < instant(price.get("expires_at")) or price.get("rates") != job["budget"]["rates"]:
-            raise Rejected("actual-bound protected image pricing changed or stale")
-        fields["account_id"] = job["account_id"]
         preflight_expiry = instant(prepared.get("admission_expires_at")).timestamp()
         if preflight_expiry > _admission_expiry(envelope, now) or preflight_expiry <= now.timestamp():
             raise Rejected("protected preflight admission expiry invalid")

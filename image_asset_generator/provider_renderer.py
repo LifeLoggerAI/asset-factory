@@ -169,6 +169,9 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
         request_sha256=paid_request_guard.request_digest(endpoint, request.data),
         source_input_sha256=source_digest, **fingerprint,
     )
+    def check_request():
+        if paid_request_guard.request_digest(request.full_url, request.data) != reservation["bindingFields"]["request_sha256"] or paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
+            raise paid_request_guard.PaidRequestUnauthorized("admitted image request input or credentials changed")
     try:
         with paid_request_guard.runtime_limit(reservation):
             if paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
@@ -176,6 +179,7 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
             # Exactly one submission. Redirects and network failures cannot resubmit it.
             opener = urllib.request.build_opener(paid_request_guard._NoRedirect)
             paid_request_guard.check_admission(reservation)
+            check_request()
             with opener.open(request, timeout=min(timeout, paid_request_guard.remaining_seconds(reservation))) as response:
                 response_body = response.read(67108865)
                 paid_request_guard.check_admission(reservation)
@@ -185,11 +189,15 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
                 paid_request_guard.check_admission(reservation)
                 if paid_request_guard.source_input_digest(source_input) != source_digest:
                     raise paid_request_guard.PaidRequestUnauthorized("admitted image input changed during output")
-        request_id = result.metadata.get("provider_request_id")
-        paid_request_guard.record(reservation["attemptId"], status="succeeded", request_id=str(request_id) if request_id else None)
-        paid_request_guard.check_admission(reservation)
-        metadata = {**result.metadata, "budget_attempt_id": reservation["attemptId"], "charges_reconciled": False}
-        return RenderResult(result.image, result.renderer, 1, metadata)
+            check_request()
+            request_id = result.metadata.get("provider_request_id")
+            paid_request_guard.record(reservation["attemptId"], status="succeeded", request_id=str(request_id) if request_id else None)
+            paid_request_guard.check_admission(reservation)
+            check_request()
+            paid_request_guard.remaining_seconds(reservation)
+            metadata = {**result.metadata, "budget_attempt_id": reservation["attemptId"], "charges_reconciled": False}
+            output = RenderResult(result.image, result.renderer, 1, metadata)
+        return output
     except Exception as exc:
         try:
             paid_request_guard.record(reservation["attemptId"], status="failed")
