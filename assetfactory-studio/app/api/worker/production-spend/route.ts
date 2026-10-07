@@ -4,6 +4,37 @@ import { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, sp
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+const PAYLOAD_LIMIT = 65_536;
+class SpendPayloadRejected extends Error {
+  status: number; code: string;
+  constructor(status: number, code: string) { super(code); this.status = status; this.code = code; }
+}
+/** Bound actual streamed bytes before JSON parsing, including chunked requests. */
+async function readSpendPayload(req: NextRequest) {
+  if (Number(req.headers.get('content-length') || '0') > PAYLOAD_LIMIT) throw new SpendPayloadRejected(413, 'payload_too_large');
+  const reader = req.body?.getReader();
+  if (!reader) throw new SpendPayloadRejected(400, 'spend_body_required');
+  const signal = AbortSignal.any([req.signal, AbortSignal.timeout(15_000)]);
+  const cancel = () => { void reader.cancel().catch(() => {}); };
+  signal.addEventListener('abort', cancel, { once: true });
+  const chunks: Buffer[] = []; let count = 0, complete = false;
+  try {
+    while (true) {
+      if (signal.aborted) throw new SpendPayloadRejected(408, 'spend_request_aborted');
+      const { done, value } = await reader.read();
+      if (signal.aborted) throw new SpendPayloadRejected(408, 'spend_request_aborted');
+      if (done) { complete = true; break; }
+      count += value.byteLength;
+      if (count > PAYLOAD_LIMIT) throw new SpendPayloadRejected(413, 'payload_too_large');
+      chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks, count).toString('utf8');
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    if (!complete) cancel();
+    reader.releaseLock();
+  }
+}
 function keys(name: string): SpendKeys {
   const parsed = spendRecord(JSON.parse(process.env[name] || '{}'), 'signer configuration');
   return Object.fromEntries(Object.entries(parsed).map(([id, value]) => {
@@ -14,8 +45,7 @@ function keys(name: string): SpendKeys {
 }
 export async function POST(req: NextRequest) {
   try {
-    if (Number(req.headers.get('content-length') || '0') > 65536) return NextResponse.json({ ok: false, code: 'payload_too_large' }, { status: 413 });
-    const raw = await req.text(); if (Buffer.byteLength(raw) > 65536) return NextResponse.json({ ok: false, code: 'payload_too_large' }, { status: 413 });
+    const raw = await readSpendPayload(req);
     const body = spendRecord(JSON.parse(raw), 'spend request'), action = body.action;
     if (typeof action !== 'string') throw new SpendRejected('spend action missing');
     const reconcile = action === 'reconcile';
@@ -41,6 +71,7 @@ export async function POST(req: NextRequest) {
     const result = await spendAction(store, action, body, { now: Date.now, approvalKeys: keys('ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS'), reconciliationKeys: keys('ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS'), verifierKeys: keys('ASSET_FACTORY_SPEND_VERIFIER_PUBLIC_KEYS'), worker: identity, sourceSha });
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
+    if (error instanceof SpendPayloadRejected) return NextResponse.json({ ok: false, code: error.code, provider_call_authorized: false, execution_performed: false }, { status: error.status });
     return NextResponse.json({ ok: false, code: error instanceof SpendRejected ? error.code : 'spend_store_unavailable', provider_call_authorized: false, execution_performed: false }, { status: error instanceof SpendRejected ? 409 : 503 });
   }
 }

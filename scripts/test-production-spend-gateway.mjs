@@ -237,7 +237,7 @@ test('request authority changing after preflight is revalidated at the atomic re
 async function route(f, envChange = {}, runtime = {}) {
   const env = { ASSET_FACTORY_SPEND_WORKER_TOKEN: 'synthetic-worker-'.repeat(4), ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN: 'synthetic-reconciler-'.repeat(4), ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-dedicated', FIREBASE_PROJECT_ID: 'synthetic-dedicated', URAI_SOURCE_SHA: 'a'.repeat(40), ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS: JSON.stringify(options.approvalKeys), ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS: JSON.stringify(options.reconciliationKeys), ...envChange };
   f.db.projectId = runtime.projectId || 'synthetic-dedicated'; let initializations = 0;
-  const context = vm.createContext({ process: { env }, Buffer, Date: class extends Date { static now() { return runtime.now ? runtime.now() : NOW; } } });
+  const context = vm.createContext({ process: { env }, Buffer, AbortSignal: runtime.AbortSignal || AbortSignal, Date: class extends Date { static now() { return runtime.now ? runtime.now() : NOW; } } });
   const next = { NextRequest: class {}, NextResponse: { json: (data, args = {}) => ({ data, status: args.status || 200 }) } };
   const sources = {
     'next/server': next,
@@ -248,9 +248,67 @@ async function route(f, envChange = {}, runtime = {}) {
   const module = new vm.SourceTextModule(source, { context });
   await module.link(async specifier => { const values = sources[specifier]; return new vm.SyntheticModule(Object.keys(values), function () { for (const [key, value] of Object.entries(values)) this.setExport(key, value); }, { context }); });
   await module.evaluate();
-  const post = async (body, token = env.ASSET_FACTORY_SPEND_WORKER_TOKEN) => module.namespace.POST({ headers: { get: name => name === 'authorization' ? `Bearer ${token}` : '0' }, text: async () => typeof body === 'string' ? body : JSON.stringify(body) });
-  return { post, env, initializations: () => initializations };
+  const postRequest = request => module.namespace.POST(request);
+  const post = async (body, token = env.ASSET_FACTORY_SPEND_WORKER_TOKEN) => postRequest(new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) }));
+  return { post, postRequest, env, initializations: () => initializations };
 }
+test('actual HTTP route refuses oversized declarations without opening the body or Firestore', async () => {
+  const f = fixture(), r = await route(f);
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { 'content-length': '65537' }, body: 'x' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false);
+  assert.equal(request.bodyUsed, false); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route cancels chunked overflow before reading further bytes or opening Firestore', async () => {
+  const f = fixture(), r = await route(f); let pulls = 0, cancelled = false;
+  const chunks = [Buffer.alloc(32768, 32), Buffer.alloc(32768, 32), Buffer.from(' '), Buffer.alloc(65536, 32)];
+  const stream = new ReadableStream({ pull(controller) { controller.enqueue(chunks[pulls++]); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body: stream, duplex: 'half' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false);
+  assert.equal(pulls, 3); assert.equal(cancelled, true); assert.equal(stream.locked, false); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route bounds streamed bytes despite absent false or malformed content-length', async () => {
+  for (const declared of [undefined, '0', '1', '-1', 'NaN']) {
+    const f = fixture(), r = await route(f), headers = declared === undefined ? {} : { 'content-length': declared };
+    const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers, body: Buffer.alloc(65537, 32) });
+    const result = await r.postRequest(request);
+    assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 0);
+  }
+  const f = fixture(), r = await route(f), result = await r.post('"' + '😀'.repeat(16384) + '"');
+  assert.equal(result.status, 413); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route accepts exactly 64 KiB split across streaming chunks', async () => {
+  const f = fixture(), r = await route(f), raw = JSON.stringify({ ...f.input, action: 'preflight' });
+  const bytes = Buffer.from(raw + ' '.repeat(65536 - Buffer.byteLength(raw))); let offset = 0;
+  const stream = new ReadableStream({ pull(controller) { if (offset === bytes.length) return controller.close(); const next = Math.min(offset + 137, bytes.length); controller.enqueue(bytes.subarray(offset, next)); offset = next; } });
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { authorization: `Bearer ${r.env.ASSET_FACTORY_SPEND_WORKER_TOKEN}` }, body: stream, duplex: 'half' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 200); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 1);
+  assert.equal(f.db.rows.get(f.accountPath).reservations.length, 0);
+});
+test('actual HTTP route cancels aborted and timed-out body streams without opening Firestore', async () => {
+  for (const expired of [false, true]) {
+    const f = fixture(), controller = new AbortController(); let cancelled = false;
+    const timeout = expired ? { any: AbortSignal.any.bind(AbortSignal), timeout(ms) { assert.equal(ms, 15000); return AbortSignal.timeout(15); } } : AbortSignal;
+    const r = await route(f, {}, { AbortSignal: timeout });
+    const stream = new ReadableStream({ pull() { return new Promise(() => {}); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+    const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body: stream, duplex: 'half', signal: controller.signal });
+    const keepalive = setTimeout(() => {}, 1000);
+    try {
+      const response = r.postRequest(request); if (!expired) controller.abort();
+      const result = await response;
+      assert.equal(result.status, 408); assert.equal(result.data.provider_call_authorized, false); assert.equal(cancelled, true); assert.equal(stream.locked, false); assert.equal(r.initializations(), 0);
+    } finally { clearTimeout(keepalive); }
+  }
+});
+test('actual HTTP route rejects absent and broken streams without opening Firestore', async () => {
+  for (const body of [undefined, new ReadableStream({ pull(controller) { controller.error(new Error('synthetic body failure')); } })]) {
+    const f = fixture(), r = await route(f), request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body, ...(body ? { duplex: 'half' } : {}) });
+    const result = await r.postRequest(request);
+    assert.equal(result.status, body ? 503 : 400); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 0);
+  }
+});
 test('actual HTTP route rejects missing/wrong credentials before opening Firestore', async () => {
   const f = fixture(), r = await route(f); const result = await r.post({ ...f.input, action: 'reserve' }, 'wrong'); assert.equal(result.status, 401); assert.equal(r.initializations(), 0);
 });
