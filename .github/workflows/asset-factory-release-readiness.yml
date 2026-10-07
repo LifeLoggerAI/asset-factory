@@ -82,7 +82,7 @@ jobs:
 
       - name: Install studio dependencies
         working-directory: assetfactory-studio
-        run: npm install
+        run: node ../scripts/install-locked-dependencies.mjs
 
       - name: Validate production assets
         working-directory: assetfactory-studio

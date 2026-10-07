@@ -71,7 +71,7 @@ jobs:
 
       - name: Install studio dependencies
         working-directory: assetfactory-studio
-        run: npm install
+        run: node ../scripts/install-locked-dependencies.mjs
 
       - name: Run launch static gates
         run: |
