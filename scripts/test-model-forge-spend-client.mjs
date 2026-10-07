@@ -53,7 +53,7 @@ async function fixture(options = {}) {
   const binding = { content_type: prepared.content_type, credential_sha256: prepared.credential_sha256, semantic_headers_sha256: prepared.semantic_headers_sha256, source_input_sha256: specHash, semantic_input_sha256: prepared.semantic_input_sha256 };
   const job = { job_id: 'synthetic-job', account_id: 'synthetic-account', provider: 'replicate', model_version: model, input_sha256: [specHash, prepared.request_sha256], executor: { source_sha: sourceSha, endpoint, request_sha256: prepared.request_sha256, request_size: prepared.request_size, asset: 'fixture', artifact_hosts: ['outputs.example.test'], ...binding }, budget: { max_runtime_seconds: options.runtime || 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() } }, attempts: [], approval: { synthetic: true } };
   const fresh = { observed_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() };
-  job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha };
+  job.authority = options.authorityBinding || { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha };
   job.approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-fixture', issued_at: fresh.observed_at, expires_at: fresh.expires_at };
   const authority = { ...fresh, trusted_readback: true, binding: structuredClone(job.authority) };
   const account = { provider: 'replicate', account_id: job.account_id, balance_type: 'API', trusted_readback: true, credential_sha256: prepared.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...fresh };
@@ -62,13 +62,18 @@ async function fixture(options = {}) {
   options.alterPricing?.(pricing);
   options.alterJob?.(job);
   options.alterAccount?.(account); options.alterControls?.(controls);
+  // A changed synthetic job is approved at fixture setup, before negative proof mutations.
+  // Preserve explicit approval mutations from the retained owner cases.
+  job.approval.job_digest = jobDigest(job);
+  options.alterApproval?.(job.approval); options.alterAuthority?.(authority);
+  const proofExpiry = Math.min(...[job.approval, authority, account, controls, pricing, job.budget.rates].map(proof => Date.parse(proof.expires_at)).filter(Number.isFinite));
   const state = { providerCalls: 0, actions: [], holds: 0, reserved: false, bodies: [], gatewayInputs: [] };
   const env = { URAI_SOURCE_SHA: sourceSha, ASSET_FORGE_SPEND_GATEWAY_URL: gatewayUrl, ASSET_FORGE_SPEND_GATEWAY_ORIGIN: new URL(gatewayUrl).origin, ASSET_FORGE_SPEND_WORKER_TOKEN: 'synthetic-worker-token-with-more-than-32-characters', MODEL_FORGE_SPEND_JOB_IDS_JSON: JSON.stringify({ [prepared.request_sha256]: job.job_id }), ...options.env };
   const fetchImpl = async (url, request) => {
     assert.equal(request.redirect, 'error');
     if (url === gatewayUrl) {
       const input = JSON.parse(request.body); state.actions.push(input.action); state.gatewayInputs.push(input);
-      if (input.action === 'preflight') { const result = options.preflight || { ok: true, provider_call_authorized: false, execution_performed: false, admission_expires_at: fresh.expires_at, envelope: { job: structuredClone(job), account, protected_controls: controls, protected_pricing: pricing, authority } }; options.alterPreflight?.(result); return response(result); }
+      if (input.action === 'preflight') { const result = options.preflight || { ok: true, provider_call_authorized: false, execution_performed: false, admission_expires_at: new Date(proofExpiry).toISOString(), envelope: { job: structuredClone(job), account, protected_controls: controls, protected_pricing: pricing, authority } }; options.alterPreflight?.(result); return response(result); }
       if (input.action === 'reserve') {
         assert.equal(input.request_sha256, prepared.request_sha256); assert.equal(input.request_size, prepared.request_size); assert.equal(input.executor_source_sha, sourceSha);
         assert.equal(input.job_digest, jobDigest(job));
@@ -78,11 +83,12 @@ async function fixture(options = {}) {
         const reservation = { ok: true, provider_call_authorized: true, execution_performed: false, attempt_id: 'synthetic-attempt', job_digest: input.job_digest, executor_source_sha: sourceSha, account_id: job.account_id, ...binding, max_runtime_seconds: job.budget.max_runtime_seconds };
         const reservedAt = (options.now || Date.now)();
         reservation.reserved_at = new Date(reservedAt).toISOString();
-        reservation.admission_expires_at = new Date(Math.min(Date.parse(fresh.expires_at), reservedAt + job.budget.max_runtime_seconds * 1000)).toISOString();
+        reservation.admission_expires_at = new Date(Math.min(proofExpiry, reservedAt + job.budget.max_runtime_seconds * 1000)).toISOString();
+        options.onReserve?.();
         options.alterReservation?.(reservation);
         return response(options.reservation || reservation);
       }
-      if (input.action === 'record') { options.advanceRecordClock?.(); if (options.recordLoss) throw Error('synthetic lost outcome'); return response({ ok: true, provider_call_authorized: false, reconciliation_required: true }); }
+      if (input.action === 'record') { options.advanceRecordClock?.(); options.afterRecord?.(); if (options.recordLoss) throw Error('synthetic lost outcome'); return response({ ok: true, provider_call_authorized: false, reconciliation_required: true }); }
       assert.fail('Unexpected action');
     }
     assert.equal(url, endpoint); state.providerCalls++; state.bodies.push(Buffer.from(request.body));
@@ -90,8 +96,8 @@ async function fixture(options = {}) {
     options.advanceClock?.();
     return response({ id: 'synthetic-provider-task' }, options.providerStatus || 200);
   };
-  const make = () => new ModelSpendClient({ provider: 'replicate', asset: 'fixture', sourceSpecSha256: specHash, env, fetchImpl, now: options.now || Date.now });
-  return { state, make, prepared, env, job, account, controls, pricing };
+  const make = () => new ModelSpendClient({ provider: 'replicate', asset: 'fixture', sourceSpecSha256: specHash, env, fetchImpl, now: options.now || Date.now, monotonic: options.monotonic || (() => performance.now()) });
+  return { state, make, prepared, env, job, account, controls, pricing, authority };
 }
 
 test('canonical digest agrees with pinned gateway unicode and integer serialization', () => {
@@ -314,4 +320,97 @@ test('backward wall-clock during outcome delivery cannot extend the initial mono
     await assert.rejects(f.make().submit(endpoint, init, model), /deadline elapsed/);
     assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1);
   } finally { globalThis.performance = originalPerformance; }
+});
+
+// Retained root successor scenarios on the current owner implementation.
+test('delayed reserve cannot restart the approved runtime', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, onReserve: () => { now += 1001; } }); const client = f.make(); await assert.rejects(client.submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1); assert.equal(client.records.length, 1); await assert.rejects(client.submit(endpoint, init, model), /cannot resubmit/); });
+test('each independent protected authorization window can expire during reserve delivery without dispatch', async () => {
+  for (const field of ['approval', 'authority', 'account', 'controls', 'pricing', 'rates']) {
+    let now = 1000; const expires = new Date(now + 1000).toISOString();
+    const option = field === 'rates' ? { alterJob: job => { job.budget.rates.expires_at = expires; }, alterPricing: price => { price.rates.expires_at = expires; } } : { [({ approval: 'alterApproval', authority: 'alterAuthority', account: 'alterAccount', controls: 'alterControls', pricing: 'alterPricing' })[field]]: proof => { proof.expires_at = expires; } };
+    const f = await fixture({ ...option, now: () => now, onReserve: () => { now += 1001; } });
+    await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/, field); assert.equal(f.state.providerCalls, 0, field); assert.equal(f.state.holds, 1, field);
+  }
+});
+test('mandatory reservation times reject missing future expired or enlarged echoes with hold retained', async () => {
+  for (const change of [a => { delete a.reserved_at; }, a => { delete a.admission_expires_at; }, a => { a.reserved_at = 'invalid'; }, a => { a.admission_expires_at = 'invalid'; }, a => { a.reserved_at = new Date(5000).toISOString(); }, a => { a.admission_expires_at = new Date(1000).toISOString(); }, a => { a.admission_expires_at = new Date(1000 + 61000).toISOString(); }]) {
+    const f = await fixture({ now: () => 1000, alterReservation: change }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1);
+  }
+});
+test('actual source changes after reserve block adjacent paid dispatch and retain the attempt', async () => { let f; f = await fixture({ onReserve: () => { f.env.URAI_SOURCE_SHA = '0'.repeat(40); } }); const client = f.make(); await assert.rejects(client.submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1); assert.equal(client.records.length, 1); });
+test('expiry during provider response suppresses late output without retry or settlement', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, advanceClock: () => { now += 1001; } }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+test('expiry during outcome delivery cannot release a successful late return', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, afterRecord: () => { now += 1001; } }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+test('missing real approval or untrusted source authority blocks preflight before reservation', async () => { for (const option of [{ alterApproval: value => { delete value.expires_at; } }, { alterApproval: value => { value.status = 'DRAFT'; } }, { alterAuthority: value => { value.trusted_readback = false; } }, { alterAuthority: value => { value.binding = { ...value.binding, sha: '0'.repeat(40) }; } }]) { const f = await fixture(option); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0); } });
+
+test('v1 preserves genuine specification authority distinct from actual executor build', async () => { const f = await fixture({ authorityBinding: { repository: 'synthetic/accepted-specification', sha: 'f'.repeat(40) } }); const result = await f.make().submit(endpoint, init, model); assert.equal(result.payload.id, 'synthetic-provider-task'); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+
+test('synchronous final source proof cannot exhaust the clock and then deliver output', async () => {
+  let now = 1000, afterRecord = false, finalSourceRead = false;
+  const f = await fixture({ now: () => now, runtime: 1, afterRecord: () => { afterRecord = true; } });
+  Object.defineProperty(f.env, 'URAI_SOURCE_SHA', { configurable: true, get() {
+    if (afterRecord && !finalSourceRead) { finalSourceRead = true; now += 1001; }
+    return sourceSha;
+  } });
+  await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
+  assert.equal(afterRecord, true); assert.equal(finalSourceRead, true);
+  assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1);
+  assert.equal(f.state.actions.at(-1), 'record');
+});
+
+test('clock rollback cannot reopen a reservation whose monotonic budget expired', async () => {
+  let wall = Date.now(), monotonic = 1000;
+  const f = await fixture({ runtime: 1, now: () => wall, monotonic: () => monotonic,
+    onReserve: () => { wall += 500; },
+    advanceClock: () => { wall -= 500; monotonic += 1001; } });
+  await assert.rejects(f.make().submit(endpoint, init, model), /deadline/);
+  // The reserve timestamps were valid and dispatch occurred once. Elapsed
+  // monotonic time then denies the returned output despite wall-clock rollback.
+  assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1);
+});
+
+test('malformed effective provider headers block before admission without disclosing credential values', async () => {
+  const secret = 'SYNTHETIC-provider-secret-do-not-print';
+  for (const bad of [
+    { authorization: `Bearer ${secret}\r\ninjected: value` },
+    { authorization: `Bearer ${secret}\0` },
+    { authorization: `Bearer ${secret}\u0100` },
+    { [`invalid header ${secret}`]: 'value' }
+  ]) {
+    const f = await fixture();
+    await assert.rejects(f.make().submit(endpoint, { ...init, headers: { ...init.headers, ...bad } }, model), error => {
+      assert.match(error.message, /^MODEL_SPEND_BLOCKED: invalid effective provider headers$/);
+      for (const visible of [String(error), error.stack, JSON.stringify(error)]) assert.equal(visible.includes(secret), false);
+      assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+    });
+    assert.deepEqual(f.state.actions, []); assert.deepEqual(f.state.gatewayInputs, []);
+    assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+  }
+});
+
+test('failed header conversion drops secret-bearing exception details and causes', async () => {
+  const secret = 'SYNTHETIC-header-conversion-secret';
+  const f = await fixture(), headers = { 'content-type': 'application/json',
+    get authorization() { throw new Error(secret, { cause: { secret } }); } };
+  await assert.rejects(f.make().submit(endpoint, { ...init, headers }, model), error => {
+    assert.equal(error.message, 'MODEL_SPEND_BLOCKED: invalid effective provider headers');
+    assert.equal(String(error.stack).includes(secret), false);
+    assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+  });
+  assert.deepEqual(f.state.actions, []); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+});
+
+test('malformed or unbounded worker tokens are rejected before authentication transport without disclosure', async () => {
+  const secret = 'SYNTHETIC-worker-secret-do-not-print';
+  for (const token of [secret.slice(0, 31), secret + '\r\ninjected: value', secret + '\0', secret + '\u0100', secret + '\tvalue', secret + ' value', secret.repeat(130)]) {
+    const f = await fixture({ env: { ASSET_FORGE_SPEND_WORKER_TOKEN: token } });
+    await assert.rejects(f.make().submit(endpoint, init, model), error => {
+      assert.equal(error.message, 'MODEL_SPEND_BLOCKED: protected worker authentication required');
+      for (const visible of [String(error), error.stack, JSON.stringify(error)]) {
+        assert.equal(visible.includes(secret), false); assert.equal(visible.includes(token), false);
+      }
+      assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+    });
+    assert.deepEqual(f.state.actions, []); assert.deepEqual(f.state.gatewayInputs, []);
+    assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+  }
 });
