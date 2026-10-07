@@ -3,15 +3,16 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
+import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';
 import type { GenerateRequest } from './assetFactoryValidation';
 import { getAdminDb } from './firebaseAdmin';
 
 type JsonRecord = Record<string, unknown>;
 type Reservation = { jobId: string; attemptId: string; jobDigest: string; requestSha256: string; sourceSha: string; maxRuntimeSeconds: number; bindingFields: JsonRecord };
 type GatewayPin = { endpoint: string; headers: Headers; issuer: JsonRecord };
-type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; gatewayPin?: GatewayPin; revalidate?: () => void; reservation?: Reservation; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
+type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; gatewayPin?: GatewayPin; revalidate?: () => void; reservation?: Reservation; artifactHosts?: string[]; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
 const sessions = new AsyncLocalStorage<Session>();
-const SOURCE_PATHS = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts', 'firebaseAdmin.ts'].map(name => `assetfactory-studio/lib/server/${name}`);
+const SOURCE_PATHS = [...['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts', 'firebaseAdmin.ts'].map(name => `assetfactory-studio/lib/server/${name}`), 'model_forge/protected-artifact.mjs'];
 const GATEWAY_LIMIT = 65_536;
 export class ProtectedProviderRejected extends Error { code = 'protected_provider_rejected'; }
 function need(value: unknown, reason: string): asserts value { if (!value) throw new ProtectedProviderRejected(reason); }
@@ -50,6 +51,27 @@ function sourceJson(value: unknown): string {
   return `{${Object.keys(object).filter(k => object[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${sourceJson(object[k])}`).join(',')}}`;
 }
 export function studioSourceInputDigest(input: GenerateRequest) { return digest(sourceJson(input)); }
+export function studioSemanticInputDigest(bytes: Uint8Array, contentType: string | null) {
+  if (contentType?.split(';')[0].trim().toLowerCase() === 'application/json') {
+    try { return digest(sourceJson(JSON.parse(Buffer.from(bytes).toString('utf8')))); }
+    catch { throw new ProtectedProviderRejected('invalid semantic provider JSON'); }
+  }
+  // Studio authors deterministic string-only multipart. Reconstruct its exact
+  // fields, excluding its transport boundary from the permanent input identity.
+  const boundary = /^multipart\/form-data; boundary=(urai-studio-[a-f0-9]{64})$/.exec(contentType || '')?.[1];
+  need(boundary, 'unsupported semantic provider content type');
+  const text = Buffer.from(bytes).toString('utf8'), fields: Record<string, string> = {};
+  const chunks = text.split(`--${boundary}\r\n`);
+  need(chunks.shift() === '' && chunks.length > 0, 'invalid semantic multipart body');
+  for (let i = 0; i < chunks.length; i++) {
+    let chunk = chunks[i];
+    if (i === chunks.length - 1) { need(chunk.endsWith(`--${boundary}--\r\n`), 'invalid multipart terminator'); chunk = chunk.slice(0, -(`--${boundary}--\r\n`).length); }
+    const match = /^Content-Disposition: form-data; name="([A-Za-z_][A-Za-z0-9_]*)"\r\n\r\n([\s\S]*)\r\n$/.exec(chunk);
+    need(match && !Object.prototype.hasOwnProperty.call(fields, match[1]), 'ambiguous semantic multipart field');
+    fields[match[1]] = match[2];
+  }
+  return digest(sourceJson(fields));
+}
 export function studioRequestDigest(endpoint: string, bytes: Uint8Array) { return digest(Buffer.concat([Buffer.from(`POST\n${endpoint}\n`, 'utf8'), bytes])); }
 
 /** Deterministic multipart bytes; FormData's random boundary cannot bind a repeatable approval. */
@@ -158,9 +180,9 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const contentType = nonempty(headers.get('content-type'));
   const credentialDigest = digest(sourceJson(credentials));
   const semanticDigest = digest(sourceJson(Object.fromEntries([...headers.entries()].filter(([key]) => !Object.prototype.hasOwnProperty.call(credentials, key)))));
-  const requestDigest = studioRequestDigest(endpoint, bytes), sourceSha = studioExecutorSourceSha();
+  const requestDigest = studioRequestDigest(endpoint, bytes), semanticInputDigest = studioSemanticInputDigest(bytes, contentType), sourceSha = studioExecutorSourceSha();
   const asset = `${session.input.tenantId || 'default'}/${session.input.jobId}/${lane}`;
-  const fields = { job_id: jobId(requestDigest), provider: nonempty(provider), model: nonempty(model), asset, request_size: String(bytes.byteLength), endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: credentialDigest, semantic_headers_sha256: semanticDigest, source_input_sha256: session.inputDigest, content_type: contentType };
+  const fields = { job_id: jobId(requestDigest), provider: nonempty(provider), model: nonempty(model), asset, request_size: String(bytes.byteLength), endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: credentialDigest, semantic_headers_sha256: semanticDigest, source_input_sha256: session.inputDigest, semantic_input_sha256: semanticInputDigest, content_type: contentType };
   sessionEndpoint.set(session, endpoint);
   session.submitted = true;
   session.gatewayPin = await issuerPin(session.input, lane, fields);
@@ -169,13 +191,15 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const envelope = record(prepared.envelope), job = record(envelope.job), executor = record(job.executor), authority = record(job.authority);
   const account = record(envelope.account), controls = record(envelope.protected_controls), pricing = record(envelope.protected_pricing), sourceAuthority = record(envelope.authority), approval = record(job.approval), accountId = nonempty(job.account_id), budget = record(job.budget);
   need(accountId === session.gatewayPin.issuer.account_id, 'protected Studio issuer account changed');
+  session.artifactHosts = admittedArtifactHosts(executor.artifact_hosts);
+  need(canonicalSpend(controls.artifact_hosts) === canonicalSpend(session.artifactHosts), 'protected Studio artifact hosts changed');
   need(job.job_id === fields.job_id && job.provider === provider && job.model_version === model && job.consumer === 'factory-studio' && job.rights_reviewed === true, 'protected Studio job identity or rights changed');
   need(authority.repository === 'LifeLoggerAI/asset-factory' && authority.sha === sourceSha, 'protected Studio source authority changed');
   need(executor.source_sha === sourceSha && executor.endpoint === endpoint && executor.request_sha256 === requestDigest && executor.asset === asset && executor.request_size === fields.request_size, 'protected Studio request binding changed');
-  need(executor.content_type === contentType && executor.credential_sha256 === credentialDigest && executor.semantic_headers_sha256 === semanticDigest && executor.source_input_sha256 === session.inputDigest, 'protected Studio account/header/input binding changed');
+  need(executor.content_type === contentType && executor.credential_sha256 === credentialDigest && executor.semantic_headers_sha256 === semanticDigest && executor.source_input_sha256 === session.inputDigest && executor.semantic_input_sha256 === semanticInputDigest, 'protected Studio account/header/input binding changed');
   need(account.provider === provider && account.account_id === accountId && account.trusted_readback === true && account.credential_binding_verified === true && account.credential_sha256 === credentialDigest, 'protected Studio credential/account mapping changed');
   nonempty(account.credential_binding_receipt);
-  need(controls.provider === provider && controls.account_id === accountId && controls.trusted_readback === true && controls.credential_sha256 === credentialDigest && controls.semantic_headers_sha256 === semanticDigest && controls.source_input_sha256 === session.inputDigest && controls.content_type === contentType, 'protected Studio control/account binding changed');
+  need(controls.provider === provider && controls.account_id === accountId && controls.trusted_readback === true && controls.credential_sha256 === credentialDigest && controls.semantic_headers_sha256 === semanticDigest && controls.source_input_sha256 === session.inputDigest && controls.semantic_input_sha256 === semanticInputDigest && controls.content_type === contentType, 'protected Studio control/account binding changed');
   const checkProofs = () => {
     freshProof(session.gatewayPin!.issuer, 'observed_at');
     need(approval.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND' && approval.job_digest === protectedJobDigest(job) && approval.max_usd_micros === budget.max_usd_micros && approval.max_credits === budget.max_credits, 'protected Studio approval changed');
@@ -185,7 +209,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
     need(controls.enforcement_source_sha === sourceSha && controls.endpoint === endpoint && controls.request_sha256 === requestDigest && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && controls.max_usd_micros === budget.max_usd_micros && controls.max_credits === budget.max_credits && controls.max_runtime_seconds === budget.max_runtime_seconds, 'protected Studio hard controls changed');
     nonempty(controls.proof_receipt);
     need(pricing.trusted_readback === true && pricing.provider === provider && pricing.account_id === accountId && pricing.model_version === model && pricing.request_sha256 === requestDigest, 'protected Studio pricing identity changed');
-    need(pricing.credential_sha256 === credentialDigest && pricing.semantic_headers_sha256 === semanticDigest && pricing.source_input_sha256 === session.inputDigest && pricing.content_type === contentType, 'protected Studio pricing request binding changed');
+    need(pricing.credential_sha256 === credentialDigest && pricing.semantic_headers_sha256 === semanticDigest && pricing.source_input_sha256 === session.inputDigest && pricing.semantic_input_sha256 === semanticInputDigest && pricing.content_type === contentType, 'protected Studio pricing request binding changed');
     nonempty(pricing.receipt); freshProof(pricing, 'observed_at');
     const rates = record(pricing.rates); nonempty(rates.receipt); freshProof(rates, 'verified_at');
     need(canonicalSpend(rates) === canonicalSpend(budget.rates), 'protected Studio approved pricing changed');
@@ -208,7 +232,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const admitted = await gateway('reserve', boundFields);
   const runtime = admitted.max_runtime_seconds;
   need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === budget.max_runtime_seconds, 'invalid protected Studio reservation');
-  need(admitted.account_id === accountId && admitted.credential_sha256 === credentialDigest && admitted.semantic_headers_sha256 === semanticDigest && admitted.source_input_sha256 === session.inputDigest && admitted.content_type === contentType, 'protected Studio reserved credential/account binding changed');
+  need(admitted.account_id === accountId && admitted.credential_sha256 === credentialDigest && admitted.semantic_headers_sha256 === semanticDigest && admitted.source_input_sha256 === session.inputDigest && admitted.semantic_input_sha256 === semanticInputDigest && admitted.content_type === contentType, 'protected Studio reserved credential/account binding changed');
   const attemptId = nonempty(admitted.attempt_id);
   session.reservation = { jobId: fields.job_id, attemptId, jobDigest, requestSha256: requestDigest, sourceSha, maxRuntimeSeconds: runtime, bindingFields: boundFields };
   const reservedAt = protectedDate(admitted.reserved_at), admittedExpiry = protectedDate(admitted.admission_expires_at);
@@ -226,13 +250,19 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
 }
 
 /** Only status/artifact GETs are allowed after admission; authorization cannot escape its API origin. */
-export async function readStudioProvider(url: string, init: RequestInit = {}) {
+export async function readStudioProvider(url: string, init: RequestInit = {}, maxBytes = 64 * 1024 * 1024) {
   const session = sessions.getStore(); if (session) { checkSession(session); need(session.reservation, 'provider read preceded admission'); }
   need(!init.method || init.method === 'GET', 'provider continuation must be read-only');
   const target = safeHttps(url), headers = transportHeaders(init.headers);
-  if (session && Object.keys(credentialHeaders(headers)).length) {
+  if (Object.keys(credentialHeaders(headers)).length) {
+    need(session?.reservation, 'credential-bearing read lacks protected source session');
     // The admitted endpoint is retrieved from the session's durable request identity.
     const endpoint = sessionEndpoint.get(session); need(endpoint && target.origin === new URL(endpoint).origin, 'provider credential origin changed');
+  } else {
+    need(session?.reservation, 'artifact read lacks protected source session');
+    need(Number.isSafeInteger(maxBytes) && maxBytes > 0, 'invalid protected artifact byte limit');
+    const artifact = await retrievePublicArtifact(target.toString(), { hosts: session.artifactHosts, maxBytes: Math.min(maxBytes, 64 * 1024 * 1024), timeoutMs: Math.max(1, Math.floor(Math.min(120_000, (session.deadline || 0) - Date.now()))), signal: joinedSignal(session, init.signal), checkAdmission: () => checkSession(session) });
+    return new Response(new Uint8Array(artifact.buffer!), { headers: { 'content-length': String(artifact.bytes), ...(artifact.contentType ? { 'content-type': artifact.contentType } : {}) } });
   }
   const response = await fetch(target.toString(), { ...init, method: 'GET', redirect: 'error', signal: joinedSignal(session, init.signal) });
   if (session) checkSession(session); return response;

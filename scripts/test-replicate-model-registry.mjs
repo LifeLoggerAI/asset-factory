@@ -48,7 +48,9 @@ compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
   "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
-const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts');
+const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
+fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
@@ -149,7 +151,7 @@ async function testGraphicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions',
     expectedBody: { input: { prompt: 'symbolic moonlit orb', num_outputs: 1, aspect_ratio: '16:9', output_format: 'webp', output_quality: 80 } },
     mimeType: 'image/webp',
-    artifactUrl: 'https://cdn.example.com/graphic.webp',
+    artifactUrl: 'https://outputs.example.test/graphic.webp',
     expectedModel: 'black-forest-labs/flux-schnell',
     expectedLane: 'graphic',
   });
@@ -163,7 +165,7 @@ async function testModel3dLaneUsesPinnedVersionRoute() {
     expectedUrl: 'https://api.replicate.com/v1/predictions',
     expectedBody: { version, input: { prompt: 'glass memory shrine', enable_pbr: true, face_count: 40000, generate_type: 'Normal' } },
     mimeType: 'model/gltf-binary',
-    artifactUrl: 'https://cdn.example.com/model.glb',
+    artifactUrl: 'https://outputs.example.test/model.glb',
     expectedModel: `tencent/hunyuan-3d-3.1:${version}`,
     expectedLane: 'model3d',
   });
@@ -176,7 +178,7 @@ async function testMusicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/google/lyria-2/predictions',
     expectedBody: { input: { prompt: 'slow atmospheric recovery theme', negative_prompt: 'vocals' } },
     mimeType: 'audio/wav',
-    artifactUrl: 'https://cdn.example.com/music.wav',
+    artifactUrl: 'https://outputs.example.test/music.wav',
     expectedModel: 'google/lyria-2',
     expectedLane: 'audio',
   });
@@ -189,7 +191,7 @@ async function testSpeechLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/minimax/speech-02-hd/predictions',
     expectedBody: { input: { text: 'Welcome back, Adam.', voice_id: 'Friendly_Person', emotion: 'auto', language_boost: 'English', english_normalization: true } },
     mimeType: 'audio/mpeg',
-    artifactUrl: 'https://cdn.example.com/speech.mp3',
+    artifactUrl: 'https://outputs.example.test/speech.mp3',
     expectedModel: 'minimax/speech-02-hd',
     expectedLane: 'speech',
   });

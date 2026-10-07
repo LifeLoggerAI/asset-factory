@@ -13,6 +13,17 @@ const endpoint = 'https://api.replicate.com/v1/models/tencent/hunyuan-3d-3.1/pre
 const gatewayUrl = 'https://synthetic-gateway.invalid/api/worker/production-spend';
 const model = 'tencent/hunyuan-3d-3.1'; const specHash = '2'.repeat(64);
 const init = { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer synthetic-test-only' }, body: '{"input":{"prompt":"synthetic"}}' };
+test('semantic JSON identity survives key order and formatting while exact bytes stay distinct', async () => {
+  const a = await freezeRequest(endpoint, { ...init, body: '{"input":{"seed":1,"prompt":"synthetic"}}' }, 'replicate');
+  const b = await freezeRequest(endpoint, { ...init, body: '{ "input": {"prompt":"synthetic", "seed":1} }' }, 'replicate');
+  assert.notEqual(a.request_sha256, b.request_sha256); assert.equal(a.semantic_input_sha256, b.semantic_input_sha256);
+});
+test('multipart filename changes do not create a new semantic execution identity', async () => {
+  const make = filename => { const data = new FormData(); data.append('image', new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), filename); return data; };
+  const a = await freezeRequest('https://api.hyper3d.com/api/v2/rodin', { method: 'POST', headers: { authorization: 'Bearer synthetic-only' }, body: make('old.png') }, 'rodin');
+  const b = await freezeRequest('https://api.hyper3d.com/api/v2/rodin', { method: 'POST', headers: { authorization: 'Bearer synthetic-only' }, body: make('new.png') }, 'rodin');
+  assert.notEqual(a.request_sha256, b.request_sha256); assert.equal(a.semantic_input_sha256, b.semantic_input_sha256);
+});
 for (const field of ['reserved_at', 'admission_expires_at']) test(`missing absolute ${field} keeps the reservation held without provider dispatch`, async () => {
   const f = await fixture({ alterReservation: result => delete result[field] });
   await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
@@ -39,14 +50,14 @@ function response(value, status = 200) { return new Response(JSON.stringify(valu
 async function fixture(options = {}) {
   const prepared = await freezeRequest(endpoint, init, 'replicate');
   const now = (options.now || Date.now)();
-  const binding = { content_type: prepared.content_type, credential_sha256: prepared.credential_sha256, semantic_headers_sha256: prepared.semantic_headers_sha256, source_input_sha256: specHash };
-  const job = { job_id: 'synthetic-job', account_id: 'synthetic-account', provider: 'replicate', model_version: model, input_sha256: [specHash, prepared.request_sha256], executor: { source_sha: sourceSha, endpoint, request_sha256: prepared.request_sha256, request_size: prepared.request_size, asset: 'fixture', ...binding }, budget: { max_runtime_seconds: options.runtime || 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() } }, attempts: [], approval: { synthetic: true } };
+  const binding = { content_type: prepared.content_type, credential_sha256: prepared.credential_sha256, semantic_headers_sha256: prepared.semantic_headers_sha256, source_input_sha256: specHash, semantic_input_sha256: prepared.semantic_input_sha256 };
+  const job = { job_id: 'synthetic-job', account_id: 'synthetic-account', provider: 'replicate', model_version: model, input_sha256: [specHash, prepared.request_sha256], executor: { source_sha: sourceSha, endpoint, request_sha256: prepared.request_sha256, request_size: prepared.request_size, asset: 'fixture', artifact_hosts: ['outputs.example.test'], ...binding }, budget: { max_runtime_seconds: options.runtime || 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() } }, attempts: [], approval: { synthetic: true } };
   const fresh = { observed_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() };
   job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha };
   job.approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-fixture', issued_at: fresh.observed_at, expires_at: fresh.expires_at };
   const authority = { ...fresh, trusted_readback: true, binding: structuredClone(job.authority) };
   const account = { provider: 'replicate', account_id: job.account_id, balance_type: 'API', trusted_readback: true, credential_sha256: prepared.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...fresh };
-  const controls = { provider: 'replicate', account_id: job.account_id, endpoint, request_sha256: prepared.request_sha256, ...binding, ...fresh, trusted_readback: true, enforcement_source_sha: sourceSha, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, proof_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...job.budget };
+  const controls = { provider: 'replicate', account_id: job.account_id, endpoint, artifact_hosts: ['outputs.example.test'], request_sha256: prepared.request_sha256, ...binding, ...fresh, trusted_readback: true, enforcement_source_sha: sourceSha, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, proof_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...job.budget };
   const pricing = { provider: job.provider, account_id: job.account_id, model_version: model, request_sha256: prepared.request_sha256, ...binding, ...fresh, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', trusted_readback: true, rates: structuredClone(job.budget.rates) };
   options.alterPricing?.(pricing);
   options.alterJob?.(job);
@@ -199,7 +210,7 @@ for (const [name, options] of [
     assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
   });
 }
-for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) {
+for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) {
   test(`missing or changed reservation ${field} cannot open the provider leaf`, async () => {
     for (const missing of [true, false]) {
       const f = await fixture({ alterReservation: reservation => missing ? delete reservation[field] : reservation[field] = 'different-binding' });
@@ -256,7 +267,7 @@ for (const disposition of ['valid', 'unreconciled', 'wrong task', 'wrong spec', 
   test(`Meshy continuation ${disposition} requires protected final settlement`, async () => {
     const previewEndpoint = 'https://api.meshy.ai/openapi/v2/text-to-3d'; const previewInit = { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer synthetic-preview-only' }, body: '{"mode":"preview","prompt":"synthetic"}' };
     const request = await freezeRequest(previewEndpoint, previewInit, 'meshy');
-    const binding = { content_type: request.content_type, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: specHash };
+    const binding = { content_type: request.content_type, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: specHash, semantic_input_sha256: request.semantic_input_sha256 };
     const checkpoint = { schema_version: 1, provider: 'meshy', asset: 'fixture', model: 'meshy-7.1', source_spec_sha256: specHash, job_id: 'synthetic-preview', account_id: 'synthetic-preview-account', attempt_id: 'synthetic-attempt', preview_task_id: 'synthetic-task', request_sha256: request.request_sha256, executor_source_sha: sourceSha, ...binding, provider_call_authorized: false };
     const job = { job_id: checkpoint.job_id, account_id: checkpoint.account_id, provider: 'meshy', model_version: checkpoint.model, input_sha256: [specHash, request.request_sha256], executor: { source_sha: sourceSha, asset: 'fixture', endpoint: previewEndpoint, request_sha256: request.request_sha256, request_size: request.request_size, ...binding }, budget: { max_runtime_seconds: 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(Date.now() - 1000).toISOString(), expires_at: new Date(Date.now() + 3600000).toISOString() } }, attempts: [{ attempt_id: checkpoint.attempt_id, status: 'SUCCEEDED', charges_reconciled: true, task_id: checkpoint.preview_task_id, charge_receipt_sha256: 'a'.repeat(64) }] };
     const fresh = { observed_at: new Date(Date.now() - 1000).toISOString(), expires_at: new Date(Date.now() + 3600000).toISOString() };
@@ -281,12 +292,12 @@ for (const disposition of ['valid', 'unreconciled', 'wrong task', 'wrong spec', 
 }
 test('dirty, untracked and missing executor files reject in real isolated Git repositories', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-model-build-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  fs.mkdirSync(path.join(dir, 'model_forge')); for (const file of ['forge.mjs', 'model-spend-client.mjs', 'triangle-budget.mjs', 'glb-container.mjs']) fs.copyFileSync(path.join(root, 'model_forge', file), path.join(dir, 'model_forge', file));
+  fs.mkdirSync(path.join(dir, 'model_forge')); for (const file of ['forge.mjs', 'model-spend-client.mjs', 'triangle-budget.mjs', 'glb-container.mjs', 'protected-artifact.mjs']) fs.copyFileSync(path.join(root, 'model_forge', file), path.join(dir, 'model_forge', file));
   const git = args => { const r = spawnSync('git', args, { cwd: dir, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
   git(['init', '-q']); git(['add', 'model_forge']); git(['-c', 'user.name=Synthetic Test', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'synthetic source fixture']);
   const sha = git(['rev-parse', 'HEAD']); const check = () => spawnSync(process.execPath, ['--input-type=module', '-e', "import { verifiedSourceSha } from './model_forge/model-spend-client.mjs'; console.log(verifiedSourceSha());"], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH, URAI_SOURCE_SHA: sha } });
   assert.equal(check().status, 0); fs.appendFileSync(path.join(dir, 'model_forge/forge.mjs'), '\n// dirty fixture'); assert.equal(check().status, 1); git(['checkout', '--', 'model_forge/forge.mjs']);
-  for (const file of ['triangle-budget.mjs', 'glb-container.mjs']) {
+  for (const file of ['triangle-budget.mjs', 'glb-container.mjs', 'protected-artifact.mjs']) {
     const relative = `model_forge/${file}`;
     fs.appendFileSync(path.join(dir, relative), '\n// changed imported geometry fixture'); assert.equal(check().status, 1); git(['checkout', '--', relative]);
     git(['rm', '--cached', '-q', relative]); assert.equal(check().status, 1); git(['reset', '-q', '--', relative]);

@@ -6,6 +6,20 @@ import { cpSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
+import { retrievePublicArtifact } from '../../model_forge/protected-artifact.mjs';
+
+export async function syntheticArtifactRetrieve(url, options) {
+  return retrievePublicArtifact(url, { ...options, lookup: async () => [{ address: '1.1.1.1', family: 4 }], request: (target, config, callback) => {
+    assert.equal(config.agent, false); assert.equal(target.hostname, 'outputs.example.test');
+    config.lookup(target.hostname, { all: false }, (error, address) => { assert.ifError(error); assert.equal(address, '1.1.1.1'); });
+    const request = new EventEmitter();
+    Promise.resolve(globalThis.fetch(target.toString(), { method: 'GET', redirect: 'error', headers: config.headers, signal: config.signal })).then(async web => {
+      const response = web.body ? Readable.fromWeb(web.body, { signal: config.signal }) : Readable.from([]); response.statusCode = web.status; response.headers = Object.fromEntries(web.headers); callback(response);
+    }).catch(error => request.emit('error', error)); return request;
+  } });
+}
 
 export const syntheticGatewayUrl = 'https://protected.example.test/api/worker/production-spend';
 export const protectedSourceNames = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts', 'firebaseAdmin.ts'];
@@ -19,6 +33,8 @@ export function syntheticCleanBuild() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
   const directory = mkdtempSync(path.join(tmpdir(), 'urai-studio-synthetic-build-'));
   mkdirSync(path.join(directory, 'assetfactory-studio/lib/server'), { recursive: true });
+  mkdirSync(path.join(directory, 'model_forge'), { recursive: true });
+  cpSync(path.join(root, 'model_forge/protected-artifact.mjs'), path.join(directory, 'model_forge/protected-artifact.mjs'));
   for (const name of protectedSourceNames) cpSync(path.join(root, 'assetfactory-studio/lib/server', name), path.join(directory, 'assetfactory-studio/lib/server', name));
   const git = (...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8', stdio: 'pipe' }).trim();
   git('init', '--quiet'); git('add', '.'); git('-c', 'user.name=Synthetic Fixture', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'Synthetic source fixture, not release authority');
@@ -41,13 +57,13 @@ export function syntheticStudioSpend(input, options, protectedModule) {
   const requestDigest = protectedModule.studioRequestDigest(endpoint, body), inputDigest = protectedModule.studioSourceInputDigest(input), sourceSha = process.env.URAI_SOURCE_SHA;
   const jobId = `SYNTHETIC-${requestDigest}`;
   const observed = new Date(Date.now() - 60_000).toISOString(), expires = new Date(Date.now() + 3_600_000).toISOString();
-  const job = { schema_version: 1, job_id: jobId, provider: options.provider, account_id: 'SYNTHETIC-API-ACCOUNT', model_version: options.model, consumer: 'factory-studio', rights_reviewed: true, authority: { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }, input_sha256: [inputDigest, requestDigest], executor: { source_sha: sourceSha, endpoint, request_sha256: requestDigest, asset: `${input.tenantId || 'default'}/${input.jobId}/${options.lane}`, request_size: String(body.length), content_type: headers.get('content-type'), credential_sha256: hash(sourceJson(credentials)), semantic_headers_sha256: hash(sourceJson(semantic)), source_input_sha256: inputDigest }, budget: { max_usd_micros: 1_000_000, max_credits: 0, max_runtime_seconds: options.runtime ?? 30 }, attempts: [] };
+  const job = { schema_version: 1, job_id: jobId, provider: options.provider, account_id: 'SYNTHETIC-API-ACCOUNT', model_version: options.model, consumer: 'factory-studio', rights_reviewed: true, authority: { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }, input_sha256: [inputDigest, requestDigest], executor: { artifact_hosts: ['outputs.example.test'], source_sha: sourceSha, endpoint, request_sha256: requestDigest, asset: `${input.tenantId || 'default'}/${input.jobId}/${options.lane}`, request_size: String(body.length), content_type: headers.get('content-type'), credential_sha256: hash(sourceJson(credentials)), semantic_headers_sha256: hash(sourceJson(semantic)), source_input_sha256: inputDigest, semantic_input_sha256: protectedModule.studioSemanticInputDigest(body, headers.get('content-type')) }, budget: { max_usd_micros: 1_000_000, max_credits: 0, max_runtime_seconds: options.runtime ?? 30 }, attempts: [] };
   const mapping = JSON.parse(process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON || '{}'); mapping[requestDigest] = jobId;
   job.budget.rates = { usd_micros_per_unit: 1_000_000, credits_per_unit: 0, receipt: 'SYNTHETIC-NOT-PRICE-PROOF', verified_at: observed, expires_at: expires };
   process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = JSON.stringify(mapping);
   job.approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', job_digest: protectedModule.protectedJobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, receipt: 'SYNTHETIC-NOT-APPROVAL', approver: 'SYNTHETIC-APPROVER', key_id: 'SYNTHETIC-KEY', signature: 'U1lOVEhFVElD', issued_at: observed, expires_at: expires };
   const workerAuthorization = new Headers({ authorization: `Bearer ${process.env.ASSET_FORGE_SPEND_WORKER_TOKEN}` }).get('authorization');
-  const issuer = { job_id: jobId, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: inputDigest, content_type: job.executor.content_type, executor_repository: 'LifeLoggerAI/asset-factory', consumer: 'factory-studio', tenant_id: input.tenantId || 'default', generation_job_id: input.jobId, lane: options.lane, account_id: job.account_id, gateway_url: syntheticGatewayUrl, worker_token_sha256: hash(sourceJson({ authorization: workerAuthorization })), trusted_readback: true, receipt: 'SYNTHETIC-NOT-ISSUER-PROOF', observed_at: observed, expires_at: expires };
+  const issuer = { job_id: jobId, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: inputDigest, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type, executor_repository: 'LifeLoggerAI/asset-factory', consumer: 'factory-studio', tenant_id: input.tenantId || 'default', generation_job_id: input.jobId, lane: options.lane, account_id: job.account_id, gateway_url: syntheticGatewayUrl, worker_token_sha256: hash(sourceJson({ authorization: workerAuthorization })), trusted_readback: true, receipt: 'SYNTHETIC-NOT-ISSUER-PROOF', observed_at: observed, expires_at: expires };
   const state = { job, issuer, issuerExists: true, issuerProjectId: process.env.FIREBASE_PROJECT_ID, failIssuer: false, issuerReads: 0, reserved: false, observed: [], calls: [], held: false, preflightExpiry: Date.parse(expires), mutatePreflight: null, mutatePrepared: null, mutateReserve: null, mutateRecord: null, failAction: null, loseReserveResponse: false };
   const issuerDb = {
     get projectId() { if (state.failIssuerProject) throw new Error('SYNTHETIC SDK identity unavailable'); return state.issuerProjectId; },
@@ -64,10 +80,10 @@ export function syntheticStudioSpend(input, options, protectedModule) {
     const fields = JSON.parse(init.body); state.calls.push(fields.action);
     if (state.failAction === fields.action) throw new Error('SYNTHETIC gateway unavailable');
     if (fields.action === 'preflight') {
-      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
       const approvedJob = structuredClone(job);
-      const envelope = { job: approvedJob, account: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-ACCOUNT-PROOF', observed_at: observed, expires_at: expires }, authority: { binding: structuredClone(job.authority), trusted_readback: true, observed_at: observed, expires_at: expires }, protected_controls: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, enforcement_source_sha: sourceSha, endpoint, request_sha256: requestDigest, proof_receipt: 'SYNTHETIC-NOT-CONTROL-PROOF', observed_at: observed, expires_at: expires, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, max_runtime_seconds: job.budget.max_runtime_seconds } };
-      envelope.protected_pricing = { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, trusted_readback: true, receipt: 'SYNTHETIC-NOT-PRICE-PROOF', observed_at: observed, expires_at: expires, rates: structuredClone(job.budget.rates) };
+      const envelope = { job: approvedJob, account: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-ACCOUNT-PROOF', observed_at: observed, expires_at: expires }, authority: { binding: structuredClone(job.authority), trusted_readback: true, observed_at: observed, expires_at: expires }, protected_controls: { artifact_hosts: ['outputs.example.test'], provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type, enforcement_source_sha: sourceSha, endpoint, request_sha256: requestDigest, proof_receipt: 'SYNTHETIC-NOT-CONTROL-PROOF', observed_at: observed, expires_at: expires, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, max_runtime_seconds: job.budget.max_runtime_seconds } };
+      envelope.protected_pricing = { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type, trusted_readback: true, receipt: 'SYNTHETIC-NOT-PRICE-PROOF', observed_at: observed, expires_at: expires, rates: structuredClone(job.budget.rates) };
       const result = { ok: true, envelope, admission_expires_at: expires, provider_call_authorized: false, execution_performed: false };
       state.mutatePreflight?.(envelope, fields, result);
       if (result.admission_expires_at === expires) {
@@ -82,16 +98,16 @@ export function syntheticStudioSpend(input, options, protectedModule) {
       if (state.reserved) return Response.json({ ok: false }, { status: 409 });
       assert.equal(fields.job_digest, protectedModule.protectedJobDigest(job));
       assert.equal(fields.account_id, job.account_id);
-      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
       state.reserved = true; state.held = true;
       if (state.loseReserveResponse) throw new Error('SYNTHETIC lost response after reserve');
       const reservedAt = Date.now(), runtime = options.runtime ?? job.budget.max_runtime_seconds;
-      const result = { ok: true, reserved_at: new Date(reservedAt).toISOString(), admission_expires_at: new Date(Math.min(state.preflightExpiry, reservedAt + runtime * 1_000)).toISOString(), attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: runtime, provider_call_authorized: true, execution_performed: false, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type };
+      const result = { ok: true, reserved_at: new Date(reservedAt).toISOString(), admission_expires_at: new Date(Math.min(state.preflightExpiry, reservedAt + runtime * 1_000)).toISOString(), attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: runtime, provider_call_authorized: true, execution_performed: false, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type };
       state.mutateReserve?.(result); return Response.json(result);
     }
     if (fields.action === 'record') {
       assert.equal(fields.account_id, job.account_id);
-      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'request_sha256', 'endpoint', 'asset', 'request_size']) assert.equal(fields[key], job.executor[key]);
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type', 'request_sha256', 'endpoint', 'asset', 'request_size']) assert.equal(fields[key], job.executor[key]);
       assert.equal(fields.provider, job.provider); assert.equal(fields.model, job.model_version); assert.equal(fields.executor_source_sha, job.executor.source_sha);
       assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields); state.mutateRecord?.();
       return Response.json({ ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true });

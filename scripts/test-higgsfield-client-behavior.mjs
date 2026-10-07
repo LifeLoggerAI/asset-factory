@@ -11,13 +11,24 @@ const ts = require('typescript')
 const scratch = mkdtempSync(path.join(tmpdir(), 'urai-higgsfield-offline-tests-'))
 const compiled = path.join(scratch, 'client.mjs')
 const protectedFile = path.join(scratch, 'protectedProviderRequest.mjs')
+const syntheticArtifactModule = path.join(scratch, 'synthetic-protected-artifact.mjs')
+writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(new URL('../model_forge/protected-artifact.mjs', import.meta.url).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(new URL('./lib/studio-spend-test-fixture.mjs', import.meta.url).href)};\n`)
 writeFileSync(path.join(scratch, 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? null; }\n')
-writeFileSync(protectedFile, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/protectedProviderRequest.ts', import.meta.url), 'utf8').replace("from './firebaseAdmin';", "from './firebaseAdmin.mjs';"), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
+writeFileSync(protectedFile, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/protectedProviderRequest.ts', import.meta.url), 'utf8').replace("from './firebaseAdmin';", "from './firebaseAdmin.mjs';").replace("from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
 writeFileSync(compiled, ts.transpileModule(readFileSync(new URL('../assetfactory-studio/lib/server/higgsfieldClient.ts', import.meta.url), 'utf8').replace("from './protectedProviderRequest';", "from './protectedProviderRequest.mjs';"), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText)
 after(() => rmSync(scratch, { recursive: true, force: true }))
 const { downloadHiggsfieldArtifact, higgsfieldArtifactUrl, runHiggsfieldGeneration } = await import(pathToFileURL(compiled).href)
 const protector = await import(pathToFileURL(protectedFile).href)
 const limits = { maxBytes: 8, timeoutMs: 1000 }
+async function admittedArtifact(run) {
+  const original = globalThis.fetch, build = syntheticCleanBuild()
+  const input = { jobId: 'synthetic-artifact-budget', tenantId: 'synthetic', type: 'graphic', prompt: 'Synthetic non-private artifact fixture' }
+  const endpoint = 'https://api.higgsfield.ai/approved/model', headers = { authorization: 'Key SYNTHETIC-artifact-fixture', 'content-type': 'application/json' }
+  const fixture = syntheticStudioSpend(input, { endpoint, provider: 'higgsfield', model: 'approved/model', lane: 'image', body: '{}', headers }, protector)
+  globalThis.fetch = fixture.wrap((url, init) => init.method === 'POST' ? Promise.resolve(Response.json({})) : original(url, init))
+  try { return await protector.withProtectedStudioSession(input, async () => { await protector.paidStudioFetch('higgsfield', 'approved/model', 'image', endpoint, { method: 'POST', body: '{}', headers }); return run() }) }
+  finally { fixture.restore(); build.restore() }
+}
 function policy(t) {
   const previous = process.env.ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS
   process.env.ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS = 'https://outputs.example.test'
@@ -36,7 +47,7 @@ test('artifact origins fail closed for private, IPv6, credential and unapproved 
 test('artifact fetch rejects redirects and retains exact bounded bytes', async (t) => {
   policy(t)
   mock(t, async (url, options) => { assert.equal(url, 'https://outputs.example.test/a'); assert.equal(options.redirect, 'error'); return new Response(new Uint8Array([1,2,3]), { headers: { 'content-type': 'image/png' } }) })
-  const result = await downloadHiggsfieldArtifact('https://outputs.example.test/a', limits)
+  const result = await admittedArtifact(() => downloadHiggsfieldArtifact('https://outputs.example.test/a', limits))
   assert.deepEqual([...result.buffer], [1,2,3])
   assert.equal(result.mimeType, 'image/png')
 })
@@ -44,14 +55,14 @@ test('chunked artifact is cancelled before retaining bytes beyond the limit', as
   policy(t)
   let canceled = false
   mock(t, async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(4)); controller.enqueue(new Uint8Array(6)) }, cancel() { canceled = true } })))
-  await assert.rejects(downloadHiggsfieldArtifact('https://outputs.example.test/a', limits), /while streaming/)
+  await assert.rejects(admittedArtifact(() => downloadHiggsfieldArtifact('https://outputs.example.test/a', limits)), /stream exceeds byte ceiling|while streaming/)
   assert.equal(canceled, true)
 })
 test('declared oversize cancels body and invalid budgets issue no request', async (t) => {
   policy(t)
   let calls = 0, canceled = false
   mock(t, async () => { calls++; return new Response(new ReadableStream({ cancel() { canceled = true } }), { headers: { 'content-length': '99' } }) })
-  await assert.rejects(downloadHiggsfieldArtifact('https://outputs.example.test/a', limits), /exceeds max bytes/)
+  await assert.rejects(admittedArtifact(() => downloadHiggsfieldArtifact('https://outputs.example.test/a', limits)), /declared size exceeds ceiling|exceeds max bytes/)
   assert.equal(canceled, true)
   await assert.rejects(downloadHiggsfieldArtifact('https://outputs.example.test/a', { maxBytes: -1, timeoutMs: 1 }), /Invalid/)
   assert.equal(calls, 1)

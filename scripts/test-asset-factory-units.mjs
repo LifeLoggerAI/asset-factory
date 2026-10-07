@@ -49,7 +49,9 @@ const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
 compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
-const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts');
+const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
+fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
@@ -324,12 +326,12 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-1') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://cdn.example.com/out.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://outputs.example.test/out.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/out.png') {
+    if (String(url) === 'https://outputs.example.test/out.png') {
       assert.equal(options.method ?? 'GET', 'GET');
       return new Response(new Uint8Array([137, 80, 78, 71]), {
         status: 200,
@@ -429,12 +431,12 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-3') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://cdn.example.com/chunked.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://outputs.example.test/chunked.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/chunked.png') {
+    if (String(url) === 'https://outputs.example.test/chunked.png') {
       return new Response(new Uint8Array([1, 2, 3, 4]), {
         status: 200,
         headers: { 'content-type': 'image/png' },
@@ -453,7 +455,8 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
         { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
         resolveAssetType('graphic')
       ),
-      /exceeds max bytes during download|exceeds max bytes after download/
+      // The admitted transport materializes bounded bytes and reports their exact length.
+      /exceeds max bytes before download|exceeds max bytes during download|exceeds max bytes after download/
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -482,12 +485,12 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
       assert.equal(options.method, 'POST');
       assert.equal(new Headers(options.headers).get('authorization'), 'Key test-fal-key');
       assert.deepEqual(JSON.parse(options.body), { prompt: 'governed fal smoke' });
-      return new Response(JSON.stringify({ images: [{ url: 'https://cdn.example.com/fal.webp' }] }), {
+      return new Response(JSON.stringify({ images: [{ url: 'https://outputs.example.test/fal.webp' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/fal.webp') {
+    if (String(url) === 'https://outputs.example.test/fal.webp') {
       return new Response(new Uint8Array([82, 73, 70, 70]), {
         status: 200,
         headers: { 'content-type': 'image/webp', 'content-length': '4' },
