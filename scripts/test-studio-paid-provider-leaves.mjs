@@ -180,6 +180,37 @@ test('protected preflight account and credential controls cannot contradict the 
 test('reserved account and fingerprint echoes cannot admit a different account or request', async () => {
   for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = r => { r[field] = 'SYNTHETIC-wrong-binding'; }; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
 });
+test('protected controls require exact source, request, signed caps and hard enforcement before dispatch', async () => {
+  for (const [field, value] of [['enforcement_source_sha', 'f'.repeat(40)], ['endpoint', 'https://other.example.test'], ['request_sha256', 'f'.repeat(64)], ['proof_receipt', ''], ['hard_stop_supported', false], ['cost_cap_enforced', false], ['auto_top_up', true], ['max_usd_micros', 9_000_000], ['max_credits', 99], ['max_runtime_seconds', 31]]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { e.protected_controls[field] = value; };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('source authority, account and control observations reject stale, future and malformed timestamps', async () => {
+  for (const target of ['authority', 'account', 'protected_controls']) for (const [field, value] of [['observed_at', new Date(Date.now() + 3_600_000).toISOString()], ['expires_at', new Date(Date.now() - 1_000).toISOString()], ['expires_at', '2026-02-30T12:00:00Z'], ['expires_at', '2026-12-01'], ['expires_at', '2026-12-01T12:00:00'], ['expires_at', undefined]]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { e[target][field] = value; };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('source authority, account or controls expiring during reserve cannot dispatch and retain the admitted hold', async () => {
+  for (const target of ['authority', 'account', 'protected_controls']) {
+    const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+    const c = config('openai', 'graphic');
+    c.fixture.mutatePreflight = e => { e[target].expires_at = new Date(started + 1_000).toISOString(); };
+    c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
+    try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); } finally { Date.now = originalNow; }
+  }
+});
+test('source authority proof cannot change its trusted source binding', async () => {
+  for (const mutate of [e => { e.authority.trusted_readback = false; }, e => { e.authority.binding.sha = 'f'.repeat(40); }, e => { e.authority.binding.repository = 'Other/repository'; }]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('a delayed reservation cannot restart the signed runtime at response receipt', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutateReserve = () => { Date.now = () => started + 31_000; };
+  try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
+});
 test('protected pricing requires its receipt, trusted identity and every actual transport fingerprint', async () => {
   const changes = [e => { delete e.protected_pricing; }, e => { e.protected_pricing = []; }, e => { e.protected_pricing.trusted_readback = false; }, e => { e.protected_pricing.receipt = ''; }, ...['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type'].map(field => e => { e.protected_pricing[field] = 'SYNTHETIC-other-price'; })];
   for (const mutate of changes) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
@@ -194,8 +225,9 @@ test('pricing observation and approved rates both reject stale, future and malfo
   }
 });
 test('pricing expiring while reserve is in flight cannot dispatch and retains the admitted hold', async () => {
-  const c = config('openai', 'graphic'), originalNow = Date.now;
-  c.fixture.mutateReserve = () => { Date.now = () => originalNow() + 7_200_000; };
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { e.protected_pricing.expires_at = new Date(started + 1_000).toISOString(); };
+  c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
   try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
 });
 test('source changing after atomic reserve cannot reach provider fetch and retains the hold', async () => {
