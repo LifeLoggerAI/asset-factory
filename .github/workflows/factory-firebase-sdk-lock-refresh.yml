@@ -8,6 +8,7 @@ on:
     paths:
       - package.json
       - functions/package.json
+      - functions/**
       - life-map-pipeline/functions/package.json
       - life-map-pipeline/functions/src/**
       - pnpm-lock.yaml
