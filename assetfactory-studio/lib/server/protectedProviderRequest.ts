@@ -17,6 +17,15 @@ function record(value: unknown): JsonRecord { need(value && typeof value === 'ob
 function sha(value: unknown, length = 64): string { need(typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`).test(value), 'invalid protected digest'); return value; }
 function nonempty(value: unknown): string { need(typeof value === 'string' && value.trim(), 'missing protected binding'); return value; }
 export function digest(value: string | Uint8Array) { return createHash('sha256').update(value).digest('hex'); }
+function protectedDate(value: unknown) {
+  need(typeof value === 'string', 'protected pricing timestamp missing');
+  const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.exec(value);
+  need(parts, 'protected pricing requires complete ISO time and timezone');
+  const [year, month, day, hour, minute, second] = parts.slice(1, 7).map(Number), calendar = new Date(Date.UTC(year, month - 1, day));
+  need(calendar.getUTCFullYear() === year && calendar.getUTCMonth() === month - 1 && calendar.getUTCDate() === day && hour < 24 && minute < 60 && second < 60, 'invalid protected pricing calendar');
+  const timestamp = Date.parse(value); need(Number.isFinite(timestamp), 'invalid protected pricing timestamp'); return timestamp;
+}
+function freshPricing(value: JsonRecord, observed: string) { const now = Date.now(); need(protectedDate(value[observed]) <= now && now < protectedDate(value.expires_at), 'stale or future protected pricing'); }
 
 /** Same ASCII/integer canonical job identity as Factory #436 and Labs #229. */
 export function canonicalSpend(value: unknown): string {
@@ -120,7 +129,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const prepared = await gateway('preflight', fields);
   need(prepared.provider_call_authorized === false && prepared.execution_performed === false, 'preflight must remain non-authorizing');
   const envelope = record(prepared.envelope), job = record(envelope.job), executor = record(job.executor), authority = record(job.authority);
-  const account = record(envelope.account), controls = record(envelope.protected_controls), accountId = nonempty(job.account_id);
+  const account = record(envelope.account), controls = record(envelope.protected_controls), pricing = record(envelope.protected_pricing), accountId = nonempty(job.account_id), budget = record(job.budget);
   need(job.job_id === fields.job_id && job.provider === provider && job.model_version === model && job.consumer === 'factory-studio' && job.rights_reviewed === true, 'protected Studio job identity or rights changed');
   need(authority.repository === 'LifeLoggerAI/asset-factory' && authority.sha === sourceSha, 'protected Studio source authority changed');
   need(executor.source_sha === sourceSha && executor.endpoint === endpoint && executor.request_sha256 === requestDigest && executor.asset === asset && executor.request_size === fields.request_size, 'protected Studio request binding changed');
@@ -128,20 +137,30 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   need(account.provider === provider && account.account_id === accountId && account.trusted_readback === true && account.credential_binding_verified === true && account.credential_sha256 === credentialDigest, 'protected Studio credential/account mapping changed');
   nonempty(account.credential_binding_receipt);
   need(controls.provider === provider && controls.account_id === accountId && controls.trusted_readback === true && controls.credential_sha256 === credentialDigest && controls.semantic_headers_sha256 === semanticDigest && controls.source_input_sha256 === session.inputDigest && controls.content_type === contentType, 'protected Studio control/account binding changed');
+  const checkPricing = () => {
+    need(pricing.trusted_readback === true && pricing.provider === provider && pricing.account_id === accountId && pricing.model_version === model && pricing.request_sha256 === requestDigest, 'protected Studio pricing identity changed');
+    need(pricing.credential_sha256 === credentialDigest && pricing.semantic_headers_sha256 === semanticDigest && pricing.source_input_sha256 === session.inputDigest && pricing.content_type === contentType, 'protected Studio pricing request binding changed');
+    nonempty(pricing.receipt); freshPricing(pricing, 'observed_at');
+    const rates = record(pricing.rates); nonempty(rates.receipt); freshPricing(rates, 'verified_at');
+    need(canonicalSpend(rates) === canonicalSpend(budget.rates), 'protected Studio approved pricing changed');
+  };
+  checkPricing();
   const inputs = job.input_sha256; need(Array.isArray(inputs) && inputs.includes(session.inputDigest) && inputs.includes(requestDigest), 'protected Studio input fixity missing');
   const jobDigest = protectedJobDigest(job);
   // Recheck local clean build/input after the non-authorizing read and before reserve.
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed before reservation');
+  checkPricing();
   const boundFields = { ...fields, account_id: accountId, job_digest: jobDigest };
   const admitted = await gateway('reserve', boundFields);
   const runtime = admitted.max_runtime_seconds;
-  need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === record(job.budget).max_runtime_seconds, 'invalid protected Studio reservation');
+  need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === budget.max_runtime_seconds, 'invalid protected Studio reservation');
   need(admitted.account_id === accountId && admitted.credential_sha256 === credentialDigest && admitted.semantic_headers_sha256 === semanticDigest && admitted.source_input_sha256 === session.inputDigest && admitted.content_type === contentType, 'protected Studio reserved credential/account binding changed');
   const attemptId = nonempty(admitted.attempt_id);
   session.reservation = { jobId: fields.job_id, attemptId, jobDigest, requestSha256: requestDigest, sourceSha, maxRuntimeSeconds: runtime, bindingFields: boundFields };
   session.deadline = Date.now() + runtime * 1_000;
   checkDeadline(session);
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed after reservation');
+  checkPricing();
   // Dispatch the materialized method/headers/body that were actually admitted.
   return fetch(endpoint, { ...init, method: 'POST', headers, body: bytes, redirect: 'error', signal: joinedSignal(session, init.signal) });
 }

@@ -180,6 +180,24 @@ test('protected preflight account and credential controls cannot contradict the 
 test('reserved account and fingerprint echoes cannot admit a different account or request', async () => {
   for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = r => { r[field] = 'SYNTHETIC-wrong-binding'; }; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
 });
+test('protected pricing requires its receipt, trusted identity and every actual transport fingerprint', async () => {
+  const changes = [e => { delete e.protected_pricing; }, e => { e.protected_pricing = []; }, e => { e.protected_pricing.trusted_readback = false; }, e => { e.protected_pricing.receipt = ''; }, ...['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type'].map(field => e => { e.protected_pricing[field] = 'SYNTHETIC-other-price'; })];
+  for (const mutate of changes) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
+});
+test('protected pricing rates cannot differ from the exact approved budget rates', async () => {
+  for (const mutate of [e => { e.protected_pricing.rates.usd_micros_per_unit++; }, e => { e.protected_pricing.rates.credits_per_unit++; }, e => { e.protected_pricing.rates.receipt = ''; }, e => { e.protected_pricing.rates.receipt = 'SYNTHETIC-other-price'; }, e => { e.protected_pricing.rates = null; }, e => { e.job.budget.rates = null; }]) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
+});
+test('pricing observation and approved rates both reject stale, future and malformed timestamps', async () => {
+  for (const rates of [false, true]) for (const [field, value] of [[rates ? 'verified_at' : 'observed_at', new Date(Date.now() + 3_600_000).toISOString()], ['expires_at', new Date(Date.now() - 1_000).toISOString()], ['expires_at', '2026-02-30T12:00:00Z'], ['expires_at', '2026-12-01'], ['expires_at', '2026-12-01T12:00:00'], ['expires_at', '2026-12-01T24:00:00Z'], ['expires_at', undefined]]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { const target = rates ? e.protected_pricing.rates : e.protected_pricing; target[field] = value; if (rates) e.job.budget.rates = structuredClone(target); };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('pricing expiring while reserve is in flight cannot dispatch and retains the admitted hold', async () => {
+  const c = config('openai', 'graphic'), originalNow = Date.now;
+  c.fixture.mutateReserve = () => { Date.now = () => originalNow() + 7_200_000; };
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
+});
 test('source changing after atomic reserve cannot reach provider fetch and retains the hold', async () => {
   const c = config('openai', 'graphic'), file = path.join(build.directory, 'assetfactory-studio/lib/server/higgsfieldClient.ts'), bytes = readFileSync(file);
   c.fixture.mutateReserve = () => writeFileSync(file, Buffer.concat([bytes, Buffer.from('\n// synthetic source change after reservation\n')]));
