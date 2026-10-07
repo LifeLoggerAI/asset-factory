@@ -3,6 +3,8 @@ name: Model Forge Spend Source
 on:
   pull_request:
     paths:
+      - model_forge/protected-artifact.mjs
+      - scripts/test-protected-artifact.mjs
       - model_forge/forge.mjs
       - model_forge/model-spend-client.mjs
       - model_forge/triangle-budget.mjs
@@ -13,6 +15,8 @@ on:
       - .github/workflows/model-forge-spend-source.yml
   push:
     paths:
+      - model_forge/protected-artifact.mjs
+      - scripts/test-protected-artifact.mjs
       - model_forge/forge.mjs
       - model_forge/model-spend-client.mjs
       - model_forge/triangle-budget.mjs
@@ -55,6 +59,6 @@ jobs:
         run: |
           node --check model_forge/forge.mjs
           node --check model_forge/model-spend-client.mjs
-          node --test scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-model-forge-glb-container.mjs
+          node --test scripts/test-protected-artifact.mjs scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-model-forge-glb-container.mjs
           git diff --check
           test -z "$(git status --porcelain --untracked-files=all)"

@@ -14,7 +14,11 @@ from __future__ import annotations
 import base64
 import io
 import json
+import http.client
+import ipaddress
 import os
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -94,7 +98,57 @@ def _request_headers() -> Dict[str, str]:
     return headers
 
 
-def _extract_image_bytes(payload: Dict[str, Any], timeout: int) -> bytes:
+def _public_artifact_address(value: str) -> bool:
+    address = ipaddress.ip_address(value)
+    return address.is_global and not (address.is_multicast or address.is_reserved or address.is_unspecified) and getattr(address, "ipv4_mapped", None) is None and getattr(address, "sixtofour", None) is None and getattr(address, "teredo", None) is None
+
+
+def _retrieve_artifact(value: str, timeout: int, reservation: Dict[str, Any] | None) -> bytes:
+    if not reservation:
+        raise paid_request_guard.PaidRequestUnauthorized("artifact read requires active protected admission")
+    parsed = urllib.parse.urlsplit(value)
+    hosts = reservation["envelope"]["job"]["executor"].get("artifact_hosts")
+    if parsed.scheme != "https" or parsed.port not in {None, 443} or parsed.username or parsed.password or parsed.fragment or not isinstance(hosts, list) or parsed.hostname not in hosts:
+        raise paid_request_guard.PaidRequestUnauthorized("artifact origin differs from admitted HTTPS hosts")
+    paid_request_guard.check_admission(reservation)
+    addresses = socket.getaddrinfo(parsed.hostname, 443, type=socket.SOCK_STREAM)
+    paid_request_guard.check_admission(reservation)
+    if not addresses or any(not _public_artifact_address(row[4][0]) for row in addresses):
+        raise paid_request_guard.PaidRequestUnauthorized("artifact DNS contains a nonpublic address")
+    family, socktype, protocol, _, address = addresses[0]
+    connection = http.client.HTTPSConnection(parsed.hostname, timeout=min(timeout, paid_request_guard.remaining_seconds(reservation)), context=ssl.create_default_context())
+    def connect_numeric(_, socket_timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None):
+        paid_request_guard.check_admission(reservation)
+        sock = socket.socket(family, socktype, protocol)
+        try:
+            sock.settimeout(socket_timeout)
+            sock.connect(address)  # Numeric sockaddr; never resolves the host again.
+            return sock
+        except Exception:
+            sock.close()
+            raise
+    # HTTPSConnection preserves the original TLS SNI/certificate and Host header.
+    connection._create_connection = connect_numeric
+    try:
+        paid_request_guard.check_admission(reservation)
+        connection.request("GET", urllib.parse.urlunsplit(("", "", parsed.path or "/", parsed.query, "")), headers={"User-Agent": "urai-protected-artifact/1"})
+        response = connection.getresponse()
+        paid_request_guard.check_admission(reservation)
+        if response.status != 200:
+            raise paid_request_guard.PaidRequestUnauthorized("artifact must return HTTP 200 without redirects")
+        declared = response.getheader("Content-Length")
+        if declared is not None and (not declared.isdigit() or int(declared) > 67108864):
+            raise ValueError("bounded artifact declared size exceeds 64 MiB")
+        raw = response.read(67108865)
+        paid_request_guard.check_admission(reservation)
+        if not raw or len(raw) > 67108864:
+            raise ValueError("bounded artifact response is empty or exceeds 64 MiB")
+        return raw
+    finally:
+        connection.close()
+
+
+def _extract_image_bytes(payload: Dict[str, Any], timeout: int, reservation: Dict[str, Any] | None = None) -> bytes:
     candidates = [payload]
     data = payload.get("data")
     if isinstance(data, list):
@@ -112,12 +166,7 @@ def _extract_image_bytes(payload: Dict[str, Any], timeout: int) -> bytes:
         for key in ("image_url", "url"):
             value = item.get(key)
             if isinstance(value, str) and value.startswith("https://"):
-                req = urllib.request.Request(value, headers={"User-Agent": "urai-asset-factory/1.1"})
-                with urllib.request.build_opener(paid_request_guard._NoRedirect).open(req, timeout=timeout) as response:
-                    raw = response.read(67108865)
-                    if len(raw) > 67108864:
-                        raise ValueError("bounded artifact response exceeded 64 MiB")
-                    return raw
+                return _retrieve_artifact(value, timeout, reservation)
 
     raise ValueError("Renderer response did not contain image bytes or an image URL")
 
@@ -167,7 +216,8 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
         provider=provider, model=model, asset=str(entry["name"]),
         request_size=f"{width}x{height}", endpoint=endpoint,
         request_sha256=paid_request_guard.request_digest(endpoint, request.data),
-        source_input_sha256=source_digest, **fingerprint,
+        source_input_sha256=source_digest,
+        semantic_input_sha256=paid_request_guard.source_input_digest(json.loads(request.data, object_pairs_hook=paid_request_guard.unique_object)), **fingerprint,
     )
     try:
         with paid_request_guard.runtime_limit(reservation):
@@ -181,7 +231,7 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
                 paid_request_guard.check_admission(reservation)
                 if len(response_body) > 67108864:
                     raise ValueError("bounded provider response exceeded 64 MiB")
-                result = consume(response_body, response.headers)
+                result = consume(response_body, response.headers, reservation)
                 paid_request_guard.check_admission(reservation)
                 if paid_request_guard.source_input_digest(source_input) != source_digest:
                     raise paid_request_guard.PaidRequestUnauthorized("admitted image input changed during output")
@@ -211,11 +261,11 @@ def _render_openai(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
     body = json.dumps(request_payload).encode("utf-8")
     timeout = _env_int("ASSET_RENDERER_TIMEOUT_SEC", 240)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "urai-asset-factory/1.1"}
-    def consume(response_body, response_headers):
+    def consume(response_body, response_headers, reservation):
         payload = json.loads(response_body.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("OpenAI image response must be a JSON object")
-        raw = _extract_image_bytes(payload, timeout)
+        raw = _extract_image_bytes(payload, timeout, reservation)
         image = _normalize_image(raw, width, height, alpha)
         return RenderResult(image, "provider", 1, {"provider": "openai", "provider_request_id": response_headers.get("x-request-id"), "provider_model": model, "provider_size": request_payload["size"], "target_width": width, "target_height": height})
     return _execute_once(endpoint, body, headers, "openai", model, entry, width, height, timeout, consume)
@@ -231,7 +281,7 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
     if feedback:
         request_payload["upgrade_feedback"] = feedback
     body = json.dumps(request_payload).encode("utf-8")
-    def consume(response_body, response_headers):
+    def consume(response_body, response_headers, reservation):
         content_type = response_headers.get("content-type", "")
         if content_type.startswith("image/"):
             raw = response_body
@@ -240,7 +290,7 @@ def _render_custom(entry: Dict[str, Any], size: int, feedback: Optional[str]) ->
             payload = json.loads(response_body.decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Renderer response JSON must be an object")
-            raw = _extract_image_bytes(payload, timeout)
+            raw = _extract_image_bytes(payload, timeout, reservation)
             metadata = {"provider": "custom", "provider_request_id": payload.get("id") or payload.get("request_id"), "provider_model": payload.get("model") or model}
         image = _normalize_image(raw, width, height, bool(entry.get("alpha")))
         metadata.update({"target_width": width, "target_height": height})

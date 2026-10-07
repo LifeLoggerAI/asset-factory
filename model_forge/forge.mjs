@@ -7,6 +7,7 @@ import dns from 'node:dns/promises';
 import { checkTriangleBudget } from './triangle-budget.mjs';
 import { parseGlbContainer } from './glb-container.mjs';
 import { ModelSpendClient } from './model-spend-client.mjs';
+import { retrievePublicArtifact } from './protected-artifact.mjs';
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
@@ -108,7 +109,8 @@ function timeoutMs() {
 
 function maxBytes() {
   const n = Number(process.env.URAI_MODEL_FORGE_MAX_BYTES ?? DEFAULT_MAX_BYTES);
-  return Number.isFinite(n) && n >= 1024 * 1024 ? n : DEFAULT_MAX_BYTES;
+  if (!Number.isSafeInteger(n) || n < 1024 * 1024 || n > DEFAULT_MAX_BYTES) fail('Artifact byte limit must be 1-250 MiB');
+  return n;
 }
 
 function sleep(ms) {
@@ -278,48 +280,18 @@ function structuralCandidateReport(buffer, maxTriangles) {
 }
 
 async function downloadFile(url, destination, spend = null) {
-  spend?.checkAdmission?.();
-  const safeUrl = await assertPublicResolvedUrl(url, 'Provider artifact URL');
-  spend?.checkAdmission?.();
-  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(spend ? spend.remainingMs(Math.min(timeoutMs(), 180000)) : Math.min(timeoutMs(), 180000)), redirect: 'error' });
-  spend?.checkAdmission?.();
-  if (!response.ok) fail(`Artifact download failed ${response.status}`);
-  const declared = Number(response.headers.get('content-length'));
-  const limit = maxBytes();
-  if (Number.isFinite(declared) && declared > limit) fail(`Artifact too large: ${declared}`);
-  if (!response.body) fail('Artifact response has no body');
+  if (!spend) fail('Artifact retrieval requires an active protected spend admission');
+  spend.checkAdmission();
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const handle = fs.openSync(destination, 'w');
-  const reader = response.body.getReader();
-  const hash = crypto.createHash('sha256');
-  let bytes = 0;
   try {
-    while (true) {
-      spend?.checkAdmission?.();
-      const { done, value } = await reader.read();
-      spend?.checkAdmission?.();
-      if (done) break;
-      if (!value) continue;
-      bytes += value.byteLength;
-      if (bytes > limit) {
-        await reader.cancel('artifact size limit exceeded').catch(() => {});
-        fail(`Artifact too large during download: ${bytes}`);
-      }
-      fs.writeSync(handle, value);
-      hash.update(value);
-      spend?.checkAdmission?.();
-    }
+    const result = await retrievePublicArtifact(url, { hosts: spend.artifactHosts, maxBytes: maxBytes(), timeoutMs: spend.remainingMs(Math.min(timeoutMs(), 180000)), checkAdmission: () => spend.checkAdmission(), onChunk: chunk => fs.writeSync(handle, chunk) });
+    fs.closeSync(handle); return { bytes: result.bytes, sha256: result.sha256 };
   } catch (error) {
     try { fs.closeSync(handle); } catch {}
     try { fs.unlinkSync(destination); } catch {}
     throw error;
   }
-  fs.closeSync(handle);
-  if (!bytes) {
-    try { fs.unlinkSync(destination); } catch {}
-    fail('Provider artifact download was empty');
-  }
-  return { bytes, sha256: hash.digest('hex') };
 }
 
 async function generateMeshy(spec, spend) {

@@ -166,15 +166,15 @@ def check_admission(reservation: dict[str, Any]) -> None:
     remaining_seconds(reservation)
 
 
-def reserve(*, provider: str, model: str | None, asset: str, request_size: str, request_sha256: str | None = None, endpoint: str | None = None, credential_sha256: str | None = None, semantic_headers_sha256: str | None = None, source_input_sha256: str | None = None, content_type: str | None = None) -> dict[str, Any]:
+def reserve(*, provider: str, model: str | None, asset: str, request_size: str, request_sha256: str | None = None, endpoint: str | None = None, credential_sha256: str | None = None, semantic_headers_sha256: str | None = None, source_input_sha256: str | None = None, semantic_input_sha256: str | None = None, content_type: str | None = None) -> dict[str, Any]:
     require_deadline_support()
     if not request_sha256 or not endpoint or not model:
         raise PaidRequestUnauthorized("exact request bytes endpoint and model binding are required")
-    if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in [credential_sha256, semantic_headers_sha256, source_input_sha256]) or not isinstance(content_type, str) or not content_type:
+    if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in [credential_sha256, semantic_headers_sha256, source_input_sha256, semantic_input_sha256]) or not isinstance(content_type, str) or not content_type:
         raise PaidRequestUnauthorized("actual credential headers and source input binding are required")
     source_sha = executor_source_sha()
     job_id = _job_id(request_sha256)
-    fields = {"job_id": job_id, "provider": provider, "model": model, "asset": asset, "request_size": request_size, "request_sha256": request_sha256, "endpoint": endpoint, "executor_source_sha": source_sha, "credential_sha256": credential_sha256, "semantic_headers_sha256": semantic_headers_sha256, "source_input_sha256": source_input_sha256, "content_type": content_type}
+    fields = {"job_id": job_id, "provider": provider, "model": model, "asset": asset, "request_size": request_size, "request_sha256": request_sha256, "endpoint": endpoint, "executor_source_sha": source_sha, "credential_sha256": credential_sha256, "semantic_headers_sha256": semantic_headers_sha256, "source_input_sha256": source_input_sha256, "semantic_input_sha256": semantic_input_sha256, "content_type": content_type}
     prepared = _gateway("preflight", **fields)
     if prepared.get("provider_call_authorized") is not False or prepared.get("execution_performed") is not False:
         raise PaidRequestUnauthorized("preflight must remain non-executing")
@@ -183,9 +183,12 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
         receipt = check(envelope["job"], envelope["account"], envelope["authority"], datetime.now(timezone.utc))
         job, account, controls, price = envelope["job"], envelope["account"], envelope["protected_controls"], envelope["protected_pricing"]
         executor = job["executor"]
+        hosts = executor.get("artifact_hosts")
+        if not isinstance(hosts, list) or not 0 < len(hosts) <= 10 or len(set(hosts)) != len(hosts) or any(not isinstance(host, str) or not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}", host) for host in hosts) or controls.get("artifact_hosts") != hosts:
+            raise Rejected("exact approved artifact hosts or protected controls missing")
         if executor.get("source_sha") != source_sha or account.get("account_id") != job["account_id"] or account.get("provider") != provider or account.get("credential_sha256") != credential_sha256 or account.get("credential_binding_verified") is not True or not isinstance(account.get("credential_binding_receipt"), str) or not account["credential_binding_receipt"]:
             raise Rejected("approved image executor or authentic account mapping changed")
-        for name in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]:
+        for name in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type"]:
             if executor.get(name) != fields[name] or controls.get(name) != fields[name] or price.get(name) != fields[name]:
                 raise Rejected("actual image credential headers or input differ from approval")
         if controls.get("provider") != provider or controls.get("account_id") != job["account_id"] or source_input_sha256 not in job["input_sha256"] or request_sha256 not in job["input_sha256"]:
@@ -210,7 +213,7 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
     runtime = admitted.get("max_runtime_seconds")
     if admitted.get("provider_call_authorized") is not True or admitted.get("execution_performed") is not False or admitted.get("executor_source_sha") != source_sha or admitted.get("job_digest") != receipt["job_digest"] or type(runtime) is not int or not 0 < runtime <= 86400 or not isinstance(admitted.get("attempt_id"), str) or not admitted["attempt_id"]:
         raise PaidRequestUnauthorized("invalid protected reservation response")
-    if any(admitted.get(name) != fields[name] for name in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]):
+    if any(admitted.get(name) != fields[name] for name in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type"]):
         raise PaidRequestUnauthorized("reserved account credential headers or input changed")
     try:
         reserved_at = instant(admitted.get("reserved_at")).timestamp()
