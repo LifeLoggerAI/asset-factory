@@ -4,12 +4,14 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isIP } from 'node:net';
 import type { GenerateRequest } from './assetFactoryValidation';
+import { getAdminDb } from './firebaseAdmin';
 
 type JsonRecord = Record<string, unknown>;
 type Reservation = { jobId: string; attemptId: string; jobDigest: string; requestSha256: string; sourceSha: string; maxRuntimeSeconds: number; bindingFields: JsonRecord };
-type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; reservation?: Reservation; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
+type GatewayPin = { endpoint: string; headers: Headers; issuer: JsonRecord };
+type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; gatewayPin?: GatewayPin; revalidate?: () => void; reservation?: Reservation; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
 const sessions = new AsyncLocalStorage<Session>();
-const SOURCE_PATHS = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts'].map(name => `assetfactory-studio/lib/server/${name}`);
+const SOURCE_PATHS = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts', 'firebaseAdmin.ts'].map(name => `assetfactory-studio/lib/server/${name}`);
 const GATEWAY_LIMIT = 65_536;
 export class ProtectedProviderRejected extends Error { code = 'protected_provider_rejected'; }
 function need(value: unknown, reason: string): asserts value { if (!value) throw new ProtectedProviderRejected(reason); }
@@ -90,15 +92,38 @@ async function boundedJson(response: Response) {
   catch (error) { if (error instanceof ProtectedProviderRejected) throw error; throw new ProtectedProviderRejected('invalid protected gateway response'); }
 }
 async function gateway(action: string, fields: JsonRecord) {
-  const endpoint = safeHttps(nonempty(process.env.ASSET_FORGE_SPEND_GATEWAY_URL), true);
-  const origin = safeHttps(nonempty(process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN), true);
-  need(origin.toString() === `${endpoint.origin}/` && endpoint.pathname.endsWith('/api/worker/production-spend'), 'gateway differs from protected issuer origin or canonical route');
-  const token = nonempty(process.env.ASSET_FORGE_SPEND_WORKER_TOKEN); need(token.length >= 32, 'protected worker credential unavailable');
+  const pin = sessions.getStore()?.gatewayPin; need(pin, 'protected server gateway pin unavailable');
+  freshProof(pin.issuer, 'observed_at');
   try {
     // A lost reserve response may already hold funds. Never retry this call.
-    return await boundedJson(await fetch(endpoint.toString(), { method: 'POST', redirect: 'error', cache: 'no-store', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ action, ...fields }), signal: AbortSignal.timeout(15_000) }));
+    return await boundedJson(await fetch(pin.endpoint, { method: 'POST', redirect: 'error', cache: 'no-store', headers: pin.headers, body: JSON.stringify({ action, ...fields }), signal: AbortSignal.timeout(15_000) }));
   } catch (error) { if (error instanceof ProtectedProviderRejected) throw error; throw new ProtectedProviderRejected('protected gateway outcome unavailable'); }
 }
+
+export function studioIssuerBindingId(input: GenerateRequest, lane: string, requestSha256: string) { return digest(sourceJson({ tenant_id: input.tenantId || 'default', generation_job_id: input.jobId, lane, request_sha256: requestSha256 })); }
+async function issuerPin(input: GenerateRequest, lane: string, fields: JsonRecord): Promise<GatewayPin> {
+  need(!process.env.FIRESTORE_EMULATOR_HOST, 'paid Studio issuer cannot use an emulator');
+  const projectId = nonempty(process.env.FIREBASE_PROJECT_ID), endpoint = safeHttps(nonempty(process.env.ASSET_FORGE_SPEND_GATEWAY_URL), true);
+  need(endpoint.pathname === '/api/worker/production-spend', 'canonical protected gateway endpoint required');
+  const origin = safeHttps(nonempty(process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN), true);
+  need(origin.toString() === `${endpoint.origin}/`, 'gateway differs from protected issuer origin or canonical route');
+  const token = nonempty(process.env.ASSET_FORGE_SPEND_WORKER_TOKEN); need(token.length >= 32, 'protected worker credential unavailable');
+  const headers = new Headers({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const db = getAdminDb(); need(db, 'protected issuer Firestore unavailable');
+    const snapshot = await Promise.race([db.collection('assetFactoryStudioSpendBindings').doc(studioIssuerBindingId(input, lane, nonempty(fields.request_sha256))).get(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProtectedProviderRejected('protected issuer lookup timed out')), 15_000); })]);
+    need(db.projectId === projectId && snapshot.exists, 'protected issuer project or binding unavailable');
+    const issuer = record(snapshot.data());
+    need(issuer.trusted_readback === true && issuer.executor_repository === 'LifeLoggerAI/asset-factory' && issuer.consumer === 'factory-studio' && issuer.tenant_id === (input.tenantId || 'default') && issuer.generation_job_id === input.jobId && issuer.lane === lane, 'protected Studio issuer identity changed');
+    for (const [key, value] of Object.entries(fields)) need(issuer[key] === value, `protected Studio issuer ${key} changed`);
+    need(issuer.gateway_url === endpoint.toString() && issuer.worker_token_sha256 === digest(sourceJson({ authorization: headers.get('authorization') })), 'protected Studio gateway origin or worker credential changed');
+    nonempty(issuer.receipt); nonempty(issuer.account_id); freshProof(issuer, 'observed_at');
+    return { endpoint: endpoint.toString(), headers, issuer };
+  } catch (error) { if (error instanceof ProtectedProviderRejected) throw error; throw new ProtectedProviderRejected('protected issuer lookup unavailable'); }
+  finally { if (timer) clearTimeout(timer); }
+}
+
 function jobId(requestDigest: string) {
   let mapping: JsonRecord; try { mapping = record(JSON.parse(process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON || '{}')); } catch { throw new ProtectedProviderRejected('invalid protected Studio job mapping'); }
   return nonempty(mapping[requestDigest]);
@@ -128,12 +153,12 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const fields = { job_id: jobId(requestDigest), provider: nonempty(provider), model: nonempty(model), asset, request_size: String(bytes.byteLength), endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: credentialDigest, semantic_headers_sha256: semanticDigest, source_input_sha256: session.inputDigest, content_type: contentType };
   sessionEndpoint.set(session, endpoint);
   session.submitted = true;
+  session.gatewayPin = await issuerPin(session.input, lane, fields);
   const prepared = await gateway('preflight', fields);
   need(prepared.provider_call_authorized === false && prepared.execution_performed === false, 'preflight must remain non-authorizing');
-  const proofDeadline = protectedDate(prepared.admission_expires_at);
-  need(Date.now() < proofDeadline, 'protected Studio preflight admission expired');
   const envelope = record(prepared.envelope), job = record(envelope.job), executor = record(job.executor), authority = record(job.authority);
-  const account = record(envelope.account), controls = record(envelope.protected_controls), pricing = record(envelope.protected_pricing), sourceAuthority = record(envelope.authority), accountId = nonempty(job.account_id), budget = record(job.budget);
+  const account = record(envelope.account), controls = record(envelope.protected_controls), pricing = record(envelope.protected_pricing), sourceAuthority = record(envelope.authority), approval = record(job.approval), accountId = nonempty(job.account_id), budget = record(job.budget);
+  need(accountId === session.gatewayPin.issuer.account_id, 'protected Studio issuer account changed');
   need(job.job_id === fields.job_id && job.provider === provider && job.model_version === model && job.consumer === 'factory-studio' && job.rights_reviewed === true, 'protected Studio job identity or rights changed');
   need(authority.repository === 'LifeLoggerAI/asset-factory' && authority.sha === sourceSha, 'protected Studio source authority changed');
   need(executor.source_sha === sourceSha && executor.endpoint === endpoint && executor.request_sha256 === requestDigest && executor.asset === asset && executor.request_size === fields.request_size, 'protected Studio request binding changed');
@@ -142,6 +167,9 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   nonempty(account.credential_binding_receipt);
   need(controls.provider === provider && controls.account_id === accountId && controls.trusted_readback === true && controls.credential_sha256 === credentialDigest && controls.semantic_headers_sha256 === semanticDigest && controls.source_input_sha256 === session.inputDigest && controls.content_type === contentType, 'protected Studio control/account binding changed');
   const checkProofs = () => {
+    freshProof(session.gatewayPin!.issuer, 'observed_at');
+    need(approval.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND' && approval.job_digest === protectedJobDigest(job) && approval.max_usd_micros === budget.max_usd_micros && approval.max_credits === budget.max_credits, 'protected Studio approval changed');
+    nonempty(approval.receipt); nonempty(approval.approver); nonempty(approval.key_id); nonempty(approval.signature); freshProof(approval, 'issued_at');
     need(sourceAuthority.trusted_readback === true && canonicalSpend(record(sourceAuthority.binding)) === canonicalSpend(authority), 'protected Studio source authority proof changed');
     freshProof(sourceAuthority, 'observed_at'); freshProof(account, 'observed_at'); freshProof(controls, 'observed_at');
     need(controls.enforcement_source_sha === sourceSha && controls.endpoint === endpoint && controls.request_sha256 === requestDigest && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && controls.max_usd_micros === budget.max_usd_micros && controls.max_credits === budget.max_credits && controls.max_runtime_seconds === budget.max_runtime_seconds, 'protected Studio hard controls changed');
@@ -152,25 +180,28 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
     const rates = record(pricing.rates); nonempty(rates.receipt); freshProof(rates, 'verified_at');
     need(canonicalSpend(rates) === canonicalSpend(budget.rates), 'protected Studio approved pricing changed');
   };
+  session.revalidate = () => { need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed during execution'); checkProofs(); };
   checkProofs();
+  const preflightExpiry = protectedDate(prepared.admission_expires_at);
+  need(preflightExpiry > Date.now() && preflightExpiry <= Math.min(protectedDate(approval.expires_at), protectedDate(sourceAuthority.expires_at), protectedDate(account.expires_at), protectedDate(controls.expires_at), protectedDate(pricing.expires_at), protectedDate(record(pricing.rates).expires_at)), 'invalid protected preflight admission deadline');
   const inputs = job.input_sha256; need(Array.isArray(inputs) && inputs.includes(session.inputDigest) && inputs.includes(requestDigest), 'protected Studio input fixity missing');
   const jobDigest = protectedJobDigest(job);
   // Recheck local clean build/input after the non-authorizing read and before reserve.
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed before reservation');
   checkProofs();
   const boundFields = { ...fields, account_id: accountId, job_digest: jobDigest };
-  const admissionStarted = Date.now();
-  const monotonicStarted = performance.now();
+  const admissionStarted = Date.now(), monotonicStarted = performance.now();
   const admitted = await gateway('reserve', boundFields);
   const runtime = admitted.max_runtime_seconds;
   need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === budget.max_runtime_seconds, 'invalid protected Studio reservation');
   need(admitted.account_id === accountId && admitted.credential_sha256 === credentialDigest && admitted.semantic_headers_sha256 === semanticDigest && admitted.source_input_sha256 === session.inputDigest && admitted.content_type === contentType, 'protected Studio reserved credential/account binding changed');
   const attemptId = nonempty(admitted.attempt_id);
-  const reservedAt = protectedDate(admitted.reserved_at), admittedUntil = protectedDate(admitted.admission_expires_at);
-  need(reservedAt <= Date.now() && admittedUntil > reservedAt && admittedUntil <= proofDeadline && admittedUntil <= reservedAt + runtime * 1_000, 'protected Studio absolute reservation deadline changed');
   session.reservation = { jobId: fields.job_id, attemptId, jobDigest, requestSha256: requestDigest, sourceSha, maxRuntimeSeconds: runtime, bindingFields: boundFields };
-  session.deadline = Math.min(admissionStarted + runtime * 1_000, admittedUntil);
-  session.monotonicDeadline = Math.min(monotonicStarted + runtime * 1_000, performance.now() + admittedUntil - Date.now());
+  const reservedAt = protectedDate(admitted.reserved_at), admittedExpiry = protectedDate(admitted.admission_expires_at);
+  need(reservedAt <= Date.now() && admittedExpiry > Date.now() && admittedExpiry > reservedAt && admittedExpiry <= preflightExpiry && admittedExpiry <= reservedAt + runtime * 1_000, 'invalid protected reserve admission deadline');
+  const issuerExpiry = protectedDate(session.gatewayPin.issuer.expires_at);
+  session.deadline = Math.min(admissionStarted + runtime * 1_000, admittedExpiry, admissionStarted + admittedExpiry - reservedAt, issuerExpiry);
+  session.monotonicDeadline = Math.min(monotonicStarted + runtime * 1_000, monotonicStarted + admittedExpiry - reservedAt, performance.now() + admittedExpiry - Date.now(), performance.now() + issuerExpiry - Date.now());
   checkDeadline(session);
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed after reservation');
   checkProofs();
@@ -232,7 +263,7 @@ export async function withProtectedStudioSession<T>(input: GenerateRequest | und
     // One timer spans submission, polling, artifact retrieval, and decoding.
     const timer = setInterval(() => { if ((session.deadline && Date.now() >= session.deadline) || (session.monotonicDeadline && performance.now() >= session.monotonicDeadline)) session.controller.abort(); }, 25);
     let outcome: 'succeeded' | 'failed' = 'failed';
-    try { const result = await run(); checkDeadline(session); need(studioSourceInputDigest(input) === session.inputDigest, 'Studio source input changed during execution'); outcome = 'succeeded'; return result; }
+    try { const result = await run(); checkDeadline(session); session.revalidate?.(); checkDeadline(session); need(studioSourceInputDigest(input) === session.inputDigest, 'Studio source input changed during execution'); outcome = 'succeeded'; return result; }
     finally {
       clearInterval(timer);
       if (session.reservation) {

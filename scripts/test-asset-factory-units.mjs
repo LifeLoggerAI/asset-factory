@@ -42,7 +42,7 @@ function compileTsModule(relativePath, patches = []) {
   return outputPath;
 }
 
-fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
+fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
 
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);

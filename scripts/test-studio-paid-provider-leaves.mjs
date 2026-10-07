@@ -14,6 +14,7 @@ async function load(name) {
   const source = stripTypeScriptTypes(readFileSync(new URL(`${name}.ts`, sourceRoot), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { identifier: name }); modules.set(name, module);
   await module.link(async specifier => {
+    if (specifier === './firebaseAdmin') return new vm.SyntheticModule(['getAdminDb'], function () { this.setExport('getAdminDb', () => globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? null); });
     if (specifier.startsWith('./')) return load(specifier.slice(2));
     const exports = await import(specifier);
     return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); });
@@ -94,19 +95,6 @@ test('configured credentials and boolean flags cannot submit without protected g
     const c = config('openai', 'graphic'), value = process.env[key]; delete process.env[key]; process.env.ASSET_FACTORY_PROVIDER_APPROVED = 'true';
     await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); process.env[key] = value;
   }
-});
-for (const field of ['reserved_at', 'admission_expires_at']) test(`actual Studio leaf rejects missing absolute ${field} with the hold retained`, async () => {
-  const c = config('openai', 'graphic'); c.fixture.mutateReserve = result => delete result[field];
-  await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
-});
-test('actual Studio leaf cannot forward worker token to a changed gateway origin', async () => {
-  const c = config('openai', 'graphic'); process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = 'https://foreign.example.test';
-  await assert.rejects(c.run(), /issuer origin/); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
-  process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = new URL(process.env.ASSET_FORGE_SPEND_GATEWAY_URL).origin;
-});
-test('actual Studio leaf rejects a reserved proof that expires before its response returns', async () => {
-  const c = config('openai', 'graphic'); c.fixture.mutateReserve = result => { result.reserved_at = new Date(Date.now() - 2000).toISOString(); result.admission_expires_at = new Date(Date.now() - 1000).toISOString(); };
-  await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
 });
 for (const [name, mutate] of [
   ['rights', e => { e.job.rights_reviewed = false; }], ['consumer', e => { e.job.consumer = 'other'; }], ['model', e => { e.job.model_version = 'other'; }], ['source', e => { e.job.executor.source_sha = 'f'.repeat(40); }], ['endpoint', e => { e.job.executor.endpoint += '/other'; }], ['source input', e => { e.job.executor.source_input_sha256 = 'f'.repeat(64); }], ['request', e => { e.job.executor.request_sha256 = 'f'.repeat(64); }], ['credential', e => { e.job.executor.credential_sha256 = 'f'.repeat(64); }], ['headers', e => { e.job.executor.semantic_headers_sha256 = 'f'.repeat(64); }], ['content type', e => { e.job.executor.content_type = 'text/plain'; }], ['input fixity', e => { e.job.input_sha256 = []; }], ['asset owner', e => { e.job.executor.asset = 'other-tenant/asset'; }]
@@ -255,4 +243,116 @@ test('source changing after atomic reserve cannot reach provider fetch and retai
 });
 test('original Higgsfield entry cannot submit without source input even with configured credentials', async () => {
   config('higgsfield', 'video'); let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('must not fetch'); }; await assert.rejects(higgs.runHiggsfieldGeneration('approved/model', {}, 'SYNTHETIC-key')); assert.equal(calls, 0);
+});
+
+test('protected issuer absence, lookup failure and untrusted project cannot send any worker token', async () => {
+  for (const mutate of [c => { c.fixture.issuerExists = false; }, c => { c.fixture.failIssuer = true; }, c => { c.fixture.issuerProjectId = 'other-project'; }, c => { delete process.env.FIREBASE_PROJECT_ID; }, c => { process.env.FIRESTORE_EMULATOR_HOST = 'synthetic-emulator.invalid:8080'; }]) {
+    const c = config('openai', 'graphic'), project = process.env.FIREBASE_PROJECT_ID, emulator = process.env.FIRESTORE_EMULATOR_HOST;
+    mutate(c);
+    try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []); }
+    finally { if (project === undefined) delete process.env.FIREBASE_PROJECT_ID; else process.env.FIREBASE_PROJECT_ID = project; if (emulator === undefined) delete process.env.FIRESTORE_EMULATOR_HOST; else process.env.FIRESTORE_EMULATOR_HOST = emulator; }
+  }
+});
+test('protected Studio issuer binds exact tenant, job, lane, provider, source, account and wire fingerprints', async () => {
+  for (const [field, value] of [['trusted_readback', false], ['receipt', ''], ...['executor_repository', 'consumer', 'tenant_id', 'generation_job_id', 'lane', 'job_id', 'provider', 'model', 'asset', 'request_size', 'endpoint', 'request_sha256', 'executor_source_sha', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'worker_token_sha256', 'gateway_url'].map(field => [field, 'SYNTHETIC-drift'])]) {
+    const c = config('openai', 'graphic'); c.fixture.issuer[field] = value;
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
+  }
+  const c = config('openai', 'graphic'); c.fixture.issuer.account_id = 'SYNTHETIC-other-account';
+  await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+});
+test('environment gateway origin drift is rejected before a worker credential leaves the server', async () => {
+  const c = config('openai', 'graphic'), original = process.env.ASSET_FORGE_SPEND_GATEWAY_URL;
+  process.env.ASSET_FORGE_SPEND_GATEWAY_URL = 'https://foreign.example.test/api/worker/production-spend';
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []); }
+  finally { process.env.ASSET_FORGE_SPEND_GATEWAY_URL = original; }
+});
+test('later gateway configuration drift cannot move the pinned worker token or reserved observation', async () => {
+  const c = config('openai', 'graphic'), endpoint = process.env.ASSET_FORGE_SPEND_GATEWAY_URL, token = process.env.ASSET_FORGE_SPEND_WORKER_TOKEN;
+  c.fixture.mutatePreflight = () => { process.env.ASSET_FORGE_SPEND_GATEWAY_URL = 'https://foreign.example.test/api/worker/production-spend'; process.env.ASSET_FORGE_SPEND_WORKER_TOKEN = 'SYNTHETIC-other-worker-token-with-length'; };
+  try { await c.run(); assert.equal(c.counts().posts, 1); assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']); }
+  finally { process.env.ASSET_FORGE_SPEND_GATEWAY_URL = endpoint; process.env.ASSET_FORGE_SPEND_WORKER_TOKEN = token; }
+});
+test('issuer proof rejects future, malformed or expired observations before gateway transport', async () => {
+  for (const [field, value] of [['observed_at', new Date(Date.now() + 60_000).toISOString()], ['expires_at', new Date(Date.now() - 1_000).toISOString()], ['expires_at', '2026-02-30T12:00:00Z'], ['expires_at', undefined]]) {
+    const c = config('openai', 'graphic'); c.fixture.issuer[field] = value;
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
+  }
+});
+test('serialized verified approval must remain explicit, bounded, signed and tied to the exact job', async () => {
+  const mutations = [e => { delete e.job.approval; }, ...[['status', 'OTHER'], ['kind', 'OTHER'], ['job_digest', 'f'.repeat(64)], ['max_usd_micros', 9_000_000], ['max_credits', 99], ['receipt', ''], ['approver', ''], ['key_id', ''], ['signature', ''], ['issued_at', new Date(Date.now() + 60_000).toISOString()], ['expires_at', new Date(Date.now() - 1_000).toISOString()], ['expires_at', '2026-02-30T12:00:00Z']].map(([field, value]) => e => { e.job.approval[field] = value; })];
+  for (const mutate of mutations) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
+});
+test('a genuine serialized approval expiring during reserve cannot dispatch and retains its hold', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { assert.equal(e.job.approval.status, 'APPROVED'); assert.equal(e.job.approval.job_digest, protector.protectedJobDigest(e.job)); e.job.approval.expires_at = new Date(started + 1_000).toISOString(); };
+  c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+  finally { Date.now = originalNow; }
+});
+test('preflight requires a complete absolute deadline no later than every exposed verified proof', async () => {
+  for (const value of [undefined, '2026-12-01', '2026-02-30T12:00:00Z', new Date(Date.now() - 1_000).toISOString(), new Date(Date.now() + 7_200_000).toISOString()]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePrepared = p => { p.admission_expires_at = value; };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, false); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('reservation requires server time and an unexpanded absolute proof/runtime deadline', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  try {
+    for (const mutate of [r => { delete r.reserved_at; }, r => { delete r.admission_expires_at; }, r => { r.reserved_at = new Date(started + 1_000).toISOString(); }, r => { r.admission_expires_at = new Date(started - 1_000).toISOString(); }, r => { r.admission_expires_at = '2026-02-30T12:00:00Z'; }, r => { r.admission_expires_at = new Date(started + 31_000).toISOString(); }, r => { r.admission_expires_at = r.reserved_at; }]) {
+      const c = config('openai', 'graphic'); c.fixture.mutateReserve = mutate;
+      await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed');
+    }
+    const c = config('openai', 'graphic'); c.fixture.mutatePrepared = p => { p.admission_expires_at = new Date(started + 10_000).toISOString(); }; c.fixture.mutateReserve = r => { r.admission_expires_at = new Date(started + 20_000).toISOString(); };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
+  } finally { Date.now = originalNow; }
+});
+test('a shorter canonical deadline covers hidden deployment proof expiry during reservation', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutatePrepared = p => { p.admission_expires_at = new Date(started + 1_000).toISOString(); }; c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+  finally { Date.now = originalNow; }
+});
+test('protected issuer expiry during reserve cannot dispatch or release the reservation', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.issuer.expires_at = new Date(started + 1_000).toISOString(); c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
+  finally { Date.now = originalNow; }
+});
+
+test('source drift while the provider responds blocks final delivery and retains the admitted hold', async () => {
+  const c = config('openai', 'graphic'), file = path.join(build.directory, 'assetfactory-studio/lib/server/firebaseAdmin.ts'), original = readFileSync(file); let posts = 0;
+  globalThis.fetch = c.fixture.wrap(async () => { posts++; writeFileSync(file, Buffer.concat([original, Buffer.from('\n// synthetic issuer SDK source drift during provider response\n')])); return Response.json({ data: [{ b64_json: Buffer.from([1, 2, 3]).toString('base64') }] }); });
+  try { await assert.rejects(c.run(), /source/); assert.equal(posts, 1); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+  finally { writeFileSync(file, original); }
+});
+test('canonical expiry remains active during provider response and final decoding', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); let posts = 0;
+  c.fixture.mutatePrepared = p => { p.admission_expires_at = new Date(started + 1_000).toISOString(); };
+  globalThis.fetch = c.fixture.wrap(async () => { posts++; Date.now = () => started + 2_000; return Response.json({ data: [{ b64_json: Buffer.from([1, 2, 3]).toString('base64') }] }); });
+  try { await assert.rejects(c.run()); assert.equal(posts, 1); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+  finally { Date.now = originalNow; }
+});
+
+for (const field of ['reserved_at', 'admission_expires_at']) test(`actual Studio leaf rejects missing absolute ${field} with the hold retained`, async () => {
+  const c = config('openai', 'graphic'); c.fixture.mutateReserve = result => delete result[field];
+  await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
+});
+test('actual Studio leaf cannot forward worker token to a changed gateway origin', async () => {
+  const c = config('openai', 'graphic'); process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = 'https://foreign.example.test';
+  await assert.rejects(c.run(), /issuer origin/); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
+  process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = new URL(process.env.ASSET_FORGE_SPEND_GATEWAY_URL).origin;
+});
+test('actual Studio leaf rejects a reserved proof that expires before its response returns', async () => {
+  const c = config('openai', 'graphic'); c.fixture.mutateReserve = result => { result.reserved_at = new Date(Date.now() - 2000).toISOString(); result.admission_expires_at = new Date(Date.now() - 1000).toISOString(); };
+  await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
+});
+
+test('monotonic elapsed runtime cannot be reset by a slowly advancing or rolled-back wall clock', async () => {
+  const originalNow = Date.now, started = originalNow(), descriptor = Object.getOwnPropertyDescriptor(performance, 'now'); let monotonic = 1_000;
+  Date.now = () => started; Object.defineProperty(performance, 'now', { configurable: true, value: () => monotonic });
+  const c = config('openai', 'graphic'); c.fixture.mutateReserve = () => { monotonic = 32_000; Date.now = () => started + 1_000; };
+  try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+  finally { Date.now = originalNow; if (descriptor) Object.defineProperty(performance, 'now', descriptor); else delete performance.now; }
 });
