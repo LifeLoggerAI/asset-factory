@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+build/node_modules/
+**/*.glb
+**/*.png
+/packages/
+/kits/
+/receipts/
+/qa/*.json
+/qa/*.log
+/qa/*.txt
