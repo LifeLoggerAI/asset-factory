@@ -64,7 +64,10 @@ function safeHeader(value) { need(!/[\r\n]/.test(value), 'multipart header conta
 export async function freezeRequest(endpoint, init, provider) {
   const url = httpsEndpoint(endpoint, 'provider'); need(url.origin === PROVIDER_ORIGINS[provider], 'unapproved provider origin');
   need(String(init.method || 'GET').toUpperCase() === 'POST', 'paid submission requires POST');
-  const headers = new Headers(init.headers); let body, semanticInput;
+  let headers;
+  try { headers = new Headers(init.headers); }
+  catch { need(false, 'invalid effective provider headers'); }
+  let body, semanticInput;
   if (init.body instanceof FormData) {
     const entries = []; let bytes = 0;
     for (const [key, value] of init.body.entries()) {
@@ -172,7 +175,7 @@ export class ModelSpendClient {
       const url = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_URL, 'gateway');
       const issuer = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN, 'protected issuer');
       need(issuer.toString() === `${issuer.origin}/` && url.origin === issuer.origin && url.pathname === '/api/worker/production-spend' && !url.search, 'canonical protected issuer gateway required');
-      const token = this.env.ASSET_FORGE_SPEND_WORKER_TOKEN; need(typeof token === 'string' && token.length >= 32, 'protected worker authentication required');
+      const token = this.env.ASSET_FORGE_SPEND_WORKER_TOKEN; need(typeof token === 'string' && /^[\x21-\x7e]{32,4096}$/.test(token), 'protected worker authentication required');
       this.gatewayPin = Object.freeze({ endpoint: url.toString(), authorization: `Bearer ${token}` });
     }
     const response = await this.fetch(this.gatewayPin.endpoint, { method: 'POST', headers: { authorization: this.gatewayPin.authorization, 'content-type': 'application/json' }, body: JSON.stringify({ action, ...data }), redirect: 'error', signal: AbortSignal.timeout(Math.min(10000, this.remainingMs(10000))) });

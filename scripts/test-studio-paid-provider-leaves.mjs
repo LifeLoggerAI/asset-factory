@@ -96,6 +96,18 @@ for (const [provider, types] of [['openai', ['graphic', 'audio']], ['elevenlabs'
     const c = config(provider, type); const result = await c.run(); assert.equal(result.assetBuffer.length, 3); assert.equal(c.counts().posts, 1); assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'succeeded'); assert.equal(c.fixture.observed[0].actual_usd_micros, undefined);
   });
 }
+test('actual Higgsfield caller byte cap rejects declared and streamed artifact excess before retaining output', async () => {
+  for (const mode of ['declared', 'streamed']) {
+    const c = config('higgsfield', 'graphic'), previous = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES; let cancelled = false;
+    process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = '8';
+    globalThis.fetch = c.fixture.wrap(async (url, init) => {
+      if (init.method === 'POST') return c.transport(url, init);
+      return new Response(new ReadableStream({ start(controller) { if (mode === 'streamed') { controller.enqueue(new Uint8Array(4)); controller.enqueue(new Uint8Array(6)); } }, cancel() { cancelled = true; } }), { headers: mode === 'declared' ? { 'content-length': '99' } : {} });
+    });
+    try { await assert.rejects(c.run(), /declared size exceeds ceiling|stream exceeds byte ceiling/); assert.equal(cancelled, true); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
+    finally { if (previous === undefined) delete process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES; else process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES = previous; }
+  }
+});
 test('configured credentials and boolean flags cannot submit without protected gateway/job/source authority', async () => {
   for (const key of ['ASSET_FORGE_SPEND_GATEWAY_URL', 'ASSET_FORGE_SPEND_WORKER_TOKEN', 'FACTORY_STUDIO_SPEND_JOB_IDS_JSON', 'URAI_SOURCE_SHA']) {
     const c = config('openai', 'graphic'), value = process.env[key]; delete process.env[key]; process.env.ASSET_FACTORY_PROVIDER_APPROVED = 'true';
@@ -103,7 +115,7 @@ test('configured credentials and boolean flags cannot submit without protected g
   }
 });
 for (const [name, mutate] of [
-  ['rights', e => { e.job.rights_reviewed = false; }], ['consumer', e => { e.job.consumer = 'other'; }], ['model', e => { e.job.model_version = 'other'; }], ['source', e => { e.job.executor.source_sha = 'f'.repeat(40); }], ['endpoint', e => { e.job.executor.endpoint += '/other'; }], ['source input', e => { e.job.executor.source_input_sha256 = 'f'.repeat(64); }], ['request', e => { e.job.executor.request_sha256 = 'f'.repeat(64); }], ['credential', e => { e.job.executor.credential_sha256 = 'f'.repeat(64); }], ['headers', e => { e.job.executor.semantic_headers_sha256 = 'f'.repeat(64); }], ['content type', e => { e.job.executor.content_type = 'text/plain'; }], ['input fixity', e => { e.job.input_sha256 = []; }], ['asset owner', e => { e.job.executor.asset = 'other-tenant/asset'; }]
+  ['rights', e => { e.job.rights_reviewed = false; }], ['consumer', e => { e.job.consumer = 'other'; }], ['model', e => { e.job.model_version = 'other'; }], ['source', e => { e.job.executor.source_sha = 'f'.repeat(40); }], ['endpoint', e => { e.job.executor.endpoint += '/other'; }], ['source input', e => { e.job.executor.source_input_sha256 = 'f'.repeat(64); }], ['semantic input', e => { e.job.executor.semantic_input_sha256 = 'f'.repeat(64); }], ['request', e => { e.job.executor.request_sha256 = 'f'.repeat(64); }], ['credential', e => { e.job.executor.credential_sha256 = 'f'.repeat(64); }], ['headers', e => { e.job.executor.semantic_headers_sha256 = 'f'.repeat(64); }], ['content type', e => { e.job.executor.content_type = 'text/plain'; }], ['input fixity', e => { e.job.input_sha256 = []; }], ['asset owner', e => { e.job.executor.asset = 'other-tenant/asset'; }]
 ]) test(`changed protected ${name} refuses actual provider request`, async () => { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); });
 test('gateway failure and lost reserve responses never invoke a provider or clear the hold', async () => {
   for (const action of ['preflight', 'reserve']) { const c = config('openai', 'graphic'); c.fixture.failAction = action; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); }
@@ -180,12 +192,12 @@ test('reservation cannot expand the signed job runtime or mark execution already
   for (const mutate of [r => { r.max_runtime_seconds = 31; }, r => { r.execution_performed = true; }, r => { r.provider_call_authorized = false; }, r => { r.job_digest = 'f'.repeat(64); }, r => { r.executor_source_sha = 'f'.repeat(40); }]) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
 });
 test('protected preflight account and credential controls cannot contradict the actual provider key', async () => {
-  for (const mutate of [e => { e.account.account_id = 'other'; }, e => { e.account.credential_binding_verified = false; }, e => { e.account.credential_binding_receipt = ''; }, e => { e.account.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.semantic_headers_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.source_input_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.content_type = 'text/plain'; }]) {
+  for (const mutate of [e => { e.account.account_id = 'other'; }, e => { e.account.credential_binding_verified = false; }, e => { e.account.credential_binding_receipt = ''; }, e => { e.account.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.semantic_headers_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.source_input_sha256 = 'f'.repeat(64); }, e => { delete e.protected_controls.semantic_input_sha256; }, e => { e.protected_controls.content_type = 'text/plain'; }]) {
     const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
   }
 });
 test('reserved account and fingerprint echoes cannot admit a different account or request', async () => {
-  for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = r => { r[field] = 'SYNTHETIC-wrong-binding'; }; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
+  for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = r => { r[field] = 'SYNTHETIC-wrong-binding'; }; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
 });
 test('protected controls require exact source, request, signed caps and hard enforcement before dispatch', async () => {
   for (const [field, value] of [['enforcement_source_sha', 'f'.repeat(40)], ['endpoint', 'https://other.example.test'], ['request_sha256', 'f'.repeat(64)], ['proof_receipt', ''], ['hard_stop_supported', false], ['cost_cap_enforced', false], ['auto_top_up', true], ['max_usd_micros', 9_000_000], ['max_credits', 99], ['max_runtime_seconds', 31]]) {
@@ -259,8 +271,14 @@ test('protected issuer absence, lookup failure and untrusted project cannot send
     finally { if (project === undefined) delete process.env.FIREBASE_PROJECT_ID; else process.env.FIREBASE_PROJECT_ID = project; if (emulator === undefined) delete process.env.FIRESTORE_EMULATOR_HOST; else process.env.FIRESTORE_EMULATOR_HOST = emulator; }
   }
 });
+test('missing, non-string or throwing SDK project identity cannot send worker credentials', async () => {
+  for (const mutate of [c => { c.fixture.issuerProjectId = undefined; }, c => { c.fixture.issuerProjectId = 123; }, c => { c.fixture.failIssuerProject = true; }]) {
+    const c = config('openai', 'graphic'); mutate(c);
+    await assert.rejects(c.run(), /protected issuer/); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
+  }
+});
 test('protected Studio issuer binds exact tenant, job, lane, provider, source, account and wire fingerprints', async () => {
-  for (const [field, value] of [['trusted_readback', false], ['receipt', ''], ...['executor_repository', 'consumer', 'tenant_id', 'generation_job_id', 'lane', 'job_id', 'provider', 'model', 'asset', 'request_size', 'endpoint', 'request_sha256', 'executor_source_sha', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'worker_token_sha256', 'gateway_url'].map(field => [field, 'SYNTHETIC-drift'])]) {
+  for (const [field, value] of [['trusted_readback', false], ['receipt', ''], ...['executor_repository', 'consumer', 'tenant_id', 'generation_job_id', 'lane', 'job_id', 'provider', 'model', 'asset', 'request_size', 'endpoint', 'request_sha256', 'executor_source_sha', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type', 'worker_token_sha256', 'gateway_url'].map(field => [field, 'SYNTHETIC-drift'])]) {
     const c = config('openai', 'graphic'); c.fixture.issuer[field] = value;
     await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
   }
@@ -374,6 +392,19 @@ test('final observation latency or source drift cannot deliver a result after it
   }
 });
 
+test('malformed provider, worker or poll headers never expose their secret or reach transport', async () => {
+  const secret = 'SYNTHETIC-private-secret-must-not-escape';
+  for (const key of ['OPENAI_API_KEY', 'ASSET_FORGE_SPEND_WORKER_TOKEN']) {
+    const c = config('openai', 'graphic'), original = process.env[key]; process.env[key] = secret + '\ninvalid-header';
+    try { await assert.rejects(c.run(), error => { assert.ok(error instanceof protector.ProtectedProviderRejected); assert.equal(String(error).includes(secret), false); return true; }); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []); }
+    finally { process.env[key] = original; }
+  }
+  let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('must not reach transport'); };
+  await assert.rejects(protector.readStudioProvider('https://api.replicate.com/v1/predictions/SYNTHETIC', { headers: { authorization: secret + '\ninvalid-header' } }), error => { assert.ok(error instanceof protector.ProtectedProviderRejected); assert.equal(String(error).includes(secret), false); return true; });
+  assert.equal(calls, 0);
+});
+
+// Preserve the current owner admission/output regression cases.
 test('mandatory absolute preflight and reservation timestamps fail closed on missing malformed future or extended windows', async () => {
   for (const field of ['admission_expires_at', 'reserved_at']) for (const value of [undefined, '2026-02-30T12:00:00Z', new Date(Date.now() + 7_200_000).toISOString()]) {
     const c = config('openai', 'graphic');

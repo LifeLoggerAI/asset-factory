@@ -378,3 +378,50 @@ for (const observation of [{ ok: true, execution_performed: false, reconciliatio
 }
 test('actual Forge output cannot succeed after lost outcome delivery', async () => { const f = await fixture({ recordLoss: true }); await assert.rejects(f.make().submit(endpoint, init, model), /durable non-authorizing observation/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
 test('gateway destination and credential remain pinned after environment drift during reserve', async () => { const f = await fixture({ onReserve() { f.env.ASSET_FORGE_SPEND_GATEWAY_URL = 'https://changed.invalid/api/worker/production-spend'; f.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = 'https://changed.invalid'; f.env.ASSET_FORGE_SPEND_WORKER_TOKEN = 'CHANGED-DO-NOT-TRANSMIT-THIS-CREDENTIAL'; } }); assert.equal((await f.make().submit(endpoint, init, model)).payload.id, 'synthetic-provider-task'); assert.equal(f.state.providerCalls, 1); assert.deepEqual(f.state.actions, ['preflight', 'reserve', 'record']); });
+
+test('malformed effective provider headers block before admission without disclosing credential values', async () => {
+  const secret = 'SYNTHETIC-provider-secret-do-not-print';
+  for (const bad of [
+    { authorization: `Bearer ${secret}\r\ninjected: value` },
+    { authorization: `Bearer ${secret}\0` },
+    { authorization: `Bearer ${secret}\u0100` },
+    { [`invalid header ${secret}`]: 'value' }
+  ]) {
+    const f = await fixture();
+    await assert.rejects(f.make().submit(endpoint, { ...init, headers: { ...init.headers, ...bad } }, model), error => {
+      assert.match(error.message, /^MODEL_SPEND_BLOCKED: invalid effective provider headers$/);
+      for (const visible of [String(error), error.stack, JSON.stringify(error)]) assert.equal(visible.includes(secret), false);
+      assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+    });
+    assert.deepEqual(f.state.actions, []); assert.deepEqual(f.state.gatewayInputs, []);
+    assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+  }
+});
+
+test('failed header conversion drops secret-bearing exception details and causes', async () => {
+  const secret = 'SYNTHETIC-header-conversion-secret';
+  const f = await fixture(), headers = { 'content-type': 'application/json',
+    get authorization() { throw new Error(secret, { cause: { secret } }); } };
+  await assert.rejects(f.make().submit(endpoint, { ...init, headers }, model), error => {
+    assert.equal(error.message, 'MODEL_SPEND_BLOCKED: invalid effective provider headers');
+    assert.equal(String(error.stack).includes(secret), false);
+    assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+  });
+  assert.deepEqual(f.state.actions, []); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+});
+
+test('malformed or unbounded worker tokens are rejected before authentication transport without disclosure', async () => {
+  const secret = 'SYNTHETIC-worker-secret-do-not-print';
+  for (const token of [secret.slice(0, 31), secret + '\r\ninjected: value', secret + '\0', secret + '\u0100', secret + '\tvalue', secret + ' value', secret.repeat(130)]) {
+    const f = await fixture({ env: { ASSET_FORGE_SPEND_WORKER_TOKEN: token } });
+    await assert.rejects(f.make().submit(endpoint, init, model), error => {
+      assert.equal(error.message, 'MODEL_SPEND_BLOCKED: protected worker authentication required');
+      for (const visible of [String(error), error.stack, JSON.stringify(error)]) {
+        assert.equal(visible.includes(secret), false); assert.equal(visible.includes(token), false);
+      }
+      assert.equal(Object.hasOwn(error, 'cause'), false); return true;
+    });
+    assert.deepEqual(f.state.actions, []); assert.deepEqual(f.state.gatewayInputs, []);
+    assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0);
+  }
+});

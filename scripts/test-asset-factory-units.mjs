@@ -52,7 +52,9 @@ const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
 compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
-const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts');
+const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
+fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,

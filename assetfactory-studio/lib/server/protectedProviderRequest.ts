@@ -20,6 +20,7 @@ function record(value: unknown): JsonRecord { need(value && typeof value === 'ob
 function sha(value: unknown, length = 64): string { need(typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`).test(value), 'invalid protected digest'); return value; }
 function nonempty(value: unknown): string { need(typeof value === 'string' && value.trim(), 'missing protected binding'); return value; }
 export function digest(value: string | Uint8Array) { return createHash('sha256').update(value).digest('hex'); }
+function transportHeaders(value?: HeadersInit) { try { return new Headers(value); } catch { throw new ProtectedProviderRejected('invalid protected transport headers'); } }
 function protectedDate(value: unknown) {
   need(typeof value === 'string', 'protected proof timestamp missing');
   const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.exec(value);
@@ -130,11 +131,13 @@ async function issuerPin(input: GenerateRequest, lane: string, fields: JsonRecor
   const origin = safeHttps(nonempty(process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN), true);
   need(origin.toString() === `${endpoint.origin}/`, 'gateway differs from protected issuer origin or canonical route');
   const token = nonempty(process.env.ASSET_FORGE_SPEND_WORKER_TOKEN); need(token.length >= 32, 'protected worker credential unavailable');
-  const headers = new Headers({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });
+  const headers = transportHeaders({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const db = getAdminDb(); need(db, 'protected issuer Firestore unavailable');
     const snapshot = await Promise.race([db.collection('assetFactoryStudioSpendBindings').doc(studioIssuerBindingId(input, lane, nonempty(fields.request_sha256))).get(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProtectedProviderRejected('protected issuer lookup timed out')), 15_000); })]);
+    // The initialized SDK exposes this runtime getter but omits it from its public Firestore type.
+    // Read the actual instance; a missing, throwing or mismatched getter must stay closed.
     need(Reflect.get(db, 'projectId') === projectId && snapshot.exists, 'protected issuer project or binding unavailable');
     const issuer = record(snapshot.data());
     need(issuer.trusted_readback === true && issuer.executor_repository === 'LifeLoggerAI/asset-factory' && issuer.consumer === 'factory-studio' && issuer.tenant_id === (input.tenantId || 'default') && issuer.generation_job_id === input.jobId && issuer.lane === lane, 'protected Studio issuer identity changed');
@@ -156,6 +159,7 @@ function checkSession(session: Session) {
   need(studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source input changed during execution');
   session.revalidate?.();
   if (session.reservation) need(studioExecutorSourceSha() === session.reservation.sourceSha, 'Studio source changed during execution');
+  session.revalidate?.();
   checkDeadline(session);
 }
 function joinedSignal(session: Session | undefined, input?: AbortSignal | null) {
@@ -172,7 +176,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   need(init.method === 'POST' && (typeof init.body === 'string' || Buffer.isBuffer(init.body)), 'materialized exact paid POST bytes required');
   const url = safeHttps(endpoint); need(url.toString() === endpoint, 'paid endpoint must be canonical');
   const bytes = typeof init.body === 'string' ? Buffer.from(init.body, 'utf8') : Buffer.from(init.body as Buffer);
-  const headers = new Headers(init.headers), credentials = credentialHeaders(headers);
+  const headers = transportHeaders(init.headers), credentials = credentialHeaders(headers);
   need(Object.keys(credentials).length > 0, 'provider account credential missing');
   const contentType = nonempty(headers.get('content-type'));
   const credentialDigest = digest(sourceJson(credentials));
@@ -250,7 +254,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
 export async function readStudioProvider(url: string, init: RequestInit = {}, artifactLimits?: { maxBytes: number }) {
   const session = sessions.getStore(); if (session) { checkSession(session); need(session.reservation, 'provider read preceded admission'); }
   need(!init.method || init.method === 'GET', 'provider continuation must be read-only');
-  const target = safeHttps(url), headers = new Headers(init.headers);
+  const target = safeHttps(url), headers = transportHeaders(init.headers);
   if (Object.keys(credentialHeaders(headers)).length) {
     need(session?.reservation, 'credential-bearing read lacks protected source session');
     // The admitted endpoint is retrieved from the session's durable request identity.
