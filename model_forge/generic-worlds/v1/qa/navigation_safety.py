@@ -97,14 +97,18 @@ def cell_rectangles(nav):
 def cell_connectivity(nav):
     cells = cell_rectangles(nav)
     graph = {c[0]: set() for c in cells}
-    for i, a in enumerate(cells):
-        for b in cells[i + 1:]:
+    # Sweep x intervals to avoid comparing every pair in fine global grids.
+    active = []
+    for a in sorted(cells, key=lambda c: (c[1], c[3], c[0])):
+        active = [b for b in active if b[2] >= a[1] - EPS]
+        for b in active:
             if abs(a[5] - b[5]) > EPS:
                 continue
             ox = min(a[2], b[2]) - max(a[1], b[1])
             oz = min(a[4], b[4]) - max(a[3], b[3])
             if (ox > EPS and oz >= -EPS) or (oz > EPS and ox >= -EPS):
                 graph[a[0]].add(b[0]); graph[b[0]].add(a[0])
+        active.append(a)
     def containing(position):
         x, y, z = position
         return {c[0] for c in cells if abs(c[5] - y) <= EPS and c[1] - EPS <= x <= c[2] + EPS and c[3] - EPS <= z <= c[4] + EPS}
