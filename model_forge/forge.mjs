@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import process from 'node:process';
 import dns from 'node:dns/promises';
 import { checkTriangleBudget } from './triangle-budget.mjs';
+import { parseGlbContainer } from './glb-container.mjs';
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
@@ -228,22 +229,7 @@ function firstHttpUrl(value) {
   return null;
 }
 
-function parseGlbCandidate(buffer) {
-  if (buffer.byteLength < 20) fail('Candidate GLB too small');
-  if (buffer.toString('ascii', 0, 4) !== 'glTF') fail('Candidate has invalid GLB magic');
-  const version = buffer.readUInt32LE(4);
-  const declaredLength = buffer.readUInt32LE(8);
-  if (version !== 2) fail(`Candidate uses unsupported GLB version ${version}`);
-  if (declaredLength !== buffer.byteLength) fail(`Candidate GLB declared length ${declaredLength} != actual ${buffer.byteLength}`);
-  const jsonLength = buffer.readUInt32LE(12);
-  const jsonType = buffer.readUInt32LE(16);
-  if (jsonType !== 0x4E4F534A) fail('Candidate first GLB chunk is not JSON');
-  const jsonStart = 20;
-  const jsonEnd = jsonStart + jsonLength;
-  if (jsonEnd > buffer.byteLength) fail('Candidate GLB JSON chunk is out of bounds');
-  const gltf = JSON.parse(buffer.toString('utf8', jsonStart, jsonEnd).replace(/\u0000+|\s+$/g, ''));
-  return gltf;
-}
+function parseGlbCandidate(buffer) { return parseGlbContainer(buffer).gltf; }
 
 function structuralCandidateReport(buffer, maxTriangles) {
   const gltf = parseGlbCandidate(buffer);
@@ -677,3 +663,4 @@ main().catch((error) => {
   console.error(`URAI_MODEL_FORGE_ERROR=${error?.message ?? error}`);
   process.exitCode = 1;
 });
+
