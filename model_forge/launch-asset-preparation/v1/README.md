@@ -33,9 +33,18 @@ need visual and memory review. The default recipe does not make this change.
 Meshopt reduces transfer size and needs decoder support; it does not establish
 GPU memory, draw calls, frame time or device acceptance. Decoded Khronos results
 do not substitute for testing the compressed stream with the actual runtime
-decoder. Required numeric byte budgets absent from a matrix are reported as
-`UNSET_UNMEASURED`, not silently passed. Bounds are recorded without resizing
-rooms, bodies, portals, navigation or animation envelopes.
+decoder. The hash-bound Spatial policy supplies the 3,145,728-byte maximum for
+each model when the matrix has no declaration. A stricter positive integer
+declaration remains binding; malformed declarations fail. The separate
+2,500,000-byte initial-scene ceiling needs the complete first-visible asset set
+and does not pass from one model's result. Bounds use decoded logical accessor
+values, including normalized quantized positions, without resizing rooms,
+bodies, portals or navigation. Static bounds do not establish animation, skin
+or morph envelopes.
+
+The declared test inputs must all exist before the preparation suite can run.
+The source workflow checks out the exact PR head, installs the frozen lock and
+requires a clean tree after the tests.
 
 WebP conversion verifies exact decoded RGBA pixels and repeat-identical bytes.
 Vorbis conversion is lossy; it preserves duration, rate and channels, fixes only

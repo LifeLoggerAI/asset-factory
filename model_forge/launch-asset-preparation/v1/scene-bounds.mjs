@@ -18,8 +18,10 @@ export function inspectSceneBounds(document) {
       const positions=primitive.getAttribute('POSITION');
       assert.ok(positions&&positions.getType()==='VEC3','Finite VEC3 positions required');
       const array=positions.getArray();assert.ok(array,'Decoded positions required');
-      for(let i=0;i<array.length;i+=3){
-        const [x,y,z]=array.subarray(i,i+3);
+      // getArray() retains encoded integers for normalized quantized attributes.
+      // The logical accessor element is what the renderer transforms.
+      for(let i=0;i<positions.getCount();i++){
+        const [x,y,z]=positions.getElement(i,[]);
         const p=[matrix[0]*x+matrix[4]*y+matrix[8]*z+matrix[12],
           matrix[1]*x+matrix[5]*y+matrix[9]*z+matrix[13],
           matrix[2]*x+matrix[6]*y+matrix[10]*z+matrix[14]];

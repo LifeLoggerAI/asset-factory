@@ -3,26 +3,11 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import process from 'node:process';
 import { checkTriangleBudget } from './triangle-budget.mjs';
+import { parseGlbContainer } from './glb-container.mjs';
 
 function fail(message) { throw new Error(message); }
 
-function parseGlb(buffer) {
-  if (buffer.byteLength < 20) fail('GLB too small');
-  if (buffer.toString('ascii', 0, 4) !== 'glTF') fail('Invalid GLB magic');
-  const version = buffer.readUInt32LE(4);
-  const declaredLength = buffer.readUInt32LE(8);
-  if (version !== 2) fail(`Unsupported GLB version ${version}`);
-  if (declaredLength !== buffer.byteLength) fail(`GLB declared length ${declaredLength} != actual ${buffer.byteLength}`);
-  const jsonLength = buffer.readUInt32LE(12);
-  const jsonType = buffer.readUInt32LE(16);
-  if (jsonType !== 0x4E4F534A) fail('First GLB chunk is not JSON');
-  const jsonStart = 20;
-  const jsonEnd = jsonStart + jsonLength;
-  if (jsonEnd > buffer.byteLength) fail('GLB JSON chunk out of bounds');
-  const jsonText = buffer.toString('utf8', jsonStart, jsonEnd).replace(/\u0000+|\s+$/g, '');
-  const gltf = JSON.parse(jsonText);
-  return { version, gltf };
-}
+const parseGlb = parseGlbContainer;
 
 function main() {
   const file = process.argv[2];
