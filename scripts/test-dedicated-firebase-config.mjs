@@ -31,7 +31,7 @@ fs.writeFileSync(process.env.URAI_SYNTHETIC_INVOCATION,JSON.stringify({args,conf
 process.exit(Number(process.env.URAI_SYNTHETIC_EXIT||0));
 `);
   chmodSync(path.join(bin, 'firebase'), 0o755);
-  const result = spawnSync(process.execPath, [path.join(scriptDir, 'run-dedicated-firebase-deploy.mjs'), ...(options.studio ? ['--cwd', 'assetfactory-studio'] : []), '--only', 'hosting,functions,firestore,storage'], {
+  const result = spawnSync(process.execPath, [path.join(scriptDir, 'run-dedicated-firebase-deploy.mjs'), ...(options.studio ? ['--cwd', 'assetfactory-studio'] : []), '--only', options.only ?? 'hosting,functions,firestore,storage'], {
     cwd: path.join(dir, 'checkout'),
     env: {
       ...process.env,
@@ -132,3 +132,35 @@ test('multi-codebase Functions and rules paths retain deployment cwd identity', 
     assert.equal(f.observed.config.storage[0].target, 'objects');
   } finally { f.close(); }
 });
+
+test('whitespace around bounded target entries retains explicit Hosting site materialization', () => {
+  const f = fixture(rootConfig, { only: ' hosting , functions ' });
+  try {
+    assert.equal(f.result.status, 0, f.result.stderr);
+    assert.equal(f.observed.config.hosting.site, site);
+    assert.equal(f.observed.config.hosting.target, undefined);
+    assert.equal(f.observed.args[f.observed.args.indexOf('--only') + 1], 'hosting,functions');
+  } finally { f.close(); }
+});
+
+test('whitespace around Hosting cannot skip the mandatory symbolic source target gate', () => {
+  const config = structuredClone(rootConfig);
+  delete config.hosting.target;
+  const f = fixture(config, { only: ' hosting , functions ' });
+  try {
+    assert.notEqual(f.result.status, 0);
+    assert.match(f.result.stderr, /unbound asset-factory-production target/);
+    assert.equal(f.observed, null, 'no CLI may execute before the source Hosting target gate');
+  } finally { f.close(); }
+});
+
+for (const only of [',', 'hosting,']) {
+  test(`an empty target entry denies CLI invocation (${only})`, () => {
+    const f = fixture(rootConfig, { only });
+    try {
+      assert.notEqual(f.result.status, 0);
+      assert.match(f.result.stderr, /nonempty bounded target list/);
+      assert.equal(f.observed, null, 'no CLI may interpret an empty deployment target');
+    } finally { f.close(); }
+  });
+}
