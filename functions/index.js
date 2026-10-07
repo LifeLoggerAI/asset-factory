@@ -1,3 +1,7 @@
+// Preserved simulator; superseded by the canonical Studio job/runtime store and
+// life-map-pipeline/functions deployment. Never publish simulated asset bytes,
+// legacy billing or a year-2500 signed URL as production completion evidence.
+throw new Error('Superseded Asset Factory simulator: use the canonical Studio runtime and dedicated Firebase deployment');
 
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
