@@ -39,6 +39,7 @@ function keys(name: string): SpendKeys {
   const parsed = spendRecord(JSON.parse(process.env[name] || '{}'), 'signer configuration');
   return Object.fromEntries(Object.entries(parsed).map(([id, value]) => {
     const key = spendRecord(value, 'signer key');
+    if (Object.keys(key).some(field => !['subject', 'publicKey'].includes(field))) throw new SpendRejected('signer configuration invalid');
     if (typeof key.subject !== 'string' || !key.subject.trim() || typeof key.publicKey !== 'string' || !key.publicKey.trim()) throw new SpendRejected('signer configuration invalid');
     return [id, { subject: key.subject, publicKey: key.publicKey }];
   }));
