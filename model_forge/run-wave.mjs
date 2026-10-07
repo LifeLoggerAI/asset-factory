@@ -19,7 +19,8 @@ for(const entry of wave.entries){
 }
 const planned=wave.entries.reduce((n,e)=>n+(e.providers?.length??0)*(e.maxAttemptsPerProvider??1),0);
 if(planned>wave.maxCandidateGenerations) throw new Error(`planned candidate attempts ${planned} exceed wave cap ${wave.maxCandidateGenerations}`);
-if(execute&&process.env.URAI_MODEL_FORGE_SPEND_AUTHORIZED!=='1') throw new Error('wave execution requires URAI_MODEL_FORGE_SPEND_AUTHORIZED=1');
+if(execute&&(process.env.URAI_MODEL_FORGE_SPEND_AUTHORIZED!=='1'||process.env.URAI_MODEL_FORGE_PROTECTED_EXECUTION_ENABLED!=='1'||!process.env.URAI_MODEL_FORGE_APPROVAL_ID)) throw new Error('wave execution requires a protected deployment and exact authenticated approval; an environment spend bit is insufficient');
+if(execute&&planned!==1) throw new Error('protected pilot allows only one exact job/provider/attempt per grant');
 if(execute){
   const preflight=spawnSync(process.execPath,['model_forge/provider-preflight.mjs','--live'],{stdio:'inherit',env:process.env});
   if(preflight.status!==0) throw new Error('provider preflight failed; generation wave not started');
@@ -40,7 +41,7 @@ for(const entry of wave.entries){
       summary.entries.push({assetId:spec.id,provider,status:'blocked-missing-credential',requiredEnv:required});
       continue;
     }
-    const result=spawnSync(process.execPath,['model_forge/forge.mjs','--spec',entry.spec,'--providers',provider],{stdio:'inherit',env:process.env});
+    const result=spawnSync(process.execPath,['model_forge/forge.mjs','--spec',entry.spec,'--providers',provider],{stdio:'inherit',env:process.env,timeout:20*60*1000,killSignal:'SIGKILL'});
     summary.entries.push({assetId:spec.id,provider,status:result.status===0?'executed':'failed',exitCode:result.status});
   }
 }

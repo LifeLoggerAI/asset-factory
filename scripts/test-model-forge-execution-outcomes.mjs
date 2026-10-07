@@ -12,7 +12,7 @@ function fixture(t) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-forge-outcomes-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   fs.mkdirSync(path.join(cwd, 'model_forge'));
-  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs', 'triangle-budget.mjs']) {
+  for (const file of ['forge.mjs', 'run-wave.mjs', 'provider-preflight.mjs', 'triangle-budget.mjs', 'protected-execution.mjs', 'create-wire-plan.mjs']) {
     fs.copyFileSync(path.join(root, 'model_forge', file), path.join(cwd, 'model_forge', file));
   }
   fs.writeFileSync(path.join(cwd, 'no-network.mjs'), `
@@ -43,26 +43,19 @@ function fixture(t) {
   return { cwd, run, wave };
 }
 
-test('forge reports missing credentials as failure and retains its receipt', (t) => {
+test('forge rejects flag-only authority before creating a provider run', (t) => {
   const { cwd, run } = fixture(t);
   const result = run('model_forge/forge.mjs', ['--spec', 'spec.json']);
   assert.equal(result.status, 1, result.stderr);
-  const receipt = JSON.parse(result.stdout);
-  assert.equal(receipt.status, 'failed');
-  assert.equal(receipt.completedCandidates, 0);
-  assert.equal(receipt.providers[0].status, 'skipped-missing-credential');
-  const runs = path.join(cwd, 'model_forge/runs/execution-outcome-fixture');
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(runs, fs.readdirSync(runs)[0], 'run-receipt.json'))), receipt);
+  assert.match(result.stderr, /environment spend bit is insufficient/);
+  assert.equal(fs.existsSync(path.join(cwd, 'model_forge/runs')), false);
 });
 
-test('forge exits nonzero after provider failure rather than certifying an empty run', (t) => {
+test('synthetic credential plus flag cannot bypass protected authority', (t) => {
   const { run } = fixture(t);
   const result = run('model_forge/forge.mjs', ['--spec', 'spec.json'], true);
   assert.equal(result.status, 1, result.stderr);
-  const receipt = JSON.parse(result.stdout);
-  assert.equal(receipt.status, 'failed');
-  assert.equal(receipt.providers[0].status, 'failed');
-  assert.match(receipt.providers[0].attempts[0].error, /no network attempted/);
+  assert.match(result.stderr, /environment spend bit is insufficient/);
 });
 
 for (const credential of [false, true]) {
@@ -70,9 +63,8 @@ for (const credential of [false, true]) {
     const { cwd, run } = fixture(t);
     const result = run('model_forge/run-wave.mjs', ['--wave', 'wave.json', '--execute'], credential);
     assert.equal(result.status, 1, result.stderr);
-    const receipt = JSON.parse(fs.readFileSync(path.join(cwd, 'model-forge-wave-receipt.json')));
-    assert.equal(receipt.status, 'incomplete');
-    assert.equal(receipt.entries[0].status, credential ? 'failed' : 'blocked-missing-credential');
+    assert.match(result.stderr, /environment spend bit is insufficient/);
+    assert.equal(fs.existsSync(path.join(cwd, 'model-forge-wave-receipt.json')), false);
   });
 }
 

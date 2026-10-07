@@ -284,6 +284,8 @@ async function renderConfiguredHttpProvider(input: GenerateRequest, provider: 'f
 export async function renderVideoWithConfiguredProvider(input: GenerateRequest): Promise<VideoProviderRenderResult | null> {
   const provider = env('ASSET_FACTORY_VIDEO_PROVIDER') || env('ASSET_FACTORY_MEDIA_PROVIDER') || 'local-proof';
   if (provider === 'local-proof') return null;
+  const protectedExecutorIntegrated = false;
+  if (!protectedExecutorIntegrated) throw new Error('Paid Studio video dispatch is disabled pending authenticated shared protected-executor integration; credentials and estimates are not spend authority');
   if (provider === 'replicate') return renderReplicate(input);
   if (provider === 'fal') return renderConfiguredHttpProvider(input, 'fal');
   if (provider === 'runway') return renderConfiguredHttpProvider(input, 'runway');

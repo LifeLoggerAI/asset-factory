@@ -542,6 +542,9 @@ export async function renderWithConfiguredProvider(
   const provider = configuredProviderName();
   if (provider === 'local-proof') return null;
 
+  const protectedExecutorIntegrated = false;
+  if (!protectedExecutorIntegrated) throw new Error('Paid Studio dispatch is disabled pending authenticated shared protected-executor integration; credentials and estimates are not spend authority');
+
   const result = await renderProvider(provider, input, definition);
   if (!result) {
     throw new Error(`Configured provider ${provider} cannot render ${definition.canonicalType} or is missing required env`);

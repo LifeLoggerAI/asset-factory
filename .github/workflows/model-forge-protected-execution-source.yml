@@ -1,0 +1,101 @@
+name: Model Forge Protected Execution Source
+
+on:
+  pull_request:
+    paths:
+      - model_forge/**
+      - scripts/test-model-forge-*.mjs
+      - scripts/test-protected-*.mjs
+      - scripts/test-studio-paid-dispatch-containment.mjs
+      - assetfactory-studio/lib/server/assetProviderRuntime.ts
+      - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
+      - docs/production/model-forge-protected-execution.md
+      - .github/workflows/model-forge-protected-execution-source.yml
+  push:
+    paths:
+      - model_forge/**
+      - scripts/test-model-forge-*.mjs
+      - scripts/test-protected-*.mjs
+      - scripts/test-studio-paid-dispatch-containment.mjs
+      - assetfactory-studio/lib/server/assetProviderRuntime.ts
+      - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
+      - docs/production/model-forge-protected-execution.md
+      - .github/workflows/model-forge-protected-execution-source.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protected-model-forge-source-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-contract:
+    name: Exact-source protected dispatch and containment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Require exact clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Execute actual source behavior without provider credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/protected-model-forge
+          node --test scripts/test-model-forge-triangle-budget.mjs scripts/test-model-forge-promotion.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-protected-model-execution.mjs scripts/test-protected-forge-contract.mjs scripts/test-studio-paid-dispatch-containment.mjs 2>&1 | tee artifacts/protected-model-forge/source-tests.log
+          node --input-type=module -e 'import fs from "node:fs"; import { executorDigest } from "./model_forge/protected-execution.mjs"; fs.writeFileSync("artifacts/protected-model-forge/source-proof.json", JSON.stringify({sourceSha: process.env.EXACT_SOURCE_SHA, node: process.version, executorDigest: executorDigest(), consistencyOnly: true, providerCallAuthorized: false, paidExecutionPerformed: false, firestoreOrProviderVerified: false}, null, 2)+"\n")'
+      - name: Retain exact source proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: protected-model-forge-source-${{ env.EXACT_SOURCE_SHA }}-${{ github.run_id }}
+          path: artifacts/protected-model-forge/
+          if-no-files-found: error
+          retention-days: 14
+  studio-containment:
+    name: Exact-source Studio containment lint and types
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Require exact clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Install the owner's frozen dependency graph
+        run: node scripts/install-locked-dependencies.mjs
+      - name: Check actual Studio adapter source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix assetfactory-studio run lint
+          npm --prefix assetfactory-studio run typecheck

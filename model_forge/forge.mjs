@@ -4,7 +4,12 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import process from 'node:process';
 import dns from 'node:dns/promises';
+import https from 'node:https';
 import { checkTriangleBudget } from './triangle-budget.mjs';
+import { wireInputDigest, executorDigest, loadProtectedExecution } from './protected-execution.mjs';
+import { createWirePlan } from './create-wire-plan.mjs';
+
+let activeExecution = null;
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
@@ -100,15 +105,18 @@ function spendAllowed() {
 
 function timeoutMs() {
   const n = Number(process.env.URAI_MODEL_FORGE_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
-  return Number.isFinite(n) && n >= 60000 ? n : DEFAULT_TIMEOUT_MS;
+  if (!Number.isSafeInteger(n) || n < 60000 || n > DEFAULT_TIMEOUT_MS) fail('timeout must be 60000-1200000 milliseconds');
+  return n;
 }
 
 function maxBytes() {
   const n = Number(process.env.URAI_MODEL_FORGE_MAX_BYTES ?? DEFAULT_MAX_BYTES);
-  return Number.isFinite(n) && n >= 1024 * 1024 ? n : DEFAULT_MAX_BYTES;
+  if (!Number.isSafeInteger(n) || n < 1024 * 1024 || n > DEFAULT_MAX_BYTES) fail('artifact byte limit must be 1-250 MiB');
+  return n;
 }
 
 function sleep(ms) {
+  if (activeExecution) return activeExecution.sleep(ms);
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -116,7 +124,7 @@ function isPrivateIpv4(hostname) {
   const parts = hostname.split('.').map((part) => Number(part));
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
   const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && [18, 19].includes(b));
 }
 
 function isPrivateIpv6(hostname) {
@@ -126,6 +134,9 @@ function isPrivateIpv6(hostname) {
     || host.startsWith('fc')
     || host.startsWith('fd')
     || /^fe[89ab]/.test(host)
+    || host.startsWith('fec')
+    || host.startsWith('ff')
+    || host.startsWith('::ffff:')
     || host.startsWith('::ffff:127.')
     || host.startsWith('::ffff:10.')
     || host.startsWith('::ffff:192.168.')
@@ -155,7 +166,7 @@ async function assertPublicResolvedUrl(value, label = 'URL') {
     if (entry.family === 4 && isPrivateIpv4(entry.address)) fail(`${label} resolves to a private IPv4 address`);
     if (entry.family === 6 && isPrivateIpv6(entry.address)) fail(`${label} resolves to a private IPv6 address`);
   }
-  return safe;
+  return { url: safe, addresses };
 }
 
 function retryAfterMs(response, fallbackMs) {
@@ -168,19 +179,10 @@ function retryAfterMs(response, fallbackMs) {
 }
 
 async function requestJson(url, init = {}, maxRateLimitRetries = 4) {
-  for (let attempt = 0; attempt <= maxRateLimitRetries; attempt += 1) {
-    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(Math.min(timeoutMs(), 120000)) });
-    const text = await response.text();
-    let payload;
-    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
-    if (response.status === 429 && attempt < maxRateLimitRetries) {
-      await sleep(retryAfterMs(response, Math.min(30000, 3000 * (attempt + 1))));
-      continue;
-    }
-    if (!response.ok) fail(`HTTP ${response.status} from ${url}: ${JSON.stringify(payload).slice(0, 1200)}`);
-    return { payload, response };
-  }
-  fail(`Rate-limit retries exhausted for ${url}`);
+  if (!activeExecution) fail('An authenticated durable spend reservation is required for provider requests');
+  // Charged creates are never automatically retried, including HTTP 429/timeout.
+  // Read/poll delivery is also one attempt per bounded poll to preserve certainty.
+  return activeExecution.requestJson(url, init);
 }
 
 function assertTripoOk(payload, context) {
@@ -279,32 +281,43 @@ function structuralCandidateReport(buffer, maxTriangles) {
 }
 
 async function downloadFile(url, destination) {
-  const safeUrl = await assertPublicResolvedUrl(url, 'Provider artifact URL');
-  const response = await fetch(safeUrl, { signal: AbortSignal.timeout(Math.min(timeoutMs(), 180000)), redirect: 'error' });
-  if (!response.ok) fail(`Artifact download failed ${response.status}`);
-  const declared = Number(response.headers.get('content-length'));
+  activeExecution?.assertArtifactUrl(url);
+  const { url: safeUrl, addresses } = await assertPublicResolvedUrl(url, 'Provider artifact URL');
+  if (!activeExecution || activeExecution.signal.aborted) fail('Protected execution unavailable/expired before artifact download');
+  const execution = activeExecution;
+  // Pin the already validated DNS answers into the TLS connection. fetch() would
+  // resolve the name again and reopen a DNS-rebinding window.
+  const response = await new Promise((resolve, reject) => {
+    const request = https.get(safeUrl, {
+      signal: execution.signal, agent: false,
+      lookup: (_hostname, options, callback) => options?.all
+        ? callback(null, addresses)
+        : callback(null, addresses[0].address, addresses[0].family),
+    }, resolve);
+    request.on('error', reject);
+  });
+  if (response.statusCode !== 200) { response.destroy(); fail(`Artifact download failed ${response.statusCode}; redirects are denied`); }
+  const declared = Number(response.headers['content-length']);
   const limit = maxBytes();
-  if (Number.isFinite(declared) && declared > limit) fail(`Artifact too large: ${declared}`);
-  if (!response.body) fail('Artifact response has no body');
+  if (Number.isFinite(declared) && declared > limit) { response.destroy(); fail(`Artifact too large: ${declared}`); }
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   const handle = fs.openSync(destination, 'w');
-  const reader = response.body.getReader();
   const hash = crypto.createHash('sha256');
   let bytes = 0;
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    for await (const value of response) {
+      if (execution.signal.aborted) throw execution.signal.reason;
       if (!value) continue;
       bytes += value.byteLength;
       if (bytes > limit) {
-        await reader.cancel('artifact size limit exceeded').catch(() => {});
+        response.destroy();
         fail(`Artifact too large during download: ${bytes}`);
       }
       fs.writeSync(handle, value);
       hash.update(value);
     }
   } catch (error) {
+    response.destroy();
     try { fs.closeSync(handle); } catch {}
     try { fs.unlinkSync(destination); } catch {}
     throw error;
@@ -442,7 +455,8 @@ async function generateRodin(spec) {
   if (refs.length) {
     if (!refs.every((v) => fs.existsSync(v))) fail('Rodin adapter uses local image files for image-to-3D; URLs should be downloaded into the workspace first');
     for (const ref of refs.slice(0, 5)) {
-      const bytes = fs.readFileSync(ref);
+      const bytes = spec.verifiedLocalReferences?.get(ref);
+      if (!bytes) fail('Rodin reference bytes were not frozen and digest-bound before reservation');
       form.append('images', new Blob([bytes], { type: mimeFor(ref) }), path.basename(ref));
     }
   } else {
@@ -560,20 +574,61 @@ function dryRunReceipt(spec, providers) {
   return {
     schemaVersion: 'urai-model-forge-plan-v1',
     dryRun: true,
-    spendAuthorized: spendAllowed(),
+    spendAuthorized: false,
+    providerCallAuthorized: false,
+    executionPerformed: false,
     assetId: spec.id,
     providers: providers.map((provider) => ({ provider, requiredEnv: requiredEnv(provider), configured: Boolean(process.env[requiredEnv(provider)]) })),
     target: spec.target,
     generationPolicy: spec.generation,
     referenceCount: spec.referenceViews ? Object.keys(spec.referenceViews).length : (spec.referenceImages ?? []).length,
-    next: 'Provider execution remains blocked until URAI_MODEL_FORGE_SPEND_AUTHORIZED=1 and credentials are available.',
+    next: 'Requires a protected deployment, authenticated exact-request approval, current API balance, atomic shared reservation and final provider charge receipts. A dry run never authorizes spending.',
+  };
+}
+
+function protectedRequest(spec, specBytes, provider) {
+  const referenceHashes = [];
+  const frozen = new Map();
+  const references = spec.referenceViews ? Object.values(spec.referenceViews) : (spec.referenceImages ?? []);
+  for (const ref of references) {
+    let bytes;
+    if (ref.startsWith('https://') || ref.startsWith('http://')) fail('Mutable remote reference requires governed byte-fixity materialization before paid dispatch');
+    if (ref.startsWith('data:')) {
+      const match = /^data:image\/(?:png|jpeg|webp);base64,([A-Za-z0-9+/]*={0,2})$/.exec(ref);
+      if (!match) fail('Reference data URI must be an exact base64 PNG/JPEG/WebP');
+      bytes = Buffer.from(match[1], 'base64');
+    } else {
+      if (provider !== 'rodin') fail('Local reference upload is not admitted for this provider');
+      bytes = fs.readFileSync(ref);
+      frozen.set(ref, bytes);
+    }
+    if (!bytes.length || bytes.length > 20 * 1024 * 1024) fail('Reference must contain 1 byte-20 MiB');
+    referenceHashes.push(crypto.createHash('sha256').update(bytes).digest('hex'));
+  }
+  Object.defineProperty(spec, 'verifiedLocalReferences', { value: frozen });
+  const model = provider === 'meshy' ? process.env.URAI_MESHY_MODEL || 'meshy-7.1'
+    : provider === 'tripo' ? process.env.URAI_TRIPO_MODEL || TRIPO_STABLE_MODEL
+      : provider === 'rodin' ? process.env.URAI_RODIN_TIER || 'Gen-2.5-Medium' : replicateOfficialModel();
+  const boundInput = { assetId: spec.id, prompt: spec.prompt, target: spec.target, generation: spec.generation, references: referenceHashes, referenceViews: spec.referenceViews ? Object.keys(spec.referenceViews) : null };
+  const wirePlan = createWirePlan(spec, provider, model);
+  return {
+    schemaVersion: 1, projectId: process.env.URAI_MODEL_FORGE_PROJECT_ID || '', provider, model,
+    sourceAuthority: { repository: 'LifeLoggerAI/asset-factory', sha: process.env.URAI_MODEL_FORGE_SOURCE_SHA || '' },
+    executorDigest: executorDigest(), inputDigest: wireInputDigest(wirePlan),
+    credentialFingerprint: crypto.createHash('sha256').update(process.env[requiredEnv(provider)]).digest('hex'),
+    specSha256: crypto.createHash('sha256').update(specBytes).digest('hex'),
+    maxAttempts: spec.generation.maxProviderAttempts,
+    maxCreateCalls: provider === 'meshy' && !references.length ? 2 : 1,
+    maxRuntimeMs: timeoutMs(), maxArtifactBytes: maxBytes(), boundInput,
+    wirePlan,
   };
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const specPath = path.resolve(args.spec);
-  const spec = validateSpec(readJson(specPath));
+  const specBytes = fs.readFileSync(specPath);
+  const spec = validateSpec(JSON.parse(specBytes.toString('utf8')));
   const providers = (args.providers.length ? args.providers : (spec.providers ?? ['meshy', 'tripo', 'rodin', 'replicate'])).map((v) => String(v).toLowerCase());
   if (!providers.length) fail('No providers selected');
   for (const p of providers) if (!SUPPORTED_PROVIDERS.has(p)) fail(`Unsupported provider: ${p}`);
@@ -582,7 +637,8 @@ async function main() {
     console.log(JSON.stringify(dryRunReceipt(spec, providers), null, 2));
     return;
   }
-  if (!spendAllowed()) fail('Provider execution is fail-closed. Set URAI_MODEL_FORGE_SPEND_AUTHORIZED=1 only after an explicit spend decision.');
+  if (!spendAllowed() || process.env.URAI_MODEL_FORGE_PROTECTED_EXECUTION_ENABLED !== '1') fail('Provider execution is fail-closed: protected deployment and authenticated durable approval are required; an environment spend bit is insufficient.');
+  if (providers.length !== 1 || spec.generation.maxProviderAttempts !== 1) fail('Protected pilot admits one provider and one attempt; no automatic paid retries or batch dispatch.');
 
   const runRoot = path.resolve(args.out, spec.id, new Date().toISOString().replace(/[:.]/g, '-'));
   fs.mkdirSync(runRoot, { recursive: true });
@@ -609,11 +665,16 @@ async function main() {
       const startedAt = new Date().toISOString();
       const attemptDir = path.join(providerDir, `attempt-${attempt}`);
       fs.mkdirSync(attemptDir, { recursive: true });
+      let execution = null;
       try {
+        execution = await loadProtectedExecution(protectedRequest(spec, specBytes, provider));
+        activeExecution = execution;
         const result = await generate(provider, spec);
         const candidatePath = path.join(attemptDir, 'candidate.glb');
         const artifact = await downloadFile(result.url, candidatePath);
         const structural = structuralCandidateReport(fs.readFileSync(candidatePath), spec.target.maxTriangles);
+        const chargeReconciliation = await execution.reconcile({ status: 'SUCCEEDED', taskId: result.taskId, artifact });
+        if (!chargeReconciliation.chargeReconciled || !chargeReconciliation.reservationReleased) fail('Provider charge requires protected reconciliation; candidate is not spend-complete');
         fs.writeFileSync(path.join(attemptDir, 'structural-validation.json'), `${JSON.stringify({
           schemaVersion: 'urai-glb-validation-v1',
           assetId: spec.id,
@@ -632,7 +693,8 @@ async function main() {
           attempt,
           startedAt,
           completedAt: new Date().toISOString(),
-          sourceSpecSha256: crypto.createHash('sha256').update(fs.readFileSync(specPath)).digest('hex'),
+          sourceSpecSha256: crypto.createHash('sha256').update(specBytes).digest('hex'),
+          protectedSpend: { claimId: execution.claimId, grantId: execution.grantId, requestDigest: execution.requestDigest, ...chargeReconciliation },
           referenceImages: spec.referenceImages ?? [],
           referenceViews: spec.referenceViews ?? null,
           prompt: spec.prompt,
@@ -654,6 +716,9 @@ async function main() {
         completed = true;
       } catch (error) {
         attempts.push({ attempt, status: 'failed', error: String(error?.message ?? error) });
+      } finally {
+        if (execution) await execution.stop().catch(() => { /* Failed reconciliation never releases funds or permits replay. */ });
+        activeExecution = null;
       }
     }
     const acceptedAttempt = attempts.find((entry) => entry.status === 'candidate-structurally-valid');

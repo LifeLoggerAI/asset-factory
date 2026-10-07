@@ -30,10 +30,9 @@ Dry-run is the default proof path and makes zero provider calls:
 node model_forge/forge.mjs --spec model_forge/specs/ground-hero-tree.json --dry-run
 ```
 
-Provider calls are fail-closed unless both conditions are true:
+Provider execution requires a protected deployment, authenticated exact-request approval, separate purpose-signed tested provider/proxy cost/runtime controls, a current account-attested API snapshot, and a durable atomic reservation in the existing shared account namespace. The old environment spend bit and a provider credential cannot authorize dispatch. The protected pilot admits one target/provider/attempt; ambiguous creates never auto retry or free reservations. Final native charge receipts are required for settlement. Dry-run always reports provider authorization and execution as false.
 
-1. required provider credential is available (`MESHY_API_KEY`, `TRIPO_API_KEY`, `RODIN_API_KEY`, or `REPLICATE_API_TOKEN` through its governed boundary), and
-2. `URAI_MODEL_FORGE_SPEND_AUTHORIZED=1` is deliberately set for that execution.
+The complete record contract, recovery command, #436 image-owner handoff and external activation gates are in [Model Forge protected execution](../docs/production/model-forge-protected-execution.md). A local timeout is not proof of a remote provider cost/runtime ceiling. No source test grants spend or asset promotion authority.
 
 Generated runs live under `model_forge/runs/` and should remain uncommitted until a candidate is deliberately promoted through governance.
 
@@ -42,7 +41,7 @@ Generated runs live under `model_forge/runs/` and should remain uncommitted unti
 - **Meshy:** preferred for multiview reference-driven generation and high-resolution PBR candidates.
 - **Tripo:** independent high-precision comparison lane.
 - **Rodin:** independent high-detail geometry/PBR lane; local reference files are supported.
-- **Replicate/Hunyuan:** first-class Model Forge adapter using `tencent/hunyuan-3d-3.1`; the protected paid lane intentionally reuses the repository's existing Google WIF/OIDC → Secret Manager boundary rather than duplicating the token into ordinary Actions secrets. Hunyuan 3D 3.1 accepts text or one image; explicit multiview stays with Meshy/Tripo/Rodin.
+- **Replicate/Hunyuan:** retained Model Forge adapter using `tencent/hunyuan-3d-3.1`; protected deployment must reuse the repository's existing Google WIF/OIDC → Secret Manager boundary. The current protected pilot admits text only; immutable image upload requires owner integration and verified provider authority before dispatch.
 
 Use references whenever design fidelity matters. Text-only generation is allowed for exploration, not final authority.
 
@@ -76,11 +75,13 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 
 ## Bounded launch waves
 
-- `model_forge/waves/wave-01-ground-canopy-bakeoff.json`: Meshy + Tripo + Rodin, one attempt each, maximum three candidates.
-- `model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json`: Replicate/Hunyuan, one attempt, maximum one candidate.
-- `.github/workflows/model-forge-replicate-wave.yml`: main-only, production-environment-gated WIF/OIDC execution for Wave 2. It requires the exact dispatch phrase `RUN_ONE_URAI_REPLICATE_MODEL_WAVE`, creates at most one candidate, validates it, retains provenance, and grants no promotion authority.
+- `model_forge/waves/wave-01-ground-canopy-bakeoff.json`: retained Meshy/Tripo/Rodin comparison plan. Its three-provider paid fan-out is superseded by one exact bounded job per grant; dry-run remains available and manufacture needs independent admitted provider jobs.
+- `model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json`: retained one-candidate plan, source/reuse and authenticated spend approval still required.
+- Current entry points are `forge.mjs` and `run-wave.mjs`. The former README's `model-forge-replicate-wave.yml` workflow is absent from the refreshed #421 tree and supplies no current execution authority.
 
-## Authority discipline — current convergence
+## Authority discipline — historical lineage and current source owner
+
+At the 2026-10-07 readback, the source owner is Factory #421, `repair/model-forge-current-main-20261007` at `e0d1ff4967562684a866386662bcc01e7d8af4de`. The protected-spend donor is isolated and unmerged; refresh current head, donor admission and checks before depending on this checkpoint. Factory #436 owns protected Python image dispatch, while Labs #229 remains offline consistency policy. The following #284/#1296 statements describe historical authority and must not be treated as current release or source/spend approval.
 
 PR #284 is the unified Asset Factory production + Model Forge + multimodal successor, open and non-draft at the 2026-09-25 readback. Its current base is PR #278's `converge/asset-factory-terminal-design-security-20260922` branch. Production-hardening PR #281 and Model Forge PR #279 are predecessor lineage incorporated into #284, not its current base. Recover the live #284 base, head, and fresh workflow state from GitHub before execution.
 
@@ -97,3 +98,4 @@ Current production boundary:
 - PR workflows must explicitly checkout and verify the pull-request branch head; GitHub's synthetic merge ref is not accepted as exact-head proof.
 
 Do not call the asset program production-complete until any actually required provider candidates are manufactured under bounded authority, cleaned winners are integrated into the then-current Spatial exact head, and the real UrAi route pixels pass governed literal review.
+
