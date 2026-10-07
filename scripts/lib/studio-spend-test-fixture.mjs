@@ -47,7 +47,7 @@ export function syntheticStudioSpend(input, options, protectedModule) {
   process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = JSON.stringify(mapping);
   const workerAuthorization = new Headers({ authorization: `Bearer ${process.env.ASSET_FORGE_SPEND_WORKER_TOKEN}` }).get('authorization');
   const issuer = { job_id: jobId, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: inputDigest, content_type: job.executor.content_type, executor_repository: 'LifeLoggerAI/asset-factory', consumer: 'factory-studio', tenant_id: input.tenantId || 'default', generation_job_id: input.jobId, lane: options.lane, account_id: job.account_id, gateway_url: syntheticGatewayUrl, worker_token_sha256: hash(sourceJson({ authorization: workerAuthorization })), trusted_readback: true, receipt: 'SYNTHETIC-NOT-ISSUER-PROOF', observed_at: observed, expires_at: expires };
-  const state = { job, issuer, issuerExists: true, issuerProjectId: process.env.FIREBASE_PROJECT_ID, failIssuer: false, issuerReads: 0, reserved: false, observed: [], calls: [], held: false, preflightExpiry: Date.parse(expires), mutatePreflight: null, mutatePrepared: null, mutateReserve: null, failAction: null, loseReserveResponse: false };
+  const state = { job, issuer, issuerExists: true, issuerProjectId: process.env.FIREBASE_PROJECT_ID, failIssuer: false, issuerReads: 0, reserved: false, observed: [], calls: [], held: false, preflightExpiry: Date.parse(expires), mutatePreflight: null, mutatePrepared: null, mutateReserve: null, mutateRecord: null, failAction: null, loseReserveResponse: false };
   const issuerDb = {
     get projectId() { return state.issuerProjectId; },
     collection(name) {
@@ -90,7 +90,7 @@ export function syntheticStudioSpend(input, options, protectedModule) {
       assert.equal(fields.account_id, job.account_id);
       for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'request_sha256', 'endpoint', 'asset', 'request_size']) assert.equal(fields[key], job.executor[key]);
       assert.equal(fields.provider, job.provider); assert.equal(fields.model, job.model_version); assert.equal(fields.executor_source_sha, job.executor.source_sha);
-      assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields);
+      assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields); state.mutateRecord?.();
       return Response.json({ ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true });
     }
     throw new Error('Unexpected synthetic gateway action');

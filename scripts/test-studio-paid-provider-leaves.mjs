@@ -356,3 +356,14 @@ test('monotonic elapsed runtime cannot be reset by a slowly advancing or rolled-
   try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'failed'); }
   finally { Date.now = originalNow; if (descriptor) Object.defineProperty(performance, 'now', descriptor); else delete performance.now; }
 });
+
+test('final observation latency or source drift cannot deliver a result after its last authority check', async () => {
+  const originalNow = Date.now, started = originalNow(), file = path.join(build.directory, 'assetfactory-studio/lib/server/firebaseAdmin.ts'), original = readFileSync(file);
+  for (const mode of ['deadline', 'source']) {
+    Date.now = () => started;
+    const c = config('openai', 'graphic');
+    c.fixture.mutateRecord = () => { if (mode === 'deadline') Date.now = () => started + 31_000; else writeFileSync(file, Buffer.concat([original, Buffer.from('\n// synthetic source drift during durable observation\n')])); };
+    try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'succeeded'); }
+    finally { writeFileSync(file, original); Date.now = originalNow; }
+  }
+});

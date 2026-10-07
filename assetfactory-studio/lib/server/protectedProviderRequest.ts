@@ -271,6 +271,7 @@ export async function withProtectedStudioSession<T>(input: GenerateRequest | und
         // Observations cannot settle charges, release funds, or authorize retry.
         try { const observed = await gateway('record', { ...r.bindingFields, attempt_id: r.attemptId, status: outcome, ...(session.taskId ? { request_id: session.taskId } : {}) }); need(observed.provider_call_authorized === false && observed.execution_performed === false && observed.reconciliation_required === true, 'invalid protected observation'); }
         catch { if (outcome === 'succeeded') throw new ProtectedProviderRejected('provider output requires durable observation and charge reconciliation'); }
+        if (outcome === 'succeeded') { session.revalidate?.(); checkDeadline(session); }
       }
     }
   });
