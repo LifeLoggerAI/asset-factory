@@ -1,0 +1,321 @@
+{
+  "schemaVersion": "urai-factory-glob-tooling-replacement-v1",
+  "advisoryId": "GHSA-vfj7-8cjw-p6xm",
+  "baseSource": "4a4f5d873391804815de8e0dff17eb1a46e5eb2e",
+  "securityGateWaived": false,
+  "historicalMitigation": {
+    "path": "patches/braces-3.0.3-security.patch",
+    "sha256": "8907759497846f9ddc258eac12cf80882b80d3019fa7ad13c9952e764e7a59bf"
+  },
+  "consumers": [
+    {
+      "package": "@next/eslint-plugin-next",
+      "version": "16.3.8",
+      "upstreamRegistryTarball": "https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-16.3.8.tgz",
+      "patchPath": "patches/next-eslint-plugin-next-16.3.8-glob.patch",
+      "patchSha256": "028163e70d729f1d521227342b7dfaf30cfaa6b8c92387fd3a3a4e80e0cf2a2b",
+      "removedDependency": "fast-glob",
+      "replacementDependency": "glob",
+      "replacementVersion": "13.0.6",
+      "files": [
+        {
+          "path": "dist/index.d.ts",
+          "upstreamSha256": "428fbb43ab6e964fc33a17eb50874986622a5ac108696b53ee0cbfb58e51aeb7",
+          "installedSha256": "428fbb43ab6e964fc33a17eb50874986622a5ac108696b53ee0cbfb58e51aeb7"
+        },
+        {
+          "path": "dist/index.js",
+          "upstreamSha256": "d1d7f1de69b3a222f04a0d0485d0cf5552c9c6d614d03a07bd689f4a21c91c06",
+          "installedSha256": "d1d7f1de69b3a222f04a0d0485d0cf5552c9c6d614d03a07bd689f4a21c91c06"
+        },
+        {
+          "path": "dist/rules/google-font-display.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/google-font-display.js",
+          "upstreamSha256": "4fd8cd476fae6e37f75ae54e46feee561040a04b01d9c73cab37b778e586f6cd",
+          "installedSha256": "4fd8cd476fae6e37f75ae54e46feee561040a04b01d9c73cab37b778e586f6cd"
+        },
+        {
+          "path": "dist/rules/google-font-preconnect.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/google-font-preconnect.js",
+          "upstreamSha256": "7097aedd951e8909265c716323ade6d0887f4b54152774d7cfe3059812ced4d2",
+          "installedSha256": "7097aedd951e8909265c716323ade6d0887f4b54152774d7cfe3059812ced4d2"
+        },
+        {
+          "path": "dist/rules/inline-script-id.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/inline-script-id.js",
+          "upstreamSha256": "fe7cc4883e52ae135e44eb3d2788b6a54eca0a11b559ff0636b51fcae550b69a",
+          "installedSha256": "fe7cc4883e52ae135e44eb3d2788b6a54eca0a11b559ff0636b51fcae550b69a"
+        },
+        {
+          "path": "dist/rules/next-script-for-ga.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/next-script-for-ga.js",
+          "upstreamSha256": "a1d40c2b48d252f43b4f739d628748a50e4902b8b2f667d7cedb726689055149",
+          "installedSha256": "a1d40c2b48d252f43b4f739d628748a50e4902b8b2f667d7cedb726689055149"
+        },
+        {
+          "path": "dist/rules/no-assign-module-variable.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-assign-module-variable.js",
+          "upstreamSha256": "131993a0f769199a4e1fbcc006a5e798ef5234d344b89146a347cf9ba9703c64",
+          "installedSha256": "131993a0f769199a4e1fbcc006a5e798ef5234d344b89146a347cf9ba9703c64"
+        },
+        {
+          "path": "dist/rules/no-async-client-component.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-async-client-component.js",
+          "upstreamSha256": "eb8252488bd89335d79c45d53872918f70bb03a98b87f633317a2b13ae294a1f",
+          "installedSha256": "eb8252488bd89335d79c45d53872918f70bb03a98b87f633317a2b13ae294a1f"
+        },
+        {
+          "path": "dist/rules/no-before-interactive-script-outside-document.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-before-interactive-script-outside-document.js",
+          "upstreamSha256": "b4606784338583e745f50a32da212034be6599513180e6d77ce6295c92d38d3c",
+          "installedSha256": "b4606784338583e745f50a32da212034be6599513180e6d77ce6295c92d38d3c"
+        },
+        {
+          "path": "dist/rules/no-css-tags.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-css-tags.js",
+          "upstreamSha256": "3ecea24c00cf779b1ce80cdd1176e3a21a4369bac16e2f48c1ec0ccaa8200568",
+          "installedSha256": "3ecea24c00cf779b1ce80cdd1176e3a21a4369bac16e2f48c1ec0ccaa8200568"
+        },
+        {
+          "path": "dist/rules/no-document-import-in-page.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-document-import-in-page.js",
+          "upstreamSha256": "aa6622bc04ccc1d7e0289b42cedb5b10b70800d4ad9caa1165a4ce0c9ee2fc00",
+          "installedSha256": "aa6622bc04ccc1d7e0289b42cedb5b10b70800d4ad9caa1165a4ce0c9ee2fc00"
+        },
+        {
+          "path": "dist/rules/no-duplicate-head.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-duplicate-head.js",
+          "upstreamSha256": "2f3fe9b461c45f144e606ab989b409117af0e163edd2c9858d84cbf29426254c",
+          "installedSha256": "2f3fe9b461c45f144e606ab989b409117af0e163edd2c9858d84cbf29426254c"
+        },
+        {
+          "path": "dist/rules/no-head-element.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-head-element.js",
+          "upstreamSha256": "ce985a88bb226e3688c90c47da71d2c0ce0797d27d1b112d5e8e4f02b3e25a67",
+          "installedSha256": "ce985a88bb226e3688c90c47da71d2c0ce0797d27d1b112d5e8e4f02b3e25a67"
+        },
+        {
+          "path": "dist/rules/no-head-import-in-document.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-head-import-in-document.js",
+          "upstreamSha256": "64c3f1ecbab2a468641f85a2c4b1d746c316c2ba390f6780cc8882c456dd0bd4",
+          "installedSha256": "64c3f1ecbab2a468641f85a2c4b1d746c316c2ba390f6780cc8882c456dd0bd4"
+        },
+        {
+          "path": "dist/rules/no-html-link-for-pages.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-html-link-for-pages.js",
+          "upstreamSha256": "3b184e28aa8997eb8e7f7b43c8da327fd3e2a2acf826e6e328632e7006687baa",
+          "installedSha256": "3b184e28aa8997eb8e7f7b43c8da327fd3e2a2acf826e6e328632e7006687baa"
+        },
+        {
+          "path": "dist/rules/no-img-element.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-img-element.js",
+          "upstreamSha256": "e2945047059e846e58d67090de882821a4c39129acb1d51bea80eb955964dc5f",
+          "installedSha256": "e2945047059e846e58d67090de882821a4c39129acb1d51bea80eb955964dc5f"
+        },
+        {
+          "path": "dist/rules/no-location-assign-relative-destination.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-location-assign-relative-destination.js",
+          "upstreamSha256": "61f2e7f61e2e9d72860ca15881533f63b9b169fc7774a5b6241771e32c717010",
+          "installedSha256": "61f2e7f61e2e9d72860ca15881533f63b9b169fc7774a5b6241771e32c717010"
+        },
+        {
+          "path": "dist/rules/no-page-custom-font.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-page-custom-font.js",
+          "upstreamSha256": "e7b6b5dc6834b9eef90e72f024bdf0b1795a2ecfdc3fb37a8a3954556457a346",
+          "installedSha256": "e7b6b5dc6834b9eef90e72f024bdf0b1795a2ecfdc3fb37a8a3954556457a346"
+        },
+        {
+          "path": "dist/rules/no-script-component-in-head.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-script-component-in-head.js",
+          "upstreamSha256": "2569a771e8a932ef566bccb49f2f31bd22f22e12bf8b282eca04f35821f4471f",
+          "installedSha256": "2569a771e8a932ef566bccb49f2f31bd22f22e12bf8b282eca04f35821f4471f"
+        },
+        {
+          "path": "dist/rules/no-styled-jsx-in-document.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-styled-jsx-in-document.js",
+          "upstreamSha256": "dc5ce51b254c4d28a34e2b2b103fb54601e7836d88c5909b2874710e443a906d",
+          "installedSha256": "dc5ce51b254c4d28a34e2b2b103fb54601e7836d88c5909b2874710e443a906d"
+        },
+        {
+          "path": "dist/rules/no-sync-scripts.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-sync-scripts.js",
+          "upstreamSha256": "d4b0d7c74cce675107755e5ccf7f02f6c1493cd80296c7eb483ace5f6bab53b0",
+          "installedSha256": "d4b0d7c74cce675107755e5ccf7f02f6c1493cd80296c7eb483ace5f6bab53b0"
+        },
+        {
+          "path": "dist/rules/no-title-in-document-head.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-title-in-document-head.js",
+          "upstreamSha256": "32a809a59b6ea3cb86eb603ccfb36835f2396720ba1553de543271e7e4b2aeca",
+          "installedSha256": "32a809a59b6ea3cb86eb603ccfb36835f2396720ba1553de543271e7e4b2aeca"
+        },
+        {
+          "path": "dist/rules/no-typos.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-typos.js",
+          "upstreamSha256": "8e3faf5e72a97234579adcbecf2773082ea38ecc21188d261c2e6db9cdd95d85",
+          "installedSha256": "8e3faf5e72a97234579adcbecf2773082ea38ecc21188d261c2e6db9cdd95d85"
+        },
+        {
+          "path": "dist/rules/no-unwanted-polyfillio.d.ts",
+          "upstreamSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b",
+          "installedSha256": "15e0d2ae63598741afe0503dfaca085552936706417285cd2c4d56c5bb71f25b"
+        },
+        {
+          "path": "dist/rules/no-unwanted-polyfillio.js",
+          "upstreamSha256": "84d1fe31dc0fba0fd1139b5adcaa9579dd31b33ab35f32faecc5a529edd773ab",
+          "installedSha256": "84d1fe31dc0fba0fd1139b5adcaa9579dd31b33ab35f32faecc5a529edd773ab"
+        },
+        {
+          "path": "dist/utils/define-rule.d.ts",
+          "upstreamSha256": "850d96a4136c9ff820fc16dcedfde9673e6cf8f8a6711994667e0af561bf9d4e",
+          "installedSha256": "850d96a4136c9ff820fc16dcedfde9673e6cf8f8a6711994667e0af561bf9d4e"
+        },
+        {
+          "path": "dist/utils/define-rule.js",
+          "upstreamSha256": "2d490d33f3a9db380fa01452091cb1daf81dbbf0e09fbc4eefdbc379f6aba633",
+          "installedSha256": "2d490d33f3a9db380fa01452091cb1daf81dbbf0e09fbc4eefdbc379f6aba633"
+        },
+        {
+          "path": "dist/utils/get-root-dirs.d.ts",
+          "upstreamSha256": "ae8febcc67870c017aaf03205096c9c7c622c0a96fe3aa3a85e56968d86ba98f",
+          "installedSha256": "ae8febcc67870c017aaf03205096c9c7c622c0a96fe3aa3a85e56968d86ba98f"
+        },
+        {
+          "path": "dist/utils/get-root-dirs.js",
+          "upstreamSha256": "886677432990a735e5ebdfb345ff1cbd40e264f9947a8432eeeb254b3a926bde",
+          "installedSha256": "25c96fa3600a5cdf1c70fff1e37c60093fb4b249bcbb3c6b9a9ffa96bbbb3003"
+        },
+        {
+          "path": "dist/utils/node-attributes.d.ts",
+          "upstreamSha256": "9850a9cfd0844f488591435b87dd7cbf26cd9fc7352621a7b8cae1e89115e29a",
+          "installedSha256": "9850a9cfd0844f488591435b87dd7cbf26cd9fc7352621a7b8cae1e89115e29a"
+        },
+        {
+          "path": "dist/utils/node-attributes.js",
+          "upstreamSha256": "48fd96af82f72bd5ac5fd6e459a60768638d4f4fcd44b222f128c39e7336997a",
+          "installedSha256": "48fd96af82f72bd5ac5fd6e459a60768638d4f4fcd44b222f128c39e7336997a"
+        },
+        {
+          "path": "dist/utils/url.d.ts",
+          "upstreamSha256": "cbdebf9a868e60d324fafd69404c39cced9f86727b211878989931ca7c91efe5",
+          "installedSha256": "cbdebf9a868e60d324fafd69404c39cced9f86727b211878989931ca7c91efe5"
+        },
+        {
+          "path": "dist/utils/url.js",
+          "upstreamSha256": "219194728597d02d8f7cecafd14d91e681c99f9fa169e5b7577bdf866993ef5a",
+          "installedSha256": "219194728597d02d8f7cecafd14d91e681c99f9fa169e5b7577bdf866993ef5a"
+        },
+        {
+          "path": "package.json",
+          "upstreamSha256": "ca413c6096bb8c2c28e95b5cd9be84a0ac6d926435985fe1701e2d0d7f985d07",
+          "installedSha256": "0a25ad6f596f6e9a59e41b460186d7607dcfbec1395dfa237a8e0b9c7b7a61cf"
+        }
+      ]
+    },
+    {
+      "package": "findup-sync",
+      "version": "5.0.0",
+      "upstreamRegistryTarball": "https://registry.npmjs.org/findup-sync/-/findup-sync-5.0.0.tgz",
+      "patchPath": "patches/findup-sync-5.0.0-glob.patch",
+      "patchSha256": "a080523a8e2a71a3962b3cc472eea18f743acf3536e5c95b387f0bfc11cfcd6d",
+      "removedDependency": "micromatch",
+      "replacementDependency": "picomatch",
+      "replacementVersion": "2.3.2",
+      "files": [
+        {
+          "path": "index.js",
+          "upstreamSha256": "e0f01d50ffd303f3b4e2a535df7d26182b36bf334c098403c3ddb8036b2f5026",
+          "installedSha256": "ce07aba014e0c5d9dd1d61180eb726badba61f53737ea91777c24a346661decb"
+        },
+        {
+          "path": "package.json",
+          "upstreamSha256": "10a04ec68f05ab4a6cc47917431544ee7cfe7b760065913a3c65cc7b743b6857",
+          "installedSha256": "a3f687d0e57e3a0580bcba322a03ac3a1b7570204e3d17fe39632a1b472dc8f0"
+        }
+      ]
+    }
+  ]
+}

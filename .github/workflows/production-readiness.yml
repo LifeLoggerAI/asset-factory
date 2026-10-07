@@ -118,15 +118,27 @@ jobs:
           git init .public-reviewed-advisories
           git -C .public-reviewed-advisories remote add origin https://github.com/github/advisory-database.git
           git -C .public-reviewed-advisories fetch --depth 1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject installed high or critical advisories
         run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/installed-dependency-security.json
+      - name: Read current complete primary advisory snapshot without uploading the graph
+        run: |
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories fetch --depth 1 origin bd4903bcb0086eb4b511a155cd54179818bbefe3
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject current installed high or critical findings with the unchanged comparator
+        run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json
       - name: Retain actual installed graph and unresolved security findings
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: installed-dependency-security-${{ env.ASSET_FACTORY_EXACT_HEAD }}
-          path: artifacts/installed-dependency-security.json
+          path: |
+            artifacts/installed-dependency-security.json
+            artifacts/current-installed-dependency-security.json
           if-no-files-found: warn
 
   deploy:

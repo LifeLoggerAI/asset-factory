@@ -7,7 +7,7 @@
     "start": "node server.v1.js",
     "harden": "npm audit fix --production",
     "lock": "npm shrinkwrap",
-    "check-unused": "npx depcheck",
+    "check-unused": "node ../scripts/run-engine-unused-audit.mjs",
     "test": "node --test test/*.test.js"
   },
   "author": "URAI Restoration Team",
