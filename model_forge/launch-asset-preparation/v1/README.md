@@ -50,3 +50,10 @@ listening/loop review. Neither format conversion admits the content.
 
 These recipes do not claim zero warnings, zero vulnerabilities, art approval,
 runtime admission or production readiness.
+
+Static candidate receipts independently measure decoded vertex positions in the
+default scene after complete parent/world transforms and repeated instances.
+Raw mesh-local accessor min/max alone do not describe the scene envelope. The
+measurement does not establish skin, morph or animation pose envelopes; those
+remain explicit. Resizing geometry, increasing declared envelopes, changing
+room clearance or art admission is not performed.
