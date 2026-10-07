@@ -43,10 +43,6 @@ function httpsEndpoint(raw, label) {
   need(url.protocol === 'https:' && !url.username && !url.password && !url.hash, `${label} requires HTTPS without credentials or fragment`);
   return url;
 }
-function admissionTime(value) {
-  need(typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value)), 'absolute admission window missing or invalid');
-  return Date.parse(value);
-}
 function safeHeader(value) { need(!/[\r\n]/.test(value), 'multipart header contains newline'); return value.replace(/"/g, '%22'); }
 /** Stable multipart bytes allow approval of exactly the payload later sent. */
 export async function freezeRequest(endpoint, init, provider) {
@@ -94,7 +90,7 @@ export async function freezeRequest(endpoint, init, provider) {
 function protectedBinding(envelope, binding, expectedAccount = null) {
   const job = envelope?.job, account = envelope?.account, controls = envelope?.protected_controls, price = envelope?.protected_pricing;
   need(job?.job_id === binding.job_id && job.provider === binding.provider && job.model_version === binding.model && job.executor?.source_sha === binding.executor_source_sha, 'approved job identity changed');
-  if (job.approval) need(admissionTime(job.approval.issued_at) <= binding.checked_at && binding.checked_at < admissionTime(job.approval.expires_at), 'approved financial authority expired');
+  if (job.approval) need(admissionInstant(job.approval.issued_at) <= binding.checked_at && binding.checked_at < admissionInstant(job.approval.expires_at), 'approved financial authority expired');
   for (const field of ['endpoint', 'request_sha256', 'request_size', 'asset', 'content_type', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) {
     need(job.executor[field] === binding[field], `actual ${field} differs from protected approval`);
   }
@@ -116,6 +112,21 @@ function protectedBinding(envelope, binding, expectedAccount = null) {
   return job;
 }
 
+function admissionInstant(value) {
+  need(typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(value), 'absolute admission timestamp missing or malformed');
+  const result = Date.parse(value); need(Number.isFinite(result), 'absolute admission timestamp invalid'); return result;
+}
+function admissionWindow(envelope, binding, advertised) {
+  const job = envelope?.job, authority = envelope?.authority, approval = job?.approval;
+  need(typeof job?.authority?.repository === 'string' && job.authority.repository.trim() && /^[0-9a-f]{40}$/.test(job.authority.sha || '') && authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority), 'protected source authority changed');
+  need(admissionInstant(authority.observed_at) <= binding.checked_at && binding.checked_at < admissionInstant(authority.expires_at), 'protected source authority expired');
+  need(approval?.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND' && typeof approval.receipt === 'string' && approval.receipt && typeof approval.approver === 'string' && approval.approver && approval.job_digest === jobDigest(job) && approval.max_usd_micros === job.budget.max_usd_micros && approval.max_credits === job.budget.max_credits, 'verified bounded approval changed');
+  need(admissionInstant(approval.issued_at) <= binding.checked_at && binding.checked_at < admissionInstant(approval.expires_at), 'verified bounded approval expired');
+  need(Number.isSafeInteger(job.budget.max_runtime_seconds) && job.budget.max_runtime_seconds > 0 && job.budget.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
+  const end = admissionInstant(advertised), minimum = Math.min(...[approval, authority, envelope.account, envelope.protected_controls, envelope.protected_pricing, job.budget.rates].map(record => admissionInstant(record.expires_at)));
+  need(end <= minimum && binding.checked_at < end, 'absolute preflight window expired or enlarged');
+  return end;
+}
 async function boundedJson(response, maximum) {
   const declared = Number(response.headers.get('content-length')); need(!Number.isFinite(declared) || declared <= maximum, 'response exceeds bound');
   need(response.body, 'response body missing'); const reader = response.body.getReader(); const chunks = []; let bytes = 0;
@@ -126,14 +137,14 @@ async function boundedJson(response, maximum) {
 
 /** One instance covers the candidate lifecycle; loss/timeout never opens another call. */
 export class ModelSpendClient {
-  constructor({ provider, asset, sourceSpecSha256, evidenceDir, previewCheckpoint = null, env = process.env, fetchImpl = globalThis.fetch, now = Date.now }) {
+  constructor({ provider, asset, sourceSpecSha256, evidenceDir, previewCheckpoint = null, env = process.env, fetchImpl = globalThis.fetch, now = Date.now, monotonic = () => performance.now() }) {
     need(PROVIDER_ORIGINS[provider] && typeof asset === 'string' && asset, 'provider/asset identity required');
     need(/^[0-9a-f]{64}$/.test(sourceSpecSha256), 'source spec hash required');
     this.provider = provider; this.asset = asset; this.sourceSpecSha256 = sourceSpecSha256; this.evidenceDir = evidenceDir;
     this.previewCheckpoint = previewCheckpoint;
-    this.env = env; this.fetch = fetchImpl; this.now = now; this.records = []; this.deadline = Infinity; this.monotonicDeadline = Infinity; this.submitted = new Set();
+    this.env = env; this.fetch = fetchImpl; this.now = now; this.monotonic = monotonic; this.records = []; this.deadline = Infinity; this.monotonicDeadline = Infinity; this.submitted = new Set();
   }
-  remainingMs(maximum) { const remaining = Math.min(this.deadline - this.now(), this.monotonicDeadline - performance.now()); need(remaining > 0, 'approved runtime deadline elapsed; reconciliation required'); return Math.max(1, Math.floor(Math.min(remaining, maximum))); }
+  remainingMs(maximum) { const remaining = Math.min(this.deadline - this.now(), this.monotonicDeadline - this.monotonic()); need(remaining > 0, 'approved runtime deadline elapsed; reconciliation required'); return Math.max(1, Math.floor(Math.min(remaining, maximum))); }
   async gateway(action, data) {
     const url = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_URL, 'gateway');
     need(url.pathname.endsWith('/api/worker/production-spend') && !url.search, 'canonical gateway route required');
@@ -178,32 +189,36 @@ export class ModelSpendClient {
     const input = { job_id: jobId, ...binding };
     const preflight = await this.gateway('preflight', input);
     need(preflight.provider_call_authorized === false && preflight.execution_performed === false && preflight.envelope, 'preflight is non-authorizing');
-    const proofDeadline = admissionTime(preflight.admission_expires_at);
-    need(this.now() < proofDeadline, 'absolute preflight admission expired');
     const job = protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
     input.account_id = job.account_id;
     const digest = jobDigest(job);
-    const admissionStarted = this.now();
-    const monotonicStarted = performance.now();
+    const preflightExpiry = admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at);
+    const reserveStarted = this.now(), monotonicStarted = this.monotonic();
+    this.monotonicDeadline = Math.min(this.monotonicDeadline, monotonicStarted + Math.min(job.budget.max_runtime_seconds * 1000, preflightExpiry - reserveStarted));
+    this.deadline = Math.min(this.deadline, preflightExpiry, reserveStarted + job.budget.max_runtime_seconds * 1000);
+    this.submitted.add(request.request_sha256);
     const reservation = await this.gateway('reserve', { ...input, job_digest: digest });
     need(reservation.provider_call_authorized === true && reservation.execution_performed === false && reservation.job_digest === digest && reservation.executor_source_sha === sourceSha && typeof reservation.attempt_id === 'string' && reservation.attempt_id, 'atomic reservation did not authorize this exact request');
     for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(reservation[field] === input[field], 'atomic reservation binding differs from actual transport');
     need(Number.isSafeInteger(reservation.max_runtime_seconds) && reservation.max_runtime_seconds > 0 && reservation.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
     need(reservation.max_runtime_seconds === job.budget.max_runtime_seconds, 'atomic reservation changed approved runtime cap');
-    const reservedAt = admissionTime(reservation.reserved_at), admittedUntil = admissionTime(reservation.admission_expires_at);
-    need(reservedAt <= this.now() && admittedUntil > reservedAt && admittedUntil <= proofDeadline && admittedUntil <= reservedAt + reservation.max_runtime_seconds * 1000, 'atomic absolute admission window changed');
-    this.submitted.add(request.request_sha256);
-    this.deadline = Math.min(this.deadline, admittedUntil, admissionStarted + reservation.max_runtime_seconds * 1000);
-    this.monotonicDeadline = Math.min(this.monotonicDeadline, monotonicStarted + reservation.max_runtime_seconds * 1000, performance.now() + admittedUntil - this.now());
     const record = { job_id: jobId, account_id: input.account_id, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type, status: 'unknown-outcome', reconciliation_required: true };
     this.records.push(record);
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
     try {
-      need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed after reservation');
-      protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
+      const reservedAt = admissionInstant(reservation.reserved_at), admittedExpiry = admissionInstant(reservation.admission_expires_at);
+      need(reservedAt <= this.now() && admittedExpiry > reservedAt && admittedExpiry <= preflightExpiry && admittedExpiry <= reservedAt + reservation.max_runtime_seconds * 1000, 'atomic absolute reservation window invalid');
+      this.deadline = Math.min(this.deadline, admittedExpiry, reservedAt + reservation.max_runtime_seconds * 1000);
+      this.monotonicDeadline = Math.min(this.monotonicDeadline, this.monotonic() + admittedExpiry - this.now());
+      need(verifiedSourceSha(this.env) === sourceSha, 'actual executor source changed after reservation');
+      protectedBinding(preflight.envelope, { ...input, checked_at: this.now() }, input.account_id);
+      admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at);
       const response = await this.fetch(request.endpoint, { method: 'POST', headers: request.headers, body: request.body, redirect: 'error', signal: AbortSignal.timeout(this.remainingMs(120000)) });
       const payload = await boundedJson(response, MAX_GATEWAY_BYTES);
-      this.remainingMs(120000);
+      need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during provider response');
+      protectedBinding(preflight.envelope, { ...input, checked_at: this.now() }, input.account_id);
+      admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at);
+      this.remainingMs(1);
       record.http_status = response.status;
       need(response.ok, `paid provider returned HTTP ${response.status}; no automatic retry`);
       record.status = 'submission-returned';
@@ -214,6 +229,7 @@ export class ModelSpendClient {
       // authentic independent charge reconciliation; no local charge or retry claim.
       try { await this.gateway('record', { ...input, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
       if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
+      if (record.status === 'submission-returned') { need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during outcome delivery'); protectedBinding(preflight.envelope, { ...input, checked_at: this.now() }, input.account_id); admissionWindow(preflight.envelope, { ...input, checked_at: this.now() }, preflight.admission_expires_at); this.remainingMs(1); }
     }
   }
 }
