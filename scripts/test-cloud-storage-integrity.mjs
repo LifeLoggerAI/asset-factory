@@ -30,6 +30,14 @@ function generator() {
   return { update(next) { value = Buffer.concat([value, next]); }, toString() { return crc32c(value); } };
 }
 
+async function withLiveSyntheticTransport(run) {
+  // The mocked Readable has no socket handle. Model that live request lifetime
+  // while preserving the actual source timer's unref and cancellation behavior.
+  const transport = setInterval(() => {}, 1000);
+  try { return await run(); }
+  finally { clearInterval(transport); }
+}
+
 async function actualModule(name, mocks, context = vm.createContext({ Buffer, console, setTimeout, clearTimeout, process: { env: {} } })) {
   const source = stripTypeScriptTypes(readFileSync(resolve(server, `${name}.ts`), 'utf8'), { mode: 'transform' });
   const module = new vm.SourceTextModule(source, { context });
@@ -302,7 +310,8 @@ test('corrupted downloaded bytes are rejected independently of the mocked SDK va
 });
 test('a stalled read is destroyed at the actual source absolute deadline', async () => {
   const f = await storageFixture({ stalledRead: true }); f.seed();
-  await assert.rejects(f.module.cloudReadGenerated('artifact.glb', path), /read deadline/); assert.equal(f.calls.deletes, 0);
+  await withLiveSyntheticTransport(() => assert.rejects(f.module.cloudReadGenerated('artifact.glb', path), /read deadline/));
+  assert.equal(f.calls.deletes, 0);
 });
 test('read rejects and destroys an overlong stream before accepting bytes', async () => {
   const f = await storageFixture({ downloadBytes: Buffer.alloc(bytes.length + 1) }); f.seed();
@@ -319,7 +328,7 @@ for (const [name, metadata] of Object.entries({ missingGeneration: { generation:
 }
 test('stalled metadata destroys its SDK stream at the absolute source deadline without downloading or deleting', async () => {
   const f = await storageFixture({ stalledMetadata: true }); f.seed();
-  await assert.rejects(f.module.cloudReadGenerated('artifact.glb', path), /metadata deadline/);
+  await withLiveSyntheticTransport(() => assert.rejects(f.module.cloudReadGenerated('artifact.glb', path), /metadata deadline/));
   assert.equal(f.calls.download.length, 0); assert.equal(f.calls.deletes, 0);
   const call = f.calls.metadata[0]; assert.equal(call.input.timeout, 60000); assert.equal(call.input.maxRetries, 0);
 });
