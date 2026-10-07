@@ -1,0 +1,57 @@
+name: Factory Braces Installed Mitigation
+
+on:
+  pull_request:
+    branches: [main, repair/model-forge-current-main-20261007]
+    paths:
+      - 'patches/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/*factory-braces*'
+      - 'scripts/check-installed-reviewed-advisories.mjs'
+      - '.github/workflows/factory-braces-mitigation-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-braces-mitigation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  installed-consumer-proof:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install frozen workspace dependencies with exact committed patch
+        run: node scripts/install-locked-dependencies.mjs
+      - name: Verify actual installed consumer bodies and behavior
+        run: node scripts/verify-factory-braces-mitigation.mjs
+      - name: Test mitigation rejection and retained raw advisory gate
+        run: node --test scripts/test-factory-braces-mitigation.mjs scripts/test-installed-reviewed-advisories.mjs
+      - name: Verify tracked source remains unchanged
+        run: git diff --exit-code
+      - name: Retain exact installed evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-braces-installed-mitigation-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          path: artifacts/factory-braces-installed-mitigation.json
+          if-no-files-found: error

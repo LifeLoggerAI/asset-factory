@@ -40,6 +40,11 @@ overrides:
   tmp@0.2.5: 0.2.7
   websocket-driver@0.7.4: 0.7.5
 
+patchedDependencies:
+  braces@3.0.3:
+    hash: xortd5m423aiusb7vksbsvd6da
+    path: patches/braces-3.0.3-security.patch
+
 importers:
 
   .:
@@ -7560,7 +7565,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3:
+  braces@3.0.3(patch_hash=xortd5m423aiusb7vksbsvd6da):
     dependencies:
       fill-range: 7.1.1
 
@@ -9532,7 +9537,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3
+      braces: 3.0.3(patch_hash=xortd5m423aiusb7vksbsvd6da)
       picomatch: 2.3.2
 
   mime-db@1.52.0: {}
