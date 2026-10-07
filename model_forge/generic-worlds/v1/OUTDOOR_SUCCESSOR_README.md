@@ -43,3 +43,17 @@ Actual UrAi movement/headroom/collision tolerances, physical device GPU/frame-ti
 and memory, human comfort/accessibility and deliberate owner admission remain
 open. Keep walking, runtime, visual, human/device, production and Golden Master
 acceptance false. No Spatial, Studio, Jobs or provider administration is changed.
+
+## Dielectric lake material successor 1.0.6
+
+Fresh visual review exposed inherited 8% water metalness and harsh mirror patches
+under the supplemental room IBL. Preserve 1.0.5 and manufacture the lake-only
+`build/build_water_successor.py` after the outdoor builder. Its water metalness is
+zero and roughness targets .42 (nearest 8-bit encoding 107/255). Every geometry
+accessor/index and collision/navigation/lighting/camera byte remains unchanged.
+Run the same package/Khronos/consumer checks with `--version 1.0.6`. This changes
+static dielectric optics only; final outdoor IBL, wave motion, refraction, shore
+interaction, physical water/device and human art approval remain open.
+
+Current review selection is street/backyard 1.0.5, lake 1.0.6, and the twelve
+indoor worlds 1.0.4. Exact per-world manifests remain the admission authority.
