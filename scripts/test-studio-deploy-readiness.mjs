@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const root = process.cwd();
 
@@ -30,7 +31,11 @@ assert(
 );
 
 assertIncludes(nextConfig, 'turbopack', 'assetfactory-studio/next.config.mjs');
-assertIncludes(nextConfig, 'root: studioRoot', 'assetfactory-studio/next.config.mjs');
+const nextConfigValue = (await import(pathToFileURL(path.join(root, 'assetfactory-studio/next.config.mjs')).href)).default;
+assert(
+  path.resolve(nextConfigValue.turbopack?.root ?? '') === path.resolve(root),
+  'Studio Turbopack root must be the repository workspace so pnpm-linked Next and shared dependencies are resolvable'
+);
 assert(
   !nextConfig.includes('destination:') && !nextConfig.includes('https://urai-4dc1d.web.app/api/:path*'),
   'assetfactory-studio/next.config.mjs must not rewrite /api routes back to the deployed host'
