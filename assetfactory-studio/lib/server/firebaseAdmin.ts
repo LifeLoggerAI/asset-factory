@@ -44,7 +44,7 @@ function checkDeclaredAdcFile() {
 
 function configuredTarget() {
   if (process.env.NODE_ENV === 'production'
-      && ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_STORAGE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST'].some((name) => Boolean(process.env[name]?.trim()))) {
+      && ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_STORAGE_EMULATOR_HOST', 'STORAGE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST'].some((name) => Boolean(process.env[name]?.trim()))) {
     throw new Error('Firebase emulators are not Asset Factory production authority');
   }
   const dedicated = process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID?.trim();
