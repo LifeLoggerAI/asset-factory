@@ -1,0 +1,72 @@
+// Synthetic client-protocol fixtures only. Never provider authority or real account proof.
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { cpSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const syntheticGatewayUrl = 'https://protected.example.test/api/worker/production-spend';
+export const protectedSourceNames = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts'];
+const hash = value => createHash('sha256').update(value).digest('hex');
+function sourceJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(sourceJson).join(',')}]`;
+  return `{${Object.keys(value).filter(k => value[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${sourceJson(value[k])}`).join(',')}}`;
+}
+export function syntheticCleanBuild() {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+  const directory = mkdtempSync(path.join(tmpdir(), 'urai-studio-synthetic-build-'));
+  mkdirSync(path.join(directory, 'assetfactory-studio/lib/server'), { recursive: true });
+  for (const name of protectedSourceNames) cpSync(path.join(root, 'assetfactory-studio/lib/server', name), path.join(directory, 'assetfactory-studio/lib/server', name));
+  const git = (...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8', stdio: 'pipe' }).trim();
+  git('init', '--quiet'); git('add', '.'); git('-c', 'user.name=Synthetic Fixture', '-c', 'user.email=synthetic@example.invalid', 'commit', '-qm', 'Synthetic source fixture, not release authority');
+  const sourceSha = git('rev-parse', 'HEAD');
+  const keys = ['URAI_SOURCE_SHA', 'ASSET_FACTORY_EXACT_HEAD', 'ASSET_FORGE_SPEND_GATEWAY_URL', 'ASSET_FORGE_SPEND_WORKER_TOKEN', 'FACTORY_STUDIO_SPEND_JOB_IDS_JSON'];
+  const previous = Object.fromEntries(keys.map(k => [k, process.env[k]])), cwd = process.cwd();
+  process.chdir(directory);
+  process.env.URAI_SOURCE_SHA = sourceSha;
+  process.env.ASSET_FORGE_SPEND_GATEWAY_URL = syntheticGatewayUrl;
+  process.env.ASSET_FORGE_SPEND_WORKER_TOKEN = 'synthetic-worker-token-not-a-real-credential';
+  process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = '{}';
+  return { directory, sourceSha, git, restore() { process.chdir(cwd); for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } rmSync(directory, { force: true, recursive: true }); } };
+}
+export function syntheticStudioSpend(input, options, protectedModule) {
+  const endpoint = options.endpoint, body = typeof options.body === 'string' ? Buffer.from(options.body) : Buffer.from(options.body);
+  const headers = new Headers(options.headers), credentials = Object.fromEntries([...headers.entries()].filter(([key]) => ['authorization', 'xi-api-key', 'x-api-key'].includes(key)));
+  const semantic = Object.fromEntries([...headers.entries()].filter(([key]) => !Object.hasOwn(credentials, key)));
+  const requestDigest = protectedModule.studioRequestDigest(endpoint, body), inputDigest = protectedModule.studioSourceInputDigest(input), sourceSha = process.env.URAI_SOURCE_SHA;
+  const jobId = `SYNTHETIC-${requestDigest}`;
+  const job = { schema_version: 1, job_id: jobId, provider: options.provider, account_id: 'SYNTHETIC-API-ACCOUNT', model_version: options.model, consumer: 'factory-studio', rights_reviewed: true, authority: { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }, input_sha256: [inputDigest, requestDigest], executor: { source_sha: sourceSha, endpoint, request_sha256: requestDigest, asset: `${input.tenantId || 'default'}/${input.jobId}/${options.lane}`, request_size: String(body.length), content_type: headers.get('content-type'), credential_sha256: hash(sourceJson(credentials)), semantic_headers_sha256: hash(sourceJson(semantic)), source_input_sha256: inputDigest }, budget: { max_runtime_seconds: options.runtime ?? 30 }, attempts: [] };
+  const mapping = JSON.parse(process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON || '{}'); mapping[requestDigest] = jobId;
+  process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = JSON.stringify(mapping);
+  const state = { job, reserved: false, observed: [], calls: [], held: false, mutatePreflight: null, mutateReserve: null, failAction: null, loseReserveResponse: false };
+  const originalFetch = globalThis.fetch;
+  state.wrap = (providerFetch) => async (url, init = {}) => {
+    if (String(url) !== syntheticGatewayUrl) return providerFetch(url, init);
+    assert.equal(init.redirect, 'error'); assert.equal(init.method, 'POST'); assert.equal(new Headers(init.headers).get('authorization'), `Bearer ${process.env.ASSET_FORGE_SPEND_WORKER_TOKEN}`);
+    const fields = JSON.parse(init.body); state.calls.push(fields.action);
+    if (state.failAction === fields.action) throw new Error('SYNTHETIC gateway unavailable');
+    if (fields.action === 'preflight') {
+      const envelope = { job: structuredClone(job), account: {}, authority: {} };
+      state.mutatePreflight?.(envelope, fields);
+      return Response.json({ ok: true, envelope, provider_call_authorized: false, execution_performed: false });
+    }
+    if (fields.action === 'reserve') {
+      if (state.reserved) return Response.json({ ok: false }, { status: 409 });
+      assert.equal(fields.job_digest, protectedModule.protectedJobDigest(job));
+      state.reserved = true; state.held = true;
+      if (state.loseReserveResponse) throw new Error('SYNTHETIC lost response after reserve');
+      const result = { ok: true, attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: options.runtime ?? 30, provider_call_authorized: true, execution_performed: false };
+      state.mutateReserve?.(result); return Response.json(result);
+    }
+    if (fields.action === 'record') {
+      assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields);
+      return Response.json({ ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true });
+    }
+    throw new Error('Unexpected synthetic gateway action');
+  };
+  state.restore = () => { globalThis.fetch = originalFetch; };
+  return state;
+}
