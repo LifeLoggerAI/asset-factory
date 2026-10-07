@@ -29,8 +29,15 @@ ENV = {"URAI_SOURCE_SHA": "a" * 40, "ASSET_RENDERER_MODE": "provider", "ASSET_RE
 ENV["ASSET_FORGE_SPEND_GATEWAY_ORIGIN"] = "https://example.invalid"
 
 
+class SyntheticClock(datetime):
+    current = datetime.now(timezone.utc)
+    @classmethod
+    def now(cls, tz=None):
+        return cls.current if tz is not None else cls.current.replace(tzinfo=None)
+
+
 def envelope(fields):
-    now = datetime.now(timezone.utc)
+    now = guard.datetime.now(timezone.utc)
     before = (now - timedelta(minutes=1)).isoformat(); after = (now + timedelta(minutes=5)).isoformat()
     binding = {"repository": "synthetic/fixture", "sha": "a" * 40}
     rates = {"usd_micros_per_unit": 1000000, "credits_per_unit": 10, "receipt": "SYNTHETIC-PRICE", "verified_at": before, "expires_at": after}
@@ -42,7 +49,7 @@ def envelope(fields):
     account.update({"credential_sha256":fields["credential_sha256"], "credential_binding_verified":True, "credential_binding_receipt":"SYNTHETIC-ACCOUNT-READBACK"})
     authority = {"binding": binding, "trusted_readback": True, "observed_at": before, "expires_at": after}
     controls = {key: fields[key] for key in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type", "provider"]}
-    controls["account_id"] = job["account_id"]
+    controls.update({"account_id": job["account_id"], "endpoint":fields["endpoint"], "request_sha256":fields["request_sha256"], "trusted_readback":True, "enforcement_source_sha":fields["executor_source_sha"], "hard_stop_supported":True, "cost_cap_enforced":True, "auto_top_up":False, "proof_receipt":"SYNTHETIC-CONTROLS", "observed_at":before, "expires_at":after, **{key:job["budget"][key] for key in ["max_runtime_seconds","max_usd_micros","max_credits"]}})
     controls["artifact_hosts"] = ["example.invalid"]
     controls.update(observed_at=before, expires_at=after)
     price = {**controls, "model_version":fields["model"], "request_sha256":fields["request_sha256"], "trusted_readback":True, "receipt":"SYNTHETIC-PRICE-PROOF", "observed_at":before, "expires_at":after, "rates":rates}
@@ -59,8 +66,9 @@ class SyntheticGateway:
             return {"ok": True, "envelope": self.env, "admission_expires_at": self.env["job"]["approval"]["expires_at"], "provider_call_authorized": False, "execution_performed": False}
         if action == "reserve":
             self.reserved = True
-            now = datetime.now(timezone.utc)
-            return {"ok": True, "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "reserved_at": now.isoformat(), "admission_expires_at": (now + timedelta(seconds=2)).isoformat(), "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type"]}}
+            now = guard.datetime.now(timezone.utc)
+            expiry = min(now+timedelta(seconds=2), *[guard.instant(row["expires_at"]) for row in [self.env["job"]["approval"], self.env["authority"], self.env["account"], self.env["protected_controls"], self.env["protected_pricing"], self.env["job"]["budget"]["rates"]]])
+            return {"ok": True, "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "reserved_at": now.isoformat(), "admission_expires_at": expiry.isoformat(), "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type"]}}
         if action == "record":
             self.env["job"]["attempts"] = [{"attempt_id": fields["attempt_id"], "status": "RECONCILIATION_REQUIRED", "charges_reconciled": False}]
             return {"ok": True, "reconciliation_required": True}
@@ -372,6 +380,187 @@ class ExecutorTests(unittest.TestCase):
             with patch.dict(os.environ, {"ASSET_FORGE_SPEND_GATEWAY_ORIGIN": origin}), patch.object(guard.urllib.request, "build_opener") as opener:
                 with self.assertRaises(guard.PaidRequestUnauthorized): guard._gateway("preflight", job_id="synthetic")
                 opener.assert_not_called()
+
+    def test_preflight_cannot_enlarge_any_verified_proof_window(self):
+        for name in ["approval", "authority", "account", "controls", "price", "rates"]:
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "preflight":
+                    env = result["envelope"]
+                    row = {"approval":env["job"]["approval"], "authority":env["authority"], "account":env["account"], "controls":env["protected_controls"], "price":env["protected_pricing"], "rates":env["job"]["budget"]["rates"]}[name]
+                    row["expires_at"] = (datetime.now(timezone.utc)+timedelta(seconds=1)).isoformat()
+                    env["job"]["approval"]["job_digest"] = digest(env["job"])
+                return result
+            with self.subTest(proof=name), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+                self.assertFalse(gateway.reserved); opener.assert_not_called()
+
+    def test_every_proof_expiry_during_reserve_prevents_actual_dispatch_and_retains_hold(self):
+        for name in ["approval", "authority", "account", "controls", "price", "rates"]:
+            SyntheticClock.current = datetime.now(timezone.utc)
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "preflight":
+                    env = result["envelope"]
+                    row = {"approval":env["job"]["approval"], "authority":env["authority"], "account":env["account"], "controls":env["protected_controls"], "price":env["protected_pricing"], "rates":env["job"]["budget"]["rates"]}[name]
+                    row["expires_at"] = (SyntheticClock.current+timedelta(seconds=1)).isoformat()
+                    env["job"]["approval"]["job_digest"] = digest(env["job"])
+                    result["admission_expires_at"] = row["expires_at"]
+                if action == "reserve": SyntheticClock.current += timedelta(seconds=2)
+                return result
+            with self.subTest(proof=name), patch.object(guard, "datetime", SyntheticClock), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises((guard.PaidRequestUnauthorized, guard.PaidRequestLimitReached)): renderer.render_with_provider(ENTRY, 64)
+                self.assertTrue(gateway.reserved); opener.assert_not_called(); self.assertIn("SYNTHETIC-ATTEMPT", guard._active)
+
+    def test_untrusted_or_changed_hard_controls_cannot_reserve(self):
+        changes = [{"trusted_readback":False}, {"enforcement_source_sha":"c"*40}, {"hard_stop_supported":False}, {"cost_cap_enforced":False}, {"auto_top_up":True}, {"proof_receipt":""}, {"max_runtime_seconds":3}, {"max_usd_micros":3000000}, {"max_credits":21}, {"endpoint":"https://foreign.invalid"}, {"request_sha256":"c"*64}, {"expires_at":"2000-01-01T00:00:00Z"}]
+        for change in changes:
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "preflight": result["envelope"]["protected_controls"].update(change)
+                return result
+            with self.subTest(change=change), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+                self.assertFalse(gateway.reserved); opener.assert_not_called()
+
+    def test_approved_actual_image_request_fields_cannot_drift(self):
+        for name in ["endpoint", "request_sha256", "request_size", "asset"]:
+            gateway = SyntheticGateway()
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "preflight":
+                    env = result["envelope"]; env["job"]["executor"][name] = "SYNTHETIC-DRIFT"
+                    env["job"]["approval"]["job_digest"] = digest(env["job"])
+                return result
+            with self.subTest(field=name), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+                self.assertFalse(gateway.reserved); opener.assert_not_called()
+
+    def test_actual_response_body_completion_after_expiry_cannot_return_image(self):
+        SyntheticClock.current = datetime.now(timezone.utc); gateway = SyntheticGateway(); response = image_response()
+        original_read = response.read
+        def late_read(limit=None):
+            SyntheticClock.current += timedelta(seconds=2)
+            return original_read(limit)
+        response.read = late_read
+        with patch.object(guard, "datetime", SyntheticClock), patch.object(guard, "_gateway", gateway), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = response
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            opener.return_value.open.assert_called_once(); self.assertTrue(gateway.reserved)
+            self.assertEqual([action for action,_ in gateway.calls].count("reserve"), 1)
+
+    def test_delayed_success_record_cannot_return_image_and_timer_is_active(self):
+        SyntheticClock.current = datetime.now(timezone.utc); gateway = SyntheticGateway(); active_during_record = []
+        def changed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "record" and fields["status"] == "succeeded":
+                active_during_record.append(signal.getitimer(signal.ITIMER_REAL)[0] > 0)
+                SyntheticClock.current += timedelta(seconds=2)
+            return result
+        with patch.object(guard, "datetime", SyntheticClock), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = image_response()
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            opener.return_value.open.assert_called_once(); self.assertEqual(active_during_record, [True]); self.assertTrue(gateway.reserved)
+            self.assertFalse(guard.snapshot()["chargesReconciled"])
+
+    def test_source_drift_during_outcome_delivery_cannot_return_image(self):
+        gateway = SyntheticGateway(); source = {"sha":"a"*40}
+        def changed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "record" and fields["status"] == "succeeded": source["sha"] = "c"*40
+            return result
+        with patch.object(guard, "executor_source_sha", side_effect=lambda:source["sha"]), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = image_response()
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            opener.return_value.open.assert_called_once(); self.assertTrue(gateway.reserved)
+
+    def test_monotonic_runtime_expiry_with_wall_clock_rollback_cannot_return_output(self):
+        SyntheticClock.current = datetime.now(timezone.utc); clock = {"value":1000.0}; gateway = SyntheticGateway()
+        response = image_response(); original_read = response.read
+        def changed_read(limit=None):
+            clock["value"] += 2.1; SyntheticClock.current -= timedelta(seconds=1)
+            return original_read(limit)
+        response.read = changed_read
+        with patch.object(guard, "datetime", SyntheticClock), patch.object(guard.time, "monotonic", side_effect=lambda:clock["value"]), patch.object(guard, "_gateway", gateway), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = response
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            self.assertTrue(gateway.reserved); opener.return_value.open.assert_called_once()
+
+    def test_source_verification_latency_cannot_reopen_final_output(self):
+        SyntheticClock.current = datetime.now(timezone.utc); gateway = SyntheticGateway(); recorded = {"success":False}
+        def source():
+            if recorded["success"]: SyntheticClock.current += timedelta(seconds=2)
+            return "a"*40
+        def changed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "record" and fields["status"] == "succeeded": recorded["success"] = True
+            return result
+        with patch.object(guard, "datetime", SyntheticClock), patch.object(guard, "executor_source_sha", side_effect=source), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = image_response()
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            opener.return_value.open.assert_called_once(); self.assertTrue(gateway.reserved)
+
+    def test_enlarged_atomic_runtime_cannot_dispatch(self):
+        gateway = SyntheticGateway()
+        def changed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "reserve": result["max_runtime_seconds"] = 3
+            return result
+        with patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+            with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+            self.assertTrue(gateway.reserved); opener.assert_not_called()
+
+
+    def test_mutation_during_final_source_check_cannot_escape_current_request_hashes(self):
+        for changed_field in ["input", "credential", "body"]:
+            gateway = SyntheticGateway(); entry = copy.deepcopy(ENTRY)
+            state = {"recorded":False, "after_record_sources":0}; captured = {}
+            def source():
+                if state["recorded"]:
+                    state["after_record_sources"] += 1
+                    if state["after_record_sources"] == 2:
+                        if changed_field == "input": entry["prompt"] = "SYNTHETIC-CHANGED-AFTER-FINAL-SOURCE"
+                        elif changed_field == "credential": captured["request"].add_header("Authorization", "Bearer SYNTHETIC-DRIFT")
+                        else: captured["request"].data = b'{"synthetic":"changed"}'
+                return "a"*40
+            def changed(action, **fields):
+                result = gateway(action, **fields)
+                if action == "record" and fields["status"] == "succeeded": state["recorded"] = True
+                return result
+            def opened(request, **kwargs):
+                captured["request"] = request
+                return image_response()
+            with self.subTest(field=changed_field), patch.object(guard, "executor_source_sha", side_effect=source), patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                opener.return_value.open.side_effect = opened
+                with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(entry, 64)
+                opener.return_value.open.assert_called_once(); self.assertTrue(gateway.reserved)
+                self.assertGreaterEqual(state["after_record_sources"], 2)
+
+
+    def test_actual_request_semantics_ignore_json_key_order_and_whitespace(self):
+        bodies = [b'{"model":"synthetic-model","prompt":"synthetic","n":1}', b'{ "n":1, "prompt":"synthetic", "model":"synthetic-model" }']
+        captured = []
+        headers = {"Authorization": "Bearer SYNTHETIC-PROVIDER-KEY", "Content-Type": "application/json"}
+        for body in bodies:
+            gateway = SyntheticGateway()
+            def consume(raw, response_headers, reservation):
+                return renderer.RenderResult(Image.new("RGB", (64, 64), "blue"), "provider", 1, {"provider_request_id":"SYNTHETIC-TASK"})
+            with patch.object(guard, "_gateway", gateway), patch.object(renderer.urllib.request, "build_opener") as opener:
+                opener.return_value.open.return_value = image_response()
+                renderer._execute_once(ENV["ASSET_RENDERER_ENDPOINT"], body, headers, "custom", "synthetic-model", ENTRY, 64, 64, 2, consume)
+                opener.return_value.open.assert_called_once()
+            captured.append(gateway.calls[0][1])
+        self.assertEqual(captured[0]["semantic_input_sha256"], captured[1]["semantic_input_sha256"])
+        self.assertNotEqual(captured[0]["request_sha256"], captured[1]["request_sha256"])
+        gateway = SyntheticGateway()
+        with patch.object(guard, "_gateway", gateway), patch.object(renderer.urllib.request, "build_opener") as opener:
+            with self.assertRaises(ValueError):
+                renderer._execute_once(ENV["ASSET_RENDERER_ENDPOINT"], b'{"prompt":"one","prompt":"two"}', headers, "custom", "synthetic-model", ENTRY, 64, 64, 2, consume)
+            self.assertEqual(gateway.calls, [])
+            opener.assert_not_called()
 
 
 if __name__ == '__main__': unittest.main()
