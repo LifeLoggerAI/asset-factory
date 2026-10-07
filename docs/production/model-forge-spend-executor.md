@@ -2,19 +2,19 @@
 
 Replicate polling credentials are restricted to the canonical HTTPS `api.replicate.com/v1/predictions/<returned-id>` endpoint. The returned ID must be a bounded path-safe token; supplied polling URL bytes must match that exact endpoint, without credentials, port spelling, query, fragment or normalized path tricks. Every polling result must retain its prediction identity and any repeated polling metadata must remain canonical. Read requests use `redirect: error`; token-bearing requests never follow a provider-returned redirect or foreign URL. This is source validation, not live provider acceptance.
 
-This isolated donor extends protected account admission to the actual Model Forge Meshy, Tripo, Rodin and Replicate generation leaves. It targets Factory owner PR #421 at `e0d1ff4967562684a866386662bcc01e7d8af4de`. It neither mutates that owner nor activates a provider.
+This compatible Model successor starts from Factory owner PR #421 at `894bcbe5d052589fdcfbcb3144678d060535b53e`, tree `a817068615a888a201eaec2f430e459ab5b57805`, and retains previous owned #448 `3cb0e175159bf481ae3844600015a954e7f9b0ea` as an explicit merge parent. Only this document, the Model spend client and its focused test change against that owner. Geometry, actual Forge callers, canonical gateway, IMAGE, Studio and gateway-to-Forge integration source remain the exact owner bytes.
 
 The predecessor `requestJson` made three synthetic billable POST invocations after two HTTP 429 responses, from one call with `maxRateLimitRetries=2`. The predecessor candidate loop could also regenerate after polling, download or structural-validation errors without charge reconciliation. `URAI_MODEL_FORGE_SPEND_AUTHORIZED=1` supplied no authentic bounded approval or shared account reservation.
 
 ## Actual submission boundary
 
-`model_forge/model-spend-client.mjs` uses the existing protected IMAGE donor #436 `/api/worker/production-spend` contract; it does not create a second wallet, gateway, approval authority or policy checker. That gateway owns genuine Ed25519 approval validation, current source/account/pricing/hard-control records, one canonical account transaction, bounded retry and independent signed actual-charge reconciliation. Labs #229 remains offline consistency authority and cannot authorize a provider call.
+`model_forge/model-spend-client.mjs` uses the canonical Factory #445 `/api/worker/production-spend` contract already incorporated by current owner #421; it does not create a second wallet, gateway, approval authority or policy checker. That gateway owns genuine Ed25519 approval validation, current source/account/pricing/hard-control records, one canonical account transaction, bounded retry and independent signed actual-charge reconciliation. Labs #229 remains offline consistency authority and cannot authorize a provider call.
 
 The CLI now treats its environment flag as execution opt-in only. Dry-run always reports `spendAuthorized=false` and `provider_call_authorized=false`. No local flag, generated plan, receipt or job mapping opens a paid submission.
 
 For each billable POST, the client:
 
-1. Checks actual Git HEAD equals protected `URAI_SOURCE_SHA` or `ASSET_FACTORY_EXACT_HEAD`, with both executor source files tracked and unchanged.
+1. Checks actual Git HEAD equals protected `URAI_SOURCE_SHA` or `ASSET_FACTORY_EXACT_HEAD`, with all four executor/imported geometry source files tracked, present and unchanged.
 2. Materializes exact request bytes, content type and effective headers once; derives the actual credential and semantic header fingerprints before any gateway admission. Rodin multipart serialization is deterministic and independently parses back to identical binary contents.
 3. Binds SHA-256 of `POST\n`, exact HTTPS endpoint, `\n`, and body bytes. It restricts provider origins to the existing actual adapters.
 4. Requires a protected exact request-digest-to-job mapping, calls non-authorizing preflight, and checks the source, provider, model, asset, endpoint, request size, body digest, approved content type, source-spec digest and request digest. It derives the account identity from the protected envelope and requires the actual credential fingerprint to match a fresh verified account/credential receipt. Current protected controls and pricing must match all actual transport fingerprints, the account, source, model and approved budget/rates.
@@ -31,8 +31,9 @@ Required configuration:
 
 | Setting | Role |
 | --- | --- |
-| `ASSET_FORGE_SPEND_GATEWAY_URL` | Verified HTTPS canonical `/api/worker/production-spend` deployment from #436, without redirects. |
-| `ASSET_FORGE_SPEND_WORKER_TOKEN` | Protected worker credential, at least 32 characters. |
+| `ASSET_FORGE_SPEND_GATEWAY_URL` | Exact HTTPS `/api/worker/production-spend` deployment matching the protected issuer origin, without redirects. |
+| `ASSET_FORGE_SPEND_WORKER_TOKEN` | Protected worker credential of 32–4096 printable ASCII characters without whitespace or controls. |
+| `ASSET_FORGE_SPEND_GATEWAY_ORIGIN` | Independently provisioned protected issuer origin; exact origin-only HTTPS URL. |
 | `MODEL_FORGE_SPEND_JOB_IDS_JSON` | Object mapping exact 64-hex request digests to genuine protected job IDs. It is routing, not approval. |
 | `URAI_SOURCE_SHA` or `ASSET_FACTORY_EXACT_HEAD` | Independently verified immutable executor build, equal to actual clean Git HEAD and the gateway source/control binding. |
 
@@ -57,3 +58,15 @@ No paid provider call, payment, real approval signing, deployment, main/owner mu
 Before activation, the Factory owner must deliberately incorporate this donor and compatible geometry changes, regenerate combined-head evidence, admit #436's current source, deploy the exact protected gateway/client source, and verify real Firestore contention, client rules/Admin IAM, immutable build identity, actual provider/proxy runtime and cash/credit limits, protected credentials, current account/pricing/rights/input records, genuine bounded approval, kill switches and trusted charge settlement. The client cannot compensate for a fictitious server control receipt.
 
 Studio TypeScript media adapters, movie generation, reconstruction, voice and other paid consumers retain their own integration owners and are not certified by this Model Forge donor. Geometry, literal art/audio review, source security, physical-device performance and production release remain separate acceptance gates.
+
+## Current-owner authority, lifetime and private transport correction
+
+The current owner's strict calendar parser, complete approval/source/account/control/pricing/rates expiry minimum, exact origin and canonical route, monotonic lifetime and source/proof/time checks around provider and outcome awaits remain intact. `checkAdmission` finishes synchronous actual Git verification and all protected proof checks before its final time gate. Polling and downloads retain the current owner's same admission checks.
+
+V1's protected `authority.binding` must exactly equal the job's well-formed accepted specification repository/head. That authority may differ from the Factory executor repository/head. The executor remains independently bound to the actual clean Git source, approved executor and current enforcement controls. This is the canonical V1 distinction, not authorization to substitute an arbitrary executable build.
+
+Invalid `Headers` conversion now throws only a generic `MODEL_SPEND_BLOCKED` error. The original exception, its credential value and cause are discarded. The gateway's actual worker token is checked for a bounded printable ASCII value before constructing any authentication request; invalid tokens cause zero gateway/provider calls and never appear in the error. No raw credentials are copied into receipts.
+
+The test fixture retains the complete current-owner assertion tail and initial five owner cases. It adds the nine earlier root successor groups, a corrected rollback case and three credential-privacy groups. The final source-delay regression is triggered by the actual `record` boundary, rather than counting source reads. The rollback case first validates reservation timestamps and reaches one synthetic provider POST, then advances monotonic time while rolling back wall time and requires output suppression with the full hold retained. Current owner's six newer cases, including outcome-delivery rollback, are unchanged.
+
+This source was prepared through immutable connector reads while execution was offline. The JavaScript bodies were syntax-parsed after removing import/export declarations and replacing `import.meta` with a parser placeholder; no test or product body was executed. The expected Model aggregate is 172 groups (148 retained baseline + five earlier owner cases + six current-owner cases + nine root groups + corrected rollback + three privacy groups), subject to exact-head native verification. All prior passes are historical. Genuine protected deployment/approval/credential/source/control evidence, actual provider and independent charge reconciliation, native combined-source checks and production acceptance remain separate gates. This source change grants no provider invocation, approval signing, merge or deployment.

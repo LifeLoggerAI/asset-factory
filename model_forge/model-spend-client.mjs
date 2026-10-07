@@ -56,7 +56,10 @@ function safeHeader(value) { need(!/[\r\n]/.test(value), 'multipart header conta
 export async function freezeRequest(endpoint, init, provider) {
   const url = httpsEndpoint(endpoint, 'provider'); need(url.origin === PROVIDER_ORIGINS[provider], 'unapproved provider origin');
   need(String(init.method || 'GET').toUpperCase() === 'POST', 'paid submission requires POST');
-  const headers = new Headers(init.headers); let body;
+  let headers;
+  try { headers = new Headers(init.headers); }
+  catch { need(false, 'invalid effective provider headers'); }
+  let body;
   if (init.body instanceof FormData) {
     const entries = []; let bytes = 0;
     for (const [key, value] of init.body.entries()) {
@@ -121,7 +124,9 @@ function protectedBinding(envelope, binding, expectedAccount = null) {
 function admissionWindow(envelope, checkedAt) {
   const job = envelope.job, authority = envelope.authority;
   need(job.approval?.status === 'APPROVED' && job.approval.kind === 'EXPLICIT_BOUNDED_SPEND' && job.approval.job_digest === jobDigest(job) && job.approval.max_usd_micros === job.budget.max_usd_micros && job.approval.max_credits === job.budget.max_credits && typeof job.approval.receipt === 'string' && job.approval.receipt && typeof job.approval.approver === 'string' && job.approval.approver, 'protected bounded approval changed');
-  need(authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority) && job.authority?.repository === 'LifeLoggerAI/asset-factory' && job.authority.sha === job.executor.source_sha, 'protected source authority changed');
+  // V1 specification authority may identify a different accepted repository/head.
+  // Executor identity is separately bound to the approved clean source and controls.
+  need(typeof job.authority?.repository === 'string' && job.authority.repository.trim() && /^[0-9a-f]{40}$/.test(job.authority.sha || '') && authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority), 'protected source authority changed');
   const proofs = [[job.approval, 'issued_at'], [authority, 'observed_at'], [envelope.account, 'observed_at'], [envelope.protected_controls, 'observed_at'], [envelope.protected_pricing, 'observed_at'], [job.budget.rates, 'verified_at']];
   const expiries = proofs.map(([proof, observed]) => { const expiry = proofTime(proof.expires_at); need(proofTime(proof[observed]) <= checkedAt && checkedAt < expiry, 'protected admission proof expired or future'); return expiry; });
   return Math.min(...expiries);
@@ -137,14 +142,14 @@ async function boundedJson(response, maximum) {
 
 /** One instance covers the candidate lifecycle; loss/timeout never opens another call. */
 export class ModelSpendClient {
-  constructor({ provider, asset, sourceSpecSha256, evidenceDir, previewCheckpoint = null, env = process.env, fetchImpl = globalThis.fetch, now = Date.now }) {
+  constructor({ provider, asset, sourceSpecSha256, evidenceDir, previewCheckpoint = null, env = process.env, fetchImpl = globalThis.fetch, now = Date.now, monotonic = () => performance.now() }) {
     need(PROVIDER_ORIGINS[provider] && typeof asset === 'string' && asset, 'provider/asset identity required');
     need(/^[0-9a-f]{64}$/.test(sourceSpecSha256), 'source spec hash required');
     this.provider = provider; this.asset = asset; this.sourceSpecSha256 = sourceSpecSha256; this.evidenceDir = evidenceDir;
     this.previewCheckpoint = previewCheckpoint;
-    this.env = env; this.fetch = fetchImpl; this.now = now; this.records = []; this.deadline = Infinity; this.monotonicDeadline = Infinity; this.submitted = new Set();
+    this.env = env; this.fetch = fetchImpl; this.now = now; this.monotonic = monotonic; this.records = []; this.deadline = Infinity; this.monotonicDeadline = Infinity; this.submitted = new Set();
   }
-  remainingMs(maximum) { const remaining = Math.min(this.deadline - this.now(), this.monotonicDeadline - performance.now()); need(remaining > 0, 'approved runtime deadline elapsed; reconciliation required'); return Math.max(1, Math.floor(Math.min(remaining, maximum))); }
+  remainingMs(maximum) { const remaining = Math.min(this.deadline - this.now(), this.monotonicDeadline - this.monotonic()); need(remaining > 0, 'approved runtime deadline elapsed; reconciliation required'); return Math.max(1, Math.floor(Math.min(remaining, maximum))); }
   checkAdmission() {
     this.remainingMs(120000);
     if (this.activeAdmission) {
@@ -159,7 +164,7 @@ export class ModelSpendClient {
     const url = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_URL, 'gateway');
     const issuer = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN, 'protected issuer');
     need(issuer.toString() === `${issuer.origin}/` && url.origin === issuer.origin && url.pathname === '/api/worker/production-spend' && !url.search, 'canonical protected issuer gateway required');
-    const token = this.env.ASSET_FORGE_SPEND_WORKER_TOKEN; need(typeof token === 'string' && token.length >= 32, 'protected worker authentication required');
+    const token = this.env.ASSET_FORGE_SPEND_WORKER_TOKEN; need(typeof token === 'string' && /^[\x21-\x7e]{32,4096}$/.test(token), 'protected worker authentication required');
     const response = await this.fetch(url.toString(), { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ action, ...data }), redirect: 'error', signal: AbortSignal.timeout(Math.min(10000, this.remainingMs(10000))) });
     const result = await boundedJson(response, MAX_GATEWAY_BYTES); need(response.ok && result.ok === true, 'protected gateway rejected or unavailable'); return result;
   }
@@ -207,7 +212,7 @@ export class ModelSpendClient {
     const admissionStarted = this.now();
     need(Number.isSafeInteger(job.budget.max_runtime_seconds) && job.budget.max_runtime_seconds > 0 && job.budget.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
     this.deadline = Math.min(this.deadline, preflightExpiry, admissionStarted + job.budget.max_runtime_seconds * 1000);
-    this.monotonicDeadline = Math.min(this.monotonicDeadline, performance.now() + Math.max(0, this.deadline - admissionStarted));
+    this.monotonicDeadline = Math.min(this.monotonicDeadline, this.monotonic() + Math.max(0, this.deadline - admissionStarted));
     this.activeAdmission = { envelope: structuredClone(preflight.envelope), input: { ...input }, sourceSha };
     this.checkAdmission();
     const reservation = await this.gateway('reserve', { ...input, job_digest: digest });
@@ -219,7 +224,7 @@ export class ModelSpendClient {
     const reservedAt = proofTime(reservation.reserved_at), admissionExpiry = proofTime(reservation.admission_expires_at);
     need(reservedAt <= this.now() && reservedAt < admissionExpiry && admissionExpiry <= preflightExpiry && admissionExpiry <= reservedAt + reservation.max_runtime_seconds * 1000, 'invalid atomic reservation admission window');
     this.deadline = Math.min(this.deadline, admissionExpiry);
-    this.monotonicDeadline = Math.min(this.monotonicDeadline, performance.now() + Math.max(0, this.deadline - this.now()));
+    this.monotonicDeadline = Math.min(this.monotonicDeadline, this.monotonic() + Math.max(0, this.deadline - this.now()));
     const record = { job_id: jobId, account_id: input.account_id, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type, status: 'unknown-outcome', reconciliation_required: true };
     this.records.push(record);
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
