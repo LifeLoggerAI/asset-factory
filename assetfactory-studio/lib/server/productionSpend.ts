@@ -13,7 +13,7 @@ export type SpendWorker = {
 };
 type SpendBudget = RecordValue & { max_usd_micros: number; max_credits: number; max_retries: number; max_runtime_seconds: number; rates: RecordValue };
 type SpendJob = RecordValue & { job_id: string; provider: string; account_id: string; authority: RecordValue; reuse_review: RecordValue; acceptance: RecordValue; budget: SpendBudget; executor: RecordValue; attempts: RecordValue[] };
-type SpendAccount = RecordValue & { reservations: RecordValue[] };
+type SpendAccount = RecordValue & { reservations: RecordValue[]; max_concurrency: number; frozen: boolean };
 export class SpendRejected extends Error { code = 'spend_admission_rejected'; }
 function need(test: unknown, reason: string): asserts test { if (!test) throw new SpendRejected(reason); }
 function isRecord(value: unknown): value is RecordValue {
@@ -36,7 +36,25 @@ function spendJob(value: unknown): SpendJob {
     budget: { ...budget, max_usd_micros: integer(budget.max_usd_micros, 'USD cap', 1), max_credits: integer(budget.max_credits, 'credit cap'), max_retries: integer(budget.max_retries, 'retries'), max_runtime_seconds: integer(budget.max_runtime_seconds, 'runtime', 1), rates: spendRecord(budget.rates, 'rates') },
   };
 }
-function spendAccount(value: unknown): SpendAccount { const account = spendRecord(value, 'account'); return { ...account, reservations: recordList(account.reservations, 'reservations') }; }
+/** One protected provider/account policy is shared by every consumer lane. */
+function spendAccount(value: unknown): SpendAccount {
+  const account = spendRecord(value, 'account'), reservations = recordList(account.reservations, 'reservations');
+  const maxConcurrency = integer(account.max_concurrency, 'account concurrency cap', 1);
+  need(maxConcurrency <= 20, 'account concurrency exceeds executor bound');
+  need(typeof account.frozen === 'boolean', 'invalid account frozen state');
+  integer(account.available_usd_micros, 'USD balance'); integer(account.available_credits, 'credit balance');
+  const ids = new Set<string>(); let usd = 0, credits = 0;
+  for (const reservation of reservations) {
+    need(Object.keys(reservation).every(key => ['job_id', 'usd_micros', 'credits', 'settled'].includes(key)), 'unknown reservation state');
+    const id = nonempty(reservation.job_id, 'reserved job'); need(!ids.has(id), 'duplicate reservation'); ids.add(id);
+    need(reservation.settled === undefined || typeof reservation.settled === 'boolean', 'invalid reservation settlement state');
+    usd = integer(usd + integer(reservation.usd_micros, 'reserved USD'), 'total USD');
+    credits = integer(credits + integer(reservation.credits, 'reserved credits'), 'total credits');
+  }
+  // Validate the envelope before reserve, readback or independent reconciliation.
+  // A corrupt row must never be coerced into released funds or concurrency.
+  return { ...account, reservations, max_concurrency: maxConcurrency, frozen: account.frozen };
+}
 function sha(value: unknown, length = 64): string { need(typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`).test(value), 'invalid digest'); return value; }
 function date(value: unknown): number {
   need(typeof value === 'string', 'timestamp requires timezone');
@@ -218,7 +236,9 @@ export function validateSpend(jobValue: unknown, accountValue: unknown, authorit
   const worstUsd = integer(units * (retries + 1) * usdRate + overhead, 'worst-case USD'), worstCredits = integer(units * (retries + 1) * creditRate, 'worst-case credits');
   need(worstUsd <= cap && worstCredits <= credits && (usdRate > 0 || creditRate > 0), 'worst-case exceeds cap or unknown price'); nonempty(rates.receipt, 'pricing'); fresh(rates, 'verified_at', 'expires_at', now);
   need(account.provider === job.provider && account.account_id === job.account_id && account.balance_type === 'API' && account.trusted_readback === true, 'untrusted account');
-  fresh(account, 'observed_at', 'expires_at', now); need(account.frozen !== true, 'account frozen');
+  fresh(account, 'observed_at', 'expires_at', now); need(account.frozen === false, 'account frozen');
+  const concurrency = integer(b.max_concurrency, 'job concurrency cap', 1);
+  need(concurrency === account.max_concurrency, 'job differs from canonical account concurrency cap');
   const availableUsd = integer(account.available_usd_micros, 'USD balance'), availableCredits = integer(account.available_credits, 'credit balance');
   need(Array.isArray(account.reservations), 'missing shared reservations'); let totalUsd = 0, totalCredits = 0; const ids = new Set(); let own: RecordValue | undefined;
   for (const r of account.reservations) {
@@ -226,7 +246,10 @@ export function validateSpend(jobValue: unknown, accountValue: unknown, authorit
     totalUsd = integer(totalUsd + integer(r.usd_micros, 'reserved USD'), 'total USD'); totalCredits = integer(totalCredits + integer(r.credits, 'reserved credits'), 'total credits');
     if (r.job_id === job.job_id) own = r;
   }
-  need(own && own.usd_micros === cap && own.credits === credits, 'exact reservation missing'); need(totalUsd <= availableUsd && totalCredits <= availableCredits, 'account oversubscribed');
+  need(own && own.settled !== true && own.usd_micros === cap && own.credits === credits, 'exact reservation missing'); need(totalUsd <= availableUsd && totalCredits <= availableCredits, 'account oversubscribed');
+  // Unknown/pending outcomes retain a slot. Independently settled actual debits
+  // retain cash/credits against this balance but no longer consume a live slot.
+  need(account.reservations.filter(reservation => reservation.settled !== true).length <= concurrency, 'account concurrency cap exhausted');
   need(Array.isArray(job.attempts) && job.attempts.length <= retries, 'retry exhausted'); let spentUsd = 0, spentCredits = 0; const taskIds = new Set();
   for (const a of job.attempts) {
     nonempty(a.task_id, 'task'); need(!taskIds.has(a.task_id), 'duplicate task'); taskIds.add(a.task_id);
@@ -236,7 +259,7 @@ export function validateSpend(jobValue: unknown, accountValue: unknown, authorit
   need(spentUsd + units * usdRate + overhead <= cap && spentCredits + units * creditRate <= credits, 'remaining cap insufficient');
   const approval = spendRecord(job.approval, 'approval'); need(approval.status === 'APPROVED' && approval.kind === 'EXPLICIT_BOUNDED_SPEND', 'explicit approval missing');
   nonempty(approval.receipt, 'approval receipt'); nonempty(approval.approver, 'approver'); fresh(approval, 'issued_at', 'expires_at', now);
-  need(approval.job_digest === jobDigest(job) && integer(approval.max_usd_micros, 'approved USD', 1) === cap && integer(approval.max_credits, 'approved credits') === credits, 'approval binding changed');
+  need(approval.job_digest === jobDigest(job) && integer(approval.max_usd_micros, 'approved USD', 1) === cap && integer(approval.max_credits, 'approved credits') === credits && integer(approval.max_concurrency, 'approved concurrency', 1) === concurrency, 'approval binding changed');
 }
 
 export async function spendAction(db: SpendDb, action: string, inputValue: unknown, options: SpendOptions) {
@@ -328,6 +351,7 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     if (crossRepository) need(crossControls && controls.enforcement_source_sha === currentSource, 'gateway enforcement source differs from approved proof');
     else need(job.executor.source_sha === currentSource && controls.enforcement_source_sha === currentSource && input.executor_source_sha === currentSource, 'execution source differs from approved enforcement proof');
     need(controls.max_usd_micros === job.budget.max_usd_micros && controls.max_credits === job.budget.max_credits, 'provider cap differs from approval');
+    need(integer(controls.max_concurrency, 'provider concurrency cap', 1) === account.max_concurrency && controls.max_concurrency === job.budget.max_concurrency, 'provider concurrency differs from canonical account cap');
     need(controls.trusted_readback === true && controls.provider === job.provider && controls.account_id === job.account_id && controls.endpoint === job.executor.endpoint && controls.request_sha256 === job.executor.request_sha256 && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && controls.max_runtime_seconds === job.budget.max_runtime_seconds, 'provider hard controls unproven');
     need(input.request_sha256 === sha(job.executor.request_sha256) && input.endpoint === job.executor.endpoint && input.provider === job.provider && input.model === job.model_version && input.asset === job.executor.asset && input.request_size === job.executor.request_size, 'actual request differs from approved request');
     const existing = account.reservations.find((r: RecordValue) => r.job_id === jobId);

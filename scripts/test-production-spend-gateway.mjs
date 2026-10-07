@@ -34,13 +34,13 @@ class Db {
 function fixture(db = new Db(), id = 'synthetic-pilot') {
   const binding = { repository: 'synthetic/fixture', sha: 'a'.repeat(40) };
   const rates = { usd_micros_per_unit: 1000000, credits_per_unit: 10, receipt: 'SYNTHETIC-PRICE', verified_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
-  const job = { schema_version: 1, job_id: id, provider: 'custom', account_id: 'synthetic-api', operation: 'render', model_version: 'synthetic-model', owner_lane: 'synthetic', consumer: 'synthetic', truth_class: 'GENERIC', rights_reviewed: true, authority: binding, input_sha256: ['b'.repeat(64)], reuse_review: { input_sha256: ['b'.repeat(64)], decision: 'MISSING_COMPONENT', receipt: 'SYNTHETIC-REUSE' }, acceptance: { stage: 'SPECIFIED', criteria: 'Synthetic fixture', verification: 'Synthetic verifier' }, expected_outputs: ['geometry', 'receipt'], budget: { currency: 'USD', max_usd_micros: 2500000, max_credits: 20, units: 1, max_retries: 1, max_runtime_seconds: 2, hard_stop_supported: true, auto_top_up: false, storage_egress_overhead_usd_micros: 100000, rates }, attempts: [], approval_ref: hash(`approval:${id}`), authority_ref: hash('authority'), pricing_ref: hash('pricing'), executor: { source_sha: 'a'.repeat(40), controls_ref: hash('controls'), request_sha256: hash('synthetic request'), endpoint: 'https://example.invalid/render', asset: 'synthetic-image', request_size: '64x64' } };
+  const job = { schema_version: 1, job_id: id, provider: 'custom', account_id: 'synthetic-api', operation: 'render', model_version: 'synthetic-model', owner_lane: 'synthetic', consumer: 'synthetic', truth_class: 'GENERIC', rights_reviewed: true, authority: binding, input_sha256: ['b'.repeat(64)], reuse_review: { input_sha256: ['b'.repeat(64)], decision: 'MISSING_COMPONENT', receipt: 'SYNTHETIC-REUSE' }, acceptance: { stage: 'SPECIFIED', criteria: 'Synthetic fixture', verification: 'Synthetic verifier' }, expected_outputs: ['geometry', 'receipt'], budget: { currency: 'USD', max_usd_micros: 2500000, max_credits: 20, max_concurrency: 2, units: 1, max_retries: 1, max_runtime_seconds: 2, hard_stop_supported: true, auto_top_up: false, storage_egress_overhead_usd_micros: 100000, rates }, attempts: [], approval_ref: hash(`approval:${id}`), authority_ref: hash('authority'), pricing_ref: hash('pricing'), executor: { source_sha: 'a'.repeat(40), controls_ref: hash('controls'), request_sha256: hash('synthetic request'), endpoint: 'https://example.invalid/render', asset: 'synthetic-image', request_size: '64x64' } };
   const authority = { binding, trusted_readback: true, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
   Object.assign(job.executor, { credential_sha256: hash('SYNTHETIC-CREDENTIAL'), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), source_input_sha256: 'b'.repeat(64), semantic_input_sha256: hash(`semantic:${id}`), artifact_hosts: ['outputs.example.test'], content_type: 'application/json' });
   job.input_sha256.push(job.executor.request_sha256); job.reuse_review.input_sha256 = job.input_sha256;
-  const account = { provider: job.provider, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-ACCOUNT-MAP', balance_type: 'API', trusted_readback: true, available_usd_micros: 3000000, available_credits: 30, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', reservations: [] };
-  const approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-approver', issued_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, key_id: 'synthetic' };
-  const controls = { artifact_hosts: ['outputs.example.test'], provider: job.provider, account_id: job.account_id, endpoint: job.executor.endpoint, request_sha256: job.executor.request_sha256, trusted_readback: true, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_runtime_seconds: 2, max_usd_micros: 2500000, max_credits: 20, proof_receipt: 'SYNTHETIC-CONTROL-PROOF', enforcement_source_sha: 'a'.repeat(40), observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
+  const account = { provider: job.provider, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-ACCOUNT-MAP', balance_type: 'API', trusted_readback: true, frozen: false, max_concurrency: 2, available_usd_micros: 3000000, available_credits: 30, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', reservations: [] };
+  const approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-approver', issued_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, max_concurrency: 2, key_id: 'synthetic' };
+  const controls = { artifact_hosts: ['outputs.example.test'], provider: job.provider, account_id: job.account_id, endpoint: job.executor.endpoint, request_sha256: job.executor.request_sha256, trusted_readback: true, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_runtime_seconds: 2, max_usd_micros: 2500000, max_credits: 20, max_concurrency: 2, proof_receipt: 'SYNTHETIC-CONTROL-PROOF', enforcement_source_sha: 'a'.repeat(40), observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
   for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) controls[field] = job.executor[field];
   const jobPath = `assetFactorySpendJobs/${hash(id)}`, accountPath = `assetFactorySpendAccounts/${hash('custom\nsynthetic-api')}`;
   db.rows.set(jobPath, { job });
@@ -180,23 +180,81 @@ test('request authority changing after preflight is revalidated at the atomic re
   const f = fixture(); await act(f, 'preflight'); f.authority.binding.sha = 'c'.repeat(40); await assert.rejects(act(f, 'reserve'));
 });
 
-async function route(f, envChange = {}) {
+async function route(f, envChange = {}, runtime = {}) {
   const env = { ASSET_FACTORY_SPEND_WORKER_TOKEN: 'synthetic-worker-'.repeat(4), ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN: 'synthetic-reconciler-'.repeat(4), ASSET_FACTORY_FIREBASE_PROJECT_ID: 'synthetic-dedicated', FIREBASE_PROJECT_ID: 'synthetic-dedicated', URAI_SOURCE_SHA: 'a'.repeat(40), ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS: JSON.stringify(options.approvalKeys), ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS: JSON.stringify(options.reconciliationKeys), ...envChange };
-  f.db.projectId = 'synthetic-dedicated'; let initializations = 0;
-  const context = vm.createContext({ process: { env }, Buffer, Date: class extends Date { static now() { return NOW; } } });
+  f.db.projectId = runtime.projectId || 'synthetic-dedicated'; let initializations = 0;
+  const context = vm.createContext({ process: { env }, Buffer, AbortSignal: runtime.AbortSignal || AbortSignal, Date: class extends Date { static now() { return runtime.now ? runtime.now() : NOW; } } });
   const next = { NextRequest: class {}, NextResponse: { json: (data, args = {}) => ({ data, status: args.status || 200 }) } };
   const sources = {
     'next/server': next,
     '@/lib/server/firebaseAdmin': { getAdminDb: () => { initializations++; return f.db; } },
-    '@/lib/server/productionSpend': { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha: () => options.sourceSha, spendRecord, SpendRejected },
+    '@/lib/server/productionSpend': { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha: runtime.verifySource || (() => options.sourceSha), spendRecord, SpendRejected },
   };
   const source = stripTypeScriptTypes(readFileSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { context });
   await module.link(async specifier => { const values = sources[specifier]; return new vm.SyntheticModule(Object.keys(values), function () { for (const [key, value] of Object.entries(values)) this.setExport(key, value); }, { context }); });
   await module.evaluate();
-  const post = async (body, token = env.ASSET_FACTORY_SPEND_WORKER_TOKEN) => module.namespace.POST({ headers: { get: name => name === 'authorization' ? `Bearer ${token}` : '0' }, text: async () => typeof body === 'string' ? body : JSON.stringify(body) });
-  return { post, env, initializations: () => initializations };
+  const postRequest = request => module.namespace.POST(request);
+  const post = async (body, token = env.ASSET_FACTORY_SPEND_WORKER_TOKEN) => postRequest(new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) }));
+  return { post, postRequest, env, initializations: () => initializations };
 }
+test('actual HTTP route refuses oversized declarations without opening the body or Firestore', async () => {
+  const f = fixture(), r = await route(f);
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { 'content-length': '65537' }, body: 'x' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false);
+  assert.equal(request.bodyUsed, false); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route cancels chunked overflow before reading further bytes or opening Firestore', async () => {
+  const f = fixture(), r = await route(f); let pulls = 0, cancelled = false;
+  const chunks = [Buffer.alloc(32768, 32), Buffer.alloc(32768, 32), Buffer.from(' '), Buffer.alloc(65536, 32)];
+  const stream = new ReadableStream({ pull(controller) { controller.enqueue(chunks[pulls++]); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body: stream, duplex: 'half' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false);
+  assert.equal(pulls, 3); assert.equal(cancelled, true); assert.equal(stream.locked, false); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route bounds streamed bytes despite absent false or malformed content-length', async () => {
+  for (const declared of [undefined, '0', '1', '-1', 'NaN']) {
+    const f = fixture(), r = await route(f), headers = declared === undefined ? {} : { 'content-length': declared };
+    const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers, body: Buffer.alloc(65537, 32) });
+    const result = await r.postRequest(request);
+    assert.equal(result.status, 413); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 0);
+  }
+  const f = fixture(), r = await route(f), result = await r.post('"' + '😀'.repeat(16384) + '"');
+  assert.equal(result.status, 413); assert.equal(r.initializations(), 0);
+});
+test('actual HTTP route accepts exactly 64 KiB split across streaming chunks', async () => {
+  const f = fixture(), r = await route(f), raw = JSON.stringify({ ...f.input, action: 'preflight' });
+  const bytes = Buffer.from(raw + ' '.repeat(65536 - Buffer.byteLength(raw))); let offset = 0;
+  const stream = new ReadableStream({ pull(controller) { if (offset === bytes.length) return controller.close(); const next = Math.min(offset + 137, bytes.length); controller.enqueue(bytes.subarray(offset, next)); offset = next; } });
+  const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', headers: { authorization: `Bearer ${r.env.ASSET_FACTORY_SPEND_WORKER_TOKEN}` }, body: stream, duplex: 'half' });
+  const result = await r.postRequest(request);
+  assert.equal(result.status, 200); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 1);
+  assert.equal(f.db.rows.get(f.accountPath).reservations.length, 0);
+});
+test('actual HTTP route cancels aborted and timed-out body streams without opening Firestore', async () => {
+  for (const expired of [false, true]) {
+    const f = fixture(), controller = new AbortController(); let cancelled = false;
+    const timeout = expired ? { any: AbortSignal.any.bind(AbortSignal), timeout(ms) { assert.equal(ms, 15000); return AbortSignal.timeout(15); } } : AbortSignal;
+    const r = await route(f, {}, { AbortSignal: timeout });
+    const stream = new ReadableStream({ pull() { return new Promise(() => {}); }, cancel() { cancelled = true; } }, { highWaterMark: 0 });
+    const request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body: stream, duplex: 'half', signal: controller.signal });
+    const keepalive = setTimeout(() => {}, 1000);
+    try {
+      const response = r.postRequest(request); if (!expired) controller.abort();
+      const result = await response;
+      assert.equal(result.status, 408); assert.equal(result.data.provider_call_authorized, false); assert.equal(cancelled, true); assert.equal(stream.locked, false); assert.equal(r.initializations(), 0);
+    } finally { clearTimeout(keepalive); }
+  }
+});
+test('actual HTTP route rejects absent and broken streams without opening Firestore', async () => {
+  for (const body of [undefined, new ReadableStream({ pull(controller) { controller.error(new Error('synthetic body failure')); } })]) {
+    const f = fixture(), r = await route(f), request = new Request('https://synthetic-gateway.invalid/api/worker/production-spend', { method: 'POST', body, ...(body ? { duplex: 'half' } : {}) });
+    const result = await r.postRequest(request);
+    assert.equal(result.status, body ? 503 : 400); assert.equal(result.data.provider_call_authorized, false); assert.equal(r.initializations(), 0);
+  }
+});
 test('actual HTTP route rejects missing/wrong credentials before opening Firestore', async () => {
   const f = fixture(), r = await route(f); const result = await r.post({ ...f.input, action: 'reserve' }, 'wrong'); assert.equal(result.status, 401); assert.equal(r.initializations(), 0);
 });
@@ -271,6 +329,17 @@ test('scoped cross-repository admission pins distinct real gateway and executor 
   const a = await act(f, 'reserve', {}, f.opts);
   assert.equal(a.executor_source_sha, 'd'.repeat(40)); assert.equal(a.gateway_source_sha, 'a'.repeat(40)); assert.equal(a.worker_id, f.worker.id);
   assert.equal(f.db.rows.get(f.accountPath).reservations.length, 1);
+});
+test('independently signed v2 executors share the same atomic account concurrency cap', async () => {
+  const db = new Db(), clients = Array.from({ length: 21 }, (_, i) => crossFixture(db, `SYNTHETIC-V2-CAP-${i}`));
+  for (const f of clients) {
+    f.account.available_usd_micros = 100000000; f.account.available_credits = 1000; f.account.max_concurrency = 1;
+    f.job.budget.max_concurrency = 1; f.approval.max_concurrency = 1; f.controls.max_concurrency = 1;
+    refreshCrossProofs(f);
+  }
+  const results = await Promise.allSettled(clients.map(f => act(f, 'reserve', {}, f.opts)));
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+  assert.equal(db.rows.get(clients[0].accountPath).reservations.length, 1);
 });
 test('v2 legacy shared token cannot snapshot record preflight or reserve', async () => {
   for (const action of ['snapshot', 'record', 'preflight', 'reserve']) { const f = crossFixture(); const before = structuredClone(f.db.rows); await assert.rejects(act(f, action, {}, { ...f.opts, worker: undefined }), SpendRejected); assert.deepEqual(f.db.rows, before); }
