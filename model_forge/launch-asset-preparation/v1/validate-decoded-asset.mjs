@@ -13,6 +13,7 @@ const sha256 = (b) => crypto.createHash('sha256').update(b).digest('hex');
 const need = (ok, msg) => { if (!ok) throw new Error(msg); };
 const positive = (n) => Number.isSafeInteger(n) && n > 0;
 const limitsKeys = ['maxFileBytes','maxDecodedAccessorBytes','maxTriangles','maxDrawCalls','maxTexturePixels'];
+function* positionIndices(count) { for(let i=0;i<count;i++) yield i; }
 export function validatePolicy(policy, bytes) {
   need(policy?.schemaVersion === 'urai-decoded-asset-policy-v1', 'Policy schema');
   need(typeof policy.limitsSource === 'string' && policy.limitsSource.trim().length > 0, 'Explicit limits source is required');
@@ -85,7 +86,12 @@ export async function validateDecodedAsset(bytes, policy) {
       else if(mode===5||mode===6){need(count>=3,'Triangle strip/fan too short');triangles+=count-2;}
       else need([0,1,2,3].includes(mode),'Unsupported primitive mode');
       drawCalls++;need(triangles<=policy.maxTriangles,'Scene triangle budget exceeded');need(drawCalls<=policy.maxDrawCalls,'Scene draw-call budget exceeded');
-      for(let i=0;i<position.getCount();i++) {
+      // Buffer storage may retain unused position elements. Bounds describe the
+      // geometry this primitive can draw; allocation/finiteness above still
+      // validates every stored element, including those not referenced here.
+      const referenced = index ? new Set(index.getArray()) : null;
+      const positions = referenced ?? positionIndices(position.getCount());
+      for(const i of positions) {
         const p=position.getElement(i,[]);
         const out=[m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12],m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13],m[2]*p[0]+m[6]*p[1]+m[10]*p[2]+m[14]];
         for(let a=0;a<3;a++){need(Number.isFinite(out[a]),'Non-finite transformed vertex');min[a]=Math.min(min[a],out[a]);max[a]=Math.max(max[a],out[a]);need(out[a]>=policy.bounds.min[a]&&out[a]<=policy.bounds.max[a], 'Decoded geometry exceeds declared scene bounds');}
