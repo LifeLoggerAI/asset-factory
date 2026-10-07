@@ -18,6 +18,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
@@ -149,16 +150,29 @@ class ProviderExecutionFailed(RuntimeError):
 
 
 def _execute_once(endpoint, body, headers, provider, model, entry, width, height, timeout, consume):
-    if not endpoint.startswith("https://"):
+    parsed = urllib.parse.urlsplit(endpoint)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
         raise paid_request_guard.PaidRequestUnauthorized("paid provider endpoint must use HTTPS")
+    # Materialize one Request before admission; environment changes cannot replace its credentials.
+    credential_names = {"authorization", "xi-api-key", "x-api-key", "x-goog-api-key"}
+    if provider == "custom":
+        credential_names.add(os.environ.get("ASSET_RENDERER_AUTH_HEADER", "Authorization").strip().lower())
+    fingerprint = paid_request_guard.request_header_bindings(headers, credential_names)
+    request = urllib.request.Request(endpoint, data=bytes(body), headers={name:value.strip() for name,value in headers.items()}, method="POST")
+    if paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
+        raise paid_request_guard.PaidRequestUnauthorized("effective provider headers changed during request construction")
+    source_input = {"entry": entry, "target_width": width, "target_height": height, "request_sha256": paid_request_guard.request_digest(endpoint, request.data)}
+    source_digest = paid_request_guard.source_input_digest(source_input)
     reservation = paid_request_guard.reserve(
         provider=provider, model=model, asset=str(entry["name"]),
         request_size=f"{width}x{height}", endpoint=endpoint,
-        request_sha256=paid_request_guard.request_digest(endpoint, body),
+        request_sha256=paid_request_guard.request_digest(endpoint, request.data),
+        source_input_sha256=source_digest, **fingerprint,
     )
     try:
         with paid_request_guard.runtime_limit(reservation):
-            request = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+            if paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
+                raise paid_request_guard.PaidRequestUnauthorized("admitted image input or credentials changed before dispatch")
             # Exactly one submission. Redirects and network failures cannot resubmit it.
             opener = urllib.request.build_opener(paid_request_guard._NoRedirect)
             with opener.open(request, timeout=min(timeout, reservation["maxRuntimeSeconds"])) as response:
@@ -285,3 +299,4 @@ def write_render_metadata(output_path: Path, entry: Dict[str, Any], result: Rend
         + "\n",
         encoding="utf-8",
     )
+

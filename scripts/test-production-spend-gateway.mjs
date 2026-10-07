@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
-import { authenticateSpend, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
+import { authenticateSpend, authenticateSpendWorker, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendGatewaySourceSha, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
 
 const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
@@ -34,17 +36,22 @@ function fixture(db = new Db(), id = 'synthetic-pilot') {
   const rates = { usd_micros_per_unit: 1000000, credits_per_unit: 10, receipt: 'SYNTHETIC-PRICE', verified_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
   const job = { schema_version: 1, job_id: id, provider: 'custom', account_id: 'synthetic-api', operation: 'render', model_version: 'synthetic-model', owner_lane: 'synthetic', consumer: 'synthetic', truth_class: 'GENERIC', rights_reviewed: true, authority: binding, input_sha256: ['b'.repeat(64)], reuse_review: { input_sha256: ['b'.repeat(64)], decision: 'MISSING_COMPONENT', receipt: 'SYNTHETIC-REUSE' }, acceptance: { stage: 'SPECIFIED', criteria: 'Synthetic fixture', verification: 'Synthetic verifier' }, expected_outputs: ['geometry', 'receipt'], budget: { currency: 'USD', max_usd_micros: 2500000, max_credits: 20, units: 1, max_retries: 1, max_runtime_seconds: 2, hard_stop_supported: true, auto_top_up: false, storage_egress_overhead_usd_micros: 100000, rates }, attempts: [], approval_ref: hash(`approval:${id}`), authority_ref: hash('authority'), pricing_ref: hash('pricing'), executor: { source_sha: 'a'.repeat(40), controls_ref: hash('controls'), request_sha256: hash('synthetic request'), endpoint: 'https://example.invalid/render', asset: 'synthetic-image', request_size: '64x64' } };
   const authority = { binding, trusted_readback: true, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
-  const account = { provider: job.provider, account_id: job.account_id, balance_type: 'API', trusted_readback: true, available_usd_micros: 3000000, available_credits: 30, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', reservations: [] };
+  Object.assign(job.executor, { credential_sha256: hash('SYNTHETIC-CREDENTIAL'), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), source_input_sha256: 'b'.repeat(64), content_type: 'application/json' });
+  job.input_sha256.push(job.executor.request_sha256); job.reuse_review.input_sha256 = job.input_sha256;
+  const account = { provider: job.provider, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-ACCOUNT-MAP', balance_type: 'API', trusted_readback: true, available_usd_micros: 3000000, available_credits: 30, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', reservations: [] };
   const approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-approver', issued_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, key_id: 'synthetic' };
   const controls = { provider: job.provider, account_id: job.account_id, endpoint: job.executor.endpoint, request_sha256: job.executor.request_sha256, trusted_readback: true, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_runtime_seconds: 2, max_usd_micros: 2500000, max_credits: 20, proof_receipt: 'SYNTHETIC-CONTROL-PROOF', enforcement_source_sha: 'a'.repeat(40), observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) controls[field] = job.executor[field];
   const jobPath = `assetFactorySpendJobs/${hash(id)}`, accountPath = `assetFactorySpendAccounts/${hash('custom\nsynthetic-api')}`;
   db.rows.set(jobPath, { job });
   if (!db.rows.has(accountPath)) db.rows.set(accountPath, account);
   db.rows.set(`assetFactorySpendApprovals/${job.approval_ref}`, signing(approval));
   db.rows.set(`assetFactorySpendAuthorities/${job.authority_ref}`, authority);
-  db.rows.set(`assetFactorySpendPricing/${job.pricing_ref}`, { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, trusted_readback: true, rates });
+  const price = { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, trusted_readback: true, receipt: 'SYNTHETIC-PRICE-PROOF', observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', rates };
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) price[field] = job.executor[field];
+  db.rows.set(`assetFactorySpendPricing/${job.pricing_ref}`, price);
   db.rows.set(`assetFactorySpendControls/${job.executor.controls_ref}`, controls);
-  const input = { executor_source_sha: 'a'.repeat(40), job_id: id, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, request_sha256: job.executor.request_sha256, endpoint: job.executor.endpoint, job_digest: jobDigest(job) };
+  const input = { executor_source_sha: 'a'.repeat(40), account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, job_id: id, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, request_sha256: job.executor.request_sha256, endpoint: job.executor.endpoint, job_digest: jobDigest(job) };
   return { db, job, input, jobPath, accountPath, account, authority, approval, controls };
 }
 const act = (f, action, extra = {}, opts = options) => spendAction(f.db, action, { ...f.input, ...extra }, opts);
@@ -181,7 +188,7 @@ async function route(f, envChange = {}) {
   const sources = {
     'next/server': next,
     '@/lib/server/firebaseAdmin': { getAdminDb: () => { initializations++; return f.db; } },
-    '@/lib/server/productionSpend': { authenticateSpend, isDedicatedSpendProject, spendAction, spendRecord, SpendRejected },
+    '@/lib/server/productionSpend': { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha: () => options.sourceSha, spendRecord, SpendRejected },
   };
   const source = stripTypeScriptTypes(readFileSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { context });
@@ -227,5 +234,164 @@ test('actual HTTP route preserves non-authorizing preflight and invokes protecte
 test('actual HTTP reconciliation route requires a distinct independently authenticated actor', async () => {
   const f = fixture(), r = await route(f); const a = await act(f, 'reserve'); const fields = { ...f.input, action: 'reconcile', ...charge(f, a, 'SUCCEEDED') }; assert.equal((await r.post(fields)).status, 401); assert.equal((await r.post(fields, r.env.ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN)).status, 200);
   const same = await route(f, { ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN: r.env.ASSET_FACTORY_SPEND_WORKER_TOKEN }); assert.equal((await same.post(fields)).status, 503);
+});
+
+// Independent synthetic verifier credentials exist only in this test process.
+const verifierPair = generateKeyPairSync('ed25519');
+const verifierPublicKey = verifierPair.publicKey.export({ type: 'spki', format: 'pem' });
+const proofSign = record => ({ ...record, signature: sign(null, Buffer.from(canonical(record)), verifierPair.privateKey).toString('base64') });
+function refreshCrossProofs(f) {
+  const deployment = proofSign(f.deployment), controls = proofSign(f.controls);
+  f.job.executor.deployment_ref = hash(canonical(deployment)); f.job.executor.controls_ref = hash(canonical(controls));
+  f.db.rows.set(`assetFactorySpendDeployments/${f.job.executor.deployment_ref}`, deployment);
+  f.db.rows.set(`assetFactorySpendControls/${f.job.executor.controls_ref}`, controls);
+  f.input.job_digest = jobDigest(f.job);
+  f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing({ ...f.approval, job_digest: f.input.job_digest }));
+}
+function crossFixture(db, id) {
+  const f = fixture(db, id);
+  const source = 'd'.repeat(40), tenant = hash('SYNTHETIC-TENANT'), credential = hash('SYNTHETIC-CREDENTIAL');
+  f.worker = { id: 'synthetic-spatial-worker', executor_repository: 'LifeLoggerAI/urai-spatial', executor_source_sha: source, consumer: 'spatial-functions', tenant_sha256: tenant, provider: f.job.provider, account_id: f.job.account_id, credential_sha256: credential };
+  f.job.consumer = f.worker.consumer; f.job.authority = { repository: f.worker.executor_repository, sha: source }; f.authority.binding = f.job.authority;
+  f.account.credential_sha256 = credential;
+  f.job.input_sha256 = ['b'.repeat(64), f.job.executor.request_sha256]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
+  Object.assign(f.job.executor, { binding_version: 2, repository: f.worker.executor_repository, source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, worker_id: f.worker.id, tenant_sha256: tenant, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), content_type: 'application/json' });
+  const binding = { job_id: f.job.job_id, worker_id: f.worker.id, executor_repository: f.worker.executor_repository, executor_source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, consumer: f.job.consumer, tenant_sha256: tenant, provider: f.job.provider, account_id: f.job.account_id, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_headers_sha256: f.job.executor.semantic_headers_sha256, content_type: 'application/json', request_sha256: f.job.executor.request_sha256, endpoint: f.job.executor.endpoint, model: f.job.model_version, asset: f.job.executor.asset, request_size: f.job.executor.request_size };
+  Object.assign(f.input, binding);
+  const proof = { binding, verified: true, trusted_readback: true, deployment_id: `SYNTHETIC-DEPLOYMENT-${f.job.job_id}`, proof_receipt: 'SYNTHETIC-VERIFIED-READBACK-NOT-PRODUCTION', verifier: 'synthetic-verifier', key_id: 'verifier', observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
+  f.deployment = structuredClone(proof); Object.assign(f.controls, structuredClone(proof));
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) f.controls[field] = f.job.executor[field];
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`)[field] = f.job.executor[field];
+  f.opts = { ...options, worker: f.worker, verifierKeys: { verifier: { subject: 'synthetic-verifier', publicKey: verifierPublicKey } } };
+  refreshCrossProofs(f); return f;
+}
+test('scoped cross-repository admission pins distinct real gateway and executor sources', async () => {
+  const f = crossFixture(); const p = await act(f, 'preflight', {}, f.opts);
+  assert.equal(p.provider_call_authorized, false); assert.equal(p.execution_performed, false);
+  const a = await act(f, 'reserve', {}, f.opts);
+  assert.equal(a.executor_source_sha, 'd'.repeat(40)); assert.equal(a.gateway_source_sha, 'a'.repeat(40)); assert.equal(a.worker_id, f.worker.id);
+  assert.equal(f.db.rows.get(f.accountPath).reservations.length, 1);
+});
+test('v2 legacy shared token cannot snapshot record preflight or reserve', async () => {
+  for (const action of ['snapshot', 'record', 'preflight', 'reserve']) { const f = crossFixture(); const before = structuredClone(f.db.rows); await assert.rejects(act(f, action, {}, { ...f.opts, worker: undefined }), SpendRejected); assert.deepEqual(f.db.rows, before); }
+});
+test('authenticated worker identity cannot be spoofed in request labels or cross-job reads', async () => {
+  for (const action of ['snapshot', 'record', 'preflight', 'reserve']) {
+    const f = crossFixture(); const before = structuredClone(f.db.rows);
+    await assert.rejects(act(f, action, { worker_id: f.worker.id }, { ...f.opts, worker: { ...f.worker, id: 'other-worker' } }), SpendRejected); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('v2 tokens cannot access legacy jobs and partial v2 cannot downgrade', async () => {
+  const f = crossFixture(), legacy = fixture(); await assert.rejects(act(legacy, 'snapshot', {}, f.opts), SpendRejected);
+  delete f.job.executor.binding_version; await assert.rejects(act(f, 'snapshot', {}, f.opts), SpendRejected);
+});
+test('worker fixed repository head consumer tenant account and credential scopes are enforced', async () => {
+  for (const field of ['executor_repository', 'executor_source_sha', 'consumer', 'tenant_sha256', 'provider', 'account_id', 'credential_sha256']) {
+    const f = crossFixture(), before = structuredClone(f.db.rows); await assert.rejects(act(f, 'reserve', {}, { ...f.opts, worker: { ...f.worker, [field]: 'foreign' } }), SpendRejected); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('cross-repo verifier must be configured trusted and independent of approval/reconciliation', async () => {
+  for (const verifierKeys of [{}, { verifier: { subject: 'foreign-verifier', publicKey: verifierPublicKey } }, { verifier: { subject: 'synthetic-verifier', publicKey } }]) { const f = crossFixture(); await assert.rejects(act(f, 'snapshot', {}, { ...f.opts, verifierKeys }), SpendRejected); }
+});
+test('signed approval covers every executor binding before snapshot or record', async () => {
+  for (const action of ['snapshot', 'record']) { const f = crossFixture(); f.job.executor.asset += '-tampered'; await assert.rejects(act(f, action, {}, f.opts), SpendRejected); }
+});
+test('deployment and control proofs need authentic signatures and exact digest refs', async () => {
+  for (const prefix of ['Deployments', 'Controls']) for (const tamper of ['signature', 'verified', 'proof_receipt']) {
+    const f = crossFixture(); const ref = prefix === 'Deployments' ? f.job.executor.deployment_ref : f.job.executor.controls_ref;
+    const stored = f.db.rows.get(`assetFactorySpend${prefix}/${ref}`); delete stored[tamper]; await assert.rejects(act(f, 'snapshot', {}, f.opts), SpendRejected);
+  }
+});
+test('even correctly signed expired future replayed or mismatched deployment proofs reject', async () => {
+  const mutations = [f => { f.deployment.expires_at = '2026-10-07T16:29:59Z'; }, f => { f.controls.observed_at = '2026-10-07T16:30:01Z'; }, f => { f.deployment.binding.job_id = 'another-job'; }, f => { f.controls.deployment_id = 'another-deployment'; }, f => { f.deployment.binding.gateway_source_sha = 'e'.repeat(40); }, f => { f.controls.enforcement_source_sha = 'e'.repeat(40); }, f => { f.controls.binding.executor_source_sha = 'e'.repeat(40); }, f => { f.controls.verified = false; }, f => { f.deployment.trusted_readback = false; }];
+  for (const change of mutations) { const f = crossFixture(); change(f); refreshCrossProofs(f); await assert.rejects(act(f, 'snapshot', {}, f.opts), SpendRejected); }
+});
+test('actual endpoint model input headers content size credential and head drift reject', async () => {
+  for (const field of ['endpoint', 'model', 'source_input_sha256', 'semantic_headers_sha256', 'credential_sha256', 'content_type', 'request_size', 'request_sha256', 'executor_source_sha', 'gateway_source_sha', 'tenant_sha256', 'consumer']) { const f = crossFixture(), before = structuredClone(f.db.rows); await assert.rejects(act(f, 'reserve', { [field]: 'changed' }, f.opts), SpendRejected); assert.deepEqual(f.db.rows, before); }
+});
+test('cross-repository jobs still share one global account budget', async () => {
+  const f = crossFixture(undefined, 'spatial-job'), g = crossFixture(f.db, 'jobs-job');
+  const results = await Promise.allSettled([act(f, 'reserve', {}, f.opts), act(g, 'reserve', {}, g.opts)]); assert.equal(results.filter(x => x.status === 'fulfilled').length, 1);
+});
+test('cross-repo observations retain full holds and only independently signed charges settle', async () => {
+  const f = crossFixture(), a = await act(f, 'reserve', {}, f.opts);
+  await act(f, 'record', { attempt_id: a.attempt_id, status: 'succeeded', request_id: 'SYNTHETIC-STREAM-COMPLETE' }, f.opts);
+  assert.equal(f.db.rows.get(f.jobPath).job.attempts[0].status, 'RECONCILIATION_REQUIRED'); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000);
+  await assert.rejects(act(f, 'reserve', {}, f.opts), SpendRejected);
+  const settled = await act(f, 'reconcile', charge(f, a, 'SUCCEEDED'), { ...f.opts, worker: undefined }); assert.equal(settled.terminal, true);
+});
+test('protected token registry rejects ambiguous short reused and reconciliation tokens', () => {
+  const f = crossFixture(); const registration = { ...f.worker, token: 'unique-synthetic-worker-token-'.repeat(2) }; delete registration.id;
+  assert.equal(authenticateSpendWorker({ [f.worker.id]: registration }, registration.token, 'legacy', 'reconciler').id, f.worker.id);
+  assert.equal(authenticateSpendWorker({ [f.worker.id]: registration }, 'wrong', 'legacy', 'reconciler'), undefined);
+  for (const registry of [{ one: { ...registration, token: 'short' } }, { one: registration, two: registration }]) assert.throws(() => authenticateSpendWorker(registry, registration.token, 'legacy', 'reconciler'), SpendRejected);
+  assert.throws(() => authenticateSpendWorker({ one: registration }, registration.token, registration.token, 'reconciler'), SpendRejected);
+  assert.throws(() => authenticateSpendWorker({ one: registration }, registration.token, 'legacy', registration.token), SpendRejected);
+});
+test('actual HTTP route binds registry scope and denies legacy v2 spoofing before exposure', async () => {
+  const f = crossFixture(), token = 'unique-synthetic-spatial-token-'.repeat(2), registration = { ...f.worker, token }; delete registration.id;
+  const r = await route(f, { ASSET_FACTORY_SPEND_WORKER_TOKENS_JSON: JSON.stringify({ [f.worker.id]: registration }), ASSET_FACTORY_SPEND_VERIFIER_PUBLIC_KEYS: JSON.stringify(f.opts.verifierKeys) });
+  assert.equal((await r.post({ ...f.input, action: 'snapshot', worker_id: f.worker.id })).status, 409);
+  assert.equal((await r.post({ ...f.input, action: 'snapshot' }, token)).status, 200);
+  assert.equal((await r.post({ ...f.input, action: 'reserve' }, token)).status, 200);
+  const other = await route(f, { ASSET_FACTORY_SPEND_WORKER_TOKENS_JSON: JSON.stringify({ foreign: registration }), ASSET_FACTORY_SPEND_VERIFIER_PUBLIC_KEYS: JSON.stringify(f.opts.verifierKeys) });
+  assert.equal((await other.post({ ...f.input, action: 'record', attempt_id: f.db.rows.get(f.jobPath).job.attempts[0].attempt_id, status: 'succeeded', worker_id: f.worker.id }, token)).status, 409);
+});
+test('actual gateway provenance rejects absent dirty untracked or misdeclared enforcement source', () => {
+  const cwd = process.cwd(), root = mkdtempSync(join(tmpdir(), 'spend-gateway-source-'));
+  const paths = ['assetfactory-studio/lib/server/productionSpend.ts', 'assetfactory-studio/app/api/worker/production-spend/route.ts'];
+  const git = (...args) => { const r = spawnSync('git', ['-C', root, ...args], { encoding:'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+  try {
+    process.chdir(root); assert.throws(() => spendGatewaySourceSha('a'.repeat(40)), SpendRejected);
+    git('init', '--quiet'); git('config', 'user.name', 'Synthetic fixture'); git('config', 'user.email', 'fixture@example.invalid');
+    for (const path of paths) { mkdirSync(dirname(join(root, path)), { recursive:true }); writeFileSync(join(root, path), 'SYNTHETIC TRACKED SOURCE\n'); }
+    git('add', '.'); git('commit', '--quiet', '-m', 'Synthetic source provenance'); const head = git('rev-parse', 'HEAD');
+    assert.equal(spendGatewaySourceSha(head), head); assert.throws(() => spendGatewaySourceSha('a'.repeat(40)), SpendRejected);
+    writeFileSync(join(root, paths[0]), 'SYNTHETIC DIRTY SOURCE\n'); assert.throws(() => spendGatewaySourceSha(head), SpendRejected);
+    git('restore', '--', paths[0]); git('rm', '--cached', paths[0]); assert.throws(() => spendGatewaySourceSha(head), SpendRejected);
+  } finally { process.chdir(cwd); rmSync(root, { recursive:true, force:true }); }
+});
+test('same-repository account credential header and source fingerprints are mandatory before all worker actions', async () => {
+  for (const action of ['snapshot','record','preflight','reserve']) {
+    for (const field of ['credential_sha256','semantic_headers_sha256','source_input_sha256','content_type']) {
+      const f=fixture(), before=structuredClone(f.db.rows); await assert.rejects(act(f,action,{ [field]:'changed' }),SpendRejected); assert.deepEqual(f.db.rows,before);
+      const absent=fixture(); delete absent.input[field]; await assert.rejects(act(absent,action),SpendRejected);
+    }
+    const f=fixture(); await assert.rejects(act(f,action,{ account_id:'another-account' }),SpendRejected);
+  }
+});
+test('protected same-repository credential/account readback cannot be absent stale false or remapped', async () => {
+  const changes=[f=>{delete f.account.credential_sha256},f=>{f.account.credential_binding_verified=false},f=>{f.account.credential_binding_receipt=''},f=>{f.account.credential_sha256=hash('OTHER-CREDENTIAL')},f=>{f.controls.credential_sha256=hash('OTHER-CREDENTIAL')},f=>{delete f.controls.semantic_headers_sha256},f=>{delete f.job.executor.content_type}];
+  for (const change of changes) { const f=fixture(); change(f); const before=structuredClone(f.db.rows); await assert.rejects(act(f,'snapshot'),SpendRejected); await assert.rejects(act(f,'reserve'),SpendRejected); assert.deepEqual(f.db.rows,before); }
+});
+test('preflight derives account only once and reserve echoes the exact mandatory fingerprints', async () => {
+  const f=fixture(); delete f.input.account_id; const p=await act(f,'preflight'); assert.equal(p.envelope.protected_controls.credential_sha256,f.job.executor.credential_sha256);
+  await assert.rejects(act(f,'reserve'),SpendRejected); f.input.account_id=p.envelope.account.account_id;
+  const a=await act(f,'reserve'); for(const field of ['account_id','credential_sha256','semantic_headers_sha256','source_input_sha256','content_type']) assert.equal(a[field],f.input[field]);
+});
+test('same cryptographic key cannot impersonate independent verifier through PEM formatting', async () => {
+  const f=crossFixture(); await assert.rejects(act(f,'snapshot',{}, { ...f.opts,verifierKeys:{verifier:{subject:'synthetic-verifier',publicKey:'\n'+publicKey+'\n'}}}),SpendRejected);
+});
+
+test('protected pricing pins actual credentials semantic headers inputs content and fresh rates before every worker action', async () => {
+  for (const make of [fixture, crossFixture]) for (const action of ['snapshot', 'record', 'preflight', 'reserve']) {
+    for (const field of ['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'receipt', 'observed_at', 'expires_at']) {
+      const f = make(), price = f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`);
+      delete price[field]; const before = structuredClone(f.db.rows);
+      await assert.rejects(act(f, action, {}, f.opts || options), SpendRejected); assert.deepEqual(f.db.rows, before);
+    }
+    for (const change of [p => { p.trusted_readback = false; }, p => { p.expires_at = '2026-10-07T16:29:59Z'; }, p => { p.observed_at = '2026-10-07T16:30:01Z'; }, p => { p.rates = { ...p.rates, usd_micros_per_unit: 1 }; }, p => { p.semantic_headers_sha256 = hash('ANOTHER-ACCOUNT-SELECTOR'); }]) {
+      const f = make(); change(f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`)); const before = structuredClone(f.db.rows);
+      await assert.rejects(act(f, action, {}, f.opts || options), SpendRejected); assert.deepEqual(f.db.rows, before);
+    }
+  }
+});
+test('preflight and non-authorizing snapshot expose the same exact protected pricing proof', async () => {
+  for (const make of [fixture, crossFixture]) {
+    const f = make(), price = f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`);
+    const preflight = await act(f, 'preflight', {}, f.opts || options), snapshot = await act(f, 'snapshot', {}, f.opts || options);
+    assert.deepEqual(preflight.envelope.protected_pricing, price); assert.deepEqual(snapshot.protected_pricing, price);
+    assert.equal(snapshot.provider_call_authorized, false); assert.equal(snapshot.execution_performed, false);
+  }
 });
 

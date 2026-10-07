@@ -1,0 +1,66 @@
+# Protected spend across repositories
+
+This source donor extends the canonical `/api/worker/production-spend` gateway and repairs the existing image executor's credential/account binding. It does not create an approval, register a production worker, sign a proof, configure an account, settle a charge, or accept a release. Legacy jobs retain their same-source rule and now require actual credential/header/input fingerprints. A v2 worker cannot access a legacy job, and a legacy shared token cannot access a v2 job.
+
+## Mandatory same-repository request binding
+
+Every non-reconciliation worker call requires `credential_sha256`, `semantic_headers_sha256`, `source_input_sha256` and `content_type` matching the signed job executor and fresh protected controls. The source-input and request digests must both appear in the signed input list. The protected account must map that exact credential to its authenticated provider/account with `credential_binding_verified:true`, a nonempty `credential_binding_receipt`, and fresh trusted readback. Missing or self-asserted caller fields cannot create that mapping.
+
+`account_id` may be absent only on preflight, where a caller derives it from the verified protected account. Reserve, record and snapshot require the exact account. Preflight exposes `envelope.protected_controls` and `envelope.protected_pricing`; snapshot exposes `protected_controls` and `protected_pricing` alongside the scoped job/account. Reserve echoes account and the four fingerprints, with the existing job digest, executor source and runtime. The actual image worker verifies those echoes before dispatch.
+
+The protected pricing record must bind the same provider, account, `model_version`, request hash and all four credential/header/input/content fields. It requires `trusted_readback:true`, a nonempty `receipt`, fresh `observed_at`/`expires_at`, and `rates` exactly equal to the signed `job.budget.rates`, whose `verified_at`/`expires_at` must also be current. Missing, stale or mismatched price proof rejects all worker actions before exposing a snapshot, recording an observation or making a reservation. An account selector in the effective headers cannot reuse a price for another account.
+
+The image leaf builds one Request before admission, hashes the exact credential header dictionary and remaining explicit semantic headers (excluding transport-derived content-length/host/connection), recognizes configured custom auth headers, rejects duplicate names ignoring case, verifies source input again, and dispatches the same frozen body/headers. Outcome and snapshot calls retain those bindings. Prior approvals lacking authentic account/credential mappings stay closed. An environment token change after preflight cannot replace the frozen Request credential.
+
+## Required authentic deployment evidence
+
+Keep the Factory gateway `URAI_SOURCE_SHA` equal to its actual Factory source. Non-reconciliation routes read the clean tracked gateway Git identity before accessing a worker job. A runtime that cannot provide that provenance stays closed. The independently verified deployment receipt must establish the actual compiled and deployed gateway and executor source, account and provider controls. A source check or synthetic CI result cannot supply that receipt.
+
+Configure `ASSET_FACTORY_SPEND_WORKER_TOKENS_JSON` in protected server configuration. Each unique token (at least 32 characters) maps to a fixed identity and scope:
+
+```json
+{
+  "worker-id": {
+    "token": "PROTECTED_SECRET",
+    "executor_repository": "owner/executor-repository",
+    "executor_source_sha": "EXACT_EXECUTOR_GIT_SHA",
+    "consumer": "consumer-name",
+    "tenant_sha256": "EXACT_TENANT_SHA256",
+    "provider": "provider-name",
+    "account_id": "AUTHENTIC_API_ACCOUNT_ID",
+    "credential_sha256": "EXACT_EFFECTIVE_CREDENTIAL_SHA256"
+  }
+}
+```
+
+The token must differ from every other worker token, the legacy worker token, and the reconciliation token. The gateway never accepts `body.worker_id` as authentication. Worker identities and scopes require genuine protected provisioning; client requests cannot supply them.
+
+Configure `ASSET_FACTORY_SPEND_VERIFIER_PUBLIC_KEYS` separately from approver and reconciler keys, using the existing `{key_id:{subject,publicKey}}` public-key format. Verifier subjects and public keys must differ from both other roles. Product code has no proof generator or signing path.
+
+## Signed job and proof bindings
+
+The approved protected job uses `executor.binding_version = 2`, `executor.repository` and `executor.source_sha` for the exact executor repository/head, and `executor.gateway_repository = LifeLoggerAI/asset-factory` plus `executor.gateway_source_sha` for the actual gateway head. Its authority repository/head must equal the executor identity.
+
+The executor also binds `worker_id`, `tenant_sha256`, `credential_sha256`, `source_input_sha256`, `semantic_headers_sha256`, `content_type`, `request_sha256`, `endpoint`, `asset`, and `request_size`. Provider/account/model/consumer remain signed top-level job fields. `input_sha256` must include the exact source-input and request hashes. The approval signs the canonical job digest, which covers these fields and both proof references.
+
+`executor.deployment_ref` and `executor.controls_ref` are SHA256 digests of the complete signed records stored at `assetFactorySpendDeployments/<digest>` and `assetFactorySpendControls/<digest>`. Both records require an authenticated Ed25519 verifier, `verified:true`, `trusted_readback:true`, a fresh `observed_at`/`expires_at`, a nonempty `deployment_id` and `proof_receipt`, and the exact same `binding` object below. Both deployment IDs must match. Controls additionally retain every existing authenticated provider hard-cap/account/request/runtime/top-up field and must set `enforcement_source_sha` to the actual Factory gateway SHA.
+
+All non-reconciliation calls send these exact fields:
+
+```text
+job_id, worker_id, executor_repository, executor_source_sha,
+gateway_repository, gateway_source_sha, consumer, tenant_sha256,
+provider, account_id, credential_sha256, source_input_sha256,
+semantic_headers_sha256, content_type, request_sha256,
+endpoint, model, asset, request_size
+```
+
+Those fields are also the proof `binding`. `request_size` is a string; callers using HTTP bodies should bind its decimal byte length. A recommended request hash is SHA256 of `POST\n<canonical endpoint>\n` followed by the actual frozen body bytes. Credential and semantic-header hashes should use stable JSON of normalized effective header entries, with provider credential headers separated from the remaining headers. They must describe the actual dispatched credentials and headers, never caller financial-authorization labels.
+
+Scope checks, signed approval binding, and fresh independently signed proof verification precede `snapshot`, `record`, `preflight`, and `reserve`. A signed proof from a different job, deployment, worker, source, tenant, account, credential, or request cannot be reused. Preflight remains read-only and non-authorizing. Reserve rechecks all evidence in the same global account transaction before adding one attempt and durable per-job/account hold.
+
+## Outcomes and acceptance
+
+Lost reserve responses, dispatch errors, aborts and completed text/audio all retain uncertain charges. `record` only changes an admitted attempt to `RECONCILIATION_REQUIRED`; it cannot release the hold, assert actual cost, permit a retry, or finalize the job. The existing independently authenticated and signed final charge receipt remains the only settlement mechanism. Account reservations remain global across repositories.
+
+Synthetic tests and native compilation demonstrate source behavior only. Before any paid dispatch, genuine protected account balances, explicit bounded approval, pricing, reuse/rights/source authority, exact deployed controls, worker mappings, compiled-source deployment proofs and an independent actual-charge feed must all be available and verified. No production execution or acceptance is implied by this donor.

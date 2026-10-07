@@ -1,11 +1,16 @@
 /** Internal image-executor admission; an offline receipt never grants execution. */
 import { createHash, createPublicKey, randomUUID, timingSafeEqual, verify } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 type RecordValue = Record<string, unknown>;
 type Ref = { path: string };
 type Tx = { get(ref: Ref): Promise<{ exists: boolean; data(): unknown }>; set(ref: Ref, value: RecordValue): void };
 export type SpendDb = { doc(path: string): Ref; runTransaction<T>(f: (tx: Tx) => Promise<T>): Promise<T> };
 export type SpendKeys = Record<string, { subject: string; publicKey: string }>;
+export type SpendWorker = {
+  id: string; executor_repository: string; executor_source_sha: string; consumer: string;
+  tenant_sha256: string; provider: string; account_id: string; credential_sha256: string;
+};
 type SpendBudget = RecordValue & { max_usd_micros: number; max_credits: number; max_retries: number; max_runtime_seconds: number; rates: RecordValue };
 type SpendJob = RecordValue & { job_id: string; provider: string; account_id: string; authority: RecordValue; reuse_review: RecordValue; acceptance: RecordValue; budget: SpendBudget; executor: RecordValue; attempts: RecordValue[] };
 type SpendAccount = RecordValue & { reservations: RecordValue[] };
@@ -72,6 +77,117 @@ export function authenticateSpend(secret: string | undefined, supplied: string |
   return timingSafeEqual(createHash('sha256').update(secret).digest(), createHash('sha256').update(supplied).digest());
 }
 
+/** Protected server configuration fixes a token's scope; body labels never identify a worker. */
+export function authenticateSpendWorker(value: unknown, supplied: string | undefined, legacy: string | undefined, reconciler: string | undefined): SpendWorker | undefined {
+  const registry = spendRecord(value, 'worker registry');
+  const tokens = new Set<string>(); let authenticated: SpendWorker | undefined;
+  for (const [id, entry] of Object.entries(registry)) {
+    const record = spendRecord(entry, 'worker registration'), token = nonempty(record.token, 'worker token');
+    need(token.length >= 32 && !tokens.has(token) && token !== legacy && token !== reconciler, 'worker tokens must be distinct'); tokens.add(token);
+    const worker: SpendWorker = {
+      id: nonempty(id, 'worker id'), executor_repository: nonempty(record.executor_repository, 'worker repository'),
+      executor_source_sha: sha(record.executor_source_sha, 40), consumer: nonempty(record.consumer, 'worker consumer'),
+      tenant_sha256: sha(record.tenant_sha256), provider: nonempty(record.provider, 'worker provider'),
+      account_id: nonempty(record.account_id, 'worker account'), credential_sha256: sha(record.credential_sha256),
+    };
+    if (authenticateSpend(token, supplied)) authenticated = worker;
+  }
+  return authenticated;
+}
+
+type SpendOptions = { now: () => number; approvalKeys: SpendKeys; reconciliationKeys: SpendKeys; sourceSha: string; worker?: SpendWorker; verifierKeys?: SpendKeys };
+const GATEWAY_REPOSITORY = 'LifeLoggerAI/asset-factory';
+/** A declaration alone cannot identify the gateway build. No Git provenance means closed. */
+export function spendGatewaySourceSha(expected: string) {
+  sha(expected, 40);
+  const paths = ['assetfactory-studio/lib/server/productionSpend.ts', 'assetfactory-studio/app/api/worker/production-spend/route.ts'];
+  try {
+    const args = { encoding: 'utf8' as const, timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] as ['ignore', 'pipe', 'pipe'] };
+    const root = execFileSync('git', ['-C', process.cwd(), 'rev-parse', '--show-toplevel'], args).trim();
+    const git = (...command: string[]) => execFileSync('git', ['-C', root, ...command], args).trim();
+    need(git('rev-parse', 'HEAD') === expected, 'gateway build differs from declared source');
+    const tracked = git('ls-files', '--error-unmatch', '--', ...paths).split('\n');
+    need(tracked.length === paths.length && paths.every(path => tracked.includes(path)), 'gateway enforcement source untracked');
+    need(!git('status', '--porcelain', '--untracked-files=all', '--', ...paths), 'gateway enforcement source dirty');
+  } catch (error) { if (error instanceof SpendRejected) throw error; throw new SpendRejected('verifiable exact gateway build unavailable'); }
+  return expected;
+}
+function crossRepositoryBinding(job: SpendJob, input: RecordValue, options: SpendOptions) {
+  const executor = job.executor, worker = options.worker;
+  need(executor.binding_version === 2 && worker, 'authenticated scoped worker required');
+  const binding: RecordValue = {
+    job_id: job.job_id, worker_id: nonempty(executor.worker_id, 'bound worker'),
+    executor_repository: nonempty(executor.repository, 'executor repository'), executor_source_sha: sha(executor.source_sha, 40),
+    gateway_repository: GATEWAY_REPOSITORY, gateway_source_sha: sha(options.sourceSha, 40),
+    consumer: nonempty(job.consumer, 'consumer'), tenant_sha256: sha(executor.tenant_sha256),
+    provider: job.provider, account_id: job.account_id, credential_sha256: sha(executor.credential_sha256),
+    source_input_sha256: sha(executor.source_input_sha256), semantic_headers_sha256: sha(executor.semantic_headers_sha256),
+    content_type: nonempty(executor.content_type, 'content type'), request_sha256: sha(executor.request_sha256),
+    endpoint: nonempty(executor.endpoint, 'endpoint'), model: nonempty(job.model_version, 'model'),
+    asset: nonempty(executor.asset, 'asset'), request_size: nonempty(executor.request_size, 'request size'),
+  };
+  need(executor.gateway_repository === GATEWAY_REPOSITORY && executor.gateway_source_sha === binding.gateway_source_sha, 'gateway source binding changed');
+  need(job.authority.repository === binding.executor_repository && job.authority.sha === binding.executor_source_sha, 'executor authority binding changed');
+  need(worker.id === binding.worker_id, 'worker identity changed');
+  for (const field of ['executor_repository', 'executor_source_sha', 'consumer', 'tenant_sha256', 'provider', 'account_id', 'credential_sha256'] as const) need(worker[field] === binding[field], `worker ${field} scope changed`);
+  const actual: RecordValue = { ...input, executor_repository: input.executor_repository, executor_source_sha: input.executor_source_sha };
+  for (const field of Object.keys(binding)) need(actual[field] === binding[field], `actual ${field} differs from bound executor`);
+  need(Array.isArray(job.input_sha256) && job.input_sha256.includes(binding.source_input_sha256) && job.input_sha256.includes(binding.request_sha256), 'exact source and request inputs missing');
+  return binding;
+}
+
+async function verifyCrossRepository(tx: Tx, job: SpendJob, input: RecordValue, options: SpendOptions) {
+  const binding = crossRepositoryBinding(job, input, options), executor = job.executor;
+  const verifierKeys = options.verifierKeys || {};
+  need(Object.keys(verifierKeys).length > 0, 'deployment verifier unavailable');
+  const otherKeys = [...Object.values(options.approvalKeys), ...Object.values(options.reconciliationKeys)];
+  const publicDigest = (key: string) => { try { return createHash('sha256').update(createPublicKey(key).export({ type: 'spki', format: 'der' })).digest('hex'); } catch { throw new SpendRejected('invalid verifier configuration'); } };
+  need(Object.values(verifierKeys).every(key => !otherKeys.some(other => key.subject === other.subject || publicDigest(key.publicKey) === publicDigest(other.publicKey))), 'deployment verifier must be independent');
+  const [approvalSnapshot, deploymentSnapshot, controlsSnapshot] = await Promise.all([
+    tx.get({ path: `assetFactorySpendApprovals/${sha(job.approval_ref)}` }),
+    tx.get({ path: `assetFactorySpendDeployments/${sha(executor.deployment_ref)}` }),
+    tx.get({ path: `assetFactorySpendControls/${sha(executor.controls_ref)}` }),
+  ]);
+  need(approvalSnapshot.exists && deploymentSnapshot.exists && controlsSnapshot.exists, 'protected cross-repository records missing');
+  const approval = spendRecord(approvalSnapshot.data(), 'approval');
+  signed(approval, options.approvalKeys, 'approver'); need(approval.job_digest === jobDigest(job), 'signed executor binding changed');
+  const deployment = spendRecord(deploymentSnapshot.data(), 'deployment proof'), controls = spendRecord(controlsSnapshot.data(), 'controls');
+  for (const [record, digest] of [[deployment, executor.deployment_ref], [controls, executor.controls_ref]] as const) {
+    signed(record, verifierKeys, 'verifier'); need(hash(canonical(record)) === digest, 'protected proof digest changed');
+    fresh(record, 'observed_at', 'expires_at', options.now());
+    need(record.trusted_readback === true && record.verified === true && canonical(record.binding) === canonical(binding), 'protected deployment scope changed');
+    nonempty(record.proof_receipt, 'deployment proof identity'); nonempty(record.deployment_id, 'deployment identity');
+  }
+  need(deployment.deployment_id === controls.deployment_id && controls.enforcement_source_sha === binding.gateway_source_sha, 'current deployed enforcement changed');
+  return controls;
+}
+
+function verifyActualRequest(job: SpendJob, account: SpendAccount, controls: RecordValue, input: RecordValue, action: string, now: number) {
+  const executor = job.executor;
+  // A body digest cannot establish which authenticated provider account receives it.
+  const credential = sha(executor.credential_sha256);
+  need(account.credential_sha256 === credential && account.credential_binding_verified === true, 'protected account credential mapping missing');
+  nonempty(account.credential_binding_receipt, 'credential account readback');
+  need(account.provider === job.provider && account.account_id === job.account_id && account.trusted_readback === true, 'protected account identity changed');
+  fresh(account, 'observed_at', 'expires_at', now); fresh(controls, 'observed_at', 'expires_at', now);
+  need(controls.trusted_readback === true && controls.provider === job.provider && controls.account_id === job.account_id && controls.credential_sha256 === credential, 'provider credential controls changed');
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) {
+    const value = sha(executor[field]); need(input[field] === value && controls[field] === value, `actual ${field} changed`);
+  }
+  const contentType = nonempty(executor.content_type, 'content type'); need(input.content_type === contentType && controls.content_type === contentType, 'actual content type changed');
+  need(Array.isArray(job.input_sha256) && job.input_sha256.includes(executor.source_input_sha256) && job.input_sha256.includes(executor.request_sha256), 'source and request fixity missing');
+  need((action === 'preflight' && input.account_id === undefined) || input.account_id === job.account_id, 'actual account binding changed');
+  need(input.request_sha256 === sha(executor.request_sha256) && input.endpoint === executor.endpoint && input.provider === job.provider && input.model === job.model_version && input.asset === executor.asset && input.request_size === executor.request_size, 'actual request differs from approved request');
+}
+
+function verifyProtectedPricing(job: SpendJob, price: RecordValue, now: number) {
+  need(price.provider === job.provider && price.account_id === job.account_id && price.model_version === job.model_version && price.request_sha256 === job.executor.request_sha256 && price.trusted_readback === true, 'price binding changed');
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(price[field] === job.executor[field], `protected price ${field} changed`);
+  nonempty(price.receipt, 'protected price proof'); fresh(price, 'observed_at', 'expires_at', now);
+  need(canonical(price.rates) === canonical(job.budget.rates), 'pricing changed');
+  fresh(spendRecord(price.rates, 'price rates'), 'verified_at', 'expires_at', now);
+}
+
 /** Internal store eligibility only; this does not grant spend authorization. */
 export function isDedicatedSpendProject(project: string | undefined): project is string {
   return !!project && !['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub'].includes(project);
@@ -123,7 +239,7 @@ export function validateSpend(jobValue: unknown, accountValue: unknown, authorit
   need(approval.job_digest === jobDigest(job) && integer(approval.max_usd_micros, 'approved USD', 1) === cap && integer(approval.max_credits, 'approved credits') === credits, 'approval binding changed');
 }
 
-export async function spendAction(db: SpendDb, action: string, inputValue: unknown, options: { now: () => number; approvalKeys: SpendKeys; reconciliationKeys: SpendKeys; sourceSha: string }) {
+export async function spendAction(db: SpendDb, action: string, inputValue: unknown, options: SpendOptions) {
   need(['preflight', 'reserve', 'record', 'reconcile', 'snapshot'].includes(action), 'unsupported action');
   const input = spendRecord(inputValue, 'spend request');
   const jobId = nonempty(input.job_id, 'job id'); const jobRef = db.doc(`assetFactorySpendJobs/${hash(jobId)}`);
@@ -131,11 +247,28 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
   return db.runTransaction(async tx => {
     const snapshot = await tx.get(jobRef); need(snapshot.exists, 'protected job missing'); const state = spendRecord(snapshot.data(), 'job state');
     const job = spendJob(structuredClone(state.job)); need(job.job_id === jobId, 'job identity changed');
+    const crossRepository = job.executor.binding_version !== undefined || job.executor.repository !== undefined;
+    need(crossRepository || !options.worker, 'scoped workers cannot access legacy jobs');
+    // Scope even non-authorizing reads and outcome observations before exposing a job.
+    const crossControls = crossRepository && action !== 'reconcile' ? await verifyCrossRepository(tx, job, input, options) : undefined;
     const accountRef = db.doc(`assetFactorySpendAccounts/${hash(`${job.provider}\n${job.account_id}`)}`);
     const accountSnapshot = await tx.get(accountRef); need(accountSnapshot.exists, 'protected account missing'); const account = spendAccount(structuredClone(accountSnapshot.data()));
+    let boundControls = crossControls, boundApproval: RecordValue | undefined, boundPrice: RecordValue | undefined;
+    if (action !== 'reconcile') {
+      if (!crossRepository) {
+        const approved = await tx.get(db.doc(`assetFactorySpendApprovals/${sha(job.approval_ref)}`)); need(approved.exists, 'signed request approval missing');
+        boundApproval = spendRecord(approved.data(), 'approval'); signed(boundApproval, options.approvalKeys, 'approver');
+        need(boundApproval.job_digest === jobDigest(job), 'signed request binding changed');
+      }
+      if (!boundControls) { const snapshot = await tx.get(db.doc(`assetFactorySpendControls/${sha(job.executor.controls_ref)}`)); need(snapshot.exists, 'provider controls missing'); boundControls = spendRecord(snapshot.data(), 'controls'); }
+      verifyActualRequest(job, account, boundControls, input, action, options.now());
+      if (!crossRepository) need(input.executor_source_sha === sha(job.executor.source_sha, 40) && job.executor.source_sha === sha(options.sourceSha, 40) && boundControls.enforcement_source_sha === options.sourceSha, 'execution source differs from approved enforcement proof');
+      const priced = await tx.get(db.doc(`assetFactorySpendPricing/${sha(job.pricing_ref)}`)); need(priced.exists, 'protected pricing missing');
+      boundPrice = spendRecord(priced.data(), 'price'); verifyProtectedPricing(job, boundPrice, options.now());
+    }
     const attemptId = input.attempt_id;
 
-    if (action === 'snapshot') return { ok: true, job, account, provider_call_authorized: false, execution_performed: false };
+    if (action === 'snapshot') return { ok: true, job, account, protected_controls: boundControls, protected_pricing: boundPrice, provider_call_authorized: false, execution_performed: false };
 
     if (action === 'record') {
       const index = job.attempts.findIndex((a: RecordValue) => a.attempt_id === attemptId); need(index >= 0, 'unknown attempt'); const attempt = job.attempts[index];
@@ -173,21 +306,18 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     }
 
     need(state.terminal !== true, 'job terminal');
-    const [approvalSnapshot, authoritySnapshot, priceSnapshot, controlsSnapshot] = await Promise.all([
-      tx.get(db.doc(`assetFactorySpendApprovals/${sha(job.approval_ref)}`)),
+    const [approvalSnapshot, authoritySnapshot] = await Promise.all([
+      boundApproval ? Promise.resolve({ exists: true, data: () => boundApproval }) : tx.get(db.doc(`assetFactorySpendApprovals/${sha(job.approval_ref)}`)),
       tx.get(db.doc(`assetFactorySpendAuthorities/${sha(job.authority_ref)}`)),
-      tx.get(db.doc(`assetFactorySpendPricing/${sha(job.pricing_ref)}`)),
-      tx.get(db.doc(`assetFactorySpendControls/${sha(job.executor.controls_ref)}`)),
     ]);
-    need(approvalSnapshot.exists && authoritySnapshot.exists && priceSnapshot.exists && controlsSnapshot.exists, 'trusted execution records missing');
-    const approval = spendRecord(approvalSnapshot.data(), 'approval'), authority = spendRecord(authoritySnapshot.data(), 'authority'), price = spendRecord(priceSnapshot.data(), 'price'), controls = spendRecord(controlsSnapshot.data(), 'controls');
+    need(approvalSnapshot.exists && authoritySnapshot.exists && boundPrice && boundControls, 'trusted execution records missing');
+    const approval = spendRecord(approvalSnapshot.data(), 'approval'), authority = spendRecord(authoritySnapshot.data(), 'authority'), controls = boundControls;
     signed(approval, options.approvalKeys, 'approver'); job.approval = approval;
-    need(price.provider === job.provider && price.account_id === job.account_id && price.model_version === job.model_version && price.request_sha256 === job.executor.request_sha256 && price.trusted_readback === true, 'price binding changed');
-    need(canonical(price.rates) === canonical(job.budget.rates), 'pricing changed');
     fresh(controls, 'observed_at', 'expires_at', options.now());
     nonempty(controls.proof_receipt, 'provider control proof'); sha(controls.enforcement_source_sha, 40);
     const currentSource = sha(options.sourceSha, 40);
-    need(job.executor.source_sha === currentSource && controls.enforcement_source_sha === currentSource && input.executor_source_sha === currentSource, 'execution source differs from approved enforcement proof');
+    if (crossRepository) need(crossControls && controls.enforcement_source_sha === currentSource, 'gateway enforcement source differs from approved proof');
+    else need(job.executor.source_sha === currentSource && controls.enforcement_source_sha === currentSource && input.executor_source_sha === currentSource, 'execution source differs from approved enforcement proof');
     need(controls.max_usd_micros === job.budget.max_usd_micros && controls.max_credits === job.budget.max_credits, 'provider cap differs from approval');
     need(controls.trusted_readback === true && controls.provider === job.provider && controls.account_id === job.account_id && controls.endpoint === job.executor.endpoint && controls.request_sha256 === job.executor.request_sha256 && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && controls.max_runtime_seconds === job.budget.max_runtime_seconds, 'provider hard controls unproven');
     need(input.request_sha256 === sha(job.executor.request_sha256) && input.endpoint === job.executor.endpoint && input.provider === job.provider && input.model === job.model_version && input.asset === job.executor.asset && input.request_size === job.executor.request_size, 'actual request differs from approved request');
@@ -195,12 +325,12 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     need(!existing || existing.settled === undefined || existing.settled === false, 'settled debit cannot reopen as a reservation');
     if (!existing) account.reservations.push({ job_id: jobId, usd_micros: job.budget.max_usd_micros, credits: job.budget.max_credits });
     validateSpend(job, account, authority, options.now());
-    const envelope = { job, account, authority };
+    const envelope = { job, account, authority, protected_controls: controls, protected_pricing: boundPrice };
     if (action === 'preflight') return { ok: true, envelope, provider_call_authorized: false, execution_performed: false };
     need(input.job_digest === jobDigest(job), 'offline job digest changed');
     const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at: new Date(options.now()).toISOString(), request_sha256: input.request_sha256, charges_reconciled: false };
     job.attempts.push(attempt); delete job.approval; tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
-    return { ok: true, attempt_id: id, job_digest: input.job_digest, executor_source_sha: currentSource, max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
+    return { ok: true, attempt_id: id, job_digest: input.job_digest, executor_source_sha: job.executor.source_sha, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, ...(crossRepository ? { gateway_source_sha: currentSource, worker_id: job.executor.worker_id } : {}), max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
   });
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/server/firebaseAdmin';
-import { authenticateSpend, isDedicatedSpendProject, spendAction, spendRecord, SpendRejected, type SpendDb, type SpendKeys } from '@/lib/server/productionSpend';
+import { authenticateSpend, authenticateSpendWorker, isDedicatedSpendProject, spendAction, spendGatewaySourceSha, spendRecord, SpendRejected, type SpendDb, type SpendKeys } from '@/lib/server/productionSpend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,9 +21,12 @@ export async function POST(req: NextRequest) {
     const reconcile = action === 'reconcile';
     const worker = process.env.ASSET_FACTORY_SPEND_WORKER_TOKEN, reconciler = process.env.ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN;
     if (reconcile && worker === reconciler) return NextResponse.json({ ok: false, code: 'separate_reconciliation_auth_required' }, { status: 503 });
-    if (!authenticateSpend(reconcile ? reconciler : worker, req.headers.get('authorization')?.replace(/^Bearer\s+/i, ''))) return NextResponse.json({ ok: false, code: 'spend_auth_required' }, { status: 401 });
+    const supplied = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+    const identity = authenticateSpendWorker(JSON.parse(process.env.ASSET_FACTORY_SPEND_WORKER_TOKENS_JSON || '{}'), reconcile ? undefined : supplied, worker, reconciler);
+    if (reconcile ? !authenticateSpend(reconciler, supplied) : !identity && !authenticateSpend(worker, supplied)) return NextResponse.json({ ok: false, code: 'spend_auth_required' }, { status: 401 });
     const project = process.env.ASSET_FACTORY_FIREBASE_PROJECT_ID, sourceSha = process.env.URAI_SOURCE_SHA || '';
     if (!isDedicatedSpendProject(project) || process.env.FIREBASE_PROJECT_ID !== project || !/^[0-9a-f]{40}$/.test(sourceSha)) return NextResponse.json({ ok: false, code: 'canonical_spend_store_or_source_unbound' }, { status: 503 });
+    if (!reconcile) spendGatewaySourceSha(sourceSha);
     const db = getAdminDb(); if (!db) return NextResponse.json({ ok: false, code: 'spend_store_unavailable' }, { status: 503 });
     if (!('projectId' in db) || typeof db.projectId !== 'string' || db.projectId !== project) return NextResponse.json({ ok: false, code: 'canonical_spend_store_mismatch' }, { status: 503 });
     // Resolve path handles through this SDK instance; the helper never receives
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
         set: (ref, value) => { tx.set(db.doc(ref.path), value); },
       })),
     };
-    const result = await spendAction(store, action, body, { now: Date.now, approvalKeys: keys('ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS'), reconciliationKeys: keys('ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS'), sourceSha });
+    const result = await spendAction(store, action, body, { now: Date.now, approvalKeys: keys('ASSET_FACTORY_SPEND_APPROVER_PUBLIC_KEYS'), reconciliationKeys: keys('ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS'), verifierKeys: keys('ASSET_FACTORY_SPEND_VERIFIER_PUBLIC_KEYS'), worker: identity, sourceSha });
     return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     return NextResponse.json({ ok: false, code: error instanceof SpendRejected ? error.code : 'spend_store_unavailable', provider_call_authorized: false, execution_performed: false }, { status: error instanceof SpendRejected ? 409 : 503 });
