@@ -74,7 +74,41 @@ export async function freezeRequest(endpoint, init, provider) {
   }
   need(body.length > 0 && body.length <= MAX_REQUEST_BYTES, 'request byte bound');
   headers.delete('content-length');
-  return { endpoint: url.toString(), body, headers, request_sha256: hash(Buffer.concat([Buffer.from(`POST\n${url.toString()}\n`), body])), content_type: headers.get('content-type') || '', request_size: body.length };
+  const credentials = {}, semantic = {};
+  for (const [name, value] of [...headers.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+    need(value.length <= 8192, 'effective provider header exceeds bound');
+    if (['authorization', 'x-api-key', 'xi-api-key', 'api-key'].includes(name)) credentials[name] = value;
+    else semantic[name] = value;
+  }
+  need(/^Bearer [^\s\u0000-\u001f\u007f]{1,4096}$/.test(credentials.authorization || ''), 'actual effective provider credential required');
+  // Compact sorted JSON is shared with the canonical gateway's credential registry.
+  // Only fingerprints enter evidence; actual frozen headers are sent once.
+  const compact = dictionary => `{${Object.keys(dictionary).sort().map(name => `${JSON.stringify(name)}:${JSON.stringify(dictionary[name])}`).join(',')}}`;
+  return { endpoint: url.toString(), body, headers, request_sha256: hash(Buffer.concat([Buffer.from(`POST\n${url.toString()}\n`), body])), credential_sha256: hash(compact(credentials)), semantic_headers_sha256: hash(compact(semantic)), content_type: headers.get('content-type') || '', request_size: body.length };
+}
+
+function protectedBinding(envelope, binding, expectedAccount = null) {
+  const job = envelope?.job, account = envelope?.account, controls = envelope?.protected_controls, price = envelope?.protected_pricing;
+  need(job?.job_id === binding.job_id && job.provider === binding.provider && job.model_version === binding.model && job.executor?.source_sha === binding.executor_source_sha, 'approved job identity changed');
+  for (const field of ['endpoint', 'request_sha256', 'request_size', 'asset', 'content_type', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) {
+    need(job.executor[field] === binding[field], `actual ${field} differs from protected approval`);
+  }
+  need(Array.isArray(job.input_sha256) && job.input_sha256.includes(binding.source_input_sha256) && job.input_sha256.includes(binding.request_sha256), 'approved source/input hashes missing');
+  need(job.executor.remote_reference_inputs !== true, 'remote-reference fixity requires a protected materializer');
+  need(typeof job.account_id === 'string' && job.account_id && (!expectedAccount || job.account_id === expectedAccount), 'protected account identity changed');
+  need(account?.provider === binding.provider && account.account_id === job.account_id && account.balance_type === 'API' && account.trusted_readback === true && account.credential_sha256 === binding.credential_sha256 && account.credential_binding_verified === true && typeof account.credential_binding_receipt === 'string' && account.credential_binding_receipt, 'actual credential does not match verified protected account');
+  need(Number.isFinite(Date.parse(account.observed_at)) && Number.isFinite(Date.parse(account.expires_at)) && Date.parse(account.observed_at) <= binding.checked_at && Date.parse(account.expires_at) > binding.checked_at, 'protected account readback is not fresh');
+  need(controls?.provider === binding.provider && controls.account_id === job.account_id && controls.trusted_readback === true && controls.enforcement_source_sha === binding.executor_source_sha && controls.hard_stop_supported === true && controls.cost_cap_enforced === true && controls.auto_top_up === false && typeof controls.proof_receipt === 'string' && controls.proof_receipt, 'protected provider controls unproven');
+  for (const field of ['endpoint', 'request_sha256', 'content_type', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) need(controls[field] === binding[field], `actual ${field} differs from protected controls`);
+  need(Number.isFinite(Date.parse(controls.observed_at)) && Number.isFinite(Date.parse(controls.expires_at)) && Date.parse(controls.observed_at) <= binding.checked_at && Date.parse(controls.expires_at) > binding.checked_at, 'protected controls readback is not fresh');
+  need(Number.isSafeInteger(job.budget?.max_usd_micros) && job.budget.max_usd_micros > 0 && Number.isSafeInteger(job.budget.max_credits) && job.budget.max_credits >= 0, 'approved cash/credit caps missing');
+  need(controls.max_runtime_seconds === job.budget?.max_runtime_seconds && controls.max_usd_micros === job.budget?.max_usd_micros && controls.max_credits === job.budget?.max_credits, 'protected controls differ from approved caps');
+  need(price?.provider === binding.provider && price.account_id === job.account_id && price.model_version === binding.model && price.request_sha256 === binding.request_sha256 && price.trusted_readback === true, 'protected pricing identity changed');
+  for (const field of ['content_type', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) need(price[field] === binding[field], `actual ${field} differs from protected pricing`);
+  need(typeof price.receipt === 'string' && price.receipt && Number.isFinite(Date.parse(price.observed_at)) && Number.isFinite(Date.parse(price.expires_at)) && Date.parse(price.observed_at) <= binding.checked_at && Date.parse(price.expires_at) > binding.checked_at, 'protected pricing proof is not fresh');
+  need(price.rates && job.budget.rates && canonical(price.rates) === canonical(job.budget.rates), 'protected pricing differs from approved rates');
+  need(typeof price.rates.receipt === 'string' && price.rates.receipt && Number.isFinite(Date.parse(price.rates.verified_at)) && Number.isFinite(Date.parse(price.rates.expires_at)) && Date.parse(price.rates.verified_at) <= binding.checked_at && Date.parse(price.rates.expires_at) > binding.checked_at, 'protected pricing readback is not fresh');
+  return job;
 }
 
 async function boundedJson(response, maximum) {
@@ -105,20 +139,22 @@ export class ModelSpendClient {
   savePreviewCheckpoint(taskId, model) {
     const attempt = this.records.at(-1);
     need(this.provider === 'meshy' && typeof taskId === 'string' && taskId && attempt?.reported_task_id === taskId && attempt.status === 'submission-returned', 'preview submission identity missing');
-    const checkpoint = { schema_version: 1, provider: 'meshy', asset: this.asset, model, source_spec_sha256: this.sourceSpecSha256, job_id: attempt.job_id, attempt_id: attempt.attempt_id, preview_task_id: taskId, request_sha256: attempt.request_sha256, provider_call_authorized: false };
+    const checkpoint = { schema_version: 1, provider: 'meshy', asset: this.asset, model, source_spec_sha256: this.sourceSpecSha256, job_id: attempt.job_id, account_id: attempt.account_id, attempt_id: attempt.attempt_id, preview_task_id: taskId, request_sha256: attempt.request_sha256, executor_source_sha: attempt.executor_source_sha, credential_sha256: attempt.credential_sha256, semantic_headers_sha256: attempt.semantic_headers_sha256, source_input_sha256: attempt.source_input_sha256, content_type: attempt.content_type, provider_call_authorized: false };
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, 'meshy-preview-continuation.json'), `${JSON.stringify(checkpoint, null, 2)}\n`);
     return checkpoint;
   }
   async verifiedPreview(endpoint, init, model) {
-    verifiedSourceSha(this.env);
+    const sourceSha = verifiedSourceSha(this.env);
     const checkpoint = this.previewCheckpoint;
     need(this.provider === 'meshy' && checkpoint?.schema_version === 1 && checkpoint.provider === 'meshy' && checkpoint.asset === this.asset && checkpoint.model === model && checkpoint.source_spec_sha256 === this.sourceSpecSha256 && checkpoint.provider_call_authorized === false, 'preview checkpoint identity changed');
     const request = await freezeRequest(endpoint, init, this.provider);
     need(checkpoint.request_sha256 === request.request_sha256 && typeof checkpoint.job_id === 'string' && checkpoint.job_id && typeof checkpoint.attempt_id === 'string' && checkpoint.attempt_id, 'preview checkpoint request changed');
-    const snapshot = await this.gateway('snapshot', { job_id: checkpoint.job_id });
+    need(typeof checkpoint.account_id === 'string' && checkpoint.account_id, 'preview checkpoint account binding missing');
+    const binding = { job_id: checkpoint.job_id, account_id: checkpoint.account_id, provider: this.provider, model, asset: this.asset, endpoint: request.endpoint, request_sha256: request.request_sha256, request_size: request.request_size, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type };
+    for (const field of ['executor_source_sha', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(checkpoint[field] === binding[field], 'preview checkpoint transport binding changed');
+    const snapshot = await this.gateway('snapshot', binding);
     need(snapshot.provider_call_authorized === false && snapshot.execution_performed === false, 'preview snapshot cannot authorize a call');
-    const job = snapshot.job;
-    need(job?.job_id === checkpoint.job_id && job.provider === this.provider && job.model_version === model && job.executor?.asset === this.asset && job.executor.endpoint === request.endpoint && job.executor.request_sha256 === request.request_sha256 && job.executor.request_size === request.request_size && job.executor.content_type === request.content_type && job.input_sha256?.includes(this.sourceSpecSha256) && job.input_sha256?.includes(request.request_sha256), 'protected preview source/request differs');
+    const job = protectedBinding(snapshot, { ...binding, checked_at: this.now() }, checkpoint.account_id);
     const attempt = job.attempts?.find(a => a.attempt_id === checkpoint.attempt_id);
     need(attempt?.status === 'SUCCEEDED' && attempt.charges_reconciled === true && typeof attempt.task_id === 'string' && attempt.task_id && attempt.task_id === checkpoint.preview_task_id && /^[0-9a-f]{64}$/.test(attempt.charge_receipt_sha256 || ''), 'preview requires authentic successful charge reconciliation');
     return attempt.task_id;
@@ -127,7 +163,7 @@ export class ModelSpendClient {
     need(typeof model === 'string' && model.trim(), 'exact provider model required');
     const sourceSha = verifiedSourceSha(this.env);
     const request = await freezeRequest(endpoint, init, this.provider);
-    const binding = { provider: this.provider, model, asset: this.asset, endpoint: request.endpoint, request_sha256: request.request_sha256, request_size: request.request_size, executor_source_sha: sourceSha };
+    const binding = { provider: this.provider, model, asset: this.asset, endpoint: request.endpoint, request_sha256: request.request_sha256, request_size: request.request_size, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type };
     if (this.evidenceDir) { fs.mkdirSync(this.evidenceDir, { recursive: true }); fs.writeFileSync(path.join(this.evidenceDir, `spend-request-${request.request_sha256}.json`), `${JSON.stringify({ ...binding, source_spec_sha256: this.sourceSpecSha256, content_type: request.content_type, provider_call_authorized: false }, null, 2)}\n`); }
     let jobs; try { jobs = JSON.parse(this.env.MODEL_FORGE_SPEND_JOB_IDS_JSON || '{}'); } catch { need(false, 'job map invalid'); }
     need(jobs && typeof jobs === 'object' && !Array.isArray(jobs), 'job map invalid');
@@ -136,18 +172,17 @@ export class ModelSpendClient {
     const input = { job_id: jobId, ...binding };
     const preflight = await this.gateway('preflight', input);
     need(preflight.provider_call_authorized === false && preflight.execution_performed === false && preflight.envelope, 'preflight is non-authorizing');
-    const { job } = preflight.envelope;
-    need(job?.job_id === jobId && job.provider === this.provider && job.model_version === model && job.executor?.source_sha === sourceSha, 'approved job identity changed');
-    need(job.executor.endpoint === request.endpoint && job.executor.request_sha256 === request.request_sha256 && job.executor.request_size === request.request_size && job.executor.asset === this.asset && job.executor.content_type === request.content_type, 'actual request differs from protected approval');
-    need(Array.isArray(job.input_sha256) && job.input_sha256.includes(this.sourceSpecSha256) && job.input_sha256.includes(request.request_sha256), 'approved source/input hashes missing');
-    need(job.executor.remote_reference_inputs !== true, 'remote-reference fixity requires a protected materializer');
+    const job = protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
+    input.account_id = job.account_id;
     const digest = jobDigest(job);
     const reservation = await this.gateway('reserve', { ...input, job_digest: digest });
     need(reservation.provider_call_authorized === true && reservation.execution_performed === false && reservation.job_digest === digest && reservation.executor_source_sha === sourceSha && typeof reservation.attempt_id === 'string' && reservation.attempt_id, 'atomic reservation did not authorize this exact request');
+    for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(reservation[field] === input[field], 'atomic reservation binding differs from actual transport');
     need(Number.isSafeInteger(reservation.max_runtime_seconds) && reservation.max_runtime_seconds > 0 && reservation.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
+    need(reservation.max_runtime_seconds === job.budget.max_runtime_seconds, 'atomic reservation changed approved runtime cap');
     this.submitted.add(request.request_sha256);
     this.deadline = Math.min(this.deadline, this.now() + reservation.max_runtime_seconds * 1000);
-    const record = { job_id: jobId, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, status: 'unknown-outcome', reconciliation_required: true };
+    const record = { job_id: jobId, account_id: input.account_id, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type, status: 'unknown-outcome', reconciliation_required: true };
     this.records.push(record);
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
     try {
@@ -161,7 +196,7 @@ export class ModelSpendClient {
     } finally {
       // Worker reports are observations only. Gateway retains the entire hold until
       // authentic independent charge reconciliation; no local charge or retry claim.
-      try { await this.gateway('record', { job_id: jobId, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
+      try { await this.gateway('record', { ...input, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
       if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
     }
   }
