@@ -511,6 +511,27 @@ function replicateOfficialModel() {
   return model;
 }
 
+function replicatePredictionUrl(taskId, suppliedUrl) {
+  if (typeof taskId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(taskId)) {
+    fail('Replicate returned an invalid prediction identity; reconciliation required');
+  }
+  const canonical = `https://api.replicate.com/v1/predictions/${taskId}`;
+  let parsed;
+  try { parsed = new URL(suppliedUrl); } catch { fail('Replicate returned an invalid prediction polling URL'); }
+  if (typeof suppliedUrl !== 'string' || suppliedUrl !== canonical
+    || parsed.origin !== 'https://api.replicate.com' || parsed.protocol !== 'https:'
+    || parsed.username || parsed.password || parsed.search || parsed.hash
+    || parsed.pathname !== `/v1/predictions/${taskId}`) {
+    fail('Replicate prediction polling URL is not the trusted HTTPS endpoint for its task');
+  }
+  return canonical;
+}
+
+function assertReplicatePrediction(payload, taskId) {
+  if (!payload || payload.id !== taskId) fail('Replicate polling response changed prediction identity; reconciliation required');
+  if (payload.urls?.get !== undefined) replicatePredictionUrl(taskId, payload.urls.get);
+}
+
 async function generateReplicate(spec, spend) {
   const key = process.env.REPLICATE_API_TOKEN;
   const model = replicateOfficialModel();
@@ -545,16 +566,15 @@ async function generateReplicate(spec, spend) {
   }, 2, spend, model);
   const prediction = create.payload;
   const taskId = prediction.id;
-  const getUrl = prediction.urls?.get;
-  if (!taskId || !getUrl) fail(`Replicate did not return prediction id/get URL: ${JSON.stringify(prediction).slice(0, 1200)}`);
+  const getUrl = replicatePredictionUrl(taskId, prediction.urls?.get);
 
   let current = prediction;
   if (current.status !== 'succeeded') {
     current = await pollJson(
-      assertPublicHttpUrl(getUrl, 'Replicate prediction URL'),
+      getUrl,
       { Authorization: `Bearer ${key}` },
-      (p) => p.status === 'succeeded',
-      (p) => ['failed', 'canceled'].includes(p.status),
+      (p) => { assertReplicatePrediction(p, taskId); return p.status === 'succeeded'; },
+      (p) => { assertReplicatePrediction(p, taskId); return ['failed', 'canceled'].includes(p.status); },
       3000, spend,
     );
   }

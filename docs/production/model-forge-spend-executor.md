@@ -1,5 +1,7 @@
 # Protected Model Forge submission donor
 
+Replicate polling credentials are restricted to the canonical HTTPS `api.replicate.com/v1/predictions/<returned-id>` endpoint. The returned ID must be a bounded path-safe token; supplied polling URL bytes must match that exact endpoint, without credentials, port spelling, query, fragment or normalized path tricks. Every polling result must retain its prediction identity and any repeated polling metadata must remain canonical. Read requests use `redirect: error`; token-bearing requests never follow a provider-returned redirect or foreign URL. This is source validation, not live provider acceptance.
+
 This isolated donor extends protected account admission to the actual Model Forge Meshy, Tripo, Rodin and Replicate generation leaves. It targets Factory owner PR #421 at `e0d1ff4967562684a866386662bcc01e7d8af4de`. It neither mutates that owner nor activates a provider.
 
 The predecessor `requestJson` made three synthetic billable POST invocations after two HTTP 429 responses, from one call with `maxRateLimitRetries=2`. The predecessor candidate loop could also regenerate after polling, download or structural-validation errors without charge reconciliation. `URAI_MODEL_FORGE_SPEND_AUTHORIZED=1` supplied no authentic bounded approval or shared account reservation.
