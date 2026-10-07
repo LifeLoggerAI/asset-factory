@@ -13,6 +13,7 @@ on:
       - scripts/generate_before_rest_world_repair.py
       - scripts/recover_exact_v4_failed_assets.py
       - docs/production/image-spend-executor.md
+      - docs/production/image-spend-executor-receipt.json
       - .github/workflows/production-image-spend-executor.yml
   push:
     branches: [main]
@@ -27,6 +28,7 @@ on:
       - scripts/generate_before_rest_world_repair.py
       - scripts/recover_exact_v4_failed_assets.py
       - docs/production/image-spend-executor.md
+      - docs/production/image-spend-executor-receipt.json
       - .github/workflows/production-image-spend-executor.yml
 
 permissions:

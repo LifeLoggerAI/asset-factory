@@ -14,7 +14,12 @@ function integer(value: unknown, name: string, min = 0): number {
 function nonempty(value: unknown, name: string): string { need(typeof value === 'string' && value.trim(), `missing ${name}`); return value; }
 function sha(value: unknown, length = 64): string { need(typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`).test(value), 'invalid digest'); return value; }
 function date(value: unknown): number {
-  need(typeof value === 'string' && /(Z|[+-]\d\d:\d\d)$/.test(value), 'timestamp requires timezone');
+  need(typeof value === 'string', 'timestamp requires timezone');
+  const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.exec(value);
+  need(parts, 'timestamp requires complete ISO time and timezone');
+  const [year, month, day, hour, minute, second] = parts.slice(1, 7).map(Number);
+  const calendar = new Date(Date.UTC(year, month - 1, day));
+  need(calendar.getUTCFullYear() === year && calendar.getUTCMonth() === month - 1 && calendar.getUTCDate() === day && hour < 24 && minute < 60 && second < 60, 'invalid calendar timestamp');
   const result = Date.parse(value); need(Number.isFinite(result), 'invalid timestamp'); return result;
 }
 function fresh(record: RecordValue, observed: string, expires: string, now: number) {

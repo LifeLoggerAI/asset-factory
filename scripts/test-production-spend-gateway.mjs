@@ -87,6 +87,8 @@ const rejects = [
   ['signed fields tampered', f => { f.db.rows.get(`assetFactorySpendApprovals/${f.job.approval_ref}`).max_usd_micros = 10000000; }],
   ['missing authority', f => { f.db.rows.delete(`assetFactorySpendAuthorities/${f.job.authority_ref}`); }],
   ['stale authority', f => { f.authority.expires_at = '2026-10-07T16:20:00Z'; }],
+  ['invalid calendar authority date', f => { f.authority.observed_at = '2026-02-30T00:00:00Z'; }],
+  ['date without complete ISO time', f => { f.controls.observed_at = '2026-10-07Z'; }],
   ['future balance', f => { f.account.observed_at = '2026-10-07T17:00:00Z'; }],
   ['subscription balance', f => { f.account.balance_type = 'SUBSCRIPTION'; }],
   ['hard stop missing', f => { f.controls.hard_stop_supported = false; }],
