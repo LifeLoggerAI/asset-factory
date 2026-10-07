@@ -1,0 +1,47 @@
+name: Provider Configuration Evidence
+
+on:
+  pull_request:
+    paths:
+      - scripts/provider-readiness.mjs
+      - scripts/test-provider-readiness.mjs
+      - .github/workflows/provider-configuration-evidence.yml
+  push:
+    paths:
+      - scripts/provider-readiness.mjs
+      - scripts/test-provider-readiness.mjs
+      - .github/workflows/provider-configuration-evidence.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-configuration-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  configuration:
+    name: Exact-source provider configuration behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Require exact clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Verify configuration boundaries without credentials or network
+        run: node scripts/test-provider-readiness.mjs
