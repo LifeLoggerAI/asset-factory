@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   source-proof:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 15
     env:
       EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
