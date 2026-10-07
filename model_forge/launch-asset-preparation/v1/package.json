@@ -14,6 +14,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "pretest": "node verify-test-files.mjs",
     "test": "node --test test-preparation.mjs test-byte-budgets.mjs test-scene-bounds.mjs test-floor-footprint.mjs test-schema-normalization.mjs test-weld-exact-corners.mjs"
   }
 }

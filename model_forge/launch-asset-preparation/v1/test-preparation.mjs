@@ -41,3 +41,28 @@ test('CLI rejects hash mismatch and refuses output inside source tree',async()=>
   const temp=await fs.mkdtemp(path.join(os.tmpdir(),'urai-asset-prepare-'));const source=path.join(temp,'source'),out=path.join(temp,'candidate');await fs.mkdir(source);const bytes=await fixture();await fs.writeFile(path.join(source,'test.glb'),bytes);const matrix=path.join(temp,'matrix.json');await fs.writeFile(matrix,JSON.stringify({assetMatrix:[{id:'test',path:'test.glb',sha256:'0'.repeat(64),measured:{format:'glb'},budgets:{}}]}));const recipe=fileURLToPath(new URL('./prepare-launch-assets.mjs',import.meta.url));
   try {assert.throws(()=>execFileSync(process.execPath,[recipe,source,matrix,out],{stdio:'pipe'}));assert.deepEqual(await fs.readdir(path.join(out,'models')),[]);assert.throws(()=>execFileSync(process.execPath,[recipe,source,matrix,path.join(source,'candidates')],{stdio:'pipe'}));assert.equal(crypto.createHash('sha256').update(await fs.readFile(path.join(source,'test.glb'))).digest('hex'),crypto.createHash('sha256').update(bytes).digest('hex'));} finally {await fs.rm(temp,{recursive:true,force:true});}
 });
+
+test('CLI binds missing model budget to pinned Spatial policy and refuses malformed declarations',async()=>{
+  const temp=await fs.mkdtemp(path.join(os.tmpdir(),'urai-asset-budget-'));
+  const source=path.join(temp,'source'), out=path.join(temp,'candidate');
+  await fs.mkdir(source);
+  const bytes=await fixture();await fs.writeFile(path.join(source,'test.glb'),bytes);
+  const matrix=path.join(temp,'matrix.json');
+  const record={id:'test',path:'test.glb',sha256:crypto.createHash('sha256').update(bytes).digest('hex'),sourceRepository:'fixture',sourceSha:'fixture',measured:{format:'glb'},budgets:{}};
+  const recipe=fileURLToPath(new URL('./prepare-launch-assets.mjs',import.meta.url));
+  try {
+    await fs.writeFile(matrix,JSON.stringify({assetMatrix:[record]}));
+    execFileSync(process.execPath,[recipe,source,matrix,out],{stdio:'pipe'});
+    const receipt=JSON.parse(await fs.readFile(path.join(out,'receipts/test.json'),'utf8'));
+    assert.equal(receipt.byteBudget.effectiveMaxBytes,3145728);
+    assert.equal(receipt.byteBudget.initialAssetBytes,2500000);
+    assert.equal(receipt.byteBudget.authority.commit,'c75eb8a10aa1712fe64030d82aafeb3a1d31e702');
+    assert.equal(receipt.byteBudgetPass,true);
+    assert.equal(receipt.classification,'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED');
+    record.budgets.maxBytes='99999999';
+    await fs.writeFile(matrix,JSON.stringify({assetMatrix:[record]}));
+    const rejected=path.join(temp,'rejected');
+    assert.throws(()=>execFileSync(process.execPath,[recipe,source,matrix,rejected],{stdio:'pipe'}));
+    assert.deepEqual(await fs.readdir(path.join(rejected,'models')),[]);
+  } finally {await fs.rm(temp,{recursive:true,force:true});}
+});
