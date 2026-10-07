@@ -259,7 +259,9 @@ def record(attempt_id: str, *, status: str, request_id: str | None = None, error
     if not reservation or status not in {"succeeded", "failed"}:
         raise PaidRequestUnauthorized("unknown protected attempt or invalid outcome")
     # Never send provider error bodies, prompts, source media, or caller-supplied costs.
-    _gateway("record", **reservation["bindingFields"], attempt_id=attempt_id, status=status, request_id=request_id)
+    observed = _gateway("record", **reservation["bindingFields"], attempt_id=attempt_id, status=status, request_id=request_id)
+    if observed.get("provider_call_authorized") is not False or observed.get("execution_performed") is not False or observed.get("reconciliation_required") is not True:
+        raise PaidRequestUnauthorized("outcome observation cannot authorize execution or settle charges")
 
 
 def snapshot() -> dict[str, Any]:

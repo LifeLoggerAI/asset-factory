@@ -183,7 +183,7 @@ test('durable observation failure with a generated result stays blocked and hold
   const c = config('openai', 'graphic'); c.fixture.failAction = 'record'; await assert.rejects(c.run()); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); await assert.rejects(c.run()); assert.equal(c.counts().posts, 1);
 });
 test('deadline bounds all polling and never opens another paid submission', async () => {
-  const c = config('replicate', 'video'); c.fixture.job.budget.max_runtime_seconds = 1; c.fixture.job.approval.job_digest = protector.protectedJobDigest(c.fixture.job); let posts = 0;
+  const c = config('replicate', 'video'); c.fixture.job.budget.max_runtime_seconds = 1; c.fixture.job.approval.job_digest = protector.protectedJobDigest(c.fixture.job); c.fixture.mutateReserve = r => { r.max_runtime_seconds = 1; }; let posts = 0;
   process.env.ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS = '600';
   globalThis.fetch = c.fixture.wrap(async (url, init) => { if (init.method === 'POST') posts++; return Response.json({ id: 'SYNTHETIC-task', status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/SYNTHETIC-task' } }); });
   await assert.rejects(c.run()); assert.equal(posts, 1); assert.equal(c.fixture.held, true);

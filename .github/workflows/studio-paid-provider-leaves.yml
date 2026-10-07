@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - assetfactory-studio/lib/server/protectedProviderRequest.ts
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
       - assetfactory-studio/lib/server/assetProviderRuntime.ts
       - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
       - assetfactory-studio/lib/server/higgsfieldClient.ts

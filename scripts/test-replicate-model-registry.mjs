@@ -19,10 +19,13 @@ const ts = await import(pathToFileURL(typescriptPath).href);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'replicate-registry-contract-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
+fs.mkdirSync(path.join(tmpDir, 'model_forge'), { recursive: true });
+fs.copyFileSync(path.join(root, 'model_forge', 'protected-artifact.mjs'), path.join(tmpDir, 'model_forge', 'protected-artifact.mjs'));
 
 function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
+  source = source.replace("import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';", `import { admittedArtifactHosts } from '../../../model_forge/protected-artifact.mjs';\nimport { syntheticArtifactRetrieve as retrievePublicArtifact } from '${pathToFileURL(path.join(root, 'scripts/lib/studio-spend-test-fixture.mjs')).href}';`);
   for (const [from, to] of patches) source = source.replace(from, to);
   source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
@@ -48,9 +51,7 @@ compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
   "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
-const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
-fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
-const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts');
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [

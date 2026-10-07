@@ -10,7 +10,7 @@ import { getAdminDb } from './firebaseAdmin';
 type JsonRecord = Record<string, unknown>;
 type Reservation = { jobId: string; attemptId: string; jobDigest: string; requestSha256: string; sourceSha: string; maxRuntimeSeconds: number; bindingFields: JsonRecord };
 type GatewayPin = { endpoint: string; headers: Headers; issuer: JsonRecord };
-type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; gatewayPin?: GatewayPin; revalidate?: () => void; reservation?: Reservation; artifactHosts?: string[]; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
+type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; gatewayPin?: GatewayPin; artifactHosts?: string[]; revalidate?: () => void; reservation?: Reservation; deadline?: number; monotonicDeadline?: number; controller: AbortController; taskId?: string };
 const sessions = new AsyncLocalStorage<Session>();
 const SOURCE_PATHS = [...['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts', 'firebaseAdmin.ts'].map(name => `assetfactory-studio/lib/server/${name}`), 'model_forge/protected-artifact.mjs'];
 const GATEWAY_LIMIT = 65_536;
@@ -137,7 +137,7 @@ async function issuerPin(input: GenerateRequest, lane: string, fields: JsonRecor
     const db = getAdminDb(); need(db, 'protected issuer Firestore unavailable');
     const snapshot = await Promise.race([db.collection('assetFactoryStudioSpendBindings').doc(studioIssuerBindingId(input, lane, nonempty(fields.request_sha256))).get(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProtectedProviderRejected('protected issuer lookup timed out')), 15_000); })]);
     // The initialized SDK exposes this runtime getter but omits it from its public Firestore type.
-    // Read the actual instance; a missing, throwing or mismatched getter must stay closed.
+    // A missing, throwing or mismatched actual project must stay closed.
     need(Reflect.get(db, 'projectId') === projectId && snapshot.exists, 'protected issuer project or binding unavailable');
     const issuer = record(snapshot.data());
     need(issuer.trusted_readback === true && issuer.executor_repository === 'LifeLoggerAI/asset-factory' && issuer.consumer === 'factory-studio' && issuer.tenant_id === (input.tenantId || 'default') && issuer.generation_job_id === input.jobId && issuer.lane === lane, 'protected Studio issuer identity changed');
@@ -157,8 +157,8 @@ function checkDeadline(session: Session) { need(!session.controller.signal.abort
 function checkSession(session: Session) {
   checkDeadline(session);
   need(studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source input changed during execution');
-  if (session.reservation) need(studioExecutorSourceSha() === session.reservation.sourceSha, 'Studio source changed during execution');
   session.revalidate?.();
+  if (session.reservation) need(studioExecutorSourceSha() === session.reservation.sourceSha, 'Studio source changed during execution');
   checkDeadline(session);
 }
 function joinedSignal(session: Session | undefined, input?: AbortSignal | null) {
@@ -226,7 +226,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const boundFields = { ...fields, account_id: accountId, job_digest: jobDigest };
   const admissionStarted = Date.now(), monotonicStarted = performance.now();
   need(typeof budget.max_runtime_seconds === 'number' && Number.isSafeInteger(budget.max_runtime_seconds) && budget.max_runtime_seconds > 0 && budget.max_runtime_seconds <= 86_400, 'protected Studio approved runtime missing');
-  session.deadline = Math.min(preflightExpiry, admissionStarted + budget.max_runtime_seconds * 1_000, protectedDate(session.gatewayPin.issuer.expires_at));
+  session.deadline = Math.min(preflightExpiry, protectedDate(session.gatewayPin.issuer.expires_at), admissionStarted + budget.max_runtime_seconds * 1_000);
   session.monotonicDeadline = monotonicStarted + Math.max(0, session.deadline - admissionStarted);
   checkDeadline(session);
   const admitted = await gateway('reserve', boundFields);
@@ -250,7 +250,7 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
 }
 
 /** Only status/artifact GETs are allowed after admission; authorization cannot escape its API origin. */
-export async function readStudioProvider(url: string, init: RequestInit = {}, maxBytes = 64 * 1024 * 1024) {
+export async function readStudioProvider(url: string, init: RequestInit = {}, artifactLimits?: { maxBytes: number }) {
   const session = sessions.getStore(); if (session) { checkSession(session); need(session.reservation, 'provider read preceded admission'); }
   need(!init.method || init.method === 'GET', 'provider continuation must be read-only');
   const target = safeHttps(url), headers = transportHeaders(init.headers);
@@ -260,7 +260,8 @@ export async function readStudioProvider(url: string, init: RequestInit = {}, ma
     const endpoint = sessionEndpoint.get(session); need(endpoint && target.origin === new URL(endpoint).origin, 'provider credential origin changed');
   } else {
     need(session?.reservation, 'artifact read lacks protected source session');
-    need(Number.isSafeInteger(maxBytes) && maxBytes > 0, 'invalid protected artifact byte limit');
+    const maxBytes = artifactLimits?.maxBytes ?? 64 * 1024 * 1024;
+    need(Number.isSafeInteger(maxBytes) && maxBytes > 0, 'invalid provider artifact byte limit');
     const artifact = await retrievePublicArtifact(target.toString(), { hosts: session.artifactHosts, maxBytes: Math.min(maxBytes, 64 * 1024 * 1024), timeoutMs: Math.max(1, Math.floor(Math.min(120_000, (session.deadline || 0) - Date.now()))), signal: joinedSignal(session, init.signal), checkAdmission: () => checkSession(session) });
     return new Response(new Uint8Array(artifact.buffer!), { headers: { 'content-length': String(artifact.bytes), ...(artifact.contentType ? { 'content-type': artifact.contentType } : {}) } });
   }
@@ -286,7 +287,7 @@ export function replicateStudioStatusUrl(value: unknown, taskId: unknown) {
 export function observeStudioProviderTask(id: unknown) { const session = sessions.getStore(); if (session && typeof id === 'string' && id.trim()) session.taskId = id.slice(0, 256); }
 export async function waitStudioProvider(ms: number) {
   need(Number.isFinite(ms) && ms > 0, 'invalid provider polling interval');
-  const session = sessions.getStore(); if (session) checkDeadline(session);
+  const session = sessions.getStore(); if (session) checkSession(session);
   const duration = Math.min(ms, session?.deadline ? Math.max(1, session.deadline - Date.now()) : ms);
   await new Promise<void>((resolve, reject) => {
     const signal = session?.controller.signal;
@@ -295,7 +296,7 @@ export async function waitStudioProvider(ms: number) {
     const abort = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); reject(new ProtectedProviderRejected('protected provider deadline expired')); };
     signal?.addEventListener('abort', abort, { once: true });
   });
-  if (session) checkDeadline(session);
+  if (session) checkSession(session);
 }
 
 export async function withProtectedStudioSession<T>(input: GenerateRequest | undefined, run: () => Promise<T>): Promise<T> {

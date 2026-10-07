@@ -148,12 +148,12 @@ async function readBinaryWithLimit(response: Response, maxBytes: number) {
 
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
   const safeUrl = assertPublicProviderUrl(url);
-  const response = await readStudioProvider(safeUrl, { headers, signal: providerAbortSignal() });
+  const maxBytes = providerMaxBytes();
+  const response = await readStudioProvider(safeUrl, { headers, signal: providerAbortSignal() }, { maxBytes });
   if (!response.ok) throw new Error(`Provider artifact fetch failed ${response.status}`);
 
   const contentLengthHeader = response.headers.get('content-length');
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
-  const maxBytes = providerMaxBytes();
   if (contentLength !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new Error(`Provider artifact exceeds max bytes before download: ${contentLength}`);
   }

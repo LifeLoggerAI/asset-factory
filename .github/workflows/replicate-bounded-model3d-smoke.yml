@@ -43,6 +43,12 @@ jobs:
       asset_sha256: ${{ steps.run.outputs.asset_sha256 }}
       asset_bytes: ${{ steps.run.outputs.asset_bytes }}
     steps:
+      - name: Checkout exact manual smoke source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
       - name: Require exact paid-smoke authorization
         shell: bash
         env:
@@ -131,6 +137,12 @@ jobs:
       - name: Run exactly one Replicate model3d prediction
         id: run
         if: steps.preflight.outputs.skip != 'true'
+        env:
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          MODEL_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.MODEL_FORGE_SPEND_JOB_IDS_JSON }}
         shell: bash
         run: |
           set -euo pipefail
@@ -149,70 +161,11 @@ jobs:
           }
           EOF
 
-          curl -fsS --max-time 30 -X POST \
-            -H "Authorization: Bearer $REPLICATE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$request" \
-            https://api.replicate.com/v1/predictions > "$current"
-
-          prediction_id="$(jq -r '.id // empty' "$current")"
-          get_url="$(jq -r '.urls.get // empty' "$current")"
-          cancel_url="$(jq -r '.urls.cancel // empty' "$current")"
-          if [ -z "$prediction_id" ] || [ -z "$get_url" ]; then
-            jq '{id, status, error}' "$current" >&2 || true
-            echo "Replicate did not return a prediction id/get URL."
-            exit 1
-          fi
-
-          completed=false
-          for attempt in $(seq 1 60); do
-            status="$(jq -r '.status // empty' "$current")"
-            if [ "$status" = "succeeded" ]; then
-              completed=true
-              break
-            fi
-            if [ "$status" = "failed" ] || [ "$status" = "canceled" ]; then
-              jq '{id, status, error, metrics}' "$current" >&2 || true
-              echo "Replicate prediction ended with status $status."
-              exit 1
-            fi
-            sleep 5
-            curl -fsS --max-time 30 -H "Authorization: Bearer $REPLICATE_API_TOKEN" "$get_url" > "$current"
-          done
-
-          if [ "$completed" != true ]; then
-            if [ -n "$cancel_url" ]; then
-              curl -sS --max-time 30 -X POST -H "Authorization: Bearer $REPLICATE_API_TOKEN" "$cancel_url" >/dev/null || true
-            fi
-            echo "Replicate smoke timed out; the prediction was not retried."
-            exit 1
-          fi
-
-          output_url="$(jq -r '.output // empty' "$current")"
-          if [ -z "$output_url" ] || [[ "$output_url" != https://* ]]; then
-            jq '{id, status, output, error}' "$current" >&2 || true
-            echo "Replicate prediction did not return a valid HTTPS GLB URL."
-            exit 1
-          fi
-
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          # https://api.replicate.com/v1/predictions is dispatched only by the protected client.
           asset="$RUNNER_TEMP/replicate-model3d-smoke.glb"
-          curl -fsSL --max-time 120 "$output_url" -o "$asset"
-          bytes="$(stat -c%s "$asset")"
-          if [ "$bytes" -le 0 ] || [ "$bytes" -gt 104857600 ]; then
-            echo "Unexpected GLB size: $bytes bytes."
-            exit 1
-          fi
-          magic="$(xxd -p -l 4 "$asset")"
-          if [ "$magic" != "676c5446" ]; then
-            echo "Downloaded output is not a binary glTF/GLB file."
-            exit 1
-          fi
-          sha="$(sha256sum "$asset" | awk '{print $1}')"
-
-          echo "prediction_id=$prediction_id" >> "$GITHUB_OUTPUT"
-          echo "asset_sha256=$sha" >> "$GITHUB_OUTPUT"
-          echo "asset_bytes=$bytes" >> "$GITHUB_OUTPUT"
-          jq '{id, status, metrics}' "$current"
+          node scripts/protected-replicate-model3d-smoke.mjs "$request" "$asset" "$current"
+          jq '{id, status, metrics, charges_reconciled, protected_attempts}' "$current"
 
       - name: Remove temporary provider files
         if: always()

@@ -51,38 +51,39 @@ async function fixture(options = {}) {
   const prepared = await freezeRequest(endpoint, init, 'replicate');
   const now = (options.now || Date.now)();
   const binding = { content_type: prepared.content_type, credential_sha256: prepared.credential_sha256, semantic_headers_sha256: prepared.semantic_headers_sha256, source_input_sha256: specHash, semantic_input_sha256: prepared.semantic_input_sha256 };
-  const job = { job_id: 'synthetic-job', account_id: 'synthetic-account', provider: 'replicate', model_version: model, input_sha256: [specHash, prepared.request_sha256], executor: { source_sha: sourceSha, endpoint, request_sha256: prepared.request_sha256, request_size: prepared.request_size, asset: 'fixture', artifact_hosts: ['outputs.example.test'], ...binding }, budget: { max_runtime_seconds: options.runtime || 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() } }, attempts: [], approval: { synthetic: true } };
+  const job = { job_id: 'synthetic-job', account_id: 'synthetic-account', provider: 'replicate', model_version: model, input_sha256: [specHash, prepared.request_sha256], executor: { source_sha: sourceSha, endpoint, request_sha256: prepared.request_sha256, request_size: prepared.request_size, asset: 'fixture', artifact_hosts: ['outputs.example.test'], ...binding }, budget: { max_runtime_seconds: options.runtime || 60, max_usd_micros: 1000000, max_credits: 10, rates: { usd_micros_per_unit: 100000, credits_per_unit: 1, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', verified_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() } }, attempts: [], authority: options.authorityBinding || { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha } };
   const fresh = { observed_at: new Date(now - 1000).toISOString(), expires_at: new Date(now + 3600000).toISOString() };
-  job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha };
-  job.approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-fixture', issued_at: fresh.observed_at, expires_at: fresh.expires_at };
-  const authority = { ...fresh, trusted_readback: true, binding: structuredClone(job.authority) };
+  const authority = { binding: job.authority, trusted_readback: true, ...fresh };
   const account = { provider: 'replicate', account_id: job.account_id, balance_type: 'API', trusted_readback: true, credential_sha256: prepared.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...fresh };
   const controls = { provider: 'replicate', account_id: job.account_id, endpoint, artifact_hosts: ['outputs.example.test'], request_sha256: prepared.request_sha256, ...binding, ...fresh, trusted_readback: true, enforcement_source_sha: sourceSha, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, proof_receipt: 'SYNTHETIC-NOT-AUTHORIZATION', ...job.budget };
   const pricing = { provider: job.provider, account_id: job.account_id, model_version: model, request_sha256: prepared.request_sha256, ...binding, ...fresh, receipt: 'SYNTHETIC-NOT-AUTHORIZATION', trusted_readback: true, rates: structuredClone(job.budget.rates) };
   options.alterPricing?.(pricing);
   options.alterJob?.(job);
   options.alterAccount?.(account); options.alterControls?.(controls);
+  job.approval = { key_id: 'SYNTHETIC-KEY', signature: 'U1lOVEhFVElD', status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic', issued_at: fresh.observed_at, expires_at: fresh.expires_at, job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits };
+  options.alterApproval?.(job.approval); options.alterAuthority?.(authority);
+  const proofExpiry = Math.min(...[job.approval, authority, account, controls, pricing, job.budget.rates].map(record => Date.parse(record.expires_at)).filter(Number.isFinite));
   const state = { providerCalls: 0, actions: [], holds: 0, reserved: false, bodies: [], gatewayInputs: [] };
   const env = { URAI_SOURCE_SHA: sourceSha, ASSET_FORGE_SPEND_GATEWAY_URL: gatewayUrl, ASSET_FORGE_SPEND_GATEWAY_ORIGIN: new URL(gatewayUrl).origin, ASSET_FORGE_SPEND_WORKER_TOKEN: 'synthetic-worker-token-with-more-than-32-characters', MODEL_FORGE_SPEND_JOB_IDS_JSON: JSON.stringify({ [prepared.request_sha256]: job.job_id }), ...options.env };
+  const pinnedAuthorization = `Bearer ${env.ASSET_FORGE_SPEND_WORKER_TOKEN}`;
   const fetchImpl = async (url, request) => {
     assert.equal(request.redirect, 'error');
     if (url === gatewayUrl) {
+      assert.equal(new Headers(request.headers).get('authorization'), pinnedAuthorization);
       const input = JSON.parse(request.body); state.actions.push(input.action); state.gatewayInputs.push(input);
-      if (input.action === 'preflight') { const result = options.preflight || { ok: true, provider_call_authorized: false, execution_performed: false, admission_expires_at: fresh.expires_at, envelope: { job: structuredClone(job), account, protected_controls: controls, protected_pricing: pricing, authority } }; options.alterPreflight?.(result); return response(result); }
+      if (input.action === 'preflight') { const result = options.preflight || { ok: true, provider_call_authorized: false, execution_performed: false, admission_expires_at: new Date(proofExpiry).toISOString(), envelope: { job: structuredClone(job), account, protected_controls: controls, protected_pricing: pricing, authority } }; options.alterPreflight?.(result); return response(result); }
       if (input.action === 'reserve') {
         assert.equal(input.request_sha256, prepared.request_sha256); assert.equal(input.request_size, prepared.request_size); assert.equal(input.executor_source_sha, sourceSha);
         assert.equal(input.job_digest, jobDigest(job));
         if (state.reserved) return response({ ok: false }, 409);
         state.reserved = true; state.holds++;
         if (options.reserveLoss) throw Error('synthetic lost reservation response');
-        const reservation = { ok: true, provider_call_authorized: true, execution_performed: false, attempt_id: 'synthetic-attempt', job_digest: input.job_digest, executor_source_sha: sourceSha, account_id: job.account_id, ...binding, max_runtime_seconds: job.budget.max_runtime_seconds };
-        const reservedAt = (options.now || Date.now)();
-        reservation.reserved_at = new Date(reservedAt).toISOString();
-        reservation.admission_expires_at = new Date(Math.min(Date.parse(fresh.expires_at), reservedAt + job.budget.max_runtime_seconds * 1000)).toISOString();
+        const reservation = { ok: true, provider_call_authorized: true, execution_performed: false, attempt_id: 'synthetic-attempt', job_digest: input.job_digest, executor_source_sha: sourceSha, account_id: job.account_id, ...binding, max_runtime_seconds: job.budget.max_runtime_seconds, reserved_at: new Date(now).toISOString(), admission_expires_at: new Date(Math.min(proofExpiry, now + job.budget.max_runtime_seconds * 1000)).toISOString() };
+        options.onReserve?.();
         options.alterReservation?.(reservation);
         return response(options.reservation || reservation);
       }
-      if (input.action === 'record') { options.advanceRecordClock?.(); if (options.recordLoss) throw Error('synthetic lost outcome'); return response({ ok: true, provider_call_authorized: false, reconciliation_required: true }); }
+      if (input.action === 'record') { options.afterRecord?.(); options.advanceRecordClock?.(); if (options.recordLoss) throw Error('synthetic lost outcome'); return response(options.observation || { ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true }); }
       assert.fail('Unexpected action');
     }
     assert.equal(url, endpoint); state.providerCalls++; state.bodies.push(Buffer.from(request.body));
@@ -90,8 +91,8 @@ async function fixture(options = {}) {
     options.advanceClock?.();
     return response({ id: 'synthetic-provider-task' }, options.providerStatus || 200);
   };
-  const make = () => new ModelSpendClient({ provider: 'replicate', asset: 'fixture', sourceSpecSha256: specHash, env, fetchImpl, now: options.now || Date.now });
-  return { state, make, prepared, env, job, account, controls, pricing };
+  const make = () => new ModelSpendClient({ provider: 'replicate', asset: 'fixture', sourceSpecSha256: specHash, env, fetchImpl, now: options.now || Date.now, monotonic: options.monotonic || (() => performance.now()) });
+  return { state, make, prepared, env, job, account, controls, pricing, authority };
 }
 
 test('canonical digest agrees with pinned gateway unicode and integer serialization', () => {
@@ -240,7 +241,7 @@ test('delayed reserve delivery preserves the pre-reserve runtime instead of rest
   assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1);
 });
 test('expired signed bounded approval and missing absolute preflight interval reject before a hold', async () => {
-  for (const options of [{ alterJob: j => { j.approval.expires_at = '2000-01-01T00:00:00Z'; } }, { preflight: { ok: true, provider_call_authorized: false, execution_performed: false, envelope: {} } }]) {
+  for (const options of [{ alterApproval: approval => { approval.expires_at = '2000-01-01T00:00:00Z'; } }, { preflight: { ok: true, provider_call_authorized: false, execution_performed: false, envelope: {} } }]) {
     const f = await fixture(options); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
     assert.equal(f.state.holds, 0); assert.equal(f.state.providerCalls, 0);
   }
@@ -306,6 +307,62 @@ test('dirty, untracked and missing executor files reject in real isolated Git re
   }
   git(['rm', '--cached', '-q', 'model_forge/forge.mjs']); assert.equal(check().status, 1); git(['reset', '-q', '--', 'model_forge/forge.mjs']); fs.rmSync(path.join(dir, 'model_forge/forge.mjs')); assert.equal(check().status, 1);
 });
+
+test('delayed reserve cannot restart the approved runtime', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, onReserve: () => { now += 1001; } }); const client = f.make(); await assert.rejects(client.submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1); assert.equal(client.records.length, 1); await assert.rejects(client.submit(endpoint, init, model), /cannot resubmit/); });
+test('each independent protected authorization window can expire during reserve delivery without dispatch', async () => {
+  for (const field of ['approval', 'authority', 'account', 'controls', 'pricing', 'rates']) {
+    let now = 1000; const expires = new Date(now + 1000).toISOString();
+    const option = field === 'rates' ? { alterJob: job => { job.budget.rates.expires_at = expires; }, alterPricing: price => { price.rates.expires_at = expires; } } : { [({ approval: 'alterApproval', authority: 'alterAuthority', account: 'alterAccount', controls: 'alterControls', pricing: 'alterPricing' })[field]]: proof => { proof.expires_at = expires; } };
+    const f = await fixture({ ...option, now: () => now, onReserve: () => { now += 1001; } });
+    await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/, field); assert.equal(f.state.providerCalls, 0, field); assert.equal(f.state.holds, 1, field);
+  }
+});
+test('mandatory reservation times reject missing future expired or enlarged echoes with hold retained', async () => {
+  for (const change of [a => { delete a.reserved_at; }, a => { delete a.admission_expires_at; }, a => { a.reserved_at = 'invalid'; }, a => { a.admission_expires_at = 'invalid'; }, a => { a.reserved_at = new Date(5000).toISOString(); }, a => { a.admission_expires_at = new Date(1000).toISOString(); }, a => { a.admission_expires_at = new Date(1000 + 61000).toISOString(); }]) {
+    const f = await fixture({ now: () => 1000, alterReservation: change }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1);
+  }
+});
+test('actual source changes after reserve block adjacent paid dispatch and retain the attempt', async () => { let f; f = await fixture({ onReserve: () => { f.env.URAI_SOURCE_SHA = '0'.repeat(40); } }); const client = f.make(); await assert.rejects(client.submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1); assert.equal(client.records.length, 1); });
+test('expiry during provider response suppresses late output without retry or settlement', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, advanceClock: () => { now += 1001; } }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+test('expiry during outcome delivery cannot release a successful late return', async () => { let now = 1000; const f = await fixture({ now: () => now, runtime: 1, afterRecord: () => { now += 1001; } }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+test('missing real approval or untrusted source authority blocks preflight before reservation', async () => { for (const option of [{ alterApproval: value => { delete value.expires_at; } }, { alterApproval: value => { value.status = 'DRAFT'; } }, { alterAuthority: value => { value.trusted_readback = false; } }, { alterAuthority: value => { value.binding = { ...value.binding, sha: '0'.repeat(40) }; } }]) { const f = await fixture(option); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 0); } });
+
+test('v1 preserves genuine specification authority distinct from actual executor build', async () => { const f = await fixture({ authorityBinding: { repository: 'synthetic/accepted-specification', sha: 'f'.repeat(40) } }); const result = await f.make().submit(endpoint, init, model); assert.equal(result.payload.id, 'synthetic-provider-task'); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+
+test('synchronous final source proof cannot exhaust the clock and then deliver output', async () => { let now = 1000, reads = 0; const f = await fixture({ now: () => now, runtime: 1 }); Object.defineProperty(f.env, 'URAI_SOURCE_SHA', { configurable: true, get() { reads++; if (f.state.actions.at(-1) === 'record') now += 1001; return sourceSha; } }); await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); assert.ok(reads >= 1); });
+
+// Retained owner deadline/origin scenarios with mandatory-window diagnostics.
+for (const field of ['reserved_at', 'admission_expires_at']) test(`missing absolute ${field} keeps the reservation held without provider dispatch`, async () => {
+  const f = await fixture({ alterReservation: result => delete result[field] });
+  await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
+  assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1);
+});
+test('expired preflight is denied without reservation', async () => {
+  const f = await fixture({ alterPreflight: result => result.admission_expires_at = new Date(Date.now() - 1).toISOString() });
+  await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
+  assert.equal(f.state.holds, 0); assert.equal(f.state.providerCalls, 0);
+});
+test('reservation latency consumes approved runtime instead of restarting it', async () => {
+  let clock = Date.now();
+  const f = await fixture({ runtime: 1, now: () => clock, alterReservation: () => { clock += 1500; } });
+  await assert.rejects(f.make().submit(endpoint, init, model), /deadline/);
+  assert.equal(f.state.holds, 1); assert.equal(f.state.providerCalls, 0);
+});
+test('protected gateway origin drift is blocked before worker authentication transport', async () => {
+  const f = await fixture({ env: { ASSET_FORGE_SPEND_GATEWAY_ORIGIN: 'https://another.example.test' } });
+  await assert.rejects(f.make().submit(endpoint, init, model), /MODEL_SPEND_BLOCKED/);
+  assert.deepEqual(f.state.actions, []); assert.equal(f.state.providerCalls, 0);
+});
+
+test('clock rollback cannot reopen a reservation whose monotonic budget expired', async () => {
+  let wall = Date.now(), monotonic = 1000;
+  const f = await fixture({ runtime: 1, now: () => wall, monotonic: () => monotonic,
+    onReserve: () => { wall -= 500; monotonic += 1001; },
+    alterReservation: r => { r.reserved_at = new Date(wall - 500).toISOString(); r.admission_expires_at = new Date(wall + 500).toISOString(); } });
+  await assert.rejects(f.make().submit(endpoint, init, model), /deadline/);
+  assert.equal(f.state.providerCalls, 0); assert.equal(f.state.holds, 1);
+});
+
 test('backward wall-clock during outcome delivery cannot extend the initial monotonic runtime', async () => {
   const originalPerformance = globalThis.performance; let monotonic = 100, wall = Date.now();
   globalThis.performance = { now: () => monotonic };
@@ -315,3 +372,9 @@ test('backward wall-clock during outcome delivery cannot extend the initial mono
     assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1);
   } finally { globalThis.performance = originalPerformance; }
 });
+
+for (const observation of [{ ok: true, execution_performed: false, reconciliation_required: true }, { ok: true, provider_call_authorized: false, execution_performed: true, reconciliation_required: true }, { ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: false }]) {
+  test('actual Forge output rejects an ambiguous or authorizing observation', async () => { const f = await fixture({ observation }); const client = f.make(); await assert.rejects(client.submit(endpoint, init, model), /durable non-authorizing observation/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); assert.equal(client.records[0].outcome_delivery, 'unknown'); });
+}
+test('actual Forge output cannot succeed after lost outcome delivery', async () => { const f = await fixture({ recordLoss: true }); await assert.rejects(f.make().submit(endpoint, init, model), /durable non-authorizing observation/); assert.equal(f.state.providerCalls, 1); assert.equal(f.state.holds, 1); });
+test('gateway destination and credential remain pinned after environment drift during reserve', async () => { const f = await fixture({ onReserve() { f.env.ASSET_FORGE_SPEND_GATEWAY_URL = 'https://changed.invalid/api/worker/production-spend'; f.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = 'https://changed.invalid'; f.env.ASSET_FORGE_SPEND_WORKER_TOKEN = 'CHANGED-DO-NOT-TRANSMIT-THIS-CREDENTIAL'; } }); assert.equal((await f.make().submit(endpoint, init, model)).payload.id, 'synthetic-provider-task'); assert.equal(f.state.providerCalls, 1); assert.deepEqual(f.state.actions, ['preflight', 'reserve', 'record']); });

@@ -68,10 +68,10 @@ async function downloadVideo(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS));
   try {
-    const response = await readStudioProvider(url, { signal: controller.signal });
+    const maxBytes = numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES);
+    const response = await readStudioProvider(url, { signal: controller.signal }, { maxBytes });
     if (!response.ok) throw new Error(`Video artifact fetch failed ${response.status}`);
     const contentLength = Number(response.headers.get('content-length') ?? 0);
-    const maxBytes = numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES);
     if (contentLength > maxBytes) throw new Error(`Video artifact exceeds max bytes: ${contentLength}`);
     const buffer = await readStudioBytes(response, maxBytes);
     if (buffer.byteLength > maxBytes) throw new Error(`Video artifact exceeds max bytes after download: ${buffer.byteLength}`);

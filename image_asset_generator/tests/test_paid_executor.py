@@ -63,7 +63,7 @@ class SyntheticGateway:
             return {"ok": True, "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "reserved_at": now.isoformat(), "admission_expires_at": (now + timedelta(seconds=2)).isoformat(), "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "semantic_input_sha256", "content_type"]}}
         if action == "record":
             self.env["job"]["attempts"] = [{"attempt_id": fields["attempt_id"], "status": "RECONCILIATION_REQUIRED", "charges_reconciled": False}]
-            return {"ok": True, "reconciliation_required": True}
+            return {"ok": True, "provider_call_authorized": False, "execution_performed": False, "reconciliation_required": True}
         if action == "snapshot": return {"ok": True, "job": self.env["job"]}
         raise AssertionError(action)
 
