@@ -223,7 +223,7 @@ export class ModelSpendClient {
       // authentic independent charge reconciliation; no local charge or retry claim.
       try { await this.gateway('record', { ...input, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
       if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
-      if (record.status === 'submission-returned') { this.remainingMs(1); need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during outcome delivery'); }
+      if (record.status === 'submission-returned') { need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed during outcome delivery'); this.remainingMs(1); }
     }
   }
 }
