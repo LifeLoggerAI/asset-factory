@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
-import { authenticateSpend, authenticateSpendWorker, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendGatewaySourceSha, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
+import { authenticateSpend, authenticateSpendWorker, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendGatewaySourceSha, spendRecord, spendSigningPolicy, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
 import { ModelSpendClient, freezeRequest } from '../model_forge/model-spend-client.mjs';
 import { syntheticCleanBuild } from './lib/studio-spend-test-fixture.mjs';
 
@@ -16,7 +16,10 @@ const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
 const publicKey = pair.publicKey.export({ type: 'spki', format: 'pem' });
 const signing = record => ({ ...record, signature: sign(null, Buffer.from(canonical(record)), pair.privateKey).toString('base64') });
-const options = { sourceSha: 'a'.repeat(40), now: () => NOW, approvalKeys: { synthetic: { subject: 'synthetic-approver', publicKey } }, reconciliationKeys: { synthetic: { subject: 'synthetic-reconciler', publicKey } } };
+const chargePair = generateKeyPairSync('ed25519');
+const chargePublicKey = chargePair.publicKey.export({ type: 'spki', format: 'pem' });
+const chargeSigning = record => ({ ...record, signature: sign(null, Buffer.from(canonical(record)), chargePair.privateKey).toString('base64') });
+const options = { sourceSha: 'a'.repeat(40), now: () => NOW, approvalKeys: { synthetic: { subject: 'synthetic-approver', publicKey } }, reconciliationKeys: { synthetic: { subject: 'synthetic-reconciler', publicKey: chargePublicKey } } };
 
 /** Serialized transactional storage, shared between independently created clients. */
 class Db {
@@ -110,7 +113,7 @@ test('actual Forge and gateway preserve accepted specification authority distinc
   assert.equal(t.f.db.rows.get(t.f.jobPath).job.attempts[0].status, 'RECONCILIATION_REQUIRED');
 });
 function charge(f, attempt, status, usd = 400000, credits = 2, change = {}) {
-  const receipt = signing({ job_id: f.job.job_id, attempt_id: attempt.attempt_id, provider: f.job.provider, account_id: f.job.account_id, job_digest: jobDigest(f.job), status, final: true, task_id: `SYNTHETIC-TASK-${attempt.attempt_id}`, actual_usd_micros: usd, actual_credits: credits, corrective_action: 'Synthetic reviewed correction', observed_at: '2026-10-07T16:30:00Z', reconciler: 'synthetic-reconciler', key_id: 'synthetic', ...change });
+  const receipt = chargeSigning({ job_id: f.job.job_id, attempt_id: attempt.attempt_id, provider: f.job.provider, account_id: f.job.account_id, job_digest: jobDigest(f.job), status, final: true, task_id: `SYNTHETIC-TASK-${attempt.attempt_id}`, actual_usd_micros: usd, actual_credits: credits, corrective_action: 'Synthetic reviewed correction', observed_at: '2026-10-07T16:30:00Z', reconciler: 'synthetic-reconciler', key_id: 'synthetic', ...change });
   const digest = hash(canonical(receipt)); f.db.rows.set(`assetFactorySpendChargeReceipts/${digest}`, receipt);
   return { attempt_id: attempt.attempt_id, receipt_sha256: digest };
 }
@@ -691,4 +694,118 @@ test('protected writer history reset cannot reopen the original permanent semant
   const f = fixture(); await act(f, 'reserve');
   const reset = fixture(f.db, f.job.job_id), before = structuredClone(reset.db.rows);
   await assert.rejects(act(reset, 'reserve'), /semantic input already reserved/); assert.deepEqual(reset.db.rows, before);
+});
+
+/** Synthetic configuration regression: no real signer, charge, storage or provider. */
+const mutableKeys = opts => ({ ...opts, approvalKeys: structuredClone(opts.approvalKeys), reconciliationKeys: structuredClone(opts.reconciliationKeys), verifierKeys: structuredClone(opts.verifierKeys || {}) });
+const roleChanges = [
+  ['approval key under another reconciliation subject', { reconciliationKeys: { another: { subject: 'another-charge-subject', publicKey } } }],
+  ['approval PEM formatting does not create another key', { reconciliationKeys: { another: { subject: 'another-charge-subject', publicKey: '\n' + publicKey + '\n' } } }],
+  ['same declared principal with distinct keys', { reconciliationKeys: { another: { subject: 'synthetic-approver', publicKey: chargePublicKey } } }],
+  ['case alias does not create another declared principal', { reconciliationKeys: { another: { subject: 'SYNTHETIC-APPROVER', publicKey: chargePublicKey } } }],
+  ['Unicode compatibility alias does not create another declared principal', { reconciliationKeys: { another: { subject: 'ｓｙｎｔｈｅｔｉｃ-ａｐｐｒｏｖｅｒ', publicKey: chargePublicKey } } }],
+  ['verifier cannot reuse approval key', { verifierKeys: { another: { subject: 'another-verifier', publicKey } } }],
+  ['verifier cannot reuse reconciliation key', { verifierKeys: { another: { subject: 'another-verifier', publicKey: chargePublicKey } } }],
+  ['verifier cannot reuse approval principal with distinct key', { verifierKeys: { another: { subject: 'synthetic-approver', publicKey: verifierPublicKey } } }],
+  ['verifier cannot reuse reconciliation principal with distinct key', { verifierKeys: { another: { subject: 'synthetic-reconciler', publicKey: verifierPublicKey } } }],
+];
+for (const [name, change] of roleChanges) test(name + ' is rejected before all transaction actions', async () => {
+  for (const action of ['snapshot', 'preflight', 'reserve', 'record', 'reconcile']) {
+    const f = fixture(), before = structuredClone(f.db.rows); let storage = 0;
+    f.db.doc = () => { storage++; throw Error('Storage must never be accessed'); };
+    f.db.runTransaction = () => { storage++; throw Error('Transaction must never start'); };
+    await assert.rejects(act(f, action, {}, { ...options, ...change }), SpendRejected);
+    assert.equal(storage, 0); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('an approval-key-signed zero charge cannot release a held reservation', async () => {
+  const f = fixture(), a = await act(f, 'reserve'), args = charge(f, a, 'SUCCEEDED', 0, 0);
+  const path = 'assetFactorySpendChargeReceipts/' + args.receipt_sha256, payload = f.db.rows.get(path);
+  delete payload.signature; const forged = signing(payload), digest = hash(canonical(forged));
+  f.db.rows.set('assetFactorySpendChargeReceipts/' + digest, forged);
+  const before = structuredClone(f.db.rows), overlap = { ...options, reconciliationKeys: { synthetic: { subject: 'synthetic-reconciler', publicKey } } };
+  await assert.rejects(act(f, 'reconcile', { ...args, receipt_sha256: digest }, overlap), SpendRejected);
+  assert.deepEqual(f.db.rows, before); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000);
+});
+for (const purpose of ['approvalKeys', 'reconciliationKeys', 'verifierKeys']) test('malformed configured ' + purpose + ' cannot read or mutate storage', async () => {
+  const rsa = generateKeyPairSync('rsa', { modulusLength: 1024 }).publicKey.export({ type: 'spki', format: 'pem' });
+  const values = [null, [], false, 'invalid', { malformed: null }, { malformed: { subject: 'role', publicKey: 'invalid pem' } }, { malformed: { subject: 'role', publicKey: rsa } }, { malformed: { subject: 'role', publicKey: pair.privateKey.export({ type: 'pkcs8', format: 'pem' }) } }, { malformed: { subject: 'role', publicKey, privateKey: 'SYNTHETIC_SECRET' } }, { malformed: { subject: ' role ', publicKey } }];
+  for (const value of values) {
+    const f = fixture(); let reads = 0; f.db.doc = () => { reads++; throw Error('Storage must never be accessed'); };
+    await assert.rejects(act(f, 'snapshot', {}, { ...options, [purpose]: value }), error => error instanceof SpendRejected && !error.message.includes('SYNTHETIC_SECRET') && !error.cause);
+    assert.equal(reads, 0);
+  }
+});
+test('paid admission requires configured independent approval and charge registries', async () => {
+  for (const role of ['approvalKeys', 'reconciliationKeys']) {
+    const f = fixture(); let reads = 0; f.db.doc = () => { reads++; throw Error('Storage must never be accessed'); };
+    for (const action of ['preflight', 'reserve']) await assert.rejects(act(f, action, {}, { ...options, [role]: {} }), SpendRejected);
+    assert.equal(reads, 0);
+  }
+});
+test('validated public-key snapshots are frozen and rotation aliases within one role remain valid', async () => {
+  const opts = mutableKeys(options); opts.approvalKeys.alias = { subject: 'another-approval-subject', publicKey };
+  const policy = spendSigningPolicy(opts);
+  assert.ok(Object.isFrozen(policy)); assert.ok(Object.isFrozen(policy.approvalKeys)); assert.ok(Object.isFrozen(policy.approvalKeys.synthetic));
+  opts.approvalKeys.synthetic.publicKey = chargePublicKey;
+  assert.equal(policy.approvalKeys.synthetic.publicKey, publicKey);
+  assert.equal(Object.getPrototypeOf(policy.approvalKeys), null);
+  const f = fixture(); const reserved = await act(f, 'reserve', {}, { ...options, approvalKeys: { ...options.approvalKeys, alias: { subject: 'another-approval-subject', publicKey } } });
+  assert.ok(reserved.attempt_id); assert.equal(f.db.rows.get(f.accountPath).reservations.length, 1);
+});
+for (const genuine of [false, true]) test('configuration mutation during reconciliation cannot replace the frozen charge authority: ' + genuine, async () => {
+  const f = fixture(), a = await act(f, 'reserve'), opts = mutableKeys(options), args = charge(f, a, 'SUCCEEDED');
+  if (!genuine) {
+    const payload = f.db.rows.get('assetFactorySpendChargeReceipts/' + args.receipt_sha256); delete payload.signature;
+    const forged = signing(payload); args.receipt_sha256 = hash(canonical(forged)); f.db.rows.set('assetFactorySpendChargeReceipts/' + args.receipt_sha256, forged);
+  }
+  const before = structuredClone(f.db.rows), original = f.db.runTransaction;
+  f.db.runTransaction = callback => { opts.reconciliationKeys.synthetic.publicKey = publicKey; return original.call(f.db, callback); };
+  if (genuine) {
+    const result = await act(f, 'reconcile', args, opts); assert.equal(result.reconciled, true); assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 400000);
+  } else { await assert.rejects(act(f, 'reconcile', args, opts), SpendRejected); assert.deepEqual(f.db.rows, before); }
+});
+const rotatedCharges = [
+  ['original approval key', pair, 'new-charge-subject', {}],
+  ['original approval principal', chargePair, 'synthetic-approver', {}],
+  ['original verifier key', verifierPair, 'new-charge-subject', { verifier: { subject: 'original-verifier', publicKey: verifierPublicKey } }],
+  ['original verifier principal', chargePair, 'original-verifier', { verifier: { subject: 'original-verifier', publicKey: verifierPublicKey } }],
+];
+for (const [name, signer, subject, verifierKeys] of rotatedCharges) test('registry rotation cannot convert ' + name + ' into an independent final charge', async () => {
+  const f = fixture(), initial = { ...options, verifierKeys }, a = await act(f, 'reserve', {}, initial), args = charge(f, a, 'SUCCEEDED', 0, 0);
+  const payload = f.db.rows.get('assetFactorySpendChargeReceipts/' + args.receipt_sha256); delete payload.signature; payload.reconciler = subject;
+  const receipt = { ...payload, signature: sign(null, Buffer.from(canonical(payload)), signer.privateKey).toString('base64') }, digest = hash(canonical(receipt));
+  f.db.rows.set('assetFactorySpendChargeReceipts/' + digest, receipt);
+  const rotated = { ...options, approvalKeys: {}, verifierKeys: {}, reconciliationKeys: { synthetic: { subject, publicKey: signer.publicKey.export({ type: 'spki', format: 'pem' }) } } }, before = structuredClone(f.db.rows);
+  spendSigningPolicy(rotated);
+  await assert.rejects(act(f, 'reconcile', { ...args, receipt_sha256: digest }, rotated), SpendRejected);
+  assert.deepEqual(f.db.rows, before); assert.equal(f.db.rows.get(f.accountPath).reservations[0].credits, 20);
+});
+test('expired grant and revoked approval registry still permit genuinely independent read-only charge recovery', async () => {
+  const f = fixture(), a = await act(f, 'reserve'), args = charge(f, a, 'SUCCEEDED');
+  const result = await act(f, 'reconcile', args, { ...options, now: () => NOW + 7200000, approvalKeys: {} });
+  assert.equal(result.reconciled, true); assert.equal(result.provider_call_authorized, false); assert.equal(result.execution_performed, false);
+  assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 400000);
+  await assert.rejects(act(f, 'reserve', {}, { ...options, approvalKeys: {} }), SpendRejected);
+});
+for (const field of ['charge_excluded_signer_spki_sha256', 'charge_excluded_signer_subject_sha256']) test('missing or malformed original ' + field + ' never releases historical exposure', async () => {
+  for (const value of [undefined, [], null, 'invalid', [1], ['invalid'], ['a'.repeat(64), 'a'.repeat(64)], Array(257).fill('a'.repeat(64))]) {
+    const f = fixture(), a = await act(f, 'reserve'), args = charge(f, a, 'SUCCEEDED');
+    f.db.rows.get(f.jobPath).job.attempts[0][field] = value;
+    const before = structuredClone(f.db.rows); await assert.rejects(act(f, 'reconcile', args), SpendRejected); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('actual HTTP reserve rejects overlapping roles and unknown signer fields without transaction writes', async () => {
+  for (const value of [{ subject: 'synthetic-reconciler', publicKey }, { subject: 'synthetic-reconciler', publicKey: chargePublicKey, privateKey: 'SYNTHETIC_SECRET' }]) {
+    const f = fixture(), r = await route(f, { ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS: JSON.stringify({ synthetic: value }) }), before = structuredClone(f.db.rows);
+    const result = await r.post({ ...f.input, action: 'reserve' });
+    assert.equal(result.status, 409); assert.equal(result.data.provider_call_authorized, false); assert.deepEqual(f.db.rows, before);
+  }
+});
+test('actual HTTP distinct reconciliation token cannot make overlapping signing roles release the hold', async () => {
+  const f = fixture(), a = await act(f, 'reserve'), args = charge(f, a, 'SUCCEEDED', 0, 0), payload = f.db.rows.get('assetFactorySpendChargeReceipts/' + args.receipt_sha256); delete payload.signature;
+  const receipt = signing(payload), digest = hash(canonical(receipt)); f.db.rows.set('assetFactorySpendChargeReceipts/' + digest, receipt);
+  const r = await route(f, { ASSET_FACTORY_SPEND_RECONCILER_PUBLIC_KEYS: JSON.stringify({ synthetic: { subject: 'synthetic-reconciler', publicKey } }) }), before = structuredClone(f.db.rows);
+  const result = await r.post({ ...f.input, action: 'reconcile', ...args, receipt_sha256: digest }, r.env.ASSET_FACTORY_SPEND_RECONCILIATION_TOKEN);
+  assert.equal(result.status, 409); assert.equal(result.data.provider_call_authorized, false); assert.deepEqual(f.db.rows, before);
 });

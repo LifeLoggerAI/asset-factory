@@ -114,6 +114,38 @@ export function authenticateSpendWorker(value: unknown, supplied: string | undef
 }
 
 type SpendOptions = { now: () => number; approvalKeys: SpendKeys; reconciliationKeys: SpendKeys; sourceSha: string; worker?: SpendWorker; verifierKeys?: SpendKeys };
+/** Separate configured signing purposes before storage access, including recovery. */
+export function spendSigningPolicy(options: Pick<SpendOptions, 'approvalKeys' | 'reconciliationKeys' | 'verifierKeys'>) {
+  const principals = new Map<string, string>(), materials = new Map<string, string>();
+  const snapshot = (value: unknown, purpose: string): SpendKeys => {
+    const registry = spendRecord(value, 'signing registry'), result: SpendKeys = Object.create(null);
+    need(Object.keys(registry).length <= 128, 'signing registry exceeds bound');
+    for (const [id, value] of Object.entries(registry)) {
+      need(id && id.trim() === id, 'invalid signer id');
+      const entry = spendRecord(value, 'signing key');
+      need(Object.keys(entry).every(key => ['subject', 'publicKey'].includes(key)), 'unknown signing configuration');
+      const subject = nonempty(entry.subject, 'signing subject'), pem = nonempty(entry.publicKey, 'signing public key');
+      need(subject.trim() === subject && !/[\u0000-\u001f\u007f]/.test(subject), 'invalid signing subject');
+      // Derive identity from actual SPKI bytes, never PEM formatting or registry labels.
+      // Reject private material in a public-key registry without exposing its value.
+      need(!pem.includes('PRIVATE KEY'), 'public signing key required');
+      let publicKey; try { publicKey = createPublicKey(pem); } catch { throw new SpendRejected('invalid signing public key'); }
+      need(publicKey.asymmetricKeyType === 'ed25519', 'Ed25519 signing key required');
+      const material = createHash('sha256').update(publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
+      const principal = hash(subject.normalize('NFKC').toLowerCase());
+      need((!materials.has(material) || materials.get(material) === purpose) && (!principals.has(principal) || principals.get(principal) === purpose), 'signing purposes must be independent');
+      materials.set(material, purpose); principals.set(principal, purpose);
+      result[id] = Object.freeze({ subject, publicKey: publicKey.export({ type: 'spki', format: 'pem' }).toString() });
+    }
+    return Object.freeze(result);
+  };
+  const approvalKeys = snapshot(options.approvalKeys, 'approval'), reconciliationKeys = snapshot(options.reconciliationKeys, 'reconciliation'), verifierKeys = snapshot(options.verifierKeys === undefined ? {} : options.verifierKeys, 'verification');
+  // Retain non-charge roles with each hold. Removing a configured approval or
+  // verification key must not later turn that same principal into a charge issuer.
+  const chargeExcludedSpki = Object.freeze([...materials].filter(([, purpose]) => purpose !== 'reconciliation').map(([material]) => material).sort());
+  const chargeExcludedSubjects = Object.freeze([...principals].filter(([, purpose]) => purpose !== 'reconciliation').map(([principal]) => principal).sort());
+  return Object.freeze({ approvalKeys, reconciliationKeys, verifierKeys, chargeExcludedSpki, chargeExcludedSubjects });
+}
 const GATEWAY_REPOSITORY = 'LifeLoggerAI/asset-factory';
 /** A declaration alone cannot identify the gateway build. No Git provenance means closed. */
 export function spendGatewaySourceSha(expected: string) {
@@ -264,6 +296,11 @@ export function validateSpend(jobValue: unknown, accountValue: unknown, authorit
 
 export async function spendAction(db: SpendDb, action: string, inputValue: unknown, options: SpendOptions) {
   need(['preflight', 'reserve', 'record', 'reconcile', 'snapshot'].includes(action), 'unsupported action');
+  // Freeze the validated public-key snapshot before the first asynchronous boundary.
+  // Changing caller-owned configuration during a transaction cannot change authority.
+  const signingPolicy = spendSigningPolicy(options);
+  options = { ...options, ...signingPolicy };
+  if (action === 'preflight' || action === 'reserve') need(Object.keys(options.approvalKeys).length > 0 && Object.keys(options.reconciliationKeys).length > 0, 'approval and reconciliation signers required');
   const input = spendRecord(inputValue, 'spend request');
   const jobId = nonempty(input.job_id, 'job id'); const jobRef = db.doc(`assetFactorySpendJobs/${hash(jobId)}`);
   // Stable account identity is provider + API account, never a run-specific path.
@@ -306,6 +343,14 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
       const receiptRef = db.doc(`assetFactorySpendChargeReceipts/${sha(input.receipt_sha256)}`); const receiptSnapshot = await tx.get(receiptRef); need(receiptSnapshot.exists, 'trusted charge receipt missing'); const receipt = spendRecord(receiptSnapshot.data(), 'charge receipt');
       signed(receipt, options.reconciliationKeys, 'reconciler'); need(hash(canonical(receipt)) === input.receipt_sha256, 'charge receipt hash changed');
       const index = job.attempts.findIndex((a: RecordValue) => a.attempt_id === attemptId); need(index >= 0, 'unknown attempt'); const attempt = job.attempts[index];
+      const excluded = (value: unknown): string[] => {
+        need(Array.isArray(value) && value.length > 0 && value.length <= 256 && value.every(item => typeof item === 'string' && /^[0-9a-f]{64}$/.test(item)) && new Set(value).size === value.length, 'original signing policy required');
+        return value;
+      };
+      const reconcilerKey = options.reconciliationKeys[nonempty(receipt.key_id, 'charge signer')];
+      const reconcilerSpki = createHash('sha256').update(createPublicKey(reconcilerKey.publicKey).export({ type: 'spki', format: 'der' })).digest('hex');
+      const reconcilerSubject = hash(reconcilerKey.subject.normalize('NFKC').toLowerCase());
+      need(!excluded(attempt.charge_excluded_signer_spki_sha256).includes(reconcilerSpki) && !excluded(attempt.charge_excluded_signer_subject_sha256).includes(reconcilerSubject), 'charge signer must be independent of original admission');
       need(typeof attempt.status === 'string' && ['RESERVED', 'RECONCILIATION_REQUIRED'].includes(attempt.status), 'attempt already reconciled');
       need(receipt.job_id === jobId && receipt.attempt_id === attemptId && receipt.provider === job.provider && receipt.account_id === job.account_id && receipt.job_digest === jobDigest(job), 'charge receipt binding changed');
       need(typeof receipt.status === 'string' && ['FAILED', 'SUCCEEDED', 'CANCELLED'].includes(receipt.status) && receipt.final === true, 'receipt not final'); nonempty(receipt.task_id, 'provider task');
@@ -379,7 +424,7 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     const reservedAt = options.now(), executionExpiry = Math.min(proofExpiry, reservedAt + job.budget.max_runtime_seconds * 1000);
     need(reservedAt < proofExpiry, 'authorization expired before reservation commit');
     const reserved_at = new Date(reservedAt).toISOString(), admission_expires_at = new Date(executionExpiry).toISOString();
-    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at, admission_expires_at, request_sha256: input.request_sha256, charges_reconciled: false };
+    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at, admission_expires_at, request_sha256: input.request_sha256, charges_reconciled: false, charge_excluded_signer_spki_sha256: [...signingPolicy.chargeExcludedSpki], charge_excluded_signer_subject_sha256: [...signingPolicy.chargeExcludedSubjects] };
     job.attempts.push(attempt); delete job.approval;
     tx.set(inputClaimRef, { job_id: jobId, job_digest: jobDigest(job), semantic_input_sha256: job.executor.semantic_input_sha256, first_attempt_id: inputClaim.exists ? spendRecord(inputClaim.data(), 'semantic input claim').first_attempt_id : id, last_attempt_id: id, reserved_at });
     tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
