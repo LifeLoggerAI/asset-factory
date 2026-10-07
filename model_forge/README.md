@@ -80,18 +80,20 @@ Do not copy a candidate into `urai-spatial` because a provider call succeeded. P
 - `model_forge/waves/wave-02-replicate-hunyuan-ground-canopy.json`: Replicate/Hunyuan, one attempt, maximum one candidate.
 - `.github/workflows/model-forge-replicate-wave.yml`: main-only, production-environment-gated WIF/OIDC execution for Wave 2. It requires the exact dispatch phrase `RUN_ONE_URAI_REPLICATE_MODEL_WAVE`, creates at most one candidate, validates it, retains provenance, and grants no promotion authority.
 
-## Authority discipline — current convergence
+## Authority discipline — historical convergence checkpoint (2026-09-25)
 
-PR #284 is the unified Asset Factory production + Model Forge + multimodal successor, open and non-draft at the 2026-09-25 readback. Its current base is PR #278's `converge/asset-factory-terminal-design-security-20260922` branch. Production-hardening PR #281 and Model Forge PR #279 are predecessor lineage incorporated into #284, not its current base. Recover the live #284 base, head, and fresh workflow state from GitHub before execution.
+This section preserves the 2026-09-25 convergence checkpoint. It does not identify today's candidate or grant current provider, spend, promotion, or release authority. Use the [Labs estate completion register](https://github.com/LifeLoggerAI/urai-labs-llc/issues/61) and the existing [Asset Factory live-evidence owner issue](https://github.com/LifeLoggerAI/asset-factory/issues/63) to resolve current successors, then read back their live GitHub base/head and exact-head evidence before execution. Any readback expires when the relevant source, configuration, approval, or deployed artifact changes; predecessor proof does not transfer.
+
+At the 2026-09-25 readback, PR #284 was the unified Asset Factory production + Model Forge + multimodal successor, open and non-draft. Its recorded base was PR #278's `converge/asset-factory-terminal-design-security-20260922` branch. Production-hardening PR #281 and Model Forge PR #279 were predecessor lineage incorporated into #284, not that recorded base. This lineage is historical; select today's successor through the current owner/register links above, not through this checkpoint.
 
 The model inventory and reference-resolution records carry their own explicit recovered Spatial #1296 checkpoint. That checkpoint is historical whenever the live Spatial head differs; do not infer current reconciliation from this README or relabel old proof. Compare the declared dependency checkpoint with live GitHub and inspect the intervening lineage before renewing it. The September 17 Drive Gold Master manifest is historical provenance only, as classified by Final Asset Lock Master RCL-031.
 
-Current production boundary:
+Production boundary recorded at the historical checkpoint:
 - all seven named canonical reference files are resolved and SHA-256 bound;
-- current #1296 includes pinned CC0 `ground-polyhaven-jacaranda-web-v1` as an integrated Ground canopy candidate replacing the procedural/unapproved canopy, but its receipt remains `humanReviewApproved=false`, `visualProofVerified=false`, `exactHeadChecksPassed=false`, and fail-closed until proof;
+- at that checkpoint, Spatial #1296 included pinned CC0 `ground-polyhaven-jacaranda-web-v1` as an integrated Ground canopy candidate replacing the procedural/unapproved canopy, but its receipt remains `humanReviewApproved=false`, `visualProofVerified=false`, `exactHeadChecksPassed=false`, and fail-closed until proof;
 - canonical Ground roots/terrain/geology remain existing runtime authority unless current-head literal pixels prove a specific unresolved gap;
 - Replay's retained GLB remains runtime-supporting geometry but not Replay visual authority; Focus's retained chamber remains non-runtime supporting reference while the selected Memory Star remains Focus authority;
-- therefore there are **zero currently authorized paid Model Forge production targets**; even the canopy bake-off is source-blocked until the current CC0 candidate is accepted or rejected and a specific remaining gap is proven;
+- that checkpoint recorded **zero authorized paid Model Forge production targets**; the canopy bake-off was source-blocked until the CC0 candidate was accepted or rejected and a specific remaining gap was proven;
 - the paid Replicate wave resolves dedicated production project/WIF/service-account values from the protected production environment and explicitly rejects the historical shared `urai-4dc1d` authority;
 - Blender cleanup/LOD/review rendering is runtime-proven with deterministic smoke material, but a smoke fixture is not production art;
 - PR workflows must explicitly checkout and verify the pull-request branch head; GitHub's synthetic merge ref is not accepted as exact-head proof.

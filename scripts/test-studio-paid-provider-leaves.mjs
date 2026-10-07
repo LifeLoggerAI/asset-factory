@@ -165,7 +165,7 @@ test('durable observation failure with a generated result stays blocked and hold
   const c = config('openai', 'graphic'); c.fixture.failAction = 'record'; await assert.rejects(c.run()); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); await assert.rejects(c.run()); assert.equal(c.counts().posts, 1);
 });
 test('deadline bounds all polling and never opens another paid submission', async () => {
-  const c = config('replicate', 'video'); c.fixture.job.budget.max_runtime_seconds = 1; c.fixture.mutateReserve = r => { r.max_runtime_seconds = 1; }; let posts = 0;
+  const c = config('replicate', 'video'); c.fixture.job.budget.max_runtime_seconds = 1; c.fixture.job.approval.job_digest = protector.protectedJobDigest(c.fixture.job); let posts = 0;
   process.env.ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS = '600';
   globalThis.fetch = c.fixture.wrap(async (url, init) => { if (init.method === 'POST') posts++; return Response.json({ id: 'SYNTHETIC-task', status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/SYNTHETIC-task' } }); });
   await assert.rejects(c.run()); assert.equal(posts, 1); assert.equal(c.fixture.held, true);
@@ -378,4 +378,48 @@ test('malformed provider, worker or poll headers never expose their secret or re
   let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('must not reach transport'); };
   await assert.rejects(protector.readStudioProvider('https://api.replicate.com/v1/predictions/SYNTHETIC', { headers: { authorization: secret + '\ninvalid-header' } }), error => { assert.ok(error instanceof protector.ProtectedProviderRejected); assert.equal(String(error).includes(secret), false); return true; });
   assert.equal(calls, 0);
+});
+
+// Preserve the current owner admission/output regression cases.
+test('mandatory absolute preflight and reservation timestamps fail closed on missing malformed future or extended windows', async () => {
+  for (const field of ['admission_expires_at', 'reserved_at']) for (const value of [undefined, '2026-02-30T12:00:00Z', new Date(Date.now() + 7_200_000).toISOString()]) {
+    const c = config('openai', 'graphic');
+    c.fixture.mutateReserve = r => { r[field] = value; };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true);
+  }
+  for (const value of [undefined, '2026-12-01', new Date(Date.now() - 1_000).toISOString(), new Date(Date.now() + 7_200_000).toISOString()]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = (_e, _f, r) => { r.admission_expires_at = value; };
+    await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, false);
+  }
+});
+test('signed bounded approval expiry during reservation cannot reach a paid POST', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutatePreflight = e => { e.job.approval.expires_at = new Date(started + 1_000).toISOString(); };
+  c.fixture.mutateReserve = () => { Date.now = () => started + 2_000; };
+  try { await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
+});
+test('protected issuer origin is required before any worker token transmission', async () => {
+  const prior = process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN;
+  try { for (const origin of ['', 'https://foreign.example.test', 'https://protected.example.test/other']) {
+    const c = config('openai', 'graphic'); process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = origin;
+    await assert.rejects(c.run()); assert.deepEqual(c.fixture.calls, []); assert.equal(c.counts().posts, 0);
+  } } finally { process.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN = prior; }
+});
+test('successful output cannot escape expiry during awaited observation delivery', async () => {
+  const originalNow = Date.now, started = originalNow(); Date.now = () => started;
+  const c = config('openai', 'graphic'); c.fixture.mutateRecord = () => { Date.now = () => started + 31_000; };
+  try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
+});
+test('backward wall-clock during awaited observation cannot extend the monotonic output deadline', async () => {
+  const originalNow = Date.now, originalPerformance = globalThis.performance;
+  const started = originalNow(); let monotonic = 100;
+  Date.now = () => started; globalThis.performance = { now: () => monotonic };
+  try {
+    const c = config('openai', 'graphic');
+    c.fixture.job.budget.max_runtime_seconds = 1;
+    c.fixture.job.approval.job_digest = protector.protectedJobDigest(c.fixture.job);
+    c.fixture.mutateRecord = () => { monotonic += 1_001; Date.now = () => started - 1_000; };
+    await assert.rejects(c.run(), /deadline/);
+    assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true);
+  } finally { Date.now = originalNow; globalThis.performance = originalPerformance; }
 });

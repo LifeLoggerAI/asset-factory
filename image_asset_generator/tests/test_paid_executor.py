@@ -25,7 +25,8 @@ from PIL import Image
 
 ENTRY = {"name": "synthetic-image", "category": "fixture", "prompt": "Synthetic geometry only", "aspect_ratio": "1:1", "alpha": False}
 REAL_SOURCE_SHA = guard.executor_source_sha
-ENV = {"URAI_SOURCE_SHA": "a" * 40, "ASSET_RENDERER_MODE": "provider", "ASSET_RENDERER_PROVIDER": "custom", "ASSET_RENDERER_MODEL": "synthetic-model", "ASSET_RENDERER_API_KEY": "SYNTHETIC-PROVIDER-KEY", "ASSET_RENDERER_ENDPOINT": "https://example.invalid/render", "ASSET_FORGE_SPEND_JOB_ID": "synthetic-pilot", "ASSET_FORGE_SPEND_GATEWAY_URL": "https://example.invalid/api/worker/production-spend", "ASSET_FORGE_SPEND_GATEWAY_ORIGIN": "https://example.invalid", "ASSET_FORGE_SPEND_WORKER_TOKEN": "SYNTHETIC-NOT-AUTHORIZATION-0123456789"}
+ENV = {"URAI_SOURCE_SHA": "a" * 40, "ASSET_RENDERER_MODE": "provider", "ASSET_RENDERER_PROVIDER": "custom", "ASSET_RENDERER_MODEL": "synthetic-model", "ASSET_RENDERER_API_KEY": "SYNTHETIC-PROVIDER-KEY", "ASSET_RENDERER_ENDPOINT": "https://example.invalid/render", "ASSET_FORGE_SPEND_JOB_ID": "synthetic-pilot", "ASSET_FORGE_SPEND_GATEWAY_URL": "https://example.invalid/api/worker/production-spend", "ASSET_FORGE_SPEND_WORKER_TOKEN": "SYNTHETIC-NOT-AUTHORIZATION-0123456789"}
+ENV["ASSET_FORGE_SPEND_GATEWAY_ORIGIN"] = "https://example.invalid"
 
 
 def envelope(fields):
@@ -42,6 +43,7 @@ def envelope(fields):
     authority = {"binding": binding, "trusted_readback": True, "observed_at": before, "expires_at": after}
     controls = {key: fields[key] for key in ["credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type", "provider"]}
     controls["account_id"] = job["account_id"]
+    controls.update(observed_at=before, expires_at=after)
     price = {**controls, "model_version":fields["model"], "request_sha256":fields["request_sha256"], "trusted_readback":True, "receipt":"SYNTHETIC-PRICE-PROOF", "observed_at":before, "expires_at":after, "rates":rates}
     return {"job": job, "account": account, "authority": authority, "protected_controls":controls, "protected_pricing":price}
 
@@ -56,7 +58,8 @@ class SyntheticGateway:
             return {"ok": True, "envelope": self.env, "admission_expires_at": self.env["job"]["approval"]["expires_at"], "provider_call_authorized": False, "execution_performed": False}
         if action == "reserve":
             self.reserved = True
-            return {"ok": True, "reserved_at": datetime.now(timezone.utc).isoformat(), "admission_expires_at": (datetime.now(timezone.utc)+timedelta(seconds=1.9)).isoformat(), "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]}}
+            now = datetime.now(timezone.utc)
+            return {"ok": True, "attempt_id": "SYNTHETIC-ATTEMPT", "job_digest": fields["job_digest"], "executor_source_sha": fields["executor_source_sha"], "reserved_at": now.isoformat(), "admission_expires_at": (now + timedelta(seconds=2)).isoformat(), "max_runtime_seconds": 2, "provider_call_authorized": True, "execution_performed": False, **{key: fields[key] for key in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]}}
         if action == "record":
             self.env["job"]["attempts"] = [{"attempt_id": fields["attempt_id"], "status": "RECONCILIATION_REQUIRED", "charges_reconciled": False}]
             return {"ok": True, "reconciliation_required": True}
@@ -183,8 +186,12 @@ class ExecutorTests(unittest.TestCase):
         with self.assertRaises(guard.PaidRequestUnauthorized): guard._NoRedirect().redirect_request(None, None, 302, None, None, "https://foreign.invalid")
     def test_actual_execution_deadline_interrupts_transport_and_restores_timer(self):
         before_handler = signal.getsignal(signal.SIGALRM); started = time.monotonic()
+        gateway = SyntheticGateway()
+        fields = {"provider": "custom", "model": "synthetic", "asset": "synthetic", "request_size": "64x64", "endpoint": "https://example.invalid", "request_sha256": "a"*64, "credential_sha256": "b"*64, "semantic_headers_sha256": "c"*64, "source_input_sha256": "d"*64, "content_type": "application/json"}
+        with patch.object(guard, "_gateway", gateway): reservation = guard.reserve(**fields)
+        reservation["deadlineMonotonic"] = time.monotonic() + 1
         with self.assertRaises(guard.PaidRequestLimitReached):
-            with guard.runtime_limit({"sourceSha": "a"*40, "envelope": envelope({"job_id":"synthetic-pilot", "provider":"custom", "model":"synthetic", "executor_source_sha":"a"*40, "request_sha256":"b"*64, "endpoint":"https://example.invalid", "credential_sha256":"b"*64, "semantic_headers_sha256":"c"*64, "source_input_sha256":"d"*64, "content_type":"application/json", "asset":"synthetic", "request_size":"64x64"}), "deadline":datetime.now(timezone.utc)+timedelta(seconds=1), "monotonicDeadline":time.monotonic()+1}): time.sleep(2)
+            with guard.runtime_limit(reservation): time.sleep(2)
         self.assertLess(time.monotonic()-started, 1.5); self.assertEqual(signal.getsignal(signal.SIGALRM), before_handler); self.assertEqual(signal.getitimer(signal.ITIMER_REAL)[0], 0)
     def test_non_main_thread_executor_is_denied_before_reserve(self):
         errors = []
@@ -322,6 +329,52 @@ class ExecutorTests(unittest.TestCase):
             with patch.object(guard,"_gateway",changed),patch.object(renderer.urllib.request,"build_opener") as opener:
                 with self.assertRaises(guard.PaidRequestUnauthorized):renderer.render_with_provider(ENTRY,64)
                 opener.assert_not_called();self.assertFalse(gateway.reserved)
+
+    def test_absolute_admission_timestamps_are_mandatory_and_cannot_extend_the_signed_window(self):
+        for action, field, value in [("preflight", "admission_expires_at", None), ("preflight", "admission_expires_at", "2026-02-30T12:00:00Z"), ("reserve", "reserved_at", None), ("reserve", "admission_expires_at", None), ("reserve", "reserved_at", "2100-01-01T00:00:00Z"), ("reserve", "admission_expires_at", "2100-01-01T00:00:00Z")]:
+            gateway = SyntheticGateway()
+            def changed(which, **fields):
+                result = gateway(which, **fields)
+                if which == action: result[field] = value
+                return result
+            with patch.object(guard, "_gateway", changed), patch.object(renderer.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+                opener.assert_not_called()
+                self.assertEqual(gateway.reserved, action == "reserve")
+
+    def test_delayed_reserve_response_cannot_restart_the_runtime(self):
+        gateway = SyntheticGateway(); clock = [1000.0]
+        def delayed(action, **fields):
+            result = gateway(action, **fields)
+            if action == "reserve": clock[0] += 3
+            return result
+        with patch.object(guard, "_gateway", delayed), patch.object(guard.time, "monotonic", side_effect=lambda: clock[0]), patch.object(renderer.urllib.request, "build_opener") as opener:
+            with self.assertRaises(guard.PaidRequestLimitReached): renderer.render_with_provider(ENTRY, 64)
+            opener.assert_not_called(); self.assertTrue(gateway.reserved)
+
+    def test_actual_source_changed_after_reservation_cannot_dispatch(self):
+        gateway = SyntheticGateway()
+        with patch.object(guard, "_gateway", gateway), patch.object(guard, "executor_source_sha", side_effect=["a"*40, "a"*40, "c"*40]), patch.object(renderer.urllib.request, "build_opener") as opener:
+            with self.assertRaises(guard.PaidRequestUnauthorized): renderer.render_with_provider(ENTRY, 64)
+            opener.assert_not_called(); self.assertTrue(gateway.reserved)
+
+    def test_expired_output_body_cannot_return_a_successful_image(self):
+        gateway = SyntheticGateway(); clock = [1000.0]; response = image_response()
+        original_read = response.read
+        def delayed_read(limit=None):
+            clock[0] += 3
+            return original_read(limit)
+        response.read = delayed_read
+        with patch.object(guard, "_gateway", gateway), patch.object(guard.time, "monotonic", side_effect=lambda: clock[0]), patch.object(renderer.urllib.request, "build_opener") as opener:
+            opener.return_value.open.return_value = response
+            with self.assertRaises(renderer.ProviderExecutionFailed): renderer.render_with_provider(ENTRY, 64)
+            self.assertEqual(opener.return_value.open.call_count, 1); self.assertTrue(gateway.reserved)
+
+    def test_worker_token_is_never_sent_to_an_unpinned_gateway(self):
+        for origin in ["", "https://foreign.invalid", "https://example.invalid/other"]:
+            with patch.dict(os.environ, {"ASSET_FORGE_SPEND_GATEWAY_ORIGIN": origin}), patch.object(guard.urllib.request, "build_opener") as opener:
+                with self.assertRaises(guard.PaidRequestUnauthorized): guard._gateway("preflight", job_id="synthetic")
+                opener.assert_not_called()
 
 
 if __name__ == '__main__': unittest.main()

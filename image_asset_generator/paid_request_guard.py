@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import os
 import re
@@ -43,12 +44,12 @@ _active: dict[str, dict[str, Any]] = {}
 def _gateway(action: str, **fields: Any) -> dict[str, Any]:
     endpoint = os.environ.get("ASSET_FORGE_SPEND_GATEWAY_URL", "").strip()
     parsed = urllib.parse.urlsplit(endpoint)
+    issuer = urllib.parse.urlsplit(os.environ.get("ASSET_FORGE_SPEND_GATEWAY_ORIGIN", "").strip())
     token = os.environ.get("ASSET_FORGE_SPEND_WORKER_TOKEN", "")
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.fragment or parsed.query or len(token) < 32:
         raise PaidRequestUnauthorized("authenticated HTTPS spend gateway is required")
-    origin = urllib.parse.urlsplit(os.environ.get("ASSET_FORGE_SPEND_GATEWAY_ORIGIN", ""))
-    if origin.scheme != "https" or origin.netloc != parsed.netloc or origin.path not in {"", "/"} or origin.query or origin.fragment or origin.username or origin.password or not parsed.path.endswith("/api/worker/production-spend"):
-        raise PaidRequestUnauthorized("gateway differs from protected issuer origin")
+    if issuer.scheme != "https" or not issuer.hostname or issuer.username or issuer.password or issuer.fragment or issuer.query or issuer.path not in {"", "/"} or (parsed.scheme, parsed.netloc) != (issuer.scheme, issuer.netloc) or parsed.path != "/api/worker/production-spend":
+        raise PaidRequestUnauthorized("spend gateway differs from protected issuer origin")
     request = urllib.request.Request(endpoint, data=json.dumps({"action": action, **fields}, allow_nan=False).encode(), headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, method="POST")
     try:
         # No automatic retry: a lost reserve response may already hold funds.
@@ -135,6 +136,36 @@ def executor_source_sha() -> str:
     return head
 
 
+def _admission_expiry(envelope: dict[str, Any], now: datetime) -> float:
+    job = envelope["job"]
+    check(job, envelope["account"], envelope["authority"], now)
+    proofs = [(job["approval"], "issued_at"), (envelope["authority"], "observed_at"), (envelope["account"], "observed_at"), (envelope["protected_controls"], "observed_at"), (envelope["protected_pricing"], "observed_at"), (job["budget"]["rates"], "verified_at")]
+    expiries = []
+    for proof, observed in proofs:
+        if not instant(proof.get(observed)) <= now < instant(proof.get("expires_at")):
+            raise Rejected("protected image admission proof expired or future")
+        expiries.append(instant(proof["expires_at"]).timestamp())
+    return min(expiries)
+
+
+def remaining_seconds(reservation: dict[str, Any]) -> float:
+    remaining = min(reservation["deadlineMonotonic"] - time.monotonic(), reservation["admissionExpiresAt"] - datetime.now(timezone.utc).timestamp())
+    if remaining <= 0:
+        raise PaidRequestLimitReached("protected image execution deadline exceeded; reconcile before retry")
+    return remaining
+
+
+def check_admission(reservation: dict[str, Any]) -> None:
+    remaining_seconds(reservation)
+    if executor_source_sha() != reservation["sourceSha"]:
+        raise PaidRequestUnauthorized("image source changed after reservation")
+    try:
+        _admission_expiry(reservation["envelope"], datetime.now(timezone.utc))
+    except (Rejected, ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise PaidRequestUnauthorized("image admission proof expired or changed") from exc
+    remaining_seconds(reservation)
+
+
 def reserve(*, provider: str, model: str | None, asset: str, request_size: str, request_sha256: str | None = None, endpoint: str | None = None, credential_sha256: str | None = None, semantic_headers_sha256: str | None = None, source_input_sha256: str | None = None, content_type: str | None = None) -> dict[str, Any]:
     require_deadline_support()
     if not request_sha256 or not endpoint or not model:
@@ -147,12 +178,6 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
     prepared = _gateway("preflight", **fields)
     if prepared.get("provider_call_authorized") is not False or prepared.get("execution_performed") is not False:
         raise PaidRequestUnauthorized("preflight must remain non-executing")
-    try:
-        proof_deadline = instant(prepared.get("admission_expires_at"))
-        if datetime.now(timezone.utc) >= proof_deadline:
-            raise Rejected("absolute preflight admission expired")
-    except (Rejected, ValueError, TypeError) as exc:
-        raise PaidRequestUnauthorized("absolute preflight admission missing or expired") from exc
     envelope = prepared.get("envelope", {})
     try:
         receipt = check(envelope["job"], envelope["account"], envelope["authority"], datetime.now(timezone.utc))
@@ -169,11 +194,18 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
         if price.get("provider") != provider or price.get("account_id") != job["account_id"] or price.get("model_version") != model or price.get("request_sha256") != request_sha256 or price.get("trusted_readback") is not True or not isinstance(price.get("receipt"), str) or not price["receipt"].strip() or not instant(price.get("observed_at")) <= now < instant(price.get("expires_at")) or price.get("rates") != job["budget"]["rates"]:
             raise Rejected("actual-bound protected image pricing changed or stale")
         fields["account_id"] = job["account_id"]
+        preflight_expiry = instant(prepared.get("admission_expires_at")).timestamp()
+        if preflight_expiry > _admission_expiry(envelope, now) or preflight_expiry <= now.timestamp():
+            raise Rejected("protected preflight admission expiry invalid")
     except (Rejected, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise PaidRequestUnauthorized("canonical offline preflight rejected request") from exc
     if executor_source_sha() != source_sha:
         raise PaidRequestUnauthorized("image source changed after preflight")
     admission_started = time.monotonic()
+    runtime = job["budget"]["max_runtime_seconds"]
+    if type(runtime) is not int or not 0 < runtime <= 86400:
+        raise PaidRequestUnauthorized("approved image runtime missing")
+    deadline = admission_started + min(runtime, preflight_expiry - datetime.now(timezone.utc).timestamp())
     admitted = _gateway("reserve", **fields, job_digest=receipt["job_digest"])
     runtime = admitted.get("max_runtime_seconds")
     if admitted.get("provider_call_authorized") is not True or admitted.get("execution_performed") is not False or admitted.get("executor_source_sha") != source_sha or admitted.get("job_digest") != receipt["job_digest"] or type(runtime) is not int or not 0 < runtime <= 86400 or not isinstance(admitted.get("attempt_id"), str) or not admitted["attempt_id"]:
@@ -181,32 +213,27 @@ def reserve(*, provider: str, model: str | None, asset: str, request_size: str, 
     if any(admitted.get(name) != fields[name] for name in ["account_id", "credential_sha256", "semantic_headers_sha256", "source_input_sha256", "content_type"]):
         raise PaidRequestUnauthorized("reserved account credential headers or input changed")
     try:
-        reserved_at, admitted_until = instant(admitted.get("reserved_at")), instant(admitted.get("admission_expires_at"))
-        now = datetime.now(timezone.utc)
-        if not reserved_at <= now < admitted_until <= proof_deadline or (admitted_until - reserved_at).total_seconds() > runtime:
-            raise Rejected("absolute reservation window changed")
+        reserved_at = instant(admitted.get("reserved_at")).timestamp()
+        admission_expiry = instant(admitted.get("admission_expires_at")).timestamp()
+        now = datetime.now(timezone.utc).timestamp()
+        if runtime != job["budget"]["max_runtime_seconds"] or not reserved_at <= now or not reserved_at < admission_expiry <= min(preflight_expiry, reserved_at + runtime):
+            raise Rejected("reservation admission window invalid")
     except (Rejected, ValueError, TypeError) as exc:
-        raise PaidRequestUnauthorized("absolute reservation admission missing or expired") from exc
-    reservation = {"attemptId": admitted["attempt_id"], "jobId": job_id, "maxRuntimeSeconds": runtime, "offlineReceipt": receipt, "bindingFields": fields, "deadline": admitted_until, "monotonicDeadline": min(admission_started + runtime, time.monotonic() + (admitted_until - now).total_seconds()), "sourceSha": source_sha, "envelope": envelope}
+        raise PaidRequestUnauthorized("invalid protected image reservation deadline") from exc
+    reservation = {"attemptId": admitted["attempt_id"], "jobId": job_id, "maxRuntimeSeconds": runtime, "offlineReceipt": receipt, "bindingFields": fields, "deadlineMonotonic": min(deadline, time.monotonic() + admission_expiry - now), "admissionExpiresAt": admission_expiry, "sourceSha": source_sha, "envelope": copy.deepcopy(envelope)}
     _active[reservation["attemptId"]] = reservation
+    check_admission(reservation)
     return reservation
 
 
 @contextmanager
 def runtime_limit(reservation: dict[str, Any]):
     require_deadline_support()
+    check_admission(reservation)
     old_handler = signal.getsignal(signal.SIGALRM)
     old_timer = signal.getitimer(signal.ITIMER_REAL)
     start = time.monotonic()
-    if executor_source_sha() != reservation["sourceSha"]:
-        raise PaidRequestUnauthorized("image source changed after reservation")
-    try:
-        check(reservation["envelope"]["job"], reservation["envelope"]["account"], reservation["envelope"]["authority"], datetime.now(timezone.utc))
-    except (Rejected, ValueError, TypeError) as exc:
-        raise PaidRequestUnauthorized("image authority changed after reservation") from exc
-    limit = min((reservation["deadline"] - datetime.now(timezone.utc)).total_seconds(), reservation["monotonicDeadline"] - start)
-    if limit <= 0:
-        raise PaidRequestLimitReached("protected image execution deadline exceeded; reconcile before retry")
+    limit = remaining_seconds(reservation)
     if old_timer[0] > 0:
         limit = min(limit, old_timer[0])
     def timeout(_signal, _frame):
@@ -215,8 +242,7 @@ def runtime_limit(reservation: dict[str, Any]):
     signal.setitimer(signal.ITIMER_REAL, limit)
     try:
         yield
-        if datetime.now(timezone.utc) >= reservation["deadline"] or time.monotonic() >= reservation["monotonicDeadline"]:
-            timeout(None, None)
+        check_admission(reservation)
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)

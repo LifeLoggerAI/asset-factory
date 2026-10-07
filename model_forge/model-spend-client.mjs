@@ -43,9 +43,13 @@ function httpsEndpoint(raw, label) {
   need(url.protocol === 'https:' && !url.username && !url.password && !url.hash, `${label} requires HTTPS without credentials or fragment`);
   return url;
 }
-function admissionTime(value) {
-  need(typeof value === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value)), 'absolute admission window missing or invalid');
-  return Date.parse(value);
+function proofTime(value) {
+  need(typeof value === 'string', 'protected proof timestamp missing');
+  const fields = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.exec(value);
+  need(fields, 'protected proof timestamp requires complete ISO time');
+  const [year, month, day, hour, minute, second] = fields.slice(1, 7).map(Number), calendar = new Date(Date.UTC(year, month - 1, day));
+  need(calendar.getUTCFullYear() === year && calendar.getUTCMonth() === month - 1 && calendar.getUTCDate() === day && hour < 24 && minute < 60 && second < 60, 'invalid protected proof calendar');
+  const result = Date.parse(value); need(Number.isFinite(result), 'invalid protected timestamp'); return result;
 }
 function safeHeader(value) { need(!/[\r\n]/.test(value), 'multipart header contains newline'); return value.replace(/"/g, '%22'); }
 /** Stable multipart bytes allow approval of exactly the payload later sent. */
@@ -94,7 +98,6 @@ export async function freezeRequest(endpoint, init, provider) {
 function protectedBinding(envelope, binding, expectedAccount = null) {
   const job = envelope?.job, account = envelope?.account, controls = envelope?.protected_controls, price = envelope?.protected_pricing;
   need(job?.job_id === binding.job_id && job.provider === binding.provider && job.model_version === binding.model && job.executor?.source_sha === binding.executor_source_sha, 'approved job identity changed');
-  if (job.approval) need(admissionTime(job.approval.issued_at) <= binding.checked_at && binding.checked_at < admissionTime(job.approval.expires_at), 'approved financial authority expired');
   for (const field of ['endpoint', 'request_sha256', 'request_size', 'asset', 'content_type', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) {
     need(job.executor[field] === binding[field], `actual ${field} differs from protected approval`);
   }
@@ -115,6 +118,14 @@ function protectedBinding(envelope, binding, expectedAccount = null) {
   need(typeof price.rates.receipt === 'string' && price.rates.receipt && Number.isFinite(Date.parse(price.rates.verified_at)) && Number.isFinite(Date.parse(price.rates.expires_at)) && Date.parse(price.rates.verified_at) <= binding.checked_at && Date.parse(price.rates.expires_at) > binding.checked_at, 'protected pricing readback is not fresh');
   return job;
 }
+function admissionWindow(envelope, checkedAt) {
+  const job = envelope.job, authority = envelope.authority;
+  need(job.approval?.status === 'APPROVED' && job.approval.kind === 'EXPLICIT_BOUNDED_SPEND' && job.approval.job_digest === jobDigest(job) && job.approval.max_usd_micros === job.budget.max_usd_micros && job.approval.max_credits === job.budget.max_credits && typeof job.approval.receipt === 'string' && job.approval.receipt && typeof job.approval.approver === 'string' && job.approval.approver, 'protected bounded approval changed');
+  need(authority?.trusted_readback === true && canonical(authority.binding) === canonical(job.authority) && job.authority?.repository === 'LifeLoggerAI/asset-factory' && job.authority.sha === job.executor.source_sha, 'protected source authority changed');
+  const proofs = [[job.approval, 'issued_at'], [authority, 'observed_at'], [envelope.account, 'observed_at'], [envelope.protected_controls, 'observed_at'], [envelope.protected_pricing, 'observed_at'], [job.budget.rates, 'verified_at']];
+  const expiries = proofs.map(([proof, observed]) => { const expiry = proofTime(proof.expires_at); need(proofTime(proof[observed]) <= checkedAt && checkedAt < expiry, 'protected admission proof expired or future'); return expiry; });
+  return Math.min(...expiries);
+}
 
 async function boundedJson(response, maximum) {
   const declared = Number(response.headers.get('content-length')); need(!Number.isFinite(declared) || declared <= maximum, 'response exceeds bound');
@@ -134,10 +145,20 @@ export class ModelSpendClient {
     this.env = env; this.fetch = fetchImpl; this.now = now; this.records = []; this.deadline = Infinity; this.monotonicDeadline = Infinity; this.submitted = new Set();
   }
   remainingMs(maximum) { const remaining = Math.min(this.deadline - this.now(), this.monotonicDeadline - performance.now()); need(remaining > 0, 'approved runtime deadline elapsed; reconciliation required'); return Math.max(1, Math.floor(Math.min(remaining, maximum))); }
+  checkAdmission() {
+    this.remainingMs(120000);
+    if (this.activeAdmission) {
+      const { envelope, input, sourceSha } = this.activeAdmission;
+      need(verifiedSourceSha(this.env) === sourceSha, 'Model Forge source changed during admission');
+      protectedBinding(envelope, { ...input, checked_at: this.now() }, input.account_id);
+      admissionWindow(envelope, this.now());
+    }
+    this.remainingMs(120000);
+  }
   async gateway(action, data) {
     const url = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_URL, 'gateway');
-    need(url.pathname.endsWith('/api/worker/production-spend') && !url.search, 'canonical gateway route required');
-    need(httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN, 'protected gateway origin').toString() === `${url.origin}/`, 'gateway origin differs from protected issuer configuration');
+    const issuer = httpsEndpoint(this.env.ASSET_FORGE_SPEND_GATEWAY_ORIGIN, 'protected issuer');
+    need(issuer.toString() === `${issuer.origin}/` && url.origin === issuer.origin && url.pathname === '/api/worker/production-spend' && !url.search, 'canonical protected issuer gateway required');
     const token = this.env.ASSET_FORGE_SPEND_WORKER_TOKEN; need(typeof token === 'string' && token.length >= 32, 'protected worker authentication required');
     const response = await this.fetch(url.toString(), { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ action, ...data }), redirect: 'error', signal: AbortSignal.timeout(Math.min(10000, this.remainingMs(10000))) });
     const result = await boundedJson(response, MAX_GATEWAY_BYTES); need(response.ok && result.ok === true, 'protected gateway rejected or unavailable'); return result;
@@ -178,32 +199,36 @@ export class ModelSpendClient {
     const input = { job_id: jobId, ...binding };
     const preflight = await this.gateway('preflight', input);
     need(preflight.provider_call_authorized === false && preflight.execution_performed === false && preflight.envelope, 'preflight is non-authorizing');
-    const proofDeadline = admissionTime(preflight.admission_expires_at);
-    need(this.now() < proofDeadline, 'absolute preflight admission expired');
     const job = protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
+    const preflightExpiry = proofTime(preflight.admission_expires_at);
+    need(preflightExpiry <= admissionWindow(preflight.envelope, this.now()) && this.now() < preflightExpiry, 'invalid absolute preflight admission window');
     input.account_id = job.account_id;
     const digest = jobDigest(job);
     const admissionStarted = this.now();
-    const monotonicStarted = performance.now();
+    need(Number.isSafeInteger(job.budget.max_runtime_seconds) && job.budget.max_runtime_seconds > 0 && job.budget.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
+    this.deadline = Math.min(this.deadline, preflightExpiry, admissionStarted + job.budget.max_runtime_seconds * 1000);
+    this.monotonicDeadline = Math.min(this.monotonicDeadline, performance.now() + Math.max(0, this.deadline - admissionStarted));
+    this.activeAdmission = { envelope: structuredClone(preflight.envelope), input: { ...input }, sourceSha };
+    this.checkAdmission();
     const reservation = await this.gateway('reserve', { ...input, job_digest: digest });
     need(reservation.provider_call_authorized === true && reservation.execution_performed === false && reservation.job_digest === digest && reservation.executor_source_sha === sourceSha && typeof reservation.attempt_id === 'string' && reservation.attempt_id, 'atomic reservation did not authorize this exact request');
     for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(reservation[field] === input[field], 'atomic reservation binding differs from actual transport');
     need(Number.isSafeInteger(reservation.max_runtime_seconds) && reservation.max_runtime_seconds > 0 && reservation.max_runtime_seconds <= 86400, 'approved runtime bound invalid');
     need(reservation.max_runtime_seconds === job.budget.max_runtime_seconds, 'atomic reservation changed approved runtime cap');
-    const reservedAt = admissionTime(reservation.reserved_at), admittedUntil = admissionTime(reservation.admission_expires_at);
-    need(reservedAt <= this.now() && admittedUntil > reservedAt && admittedUntil <= proofDeadline && admittedUntil <= reservedAt + reservation.max_runtime_seconds * 1000, 'atomic absolute admission window changed');
     this.submitted.add(request.request_sha256);
-    this.deadline = Math.min(this.deadline, admittedUntil, admissionStarted + reservation.max_runtime_seconds * 1000);
-    this.monotonicDeadline = Math.min(this.monotonicDeadline, monotonicStarted + reservation.max_runtime_seconds * 1000, performance.now() + admittedUntil - this.now());
+    const reservedAt = proofTime(reservation.reserved_at), admissionExpiry = proofTime(reservation.admission_expires_at);
+    need(reservedAt <= this.now() && reservedAt < admissionExpiry && admissionExpiry <= preflightExpiry && admissionExpiry <= reservedAt + reservation.max_runtime_seconds * 1000, 'invalid atomic reservation admission window');
+    this.deadline = Math.min(this.deadline, admissionExpiry);
+    this.monotonicDeadline = Math.min(this.monotonicDeadline, performance.now() + Math.max(0, this.deadline - this.now()));
     const record = { job_id: jobId, account_id: input.account_id, attempt_id: reservation.attempt_id, request_sha256: request.request_sha256, executor_source_sha: sourceSha, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, source_input_sha256: this.sourceSpecSha256, content_type: request.content_type, status: 'unknown-outcome', reconciliation_required: true };
     this.records.push(record);
     if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
     try {
-      need(verifiedSourceSha(this.env) === sourceSha, 'executor source changed after reservation');
-      protectedBinding(preflight.envelope, { ...input, checked_at: this.now() });
+      this.checkAdmission();
       const response = await this.fetch(request.endpoint, { method: 'POST', headers: request.headers, body: request.body, redirect: 'error', signal: AbortSignal.timeout(this.remainingMs(120000)) });
+      this.checkAdmission();
       const payload = await boundedJson(response, MAX_GATEWAY_BYTES);
-      this.remainingMs(120000);
+      this.checkAdmission();
       record.http_status = response.status;
       need(response.ok, `paid provider returned HTTP ${response.status}; no automatic retry`);
       record.status = 'submission-returned';
@@ -214,6 +239,7 @@ export class ModelSpendClient {
       // authentic independent charge reconciliation; no local charge or retry claim.
       try { await this.gateway('record', { ...input, attempt_id: reservation.attempt_id, status: record.status === 'submission-returned' ? 'succeeded' : 'failed', request_id: record.reported_task_id || undefined }); } catch { record.outcome_delivery = 'unknown'; }
       if (this.evidenceDir) fs.writeFileSync(path.join(this.evidenceDir, `spend-attempt-${request.request_sha256}.json`), `${JSON.stringify(record, null, 2)}\n`);
+      if (record.status === 'submission-returned') this.checkAdmission();
     }
   }
 }

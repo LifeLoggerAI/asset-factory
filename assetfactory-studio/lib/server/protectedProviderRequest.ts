@@ -130,6 +130,13 @@ function jobId(requestDigest: string) {
   return nonempty(mapping[requestDigest]);
 }
 function checkDeadline(session: Session) { need(!session.controller.signal.aborted && (!session.deadline || Date.now() < session.deadline) && (!session.monotonicDeadline || performance.now() < session.monotonicDeadline), 'protected provider deadline expired; reconcile before retry'); }
+function checkSession(session: Session) {
+  checkDeadline(session);
+  need(studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source input changed during execution');
+  if (session.reservation) need(studioExecutorSourceSha() === session.reservation.sourceSha, 'Studio source changed during execution');
+  session.revalidate?.();
+  checkDeadline(session);
+}
 function joinedSignal(session: Session | undefined, input?: AbortSignal | null) {
   const signals = [session?.controller.signal, input].filter((s): s is AbortSignal => Boolean(s));
   return signals.length ? AbortSignal.any(signals) : undefined;
@@ -192,6 +199,10 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   checkProofs();
   const boundFields = { ...fields, account_id: accountId, job_digest: jobDigest };
   const admissionStarted = Date.now(), monotonicStarted = performance.now();
+  need(typeof budget.max_runtime_seconds === 'number' && Number.isSafeInteger(budget.max_runtime_seconds) && budget.max_runtime_seconds > 0 && budget.max_runtime_seconds <= 86_400, 'protected Studio approved runtime missing');
+  session.deadline = Math.min(preflightExpiry, admissionStarted + budget.max_runtime_seconds * 1_000, protectedDate(session.gatewayPin.issuer.expires_at));
+  session.monotonicDeadline = monotonicStarted + Math.max(0, session.deadline - admissionStarted);
+  checkDeadline(session);
   const admitted = await gateway('reserve', boundFields);
   const runtime = admitted.max_runtime_seconds;
   need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === budget.max_runtime_seconds, 'invalid protected Studio reservation');
@@ -201,20 +212,20 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const reservedAt = protectedDate(admitted.reserved_at), admittedExpiry = protectedDate(admitted.admission_expires_at);
   need(reservedAt <= Date.now() && admittedExpiry > Date.now() && admittedExpiry > reservedAt && admittedExpiry <= preflightExpiry && admittedExpiry <= reservedAt + runtime * 1_000, 'invalid protected reserve admission deadline');
   const issuerExpiry = protectedDate(session.gatewayPin.issuer.expires_at);
-  session.deadline = Math.min(admissionStarted + runtime * 1_000, admittedExpiry, admissionStarted + admittedExpiry - reservedAt, issuerExpiry);
-  session.monotonicDeadline = Math.min(monotonicStarted + runtime * 1_000, monotonicStarted + admittedExpiry - reservedAt, performance.now() + admittedExpiry - Date.now(), performance.now() + issuerExpiry - Date.now());
+  session.deadline = Math.min(session.deadline, admissionStarted + runtime * 1_000, admittedExpiry, admissionStarted + admittedExpiry - reservedAt, issuerExpiry);
+  session.monotonicDeadline = Math.min(session.monotonicDeadline, monotonicStarted + runtime * 1_000, monotonicStarted + admittedExpiry - reservedAt, performance.now() + admittedExpiry - Date.now(), performance.now() + issuerExpiry - Date.now());
   checkDeadline(session);
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed after reservation');
   checkProofs();
   checkDeadline(session);
   // Dispatch the materialized method/headers/body that were actually admitted.
   const response = await fetch(endpoint, { ...init, method: 'POST', headers, body: bytes, redirect: 'error', signal: joinedSignal(session, init.signal) });
-  checkDeadline(session); return response;
+  checkSession(session); return response;
 }
 
 /** Only status/artifact GETs are allowed after admission; authorization cannot escape its API origin. */
 export async function readStudioProvider(url: string, init: RequestInit = {}) {
-  const session = sessions.getStore(); if (session) { checkDeadline(session); need(session.reservation, 'provider read preceded admission'); }
+  const session = sessions.getStore(); if (session) { checkSession(session); need(session.reservation, 'provider read preceded admission'); }
   need(!init.method || init.method === 'GET', 'provider continuation must be read-only');
   const target = safeHttps(url), headers = transportHeaders(init.headers);
   if (session && Object.keys(credentialHeaders(headers)).length) {
@@ -222,7 +233,7 @@ export async function readStudioProvider(url: string, init: RequestInit = {}) {
     const endpoint = sessionEndpoint.get(session); need(endpoint && target.origin === new URL(endpoint).origin, 'provider credential origin changed');
   }
   const response = await fetch(target.toString(), { ...init, method: 'GET', redirect: 'error', signal: joinedSignal(session, init.signal) });
-  if (session) checkDeadline(session); return response;
+  if (session) checkSession(session); return response;
 }
 export async function readStudioBytes(response: Response, maxBytes: number) {
   need(Number.isSafeInteger(maxBytes) && maxBytes > 0, 'invalid provider byte limit');
@@ -230,7 +241,7 @@ export async function readStudioBytes(response: Response, maxBytes: number) {
   if (length !== null && Number(length) > maxBytes) { await response.body?.cancel(); throw new ProtectedProviderRejected('provider response exceeds byte limit'); }
   const reader = response.body?.getReader(); need(reader, 'provider response body missing');
   const chunks: Uint8Array[] = []; let total = 0;
-  try { while (true) { const session = sessions.getStore(); if (session) checkDeadline(session); const { done, value } = await reader.read(); if (session) checkDeadline(session); if (done) break; total += value.byteLength; if (total > maxBytes) { await reader.cancel(); throw new ProtectedProviderRejected('provider response exceeds byte limit while streaming'); } chunks.push(value); } }
+  try { while (true) { const session = sessions.getStore(); if (session) checkSession(session); const { done, value } = await reader.read(); if (session) checkSession(session); if (done) break; total += value.byteLength; if (total > maxBytes) { await reader.cancel(); throw new ProtectedProviderRejected('provider response exceeds byte limit while streaming'); } chunks.push(value); } }
   finally { reader.releaseLock(); }
   return Buffer.concat(chunks, total);
 }
@@ -264,7 +275,7 @@ export async function withProtectedStudioSession<T>(input: GenerateRequest | und
     // One timer spans submission, polling, artifact retrieval, and decoding.
     const timer = setInterval(() => { if ((session.deadline && Date.now() >= session.deadline) || (session.monotonicDeadline && performance.now() >= session.monotonicDeadline)) session.controller.abort(); }, 25);
     let outcome: 'succeeded' | 'failed' = 'failed';
-    try { const result = await run(); checkDeadline(session); session.revalidate?.(); checkDeadline(session); need(studioSourceInputDigest(input) === session.inputDigest, 'Studio source input changed during execution'); outcome = 'succeeded'; return result; }
+    try { const result = await run(); checkSession(session); outcome = 'succeeded'; return result; }
     finally {
       clearInterval(timer);
       if (session.reservation) {
@@ -272,7 +283,7 @@ export async function withProtectedStudioSession<T>(input: GenerateRequest | und
         // Observations cannot settle charges, release funds, or authorize retry.
         try { const observed = await gateway('record', { ...r.bindingFields, attempt_id: r.attemptId, status: outcome, ...(session.taskId ? { request_id: session.taskId } : {}) }); need(observed.provider_call_authorized === false && observed.execution_performed === false && observed.reconciliation_required === true, 'invalid protected observation'); }
         catch { if (outcome === 'succeeded') throw new ProtectedProviderRejected('provider output requires durable observation and charge reconciliation'); }
-        if (outcome === 'succeeded') { session.revalidate?.(); checkDeadline(session); }
+        if (outcome === 'succeeded') checkSession(session);
       }
     }
   });

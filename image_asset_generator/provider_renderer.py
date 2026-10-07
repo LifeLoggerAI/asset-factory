@@ -175,13 +175,19 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
                 raise paid_request_guard.PaidRequestUnauthorized("admitted image input or credentials changed before dispatch")
             # Exactly one submission. Redirects and network failures cannot resubmit it.
             opener = urllib.request.build_opener(paid_request_guard._NoRedirect)
-            with opener.open(request, timeout=min(timeout, reservation["maxRuntimeSeconds"])) as response:
+            paid_request_guard.check_admission(reservation)
+            with opener.open(request, timeout=min(timeout, paid_request_guard.remaining_seconds(reservation))) as response:
                 response_body = response.read(67108865)
+                paid_request_guard.check_admission(reservation)
                 if len(response_body) > 67108864:
                     raise ValueError("bounded provider response exceeded 64 MiB")
                 result = consume(response_body, response.headers)
+                paid_request_guard.check_admission(reservation)
+                if paid_request_guard.source_input_digest(source_input) != source_digest:
+                    raise paid_request_guard.PaidRequestUnauthorized("admitted image input changed during output")
         request_id = result.metadata.get("provider_request_id")
         paid_request_guard.record(reservation["attemptId"], status="succeeded", request_id=str(request_id) if request_id else None)
+        paid_request_guard.check_admission(reservation)
         metadata = {**result.metadata, "budget_attempt_id": reservation["attemptId"], "charges_reconciled": False}
         return RenderResult(result.image, result.renderer, 1, metadata)
     except Exception as exc:

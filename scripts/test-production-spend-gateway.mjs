@@ -9,6 +9,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
 import { authenticateSpend, authenticateSpendWorker, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendGatewaySourceSha, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
+import { ModelSpendClient, freezeRequest } from '../model_forge/model-spend-client.mjs';
 
 const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
@@ -55,6 +56,51 @@ function fixture(db = new Db(), id = 'synthetic-pilot') {
   return { db, job, input, jobPath, accountPath, account, authority, approval, controls };
 }
 const act = (f, action, extra = {}, opts = options) => spendAction(f.db, action, { ...f.input, ...extra }, opts);
+async function actualModelGatewayFixture({ delayedReserve = false } = {}) {
+  const sourceSha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim();
+  const endpoint = 'https://api.replicate.com/v1/models/synthetic/model/predictions', model = 'synthetic/model';
+  const init = { method: 'POST', headers: { authorization: 'Bearer SYNTHETIC-PROVIDER-ONLY', 'content-type': 'application/json' }, body: '{"input":{"prompt":"synthetic"}}' };
+  const request = await freezeRequest(endpoint, init, 'replicate'), f = fixture();
+  let now = Date.now(), calls = 0;
+  const observed = new Date(now - 60_000).toISOString(), expires = new Date(now + 600_000).toISOString();
+  f.job.provider = 'replicate'; f.job.model_version = model;
+  f.job.authority = { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }; f.authority.binding = f.job.authority;
+  Object.assign(f.job.executor, { source_sha: sourceSha, endpoint, request_sha256: request.request_sha256, request_size: request.request_size, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256, content_type: request.content_type });
+  f.job.input_sha256 = [f.job.executor.source_input_sha256, request.request_sha256]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
+  f.job.budget.max_runtime_seconds = 10;
+  Object.assign(f.controls, { provider: f.job.provider, endpoint, request_sha256: request.request_sha256, enforcement_source_sha: sourceSha, max_runtime_seconds: 10, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256 });
+  Object.assign(f.account, { provider: f.job.provider, credential_sha256: request.credential_sha256 });
+  f.accountPath = `assetFactorySpendAccounts/${hash(`${f.job.provider}\n${f.job.account_id}`)}`; f.db.rows.set(f.accountPath, f.account);
+  const price = f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`);
+  Object.assign(price, { provider: f.job.provider, model_version: model, request_sha256: request.request_sha256, credential_sha256: request.credential_sha256, semantic_headers_sha256: request.semantic_headers_sha256 });
+  for (const proof of [f.approval, f.authority, f.controls, f.account, price, f.job.budget.rates]) { proof.expires_at = expires; proof[proof === f.approval ? 'issued_at' : proof === f.job.budget.rates ? 'verified_at' : 'observed_at'] = observed; }
+  f.approval.job_digest = jobDigest(f.job); f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing(f.approval));
+  const gateway = 'https://synthetic-gateway.invalid/api/worker/production-spend';
+  const env = { URAI_SOURCE_SHA: sourceSha, ASSET_FORGE_SPEND_GATEWAY_URL: gateway, ASSET_FORGE_SPEND_GATEWAY_ORIGIN: new URL(gateway).origin, ASSET_FORGE_SPEND_WORKER_TOKEN: 'SYNTHETIC-WORKER-NOT-AUTHORIZATION-ONLY', MODEL_FORGE_SPEND_JOB_IDS_JSON: JSON.stringify({ [request.request_sha256]: f.job.job_id }) };
+  const client = () => new ModelSpendClient({ provider: 'replicate', asset: f.job.executor.asset, sourceSpecSha256: f.job.executor.source_input_sha256, env, now: () => now, fetchImpl: async (url, input) => {
+    if (url === gateway) {
+      const fields = JSON.parse(input.body), result = await spendAction(f.db, fields.action, fields, { ...options, sourceSha, now: () => now });
+      if (delayedReserve && fields.action === 'reserve') now += 10_001;
+      return Response.json(result);
+    }
+    assert.equal(url, endpoint); calls++; return Response.json({ id: 'SYNTHETIC-TASK' });
+  } });
+  return { f, client, endpoint, init, model, calls: () => calls };
+}
+test('actual Model Forge client consumes the actual signed gateway and global account transaction', async () => {
+  const t = await actualModelGatewayFixture();
+  const result = await t.client().submit(t.endpoint, t.init, t.model);
+  assert.equal(result.payload.id, 'SYNTHETIC-TASK'); assert.equal(t.calls(), 1);
+  assert.equal(t.f.db.rows.get(t.f.accountPath).reservations.length, 1);
+  assert.equal(t.f.db.rows.get(t.f.jobPath).job.attempts[0].status, 'RECONCILIATION_REQUIRED');
+  await assert.rejects(t.client().submit(t.endpoint, t.init, t.model)); assert.equal(t.calls(), 1);
+});
+test('actual gateway reservation delivered after expiry cannot cause an actual Model Forge POST', async () => {
+  const t = await actualModelGatewayFixture({ delayedReserve: true });
+  await assert.rejects(t.client().submit(t.endpoint, t.init, t.model), /deadline/);
+  assert.equal(t.calls(), 0); assert.equal(t.f.db.rows.get(t.f.accountPath).reservations.length, 1);
+  assert.equal(t.f.db.rows.get(t.f.jobPath).job.attempts[0].status, 'RESERVED');
+});
 function charge(f, attempt, status, usd = 400000, credits = 2, change = {}) {
   const receipt = signing({ job_id: f.job.job_id, attempt_id: attempt.attempt_id, provider: f.job.provider, account_id: f.job.account_id, job_digest: jobDigest(f.job), status, final: true, task_id: `SYNTHETIC-TASK-${attempt.attempt_id}`, actual_usd_micros: usd, actual_credits: credits, corrective_action: 'Synthetic reviewed correction', observed_at: '2026-10-07T16:30:00Z', reconciler: 'synthetic-reconciler', key_id: 'synthetic', ...change });
   const digest = hash(canonical(receipt)); f.db.rows.set(`assetFactorySpendChargeReceipts/${digest}`, receipt);
