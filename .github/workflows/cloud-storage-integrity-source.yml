@@ -1,0 +1,72 @@
+name: Factory Cloud Storage integrity source proof
+
+on:
+  pull_request:
+    branches: [repair/model-forge-current-main-20261007]
+    paths:
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
+      - assetfactory-studio/lib/server/cloudAssetFactoryStore.ts
+      - assetfactory-studio/lib/server/assetBackend.ts
+      - assetfactory-studio/.env.example
+      - scripts/test-cloud-storage-integrity.mjs
+      - scripts/test-cloud-storage-prototype-retirement.mjs
+      - functions/index.js
+      - functions/processAssetJob.js
+      - engine/worker.js
+      - .github/workflows/cloud-storage-integrity-source.yml
+      - docs/security/cloud-storage-integrity-20261007.md
+      - pnpm-lock.yaml
+  push:
+    branches: [repair/cloud-storage-integrity-20261007-holdings, repair/model-forge-current-main-20261007]
+    paths:
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
+      - assetfactory-studio/lib/server/cloudAssetFactoryStore.ts
+      - assetfactory-studio/lib/server/assetBackend.ts
+      - scripts/test-cloud-storage-integrity.mjs
+      - scripts/test-cloud-storage-prototype-retirement.mjs
+      - functions/index.js
+      - functions/processAssetJob.js
+      - engine/worker.js
+      - .github/workflows/cloud-storage-integrity-source.yml
+      - pnpm-lock.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-storage-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Setup Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Install the existing frozen workspace without lifecycle scripts
+        run: node scripts/install-locked-dependencies.mjs
+      - name: Typecheck the actual storage and target boundaries
+        run: >-
+          node assetfactory-studio/node_modules/typescript/bin/tsc
+          --strict --noEmit --skipLibCheck --target ES2022 --module ESNext
+          --moduleResolution Bundler --esModuleInterop
+          --typeRoots assetfactory-studio/node_modules/@types
+          assetfactory-studio/lib/server/firebaseAdmin.ts
+          assetfactory-studio/lib/server/cloudAssetFactoryStore.ts
+          assetfactory-studio/lib/server/assetBackend.ts
+      - name: Actual module and exact locked SDK synthetic transport regressions
+        run: node --experimental-vm-modules --test scripts/test-cloud-storage-integrity.mjs scripts/test-cloud-storage-prototype-retirement.mjs
+      - name: Record immutable source and deny source drift
+        run: |
+          git rev-parse HEAD
+          git diff --exit-code -- assetfactory-studio/lib/server/firebaseAdmin.ts assetfactory-studio/lib/server/cloudAssetFactoryStore.ts assetfactory-studio/lib/server/assetBackend.ts assetfactory-studio/.env.example scripts/test-cloud-storage-integrity.mjs scripts/test-cloud-storage-prototype-retirement.mjs functions/index.js functions/processAssetJob.js engine/worker.js .github/workflows/cloud-storage-integrity-source.yml docs/security/cloud-storage-integrity-20261007.md pnpm-lock.yaml

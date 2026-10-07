@@ -1,4 +1,5 @@
 import { getAdminBucket, getAdminDb } from './firebaseAdmin';
+import { createHash } from 'node:crypto';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -99,27 +100,169 @@ export async function cloudListUsage() {
   return snapshot.docs.map((doc) => doc.data());
 }
 
-export async function cloudWriteGenerated(fileName: string, buffer: Buffer, contentType?: string, storagePath?: string) {
-  const bucket = bucketOrThrow();
-  const objectPath = storagePath ?? `asset-factory/generated/${fileName}`;
-  const file = bucket.file(objectPath);
-  await file.save(buffer, {
-    resumable: false,
-    contentType: contentType ?? 'application/octet-stream',
-    metadata: {
-      cacheControl: 'private, max-age=60',
-    },
+const maxGeneratedBytes = 512 * 1024 * 1024;
+const storageRequestTimeoutMs = 60_000;
+const checksumPattern = /^[A-Za-z0-9+/]{6}==$/;
+
+function generatedObjectPath(fileName: string, storagePath?: string) {
+  if (typeof fileName !== 'string' || !/^[A-Za-z0-9._:-]{1,256}$/.test(fileName) || ['.', '..'].includes(fileName)) {
+    throw new Error('Invalid generated artifact filename');
+  }
+  const value = storagePath ?? `asset-factory/generated/${fileName}`;
+  if (typeof value !== 'string' || value.length > 1024 || !/^[A-Za-z0-9._:/-]+$/.test(value)
+      || !/^(tenants\/|asset-factory\/generated\/)/.test(value)
+      || value.split('/').some((part) => !part || part === '.' || part === '..')) {
+    throw new Error('Invalid generated artifact storage path');
+  }
+  return value;
+}
+
+type StoredMetadata = {
+  generation?: string | number; size?: string | number; crc32c?: string;
+  contentType?: string; contentEncoding?: string; metadata?: Record<string, unknown>;
+};
+
+type StorageFile = ReturnType<NonNullable<ReturnType<typeof getAdminBucket>>['file']>;
+
+async function readStoredMetadata(file: StorageFile): Promise<StoredMetadata> {
+  // getMetadata's high-level promise has no application cancellation boundary.
+  // Use the same SDK's cancellable REST stream with no implicit metadata retry.
+  const stream = file.requestStream({ method: 'GET', uri: '', json: false, timeout: storageRequestTimeoutMs, maxRetries: 0 });
+  const chunks: Buffer[] = [];
+  let received = 0;
+  let responseSeen = false;
+  const timeout = setTimeout(() => stream.destroy(new Error('Generated artifact metadata deadline exceeded')), storageRequestTimeoutMs);
+  timeout.unref();
+  stream.on('response', (response: { statusCode?: unknown }) => {
+    responseSeen = true;
+    if (response.statusCode !== 200) {
+      const code = typeof response.statusCode === 'number' && Number.isSafeInteger(response.statusCode) ? response.statusCode : null;
+      stream.destroy(Object.assign(new Error('Generated artifact metadata request failed'), { code }));
+    }
   });
+  try {
+    for await (const chunk of stream) {
+      if (!Buffer.isBuffer(chunk) || received + chunk.length > 64 * 1024) throw new Error('Generated artifact metadata exceeds policy');
+      received += chunk.length;
+      chunks.push(Buffer.from(chunk));
+    }
+    if (!responseSeen) throw new Error('Generated artifact metadata lacks a verified HTTP response');
+    const value: unknown = JSON.parse(Buffer.concat(chunks, received).toString('utf8'));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Storage response has an invalid metadata envelope');
+    return value as StoredMetadata;
+  } finally { clearTimeout(timeout); stream.destroy(); }
+}
+
+async function readStoredBytes(file: StorageFile, size: number) {
+  const stream = file.createReadStream({ validation: 'crc32c', decompress: false });
+  const chunks: Buffer[] = [];
+  let received = 0;
+  const timeout = setTimeout(() => stream.destroy(new Error('Generated artifact read deadline exceeded')), storageRequestTimeoutMs);
+  timeout.unref();
+  try {
+    for await (const chunk of stream) {
+      if (!Buffer.isBuffer(chunk) || received + chunk.length > size || received + chunk.length > maxGeneratedBytes) {
+        throw new Error('Generated artifact size verification failed');
+      }
+      received += chunk.length;
+      chunks.push(Buffer.from(chunk));
+    }
+    if (received !== size) throw new Error('Generated artifact size verification failed');
+    return Buffer.concat(chunks, received);
+  } finally {
+    clearTimeout(timeout);
+    stream.destroy();
+  }
+}
+
+function storedIdentity(metadata: StoredMetadata) {
+  const generation = metadata.generation;
+  if ((typeof generation !== 'string' || !/^[1-9][0-9]{0,19}$/.test(generation))
+      && (typeof generation !== 'number' || !Number.isSafeInteger(generation) || generation < 1)) {
+    throw new Error('Storage response lacks an exact object generation');
+  }
+  if (BigInt(generation) > 18446744073709551615n) throw new Error('Storage object generation exceeds the API range');
+  const size = metadata.size;
+  if ((typeof size !== 'string' || !/^(0|[1-9][0-9]{0,9})$/.test(size))
+      && (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0)) {
+    throw new Error('Storage response has an invalid object size');
+  }
+  if (Number(size) > maxGeneratedBytes || typeof metadata.crc32c !== 'string' || !checksumPattern.test(metadata.crc32c)
+      || (metadata.contentEncoding !== undefined && metadata.contentEncoding !== 'identity')) {
+    throw new Error('Stored artifact exceeds integrity or size policy');
+  }
+  return { generation, size: Number(size), crc32c: metadata.crc32c };
+}
+
+function storageErrorCode(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error ? (error as { code: unknown }).code : null;
+}
+
+export async function cloudWriteGenerated(fileName: string, buffer: Buffer, contentType?: string, storagePath?: string) {
+  const objectPath = generatedObjectPath(fileName, storagePath);
+  if (!Buffer.isBuffer(buffer) || buffer.length > maxGeneratedBytes) throw new Error('Generated artifact exceeds size policy');
+  // Freeze caller-owned bytes before the first asynchronous operation.
+  const payload = Buffer.from(buffer);
+  const type = contentType ?? 'application/octet-stream';
+  if (typeof type !== 'string' || !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(type)) throw new Error('Invalid artifact content type');
+  const bucket = bucketOrThrow();
+  // SDK checksum-failure cleanup uses this File's default precondition. A zero
+  // create precondition cannot delete any existing generation, even if a response
+  // is corrupted or a different writer replaces the name during validation.
+  const file = bucket.file(objectPath, { preconditionOpts: { ifGenerationMatch: 0 } });
+  const checksum = file.crc32cGenerator();
+  checksum.update(payload);
+  const crc32c = checksum.toString();
+  if (!checksumPattern.test(crc32c)) throw new Error('Storage CRC32C validator is unavailable');
+  const sha256 = createHash('sha256').update(payload).digest('hex');
+  let existing = false;
+  try {
+    await file.save(payload, {
+      resumable: false, validation: 'crc32c', timeout: storageRequestTimeoutMs,
+      preconditionOpts: { ifGenerationMatch: 0 },
+      contentType: type,
+      metadata: { crc32c, cacheControl: 'private, max-age=60', metadata: { sha256 } },
+    });
+  } catch (error) {
+    if (storageErrorCode(error) !== 412) throw error;
+    existing = true;
+  }
+  const metadata = await readStoredMetadata(bucket.file(objectPath));
+  const identity = storedIdentity(metadata);
+  if (identity.size !== payload.length || identity.crc32c !== crc32c || metadata.contentType !== type
+      || (metadata.metadata?.sha256 !== undefined && metadata.metadata.sha256 !== sha256)
+      || (!existing && metadata.metadata?.sha256 !== sha256)) {
+    throw new Error('Generated artifact conflicts with an existing immutable version');
+  }
+  if (existing) {
+    // A CRC32C match alone cannot prove semantic byte identity. Read the captured
+    // generation and compare SHA-256 before admitting an idempotent retry/legacy reuse.
+    const pinned = bucket.file(objectPath, { generation: identity.generation });
+    const stored = await readStoredBytes(pinned, identity.size);
+    if (!Buffer.isBuffer(stored) || stored.length !== payload.length || createHash('sha256').update(stored).digest('hex') !== sha256) {
+      throw new Error('Existing generated artifact bytes failed identity verification');
+    }
+  }
+  // Never perform an unconditional cleanup delete: it could remove another version.
   return `gs://${bucket.name}/${objectPath}`;
 }
 
 export async function cloudReadGenerated(fileName: string, storagePath?: string) {
+  const objectPath = generatedObjectPath(fileName, storagePath);
   const bucket = bucketOrThrow();
-  const objectPath = storagePath ?? `asset-factory/generated/${fileName}`;
   const file = bucket.file(objectPath);
-  const [exists] = await file.exists();
-  if (!exists) return null;
-  const [buffer] = await file.download();
+  let metadata;
+  try { metadata = await readStoredMetadata(file); }
+  catch (error) { if (storageErrorCode(error) === 404) return null; throw error; }
+  const identity = storedIdentity(metadata);
+  const pinned = bucket.file(objectPath, { generation: identity.generation });
+  const buffer = await readStoredBytes(pinned, identity.size);
+  if (!Buffer.isBuffer(buffer) || buffer.length !== identity.size) throw new Error('Generated artifact size verification failed');
+  const checksum = pinned.crc32cGenerator(); checksum.update(buffer);
+  if (checksum.toString() !== identity.crc32c
+      || (metadata.metadata?.sha256 !== undefined && metadata.metadata.sha256 !== createHash('sha256').update(buffer).digest('hex'))) {
+    throw new Error('Generated artifact checksum verification failed');
+  }
   return buffer;
 }
 
