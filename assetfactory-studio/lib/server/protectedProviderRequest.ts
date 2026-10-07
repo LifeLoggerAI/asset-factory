@@ -6,7 +6,7 @@ import { isIP } from 'node:net';
 import type { GenerateRequest } from './assetFactoryValidation';
 
 type JsonRecord = Record<string, unknown>;
-type Reservation = { jobId: string; attemptId: string; jobDigest: string; requestSha256: string; sourceSha: string; maxRuntimeSeconds: number };
+type Reservation = { jobId: string; attemptId: string; jobDigest: string; requestSha256: string; sourceSha: string; maxRuntimeSeconds: number; bindingFields: JsonRecord };
 type Session = { input: GenerateRequest; inputDigest: string; submitted: boolean; reservation?: Reservation; deadline?: number; controller: AbortController; taskId?: string };
 const sessions = new AsyncLocalStorage<Session>();
 const SOURCE_PATHS = ['protectedProviderRequest.ts', 'assetProviderRuntime.ts', 'assetVideoProviderRuntime.ts', 'higgsfieldClient.ts'].map(name => `assetfactory-studio/lib/server/${name}`);
@@ -54,7 +54,8 @@ function safeHttps(value: string, gateway = false): URL {
   let url: URL; try { url = new URL(value); } catch { throw new ProtectedProviderRejected('invalid protected HTTPS endpoint'); }
   const host = url.hostname.toLowerCase().replace(/\.$/, '');
   need(url.protocol === 'https:' && !url.username && !url.password && !url.hash && (!gateway || !url.search), 'protected HTTPS endpoint required');
-  need(!isIP(host) && !host.startsWith('[') && host.includes('.') && !/(^|\.)(localhost|local|internal)$/.test(host), 'private protected endpoint rejected');
+  // Reject all IP literals and names reserved for local routing, including subdomains.
+  need(!isIP(host) && !host.startsWith('[') && host.includes('.') && !/(^|\.)(local(?:host)?|internal)$/.test(host), 'private protected endpoint rejected');
   return url;
 }
 export function studioExecutorSourceSha() {
@@ -113,29 +114,36 @@ export async function paidStudioFetch(provider: string, model: string, lane: str
   const semanticDigest = digest(sourceJson(Object.fromEntries([...headers.entries()].filter(([key]) => !Object.prototype.hasOwnProperty.call(credentials, key)))));
   const requestDigest = studioRequestDigest(endpoint, bytes), sourceSha = studioExecutorSourceSha();
   const asset = `${session.input.tenantId || 'default'}/${session.input.jobId}/${lane}`;
-  const fields = { job_id: jobId(requestDigest), provider: nonempty(provider), model: nonempty(model), asset, request_size: String(bytes.byteLength), endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha };
+  const fields = { job_id: jobId(requestDigest), provider: nonempty(provider), model: nonempty(model), asset, request_size: String(bytes.byteLength), endpoint, request_sha256: requestDigest, executor_source_sha: sourceSha, credential_sha256: credentialDigest, semantic_headers_sha256: semanticDigest, source_input_sha256: session.inputDigest, content_type: contentType };
   sessionEndpoint.set(session, endpoint);
   session.submitted = true;
   const prepared = await gateway('preflight', fields);
   need(prepared.provider_call_authorized === false && prepared.execution_performed === false, 'preflight must remain non-authorizing');
   const envelope = record(prepared.envelope), job = record(envelope.job), executor = record(job.executor), authority = record(job.authority);
+  const account = record(envelope.account), controls = record(envelope.protected_controls), accountId = nonempty(job.account_id);
   need(job.job_id === fields.job_id && job.provider === provider && job.model_version === model && job.consumer === 'factory-studio' && job.rights_reviewed === true, 'protected Studio job identity or rights changed');
   need(authority.repository === 'LifeLoggerAI/asset-factory' && authority.sha === sourceSha, 'protected Studio source authority changed');
   need(executor.source_sha === sourceSha && executor.endpoint === endpoint && executor.request_sha256 === requestDigest && executor.asset === asset && executor.request_size === fields.request_size, 'protected Studio request binding changed');
   need(executor.content_type === contentType && executor.credential_sha256 === credentialDigest && executor.semantic_headers_sha256 === semanticDigest && executor.source_input_sha256 === session.inputDigest, 'protected Studio account/header/input binding changed');
+  need(account.provider === provider && account.account_id === accountId && account.trusted_readback === true && account.credential_binding_verified === true && account.credential_sha256 === credentialDigest, 'protected Studio credential/account mapping changed');
+  nonempty(account.credential_binding_receipt);
+  need(controls.provider === provider && controls.account_id === accountId && controls.trusted_readback === true && controls.credential_sha256 === credentialDigest && controls.semantic_headers_sha256 === semanticDigest && controls.source_input_sha256 === session.inputDigest && controls.content_type === contentType, 'protected Studio control/account binding changed');
   const inputs = job.input_sha256; need(Array.isArray(inputs) && inputs.includes(session.inputDigest) && inputs.includes(requestDigest), 'protected Studio input fixity missing');
   const jobDigest = protectedJobDigest(job);
   // Recheck local clean build/input after the non-authorizing read and before reserve.
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed before reservation');
-  const admitted = await gateway('reserve', { ...fields, job_digest: jobDigest });
+  const boundFields = { ...fields, account_id: accountId, job_digest: jobDigest };
+  const admitted = await gateway('reserve', boundFields);
   const runtime = admitted.max_runtime_seconds;
   need(admitted.provider_call_authorized === true && admitted.execution_performed === false && admitted.executor_source_sha === sourceSha && admitted.job_digest === jobDigest && typeof runtime === 'number' && Number.isSafeInteger(runtime) && runtime > 0 && runtime <= 86_400 && runtime === record(job.budget).max_runtime_seconds, 'invalid protected Studio reservation');
+  need(admitted.account_id === accountId && admitted.credential_sha256 === credentialDigest && admitted.semantic_headers_sha256 === semanticDigest && admitted.source_input_sha256 === session.inputDigest && admitted.content_type === contentType, 'protected Studio reserved credential/account binding changed');
   const attemptId = nonempty(admitted.attempt_id);
-  session.reservation = { jobId: fields.job_id, attemptId, jobDigest, requestSha256: requestDigest, sourceSha, maxRuntimeSeconds: runtime };
+  session.reservation = { jobId: fields.job_id, attemptId, jobDigest, requestSha256: requestDigest, sourceSha, maxRuntimeSeconds: runtime, bindingFields: boundFields };
   session.deadline = Date.now() + runtime * 1_000;
   checkDeadline(session);
   need(studioExecutorSourceSha() === sourceSha && studioSourceInputDigest(session.input) === session.inputDigest, 'Studio source changed after reservation');
-  return fetch(endpoint, { ...init, body: bytes, redirect: 'error', signal: joinedSignal(session, init.signal) });
+  // Dispatch the materialized method/headers/body that were actually admitted.
+  return fetch(endpoint, { ...init, method: 'POST', headers, body: bytes, redirect: 'error', signal: joinedSignal(session, init.signal) });
 }
 
 /** Only status/artifact GETs are allowed after admission; authorization cannot escape its API origin. */
@@ -195,7 +203,7 @@ export async function withProtectedStudioSession<T>(input: GenerateRequest | und
       if (session.reservation) {
         const r = session.reservation;
         // Observations cannot settle charges, release funds, or authorize retry.
-        try { const observed = await gateway('record', { job_id: r.jobId, attempt_id: r.attemptId, status: outcome, ...(session.taskId ? { request_id: session.taskId } : {}) }); need(observed.provider_call_authorized === false && observed.execution_performed === false && observed.reconciliation_required === true, 'invalid protected observation'); }
+        try { const observed = await gateway('record', { ...r.bindingFields, attempt_id: r.attemptId, status: outcome, ...(session.taskId ? { request_id: session.taskId } : {}) }); need(observed.provider_call_authorized === false && observed.execution_performed === false && observed.reconciliation_required === true, 'invalid protected observation'); }
         catch { if (outcome === 'succeeded') throw new ProtectedProviderRejected('provider output requires durable observation and charge reconciliation'); }
       }
     }

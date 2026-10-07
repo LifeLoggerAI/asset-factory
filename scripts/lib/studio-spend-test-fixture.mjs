@@ -49,19 +49,25 @@ export function syntheticStudioSpend(input, options, protectedModule) {
     const fields = JSON.parse(init.body); state.calls.push(fields.action);
     if (state.failAction === fields.action) throw new Error('SYNTHETIC gateway unavailable');
     if (fields.action === 'preflight') {
-      const envelope = { job: structuredClone(job), account: {}, authority: {} };
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
+      const envelope = { job: structuredClone(job), account: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-ACCOUNT-PROOF' }, authority: {}, protected_controls: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type } };
       state.mutatePreflight?.(envelope, fields);
       return Response.json({ ok: true, envelope, provider_call_authorized: false, execution_performed: false });
     }
     if (fields.action === 'reserve') {
       if (state.reserved) return Response.json({ ok: false }, { status: 409 });
       assert.equal(fields.job_digest, protectedModule.protectedJobDigest(job));
+      assert.equal(fields.account_id, job.account_id);
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
       state.reserved = true; state.held = true;
       if (state.loseReserveResponse) throw new Error('SYNTHETIC lost response after reserve');
-      const result = { ok: true, attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: options.runtime ?? 30, provider_call_authorized: true, execution_performed: false };
+      const result = { ok: true, attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: options.runtime ?? 30, provider_call_authorized: true, execution_performed: false, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type };
       state.mutateReserve?.(result); return Response.json(result);
     }
     if (fields.action === 'record') {
+      assert.equal(fields.account_id, job.account_id);
+      for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'request_sha256', 'endpoint', 'asset', 'request_size']) assert.equal(fields[key], job.executor[key]);
+      assert.equal(fields.provider, job.provider); assert.equal(fields.model, job.model_version); assert.equal(fields.executor_source_sha, job.executor.source_sha);
       assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields);
       return Response.json({ ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true });
     }

@@ -113,6 +113,17 @@ test('concurrent Studio sessions share one protected job and only one can submit
 test('a second paid submission in one admitted session cannot reach fetch', async () => {
   const c = config('openai', 'graphic'); await assert.rejects(protector.withProtectedStudioSession(c.request, async () => { const init = { method: 'POST', headers: c.headers, body: c.bytes }; await protector.paidStudioFetch('openai', 'gpt-image-1', 'graphic', c.endpoint, init); await protector.paidStudioFetch('openai', 'gpt-image-1', 'graphic', c.endpoint, init); })); assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true);
 });
+test('caller mutation during preflight cannot replace admitted method, credential or semantic headers', async () => {
+  const c = config('openai', 'graphic'), headers = { ...c.headers }, init = { method: 'POST', headers, body: c.bytes };
+  c.fixture.mutatePreflight = () => { headers.authorization = 'Bearer SYNTHETIC-other-account'; headers['content-type'] = 'text/plain'; init.method = 'PUT'; };
+  await protector.withProtectedStudioSession(c.request, () => protector.paidStudioFetch('openai', 'gpt-image-1', 'graphic', c.endpoint, init));
+  assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true); assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']);
+});
+test('provider continuations reject IP literals and local routing names before fetch', async () => {
+  let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('private network must not be contacted'); };
+  for (const host of ['localhost', 'sub.localhost', 'sub.localhost.', 'local', 'sub.local', 'sub.internal', '127.0.0.1', '2130706433', '10.0.0.1', '[::1]', '[::ffff:127.0.0.1]']) await assert.rejects(protector.readStudioProvider(`https://${host}/status`));
+  assert.equal(calls, 0);
+});
 test('actual Git rejects old, dirty and untracked source before provider admission', async () => {
   const c = config('openai', 'graphic'), declared = process.env.URAI_SOURCE_SHA; process.env.URAI_SOURCE_SHA = 'f'.repeat(40); await assert.rejects(c.run()); process.env.URAI_SOURCE_SHA = declared;
   const file = path.join(build.directory, 'assetfactory-studio/lib/server/assetProviderRuntime.ts'), bytes = readFileSync(file); writeFileSync(file, Buffer.concat([bytes, Buffer.from('\n// dirty synthetic source\n')])); await assert.rejects(c.run()); writeFileSync(file, bytes);
@@ -160,6 +171,14 @@ test('deadline bounds all polling and never opens another paid submission', asyn
 });
 test('reservation cannot expand the signed job runtime or mark execution already performed', async () => {
   for (const mutate of [r => { r.max_runtime_seconds = 31; }, r => { r.execution_performed = true; }, r => { r.provider_call_authorized = false; }, r => { r.job_digest = 'f'.repeat(64); }, r => { r.executor_source_sha = 'f'.repeat(40); }]) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
+});
+test('protected preflight account and credential controls cannot contradict the actual provider key', async () => {
+  for (const mutate of [e => { e.account.account_id = 'other'; }, e => { e.account.credential_binding_verified = false; }, e => { e.account.credential_binding_receipt = ''; }, e => { e.account.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.credential_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.semantic_headers_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.source_input_sha256 = 'f'.repeat(64); }, e => { e.protected_controls.content_type = 'text/plain'; }]) {
+    const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']);
+  }
+});
+test('reserved account and fingerprint echoes cannot admit a different account or request', async () => {
+  for (const field of ['account_id', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) { const c = config('openai', 'graphic'); c.fixture.mutateReserve = r => { r[field] = 'SYNTHETIC-wrong-binding'; }; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); }
 });
 test('source changing after atomic reserve cannot reach provider fetch and retains the hold', async () => {
   const c = config('openai', 'graphic'), file = path.join(build.directory, 'assetfactory-studio/lib/server/higgsfieldClient.ts'), bytes = readFileSync(file);

@@ -480,7 +480,7 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
     calls.push({ url: String(url), method: options.method ?? 'GET' });
     if (String(url) === 'https://fal.run/fal-ai/flux/schnell') {
       assert.equal(options.method, 'POST');
-      assert.equal(options.headers.authorization, 'Key test-fal-key');
+      assert.equal(new Headers(options.headers).get('authorization'), 'Key test-fal-key');
       assert.deepEqual(JSON.parse(options.body), { prompt: 'governed fal smoke' });
       return new Response(JSON.stringify({ images: [{ url: 'https://cdn.example.com/fal.webp' }] }), {
         status: 200,
