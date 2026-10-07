@@ -18,7 +18,7 @@ function locate(name, from) {
   return null;
 }
 export function installedGraph(repositoryRoot, importers) {
-  repositoryRoot = path.resolve(repositoryRoot);
+  repositoryRoot = fs.realpathSync(path.resolve(repositoryRoot));
   const nodes = new Map();
   const problems = [];
   for (const importer of importers) {

@@ -28,6 +28,13 @@ test('installed source resolves actual bytes rather than requested ranges; missi
     assert.equal(graph.nodes.length, 2);
     assert.equal(graph.problems.length, 1);
     assert.equal(match(graph, [], semver).status, 'BLOCKED');
+    const alias = root + '-alias';
+    fs.symlinkSync(root, alias, 'dir');
+    try {
+      const throughAlias = installedGraph(alias, ['.']);
+      assert.equal(throughAlias.nodes.length, 2);
+      assert.equal(throughAlias.problems.length, 1);
+    } finally { fs.unlinkSync(alias); }
   } finally { fs.rmSync(root, {recursive: true, force: true}); }
 });
 test('high findings fail closed, withdrawn records are excluded, and missing severity cannot pass', () => {
