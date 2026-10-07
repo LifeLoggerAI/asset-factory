@@ -14,7 +14,7 @@ on:
       - .github/workflows/factory-firebase-sdk-lock-refresh.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: factory-firebase-sdk-lock-refresh-${{ github.event.pull_request.number }}
@@ -59,6 +59,22 @@ jobs:
           npm --prefix life-map-pipeline/functions run build
           npm --prefix life-map-pipeline/functions test
           npm --prefix functions test
+      - name: Commit proven generated lock candidates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add pnpm-lock.yaml life-map-pipeline/functions/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Generated lock candidates already match committed bytes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(deps): commit proven Firebase SDK lock candidates"
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\r\n')"
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin "HEAD:${GITHUB_HEAD_REF}"
       - name: Retain generated lock candidates
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
