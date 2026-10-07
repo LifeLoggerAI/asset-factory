@@ -367,3 +367,15 @@ test('final observation latency or source drift cannot deliver a result after it
     finally { writeFileSync(file, original); Date.now = originalNow; }
   }
 });
+
+test('malformed provider, worker or poll headers never expose their secret or reach transport', async () => {
+  const secret = 'SYNTHETIC-private-secret-must-not-escape';
+  for (const key of ['OPENAI_API_KEY', 'ASSET_FORGE_SPEND_WORKER_TOKEN']) {
+    const c = config('openai', 'graphic'), original = process.env[key]; process.env[key] = secret + '\ninvalid-header';
+    try { await assert.rejects(c.run(), error => { assert.ok(error instanceof protector.ProtectedProviderRejected); assert.equal(String(error).includes(secret), false); return true; }); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []); }
+    finally { process.env[key] = original; }
+  }
+  let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('must not reach transport'); };
+  await assert.rejects(protector.readStudioProvider('https://api.replicate.com/v1/predictions/SYNTHETIC', { headers: { authorization: secret + '\ninvalid-header' } }), error => { assert.ok(error instanceof protector.ProtectedProviderRejected); assert.equal(String(error).includes(secret), false); return true; });
+  assert.equal(calls, 0);
+});
