@@ -121,7 +121,7 @@ function crossRepositoryBinding(job: SpendJob, input: RecordValue, options: Spen
     gateway_repository: GATEWAY_REPOSITORY, gateway_source_sha: sha(options.sourceSha, 40),
     consumer: nonempty(job.consumer, 'consumer'), tenant_sha256: sha(executor.tenant_sha256),
     provider: job.provider, account_id: job.account_id, credential_sha256: sha(executor.credential_sha256),
-    source_input_sha256: sha(executor.source_input_sha256), semantic_headers_sha256: sha(executor.semantic_headers_sha256),
+    source_input_sha256: sha(executor.source_input_sha256), semantic_input_sha256: sha(executor.semantic_input_sha256), semantic_headers_sha256: sha(executor.semantic_headers_sha256),
     content_type: nonempty(executor.content_type, 'content type'), request_sha256: sha(executor.request_sha256),
     endpoint: nonempty(executor.endpoint, 'endpoint'), model: nonempty(job.model_version, 'model'),
     asset: nonempty(executor.asset, 'asset'), request_size: nonempty(executor.request_size, 'request size'),
@@ -159,7 +159,7 @@ async function verifyCrossRepository(tx: Tx, job: SpendJob, input: RecordValue, 
     nonempty(record.proof_receipt, 'deployment proof identity'); nonempty(record.deployment_id, 'deployment identity');
   }
   need(deployment.deployment_id === controls.deployment_id && controls.enforcement_source_sha === binding.gateway_source_sha, 'current deployed enforcement changed');
-  return controls;
+  return { controls, deployment };
 }
 
 function verifyActualRequest(job: SpendJob, account: SpendAccount, controls: RecordValue, input: RecordValue, action: string, now: number) {
@@ -171,7 +171,7 @@ function verifyActualRequest(job: SpendJob, account: SpendAccount, controls: Rec
   need(account.provider === job.provider && account.account_id === job.account_id && account.trusted_readback === true, 'protected account identity changed');
   fresh(account, 'observed_at', 'expires_at', now); fresh(controls, 'observed_at', 'expires_at', now);
   need(controls.trusted_readback === true && controls.provider === job.provider && controls.account_id === job.account_id && controls.credential_sha256 === credential, 'provider credential controls changed');
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256']) {
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256']) {
     const value = sha(executor[field]); need(input[field] === value && controls[field] === value, `actual ${field} changed`);
   }
   const contentType = nonempty(executor.content_type, 'content type'); need(input.content_type === contentType && controls.content_type === contentType, 'actual content type changed');
@@ -182,7 +182,7 @@ function verifyActualRequest(job: SpendJob, account: SpendAccount, controls: Rec
 
 function verifyProtectedPricing(job: SpendJob, price: RecordValue, now: number) {
   need(price.provider === job.provider && price.account_id === job.account_id && price.model_version === job.model_version && price.request_sha256 === job.executor.request_sha256 && price.trusted_readback === true, 'price binding changed');
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) need(price[field] === job.executor[field], `protected price ${field} changed`);
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) need(price[field] === job.executor[field], `protected price ${field} changed`);
   nonempty(price.receipt, 'protected price proof'); fresh(price, 'observed_at', 'expires_at', now);
   need(canonical(price.rates) === canonical(job.budget.rates), 'pricing changed');
   fresh(spendRecord(price.rates, 'price rates'), 'verified_at', 'expires_at', now);
@@ -250,7 +250,8 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     const crossRepository = job.executor.binding_version !== undefined || job.executor.repository !== undefined;
     need(crossRepository || !options.worker, 'scoped workers cannot access legacy jobs');
     // Scope even non-authorizing reads and outcome observations before exposing a job.
-    const crossControls = crossRepository && action !== 'reconcile' ? await verifyCrossRepository(tx, job, input, options) : undefined;
+    const crossProofs = crossRepository && action !== 'reconcile' ? await verifyCrossRepository(tx, job, input, options) : undefined;
+    const crossControls = crossProofs?.controls;
     const accountRef = db.doc(`assetFactorySpendAccounts/${hash(`${job.provider}\n${job.account_id}`)}`);
     const accountSnapshot = await tx.get(accountRef); need(accountSnapshot.exists, 'protected account missing'); const account = spendAccount(structuredClone(accountSnapshot.data()));
     let boundControls = crossControls, boundApproval: RecordValue | undefined, boundPrice: RecordValue | undefined;
@@ -285,6 +286,12 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
       need(typeof attempt.status === 'string' && ['RESERVED', 'RECONCILIATION_REQUIRED'].includes(attempt.status), 'attempt already reconciled');
       need(receipt.job_id === jobId && receipt.attempt_id === attemptId && receipt.provider === job.provider && receipt.account_id === job.account_id && receipt.job_digest === jobDigest(job), 'charge receipt binding changed');
       need(typeof receipt.status === 'string' && ['FAILED', 'SUCCEEDED', 'CANCELLED'].includes(receipt.status) && receipt.final === true, 'receipt not final'); nonempty(receipt.task_id, 'provider task');
+      // The provider's task and final charge receipt are globally consumed within
+      // the canonical account ledger, even if a writer creates a different job.
+      const taskClaimRef = db.doc(`assetFactorySpendTaskClaims/${hash(canonical({ provider: job.provider, account_id: job.account_id, task_id: receipt.task_id }))}`);
+      const chargeClaimRef = db.doc(`assetFactorySpendChargeClaims/${sha(input.receipt_sha256)}`);
+      const [taskClaim, chargeClaim] = await Promise.all([tx.get(taskClaimRef), tx.get(chargeClaimRef)]);
+      need(!taskClaim.exists && !chargeClaim.exists, 'provider task or charge receipt already consumed');
       need(!job.attempts.some((a: RecordValue, i: number) => i !== index && a.task_id === receipt.task_id), 'provider task already reconciled to another attempt');
       need(date(receipt.observed_at) <= options.now() && date(receipt.observed_at) >= date(attempt.reserved_at), 'receipt time invalid');
       attempt.status = receipt.status; attempt.task_id = receipt.task_id; attempt.charges_reconciled = true; attempt.actual_usd_micros = integer(receipt.actual_usd_micros, 'actual USD'); attempt.actual_credits = integer(receipt.actual_credits, 'actual credits'); attempt.charge_receipt_sha256 = input.receipt_sha256;
@@ -301,6 +308,8 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
         state.terminal = true;
       }
       if (overrun) { account.frozen = true; state.cap_overrun = true; }
+      const consumed = { job_id: jobId, attempt_id: attemptId, provider: job.provider, account_id: job.account_id, task_id: receipt.task_id, receipt_sha256: input.receipt_sha256 };
+      tx.set(taskClaimRef, consumed); tx.set(chargeClaimRef, consumed);
       tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
       return { ok: true, provider_call_authorized: false, execution_performed: false, reconciled: true, terminal, cap_overrun: overrun };
     }
@@ -324,13 +333,33 @@ export async function spendAction(db: SpendDb, action: string, inputValue: unkno
     const existing = account.reservations.find((r: RecordValue) => r.job_id === jobId);
     need(!existing || existing.settled === undefined || existing.settled === false, 'settled debit cannot reopen as a reservation');
     if (!existing) account.reservations.push({ job_id: jobId, usd_micros: job.budget.max_usd_micros, credits: job.budget.max_credits });
-    validateSpend(job, account, authority, options.now());
+    // Label/source changes and byte-only re-encodings cannot authorize the same
+    // semantic provider input twice. The claim persists after settlement and
+    // allows only this job's independently reconciled bounded corrective retry.
+    const inputClaimRef = db.doc(`assetFactorySpendInputClaims/${hash(canonical({ provider: job.provider, account_id: job.account_id, model: job.model_version, endpoint: job.executor.endpoint, semantic_input_sha256: sha(job.executor.semantic_input_sha256) }))}`);
+    const inputClaim = await tx.get(inputClaimRef);
+    if (inputClaim.exists) {
+      const claim = spendRecord(inputClaim.data(), 'semantic input claim');
+      need(claim.job_id === jobId && claim.job_digest === jobDigest(job) && job.attempts.length > 0 && claim.first_attempt_id === job.attempts[0].attempt_id && claim.last_attempt_id === job.attempts.at(-1)?.attempt_id, 'semantic input already reserved by another execution identity');
+    } else need(job.attempts.length === 0, 'prior attempt has no durable input claim');
+    const admittedAt = options.now();
+    validateSpend(job, account, authority, admittedAt);
+    verifyActualRequest(job, account, controls, input, action, admittedAt);
+    verifyProtectedPricing(job, boundPrice, admittedAt);
+    if (crossProofs) fresh(crossProofs.deployment, 'observed_at', 'expires_at', admittedAt);
+    const proofExpiry = Math.min(...[approval, authority, account, controls, boundPrice, job.budget.rates, ...(crossProofs ? [crossProofs.deployment] : [])].map(record => date(record.expires_at)));
+    need(proofExpiry > admittedAt, 'authorization window elapsed');
     const envelope = { job, account, authority, protected_controls: controls, protected_pricing: boundPrice };
-    if (action === 'preflight') return { ok: true, envelope, provider_call_authorized: false, execution_performed: false };
+    if (action === 'preflight') return { ok: true, envelope, admission_expires_at: new Date(proofExpiry).toISOString(), provider_call_authorized: false, execution_performed: false };
     need(input.job_digest === jobDigest(job), 'offline job digest changed');
-    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at: new Date(options.now()).toISOString(), request_sha256: input.request_sha256, charges_reconciled: false };
-    job.attempts.push(attempt); delete job.approval; tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
-    return { ok: true, attempt_id: id, job_digest: input.job_digest, executor_source_sha: job.executor.source_sha, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, ...(crossRepository ? { gateway_source_sha: currentSource, worker_id: job.executor.worker_id } : {}), max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
+    const reservedAt = options.now(), executionExpiry = Math.min(proofExpiry, reservedAt + job.budget.max_runtime_seconds * 1000);
+    need(reservedAt < proofExpiry, 'authorization expired before reservation commit');
+    const reserved_at = new Date(reservedAt).toISOString(), admission_expires_at = new Date(executionExpiry).toISOString();
+    const id = randomUUID(); const attempt = { attempt_id: id, status: 'RESERVED', reserved_at, admission_expires_at, request_sha256: input.request_sha256, charges_reconciled: false };
+    job.attempts.push(attempt); delete job.approval;
+    tx.set(inputClaimRef, { job_id: jobId, job_digest: jobDigest(job), semantic_input_sha256: job.executor.semantic_input_sha256, first_attempt_id: inputClaim.exists ? spendRecord(inputClaim.data(), 'semantic input claim').first_attempt_id : id, last_attempt_id: id, reserved_at });
+    tx.set(accountRef, account); tx.set(jobRef, { ...state, job });
+    return { ok: true, attempt_id: id, reserved_at, admission_expires_at, job_digest: input.job_digest, executor_source_sha: job.executor.source_sha, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type, ...(crossRepository ? { gateway_source_sha: currentSource, worker_id: job.executor.worker_id } : {}), max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false };
   });
 }
 

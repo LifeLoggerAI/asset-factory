@@ -36,22 +36,22 @@ function fixture(db = new Db(), id = 'synthetic-pilot') {
   const rates = { usd_micros_per_unit: 1000000, credits_per_unit: 10, receipt: 'SYNTHETIC-PRICE', verified_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
   const job = { schema_version: 1, job_id: id, provider: 'custom', account_id: 'synthetic-api', operation: 'render', model_version: 'synthetic-model', owner_lane: 'synthetic', consumer: 'synthetic', truth_class: 'GENERIC', rights_reviewed: true, authority: binding, input_sha256: ['b'.repeat(64)], reuse_review: { input_sha256: ['b'.repeat(64)], decision: 'MISSING_COMPONENT', receipt: 'SYNTHETIC-REUSE' }, acceptance: { stage: 'SPECIFIED', criteria: 'Synthetic fixture', verification: 'Synthetic verifier' }, expected_outputs: ['geometry', 'receipt'], budget: { currency: 'USD', max_usd_micros: 2500000, max_credits: 20, units: 1, max_retries: 1, max_runtime_seconds: 2, hard_stop_supported: true, auto_top_up: false, storage_egress_overhead_usd_micros: 100000, rates }, attempts: [], approval_ref: hash(`approval:${id}`), authority_ref: hash('authority'), pricing_ref: hash('pricing'), executor: { source_sha: 'a'.repeat(40), controls_ref: hash('controls'), request_sha256: hash('synthetic request'), endpoint: 'https://example.invalid/render', asset: 'synthetic-image', request_size: '64x64' } };
   const authority = { binding, trusted_readback: true, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
-  Object.assign(job.executor, { credential_sha256: hash('SYNTHETIC-CREDENTIAL'), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), source_input_sha256: 'b'.repeat(64), content_type: 'application/json' });
+  Object.assign(job.executor, { credential_sha256: hash('SYNTHETIC-CREDENTIAL'), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), source_input_sha256: 'b'.repeat(64), semantic_input_sha256: hash(`semantic:${id}`), artifact_hosts: ['outputs.example.test'], content_type: 'application/json' });
   job.input_sha256.push(job.executor.request_sha256); job.reuse_review.input_sha256 = job.input_sha256;
   const account = { provider: job.provider, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-ACCOUNT-MAP', balance_type: 'API', trusted_readback: true, available_usd_micros: 3000000, available_credits: 30, observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', reservations: [] };
   const approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-approver', issued_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', job_digest: jobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, key_id: 'synthetic' };
-  const controls = { provider: job.provider, account_id: job.account_id, endpoint: job.executor.endpoint, request_sha256: job.executor.request_sha256, trusted_readback: true, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_runtime_seconds: 2, max_usd_micros: 2500000, max_credits: 20, proof_receipt: 'SYNTHETIC-CONTROL-PROOF', enforcement_source_sha: 'a'.repeat(40), observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) controls[field] = job.executor[field];
+  const controls = { artifact_hosts: ['outputs.example.test'], provider: job.provider, account_id: job.account_id, endpoint: job.executor.endpoint, request_sha256: job.executor.request_sha256, trusted_readback: true, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_runtime_seconds: 2, max_usd_micros: 2500000, max_credits: 20, proof_receipt: 'SYNTHETIC-CONTROL-PROOF', enforcement_source_sha: 'a'.repeat(40), observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) controls[field] = job.executor[field];
   const jobPath = `assetFactorySpendJobs/${hash(id)}`, accountPath = `assetFactorySpendAccounts/${hash('custom\nsynthetic-api')}`;
   db.rows.set(jobPath, { job });
   if (!db.rows.has(accountPath)) db.rows.set(accountPath, account);
   db.rows.set(`assetFactorySpendApprovals/${job.approval_ref}`, signing(approval));
   db.rows.set(`assetFactorySpendAuthorities/${job.authority_ref}`, authority);
   const price = { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, trusted_readback: true, receipt: 'SYNTHETIC-PRICE-PROOF', observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z', rates };
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) price[field] = job.executor[field];
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) price[field] = job.executor[field];
   db.rows.set(`assetFactorySpendPricing/${job.pricing_ref}`, price);
   db.rows.set(`assetFactorySpendControls/${job.executor.controls_ref}`, controls);
-  const input = { executor_source_sha: 'a'.repeat(40), account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, job_id: id, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, request_sha256: job.executor.request_sha256, endpoint: job.executor.endpoint, job_digest: jobDigest(job) };
+  const input = { executor_source_sha: 'a'.repeat(40), account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, semantic_input_sha256: job.executor.semantic_input_sha256, content_type: job.executor.content_type, job_id: id, provider: job.provider, model: job.model_version, asset: job.executor.asset, request_size: job.executor.request_size, request_sha256: job.executor.request_sha256, endpoint: job.executor.endpoint, job_digest: jobDigest(job) };
   return { db, job, input, jobPath, accountPath, account, authority, approval, controls };
 }
 const act = (f, action, extra = {}, opts = options) => spendAction(f.db, action, { ...f.input, ...extra }, opts);
@@ -222,7 +222,7 @@ test('actual HTTP transaction adapter supplies SDK-owned references on every rea
     set: (ref, value) => { assert.equal(ref.owner, marker); writes++; return tx.set(ref, value); },
   }));
   const r = await route(f), result = await r.post({ ...f.input, action: 'reserve' });
-  assert.equal(result.status, 200); assert.equal(reads, 6); assert.equal(writes, 2);
+  assert.equal(result.status, 200); assert.equal(reads, 7); assert.equal(writes, 3);
   assert.equal(f.db.rows.get(f.jobPath).job.attempts.length, 1);
 });
 test('actual HTTP route blocks shared/mismatched store and missing exact deployment source', async () => {
@@ -255,13 +255,13 @@ function crossFixture(db, id) {
   f.job.consumer = f.worker.consumer; f.job.authority = { repository: f.worker.executor_repository, sha: source }; f.authority.binding = f.job.authority;
   f.account.credential_sha256 = credential;
   f.job.input_sha256 = ['b'.repeat(64), f.job.executor.request_sha256]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
-  Object.assign(f.job.executor, { binding_version: 2, repository: f.worker.executor_repository, source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, worker_id: f.worker.id, tenant_sha256: tenant, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), content_type: 'application/json' });
-  const binding = { job_id: f.job.job_id, worker_id: f.worker.id, executor_repository: f.worker.executor_repository, executor_source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, consumer: f.job.consumer, tenant_sha256: tenant, provider: f.job.provider, account_id: f.job.account_id, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_headers_sha256: f.job.executor.semantic_headers_sha256, content_type: 'application/json', request_sha256: f.job.executor.request_sha256, endpoint: f.job.executor.endpoint, model: f.job.model_version, asset: f.job.executor.asset, request_size: f.job.executor.request_size };
+  Object.assign(f.job.executor, { binding_version: 2, repository: f.worker.executor_repository, source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, worker_id: f.worker.id, tenant_sha256: tenant, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_input_sha256: hash(`semantic:${id}`), artifact_hosts: ['outputs.example.test'], semantic_headers_sha256: hash('SYNTHETIC-HEADERS'), content_type: 'application/json' });
+  const binding = { job_id: f.job.job_id, worker_id: f.worker.id, executor_repository: f.worker.executor_repository, executor_source_sha: source, gateway_repository: 'LifeLoggerAI/asset-factory', gateway_source_sha: options.sourceSha, consumer: f.job.consumer, tenant_sha256: tenant, provider: f.job.provider, account_id: f.job.account_id, credential_sha256: credential, source_input_sha256: 'b'.repeat(64), semantic_input_sha256: hash(`semantic:${id}`), semantic_headers_sha256: f.job.executor.semantic_headers_sha256, content_type: 'application/json', request_sha256: f.job.executor.request_sha256, endpoint: f.job.executor.endpoint, model: f.job.model_version, asset: f.job.executor.asset, request_size: f.job.executor.request_size };
   Object.assign(f.input, binding);
   const proof = { binding, verified: true, trusted_readback: true, deployment_id: `SYNTHETIC-DEPLOYMENT-${f.job.job_id}`, proof_receipt: 'SYNTHETIC-VERIFIED-READBACK-NOT-PRODUCTION', verifier: 'synthetic-verifier', key_id: 'verifier', observed_at: '2026-10-07T16:00:00Z', expires_at: '2026-10-07T18:00:00Z' };
   f.deployment = structuredClone(proof); Object.assign(f.controls, structuredClone(proof));
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) f.controls[field] = f.job.executor[field];
-  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`)[field] = f.job.executor[field];
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) f.controls[field] = f.job.executor[field];
+  for (const field of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type']) f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`)[field] = f.job.executor[field];
   f.opts = { ...options, worker: f.worker, verifierKeys: { verifier: { subject: 'synthetic-verifier', publicKey: verifierPublicKey } } };
   refreshCrossProofs(f); return f;
 }
@@ -307,7 +307,7 @@ test('even correctly signed expired future replayed or mismatched deployment pro
   for (const change of mutations) { const f = crossFixture(); change(f); refreshCrossProofs(f); await assert.rejects(act(f, 'snapshot', {}, f.opts), SpendRejected); }
 });
 test('actual endpoint model input headers content size credential and head drift reject', async () => {
-  for (const field of ['endpoint', 'model', 'source_input_sha256', 'semantic_headers_sha256', 'credential_sha256', 'content_type', 'request_size', 'request_sha256', 'executor_source_sha', 'gateway_source_sha', 'tenant_sha256', 'consumer']) { const f = crossFixture(), before = structuredClone(f.db.rows); await assert.rejects(act(f, 'reserve', { [field]: 'changed' }, f.opts), SpendRejected); assert.deepEqual(f.db.rows, before); }
+  for (const field of ['endpoint', 'model', 'source_input_sha256', 'semantic_input_sha256', 'semantic_headers_sha256', 'credential_sha256', 'content_type', 'request_size', 'request_sha256', 'executor_source_sha', 'gateway_source_sha', 'tenant_sha256', 'consumer']) { const f = crossFixture(), before = structuredClone(f.db.rows); await assert.rejects(act(f, 'reserve', { [field]: 'changed' }, f.opts), SpendRejected); assert.deepEqual(f.db.rows, before); }
 });
 test('cross-repository jobs still share one global account budget', async () => {
   const f = crossFixture(undefined, 'spatial-job'), g = crossFixture(f.db, 'jobs-job');
@@ -353,7 +353,7 @@ test('actual gateway provenance rejects absent dirty untracked or misdeclared en
 });
 test('same-repository account credential header and source fingerprints are mandatory before all worker actions', async () => {
   for (const action of ['snapshot','record','preflight','reserve']) {
-    for (const field of ['credential_sha256','semantic_headers_sha256','source_input_sha256','content_type']) {
+    for (const field of ['credential_sha256','semantic_headers_sha256','source_input_sha256', 'semantic_input_sha256','content_type']) {
       const f=fixture(), before=structuredClone(f.db.rows); await assert.rejects(act(f,action,{ [field]:'changed' }),SpendRejected); assert.deepEqual(f.db.rows,before);
       const absent=fixture(); delete absent.input[field]; await assert.rejects(act(absent,action),SpendRejected);
     }
@@ -367,7 +367,7 @@ test('protected same-repository credential/account readback cannot be absent sta
 test('preflight derives account only once and reserve echoes the exact mandatory fingerprints', async () => {
   const f=fixture(); delete f.input.account_id; const p=await act(f,'preflight'); assert.equal(p.envelope.protected_controls.credential_sha256,f.job.executor.credential_sha256);
   await assert.rejects(act(f,'reserve'),SpendRejected); f.input.account_id=p.envelope.account.account_id;
-  const a=await act(f,'reserve'); for(const field of ['account_id','credential_sha256','semantic_headers_sha256','source_input_sha256','content_type']) assert.equal(a[field],f.input[field]);
+  const a=await act(f,'reserve'); for(const field of ['account_id','credential_sha256','semantic_headers_sha256','source_input_sha256', 'semantic_input_sha256','content_type']) assert.equal(a[field],f.input[field]);
 });
 test('same cryptographic key cannot impersonate independent verifier through PEM formatting', async () => {
   const f=crossFixture(); await assert.rejects(act(f,'snapshot',{}, { ...f.opts,verifierKeys:{verifier:{subject:'synthetic-verifier',publicKey:'\n'+publicKey+'\n'}}}),SpendRejected);
@@ -375,7 +375,7 @@ test('same cryptographic key cannot impersonate independent verifier through PEM
 
 test('protected pricing pins actual credentials semantic headers inputs content and fresh rates before every worker action', async () => {
   for (const make of [fixture, crossFixture]) for (const action of ['snapshot', 'record', 'preflight', 'reserve']) {
-    for (const field of ['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'receipt', 'observed_at', 'expires_at']) {
+    for (const field of ['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type', 'receipt', 'observed_at', 'expires_at']) {
       const f = make(), price = f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`);
       delete price[field]; const before = structuredClone(f.db.rows);
       await assert.rejects(act(f, action, {}, f.opts || options), SpendRejected); assert.deepEqual(f.db.rows, before);
@@ -395,3 +395,87 @@ test('preflight and non-authorizing snapshot expose the same exact protected pri
   }
 });
 
+
+test('preflight serializes genuine approval and exposes the minimum verified authorization window', async () => {
+  for (const make of [fixture, crossFixture]) for (const record of ['approval', 'authority', 'account', 'controls', 'pricing', 'rates', ...(make === crossFixture ? ['deployment'] : [])]) {
+    const f = make(), end = new Date(NOW + 1000).toISOString();
+    if (record === 'approval') f.approval.expires_at = end;
+    else if (record === 'pricing') f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`).expires_at = end;
+    else if (record === 'rates') { f.job.budget.rates.expires_at = end; f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`).rates.expires_at = end; }
+    else f[record].expires_at = end;
+    if (make === crossFixture) refreshCrossProofs(f);
+    else f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing({ ...f.approval, job_digest: jobDigest(f.job) }));
+    f.input.job_digest = jobDigest(f.job);
+    const preflight = JSON.parse(JSON.stringify(await act(f, 'preflight', {}, f.opts || options)));
+    assert.equal(preflight.admission_expires_at, end, record);
+    assert.equal(preflight.envelope.job.approval.status, 'APPROVED');
+    const reservation = await act(f, 'reserve', {}, f.opts || options);
+    assert.equal(reservation.reserved_at, new Date(NOW).toISOString());
+    assert.equal(reservation.admission_expires_at, end, record);
+    const stored = f.db.rows.get(f.jobPath).job.attempts[0];
+    assert.equal(stored.reserved_at, reservation.reserved_at);
+    assert.equal(stored.admission_expires_at, reservation.admission_expires_at);
+    assert.equal(preflight.envelope.job.approval.status, 'APPROVED');
+    assert.equal(f.db.rows.get(f.accountPath).reservations[0].usd_micros, 2500000);
+  }
+});
+test('reservation expiry is also bounded by the server reservation time plus runtime', async () => {
+  for (const make of [fixture, crossFixture]) {
+    const f = make(), a = await act(f, 'reserve', {}, f.opts || options);
+    assert.equal(Date.parse(a.admission_expires_at), NOW + 2000);
+    assert.equal(Date.parse(a.reserved_at), NOW);
+  }
+});
+test('deployment expiry during later authority reads prevents commit without any durable writes', async () => {
+  const f = crossFixture(); f.deployment.expires_at = new Date(NOW + 1000).toISOString(); refreshCrossProofs(f);
+  let clock = NOW; const original = f.db.runTransaction.bind(f.db);
+  f.db.runTransaction = fn => original(tx => fn({ ...tx, get: async ref => { const result = await tx.get(ref); if (ref.path.startsWith('assetFactorySpendAuthorities/')) clock = NOW + 1000; return result; } }));
+  const before = structuredClone(f.db.rows);
+  await assert.rejects(act(f, 'reserve', {}, { ...f.opts, now: () => clock }), SpendRejected);
+  assert.deepEqual(f.db.rows, before);
+});
+test('expiry on the final reservation clock read cannot create an expired attempt or hold', async () => {
+  const calibration = fixture(); let count = 0; await act(calibration, 'reserve', {}, { ...options, now: () => { count++; return NOW; } });
+  const f = fixture(); f.approval.expires_at = new Date(NOW + 1000).toISOString();
+  f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing(f.approval));
+  let current = 0; const before = structuredClone(f.db.rows);
+  await assert.rejects(act(f, 'reserve', {}, { ...options, now: () => ++current === count ? NOW + 1000 : NOW }), SpendRejected);
+  assert.deepEqual(f.db.rows, before);
+});
+
+test('renamed source job and reencoded request cannot reopen a permanent semantic claim', async () => {
+  for (const settled of [false, true]) {
+    const first = fixture(); const a = await act(first, 'reserve');
+    if (settled) await act(first, 'reconcile', charge(first, a, 'SUCCEEDED'));
+    const other = fixture(first.db, 'renamed-successor');
+    other.account.available_usd_micros = 10_000_000; first.db.rows.get(first.accountPath).available_usd_micros = 10_000_000;
+    other.job.executor.semantic_input_sha256 = first.job.executor.semantic_input_sha256;
+    other.input.semantic_input_sha256 = first.job.executor.semantic_input_sha256;
+    other.controls.semantic_input_sha256 = first.job.executor.semantic_input_sha256;
+    other.db.rows.get(`assetFactorySpendPricing/${other.job.pricing_ref}`).semantic_input_sha256 = first.job.executor.semantic_input_sha256;
+    other.input.job_digest = jobDigest(other.job);
+    other.db.rows.set(`assetFactorySpendApprovals/${other.job.approval_ref}`, signing({ ...other.approval, job_digest: other.input.job_digest }));
+    const before = structuredClone(other.db.rows);
+    await assert.rejects(act(other, 'reserve'), /semantic input already reserved/);
+    assert.deepEqual(other.db.rows, before);
+    assert.equal([...other.db.rows.keys()].filter(k => k.startsWith('assetFactorySpendInputClaims/')).length, 1);
+  }
+});
+test('global task and charge consumption survives a separately signed foreign job receipt', async () => {
+  const first = fixture(), a = await act(first, 'reserve'), receipt = charge(first, a, 'SUCCEEDED');
+  const task = first.db.rows.get(`assetFactorySpendChargeReceipts/${receipt.receipt_sha256}`).task_id;
+  await act(first, 'reconcile', receipt);
+  const other = fixture(first.db, 'legitimate-distinct-input'), b = await act(other, 'reserve');
+  const duplicate = charge(other, b, 'SUCCEEDED', 400000, 2, { task_id: task }), before = structuredClone(other.db.rows);
+  await assert.rejects(act(other, 'reconcile', duplicate), /already consumed/); assert.deepEqual(other.db.rows, before);
+  const fresh = charge(other, b, 'SUCCEEDED');
+  other.db.rows.set(`assetFactorySpendChargeClaims/${fresh.receipt_sha256}`, { job_id: 'already-consumed' });
+  const beforeCharge = structuredClone(other.db.rows);
+  await assert.rejects(act(other, 'reconcile', fresh), /already consumed/); assert.deepEqual(other.db.rows, beforeCharge);
+  assert.equal(other.db.rows.get(other.accountPath).reservations.find(r => r.job_id === other.job.job_id).usd_micros, 2500000);
+});
+test('protected writer history reset cannot reopen the original permanent semantic identity', async () => {
+  const f = fixture(); await act(f, 'reserve');
+  const reset = fixture(f.db, f.job.job_id), before = structuredClone(reset.db.rows);
+  await assert.rejects(act(reset, 'reserve'), /semantic input already reserved/); assert.deepEqual(reset.db.rows, before);
+});
