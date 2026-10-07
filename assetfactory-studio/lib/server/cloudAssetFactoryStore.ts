@@ -181,7 +181,7 @@ function storedIdentity(metadata: StoredMetadata) {
       && (typeof generation !== 'number' || !Number.isSafeInteger(generation) || generation < 1)) {
     throw new Error('Storage response lacks an exact object generation');
   }
-  if (BigInt(generation) > 18446744073709551615n) throw new Error('Storage object generation exceeds the API range');
+  if (BigInt(generation) > BigInt('18446744073709551615')) throw new Error('Storage object generation exceeds the API range');
   const size = metadata.size;
   if ((typeof size !== 'string' || !/^(0|[1-9][0-9]{0,9})$/.test(size))
       && (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0)) {

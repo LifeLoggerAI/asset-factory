@@ -58,7 +58,7 @@ jobs:
       - name: Typecheck the actual storage and target boundaries
         run: >-
           node assetfactory-studio/node_modules/typescript/bin/tsc
-          --strict --noEmit --skipLibCheck --target ES2022 --module ESNext
+          --strict --noEmit --skipLibCheck --target ES2017 --lib DOM,ESNext --module ESNext
           --moduleResolution Bundler --esModuleInterop
           --typeRoots assetfactory-studio/node_modules/@types
           assetfactory-studio/lib/server/firebaseAdmin.ts
