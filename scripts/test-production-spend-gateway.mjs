@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
-import { authenticateSpend, canonical, hash, jobDigest, spendAction, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
+import { authenticateSpend, canonical, hash, isDedicatedSpendProject, jobDigest, spendAction, spendRecord, SpendRejected } from '../assetfactory-studio/lib/server/productionSpend.ts';
 
 const NOW = Date.parse('2026-10-07T16:30:00Z');
 const pair = generateKeyPairSync('ed25519');
@@ -181,7 +181,7 @@ async function route(f, envChange = {}) {
   const sources = {
     'next/server': next,
     '@/lib/server/firebaseAdmin': { getAdminDb: () => { initializations++; return f.db; } },
-    '@/lib/server/productionSpend': { authenticateSpend, spendAction, spendRecord, SpendRejected },
+    '@/lib/server/productionSpend': { authenticateSpend, isDedicatedSpendProject, spendAction, spendRecord, SpendRejected },
   };
   const source = stripTypeScriptTypes(readFileSync(new URL('../assetfactory-studio/app/api/worker/production-spend/route.ts', import.meta.url), 'utf8'), { mode: 'strip' });
   const module = new vm.SourceTextModule(source, { context });
@@ -219,7 +219,7 @@ test('actual HTTP transaction adapter supplies SDK-owned references on every rea
   assert.equal(f.db.rows.get(f.jobPath).job.attempts.length, 1);
 });
 test('actual HTTP route blocks shared/mismatched store and missing exact deployment source', async () => {
-  for (const change of [{ ASSET_FACTORY_FIREBASE_PROJECT_ID: '' }, { FIREBASE_PROJECT_ID: 'other' }, { ASSET_FACTORY_FIREBASE_PROJECT_ID: 'urai-4dc1d', FIREBASE_PROJECT_ID: 'urai-4dc1d' }, { URAI_SOURCE_SHA: '' }]) { const f = fixture(), r = await route(f, change); const result = await r.post({ ...f.input, action: 'reserve' }); assert.equal(result.status, 503); assert.equal(r.initializations(), 0); }
+  for (const change of [{ ASSET_FACTORY_FIREBASE_PROJECT_ID: '' }, { FIREBASE_PROJECT_ID: 'other' }, ...['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub'].map(project => ({ ASSET_FACTORY_FIREBASE_PROJECT_ID: project, FIREBASE_PROJECT_ID: project })), { URAI_SOURCE_SHA: '' }]) { const f = fixture(), r = await route(f, change); const result = await r.post({ ...f.input, action: 'reserve' }); assert.equal(result.status, 503); assert.equal(r.initializations(), 0); }
 });
 test('actual HTTP route preserves non-authorizing preflight and invokes protected reserve', async () => {
   const f = fixture(), r = await route(f); const result = await r.post({ ...f.input, action: 'preflight' }); assert.equal(result.status, 200); assert.equal(result.data.provider_call_authorized, false); const reserved = await r.post({ ...f.input, action: 'reserve' }); assert.equal(reserved.status, 200); assert.equal(reserved.data.execution_performed, false); assert.equal(f.db.rows.get(f.jobPath).job.attempts.length, 1);

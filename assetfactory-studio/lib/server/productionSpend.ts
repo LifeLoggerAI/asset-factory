@@ -72,6 +72,11 @@ export function authenticateSpend(secret: string | undefined, supplied: string |
   return timingSafeEqual(createHash('sha256').update(secret).digest(), createHash('sha256').update(supplied).digest());
 }
 
+/** Internal store eligibility only; this does not grant spend authorization. */
+export function isDedicatedSpendProject(project: string | undefined): project is string {
+  return !!project && !['urai-4dc1d', 'asset-factory-dev-id', 'geturai-landing-hub'].includes(project);
+}
+
 /** Enforces the Labs #229 consistency contract again within the account transaction. */
 export function validateSpend(jobValue: unknown, accountValue: unknown, authorityValue: unknown, now: number) {
   const job = spendJob(jobValue), account = spendAccount(accountValue), authority = spendRecord(authorityValue, 'authority');
