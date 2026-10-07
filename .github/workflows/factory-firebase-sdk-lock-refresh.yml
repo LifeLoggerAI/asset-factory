@@ -60,6 +60,7 @@ jobs:
           npm --prefix life-map-pipeline/functions test
           npm --prefix functions test
       - name: Retain generated lock candidates
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: factory-firebase-sdk-locks-${{ env.EXACT_SOURCE_SHA }}
