@@ -179,13 +179,16 @@ async function requestJson(url, init = {}, maxRateLimitRetries = 4, spend = null
     return spend.submit(url, init, model);
   } else if (!['GET', 'HEAD'].includes(method)) fail('Unrecognized provider mutation');
   for (let attempt = 0; attempt <= maxRateLimitRetries; attempt += 1) {
+    spend?.checkAdmission?.();
     const response = await fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(spend ? spend.remainingMs(Math.min(timeoutMs(), 120000)) : Math.min(timeoutMs(), 120000)) });
+    spend?.checkAdmission?.();
     const text = await response.text();
-    if (spend) spend.remainingMs(timeoutMs());
+    spend?.checkAdmission?.();
     let payload;
     try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
     if (response.status === 429 && attempt < maxRateLimitRetries) {
       await sleep(retryAfterMs(response, Math.min(30000, 3000 * (attempt + 1))));
+      spend?.checkAdmission?.();
       continue;
     }
     if (!response.ok) fail(`HTTP ${response.status} from ${url}: ${JSON.stringify(payload).slice(0, 1200)}`);
@@ -275,8 +278,11 @@ function structuralCandidateReport(buffer, maxTriangles) {
 }
 
 async function downloadFile(url, destination, spend = null) {
+  spend?.checkAdmission?.();
   const safeUrl = await assertPublicResolvedUrl(url, 'Provider artifact URL');
+  spend?.checkAdmission?.();
   const response = await fetch(safeUrl, { signal: AbortSignal.timeout(spend ? spend.remainingMs(Math.min(timeoutMs(), 180000)) : Math.min(timeoutMs(), 180000)), redirect: 'error' });
+  spend?.checkAdmission?.();
   if (!response.ok) fail(`Artifact download failed ${response.status}`);
   const declared = Number(response.headers.get('content-length'));
   const limit = maxBytes();
@@ -289,8 +295,9 @@ async function downloadFile(url, destination, spend = null) {
   let bytes = 0;
   try {
     while (true) {
+      spend?.checkAdmission?.();
       const { done, value } = await reader.read();
-      if (spend) spend.remainingMs(timeoutMs());
+      spend?.checkAdmission?.();
       if (done) break;
       if (!value) continue;
       bytes += value.byteLength;
@@ -300,6 +307,7 @@ async function downloadFile(url, destination, spend = null) {
       }
       fs.writeSync(handle, value);
       hash.update(value);
+      spend?.checkAdmission?.();
     }
   } catch (error) {
     try { fs.closeSync(handle); } catch {}
@@ -655,9 +663,9 @@ async function main() {
         const result = await generate(provider, spec, spend);
         const candidatePath = path.join(attemptDir, 'candidate.glb');
         const artifact = await downloadFile(result.url, candidatePath, spend);
-        spend.remainingMs(timeoutMs());
+        spend.checkAdmission();
         const structural = structuralCandidateReport(fs.readFileSync(candidatePath), spec.target.maxTriangles);
-        spend.remainingMs(timeoutMs());
+        spend.checkAdmission();
         fs.writeFileSync(path.join(attemptDir, 'structural-validation.json'), `${JSON.stringify({
           schemaVersion: 'urai-glb-validation-v1',
           assetId: spec.id,

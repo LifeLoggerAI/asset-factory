@@ -43,8 +43,9 @@ export function syntheticStudioSpend(input, options, protectedModule) {
   const job = { schema_version: 1, job_id: jobId, provider: options.provider, account_id: 'SYNTHETIC-API-ACCOUNT', model_version: options.model, consumer: 'factory-studio', rights_reviewed: true, authority: { repository: 'LifeLoggerAI/asset-factory', sha: sourceSha }, input_sha256: [inputDigest, requestDigest], executor: { source_sha: sourceSha, endpoint, request_sha256: requestDigest, asset: `${input.tenantId || 'default'}/${input.jobId}/${options.lane}`, request_size: String(body.length), content_type: headers.get('content-type'), credential_sha256: hash(sourceJson(credentials)), semantic_headers_sha256: hash(sourceJson(semantic)), source_input_sha256: inputDigest }, budget: { max_usd_micros: 1_000_000, max_credits: 0, max_runtime_seconds: options.runtime ?? 30 }, attempts: [] };
   const mapping = JSON.parse(process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON || '{}'); mapping[requestDigest] = jobId;
   job.budget.rates = { usd_micros_per_unit: 1_000_000, credits_per_unit: 0, receipt: 'SYNTHETIC-NOT-PRICE-PROOF', verified_at: observed, expires_at: expires };
+  job.approval = { status: 'APPROVED', kind: 'EXPLICIT_BOUNDED_SPEND', receipt: 'SYNTHETIC-NOT-AUTHORIZATION', approver: 'synthetic-fixture', issued_at: observed, expires_at: expires, job_digest: protectedModule.protectedJobDigest(job), max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits };
   process.env.FACTORY_STUDIO_SPEND_JOB_IDS_JSON = JSON.stringify(mapping);
-  const state = { job, reserved: false, observed: [], calls: [], held: false, mutatePreflight: null, mutateReserve: null, failAction: null, loseReserveResponse: false };
+  const state = { job, reserved: false, observed: [], calls: [], held: false, mutatePreflight: null, mutateReserve: null, failAction: null, loseReserveResponse: false, preflightExpiry: expires };
   const originalFetch = globalThis.fetch;
   state.wrap = (providerFetch) => async (url, init = {}) => {
     if (String(url) !== syntheticGatewayUrl) return providerFetch(url, init);
@@ -55,8 +56,14 @@ export function syntheticStudioSpend(input, options, protectedModule) {
       for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
       const envelope = { job: structuredClone(job), account: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, credential_binding_verified: true, credential_binding_receipt: 'SYNTHETIC-NOT-ACCOUNT-PROOF', observed_at: observed, expires_at: expires }, authority: { binding: structuredClone(job.authority), trusted_readback: true, observed_at: observed, expires_at: expires }, protected_controls: { provider: job.provider, account_id: job.account_id, trusted_readback: true, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, enforcement_source_sha: sourceSha, endpoint, request_sha256: requestDigest, proof_receipt: 'SYNTHETIC-NOT-CONTROL-PROOF', observed_at: observed, expires_at: expires, hard_stop_supported: true, cost_cap_enforced: true, auto_top_up: false, max_usd_micros: job.budget.max_usd_micros, max_credits: job.budget.max_credits, max_runtime_seconds: job.budget.max_runtime_seconds } };
       envelope.protected_pricing = { provider: job.provider, account_id: job.account_id, model_version: job.model_version, request_sha256: job.executor.request_sha256, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type, trusted_readback: true, receipt: 'SYNTHETIC-NOT-PRICE-PROOF', observed_at: observed, expires_at: expires, rates: structuredClone(job.budget.rates) };
-      state.mutatePreflight?.(envelope, fields);
-      return Response.json({ ok: true, envelope, admission_expires_at: expires, provider_call_authorized: false, execution_performed: false });
+      const result = { ok: true, envelope, admission_expires_at: expires, provider_call_authorized: false, execution_performed: false };
+      state.mutatePreflight?.(envelope, fields, result);
+      if (result.admission_expires_at === expires) {
+        const proofs = [envelope.job.approval, envelope.authority, envelope.account, envelope.protected_controls, envelope.protected_pricing, envelope.protected_pricing?.rates];
+        result.admission_expires_at = new Date(Math.min(...proofs.map(p => Date.parse(p?.expires_at)).filter(Number.isFinite))).toISOString();
+      }
+      state.preflightExpiry = result.admission_expires_at;
+      return Response.json(result);
     }
     if (fields.action === 'reserve') {
       if (state.reserved) return Response.json({ ok: false }, { status: 409 });
@@ -65,7 +72,9 @@ export function syntheticStudioSpend(input, options, protectedModule) {
       for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type']) assert.equal(fields[key], job.executor[key]);
       state.reserved = true; state.held = true;
       if (state.loseReserveResponse) throw new Error('SYNTHETIC lost response after reserve');
-      const result = { ok: true, attempt_id: 'SYNTHETIC-ATTEMPT', reserved_at: new Date().toISOString(), admission_expires_at: new Date(Date.now() + job.budget.max_runtime_seconds * 1000).toISOString(), job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type };
+      const result = { ok: true, attempt_id: 'SYNTHETIC-ATTEMPT', job_digest: fields.job_digest, executor_source_sha: sourceSha, max_runtime_seconds: job.budget.max_runtime_seconds, provider_call_authorized: true, execution_performed: false, account_id: job.account_id, credential_sha256: job.executor.credential_sha256, semantic_headers_sha256: job.executor.semantic_headers_sha256, source_input_sha256: job.executor.source_input_sha256, content_type: job.executor.content_type };
+      result.reserved_at = new Date(Date.now()).toISOString();
+      result.admission_expires_at = new Date(Math.min(Date.parse(state.preflightExpiry), Date.now() + result.max_runtime_seconds * 1_000)).toISOString();
       state.mutateReserve?.(result); return Response.json(result);
     }
     if (fields.action === 'record') {
@@ -73,6 +82,7 @@ export function syntheticStudioSpend(input, options, protectedModule) {
       for (const key of ['credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'request_sha256', 'endpoint', 'asset', 'request_size']) assert.equal(fields[key], job.executor[key]);
       assert.equal(fields.provider, job.provider); assert.equal(fields.model, job.model_version); assert.equal(fields.executor_source_sha, job.executor.source_sha);
       assert.equal(fields.attempt_id, 'SYNTHETIC-ATTEMPT'); state.observed.push(fields);
+      state.mutateRecord?.();
       return Response.json({ ok: true, provider_call_authorized: false, execution_performed: false, reconciliation_required: true });
     }
     throw new Error('Unexpected synthetic gateway action');
