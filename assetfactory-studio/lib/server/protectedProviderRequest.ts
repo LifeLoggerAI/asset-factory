@@ -114,7 +114,9 @@ async function issuerPin(input: GenerateRequest, lane: string, fields: JsonRecor
   try {
     const db = getAdminDb(); need(db, 'protected issuer Firestore unavailable');
     const snapshot = await Promise.race([db.collection('assetFactoryStudioSpendBindings').doc(studioIssuerBindingId(input, lane, nonempty(fields.request_sha256))).get(), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProtectedProviderRejected('protected issuer lookup timed out')), 15_000); })]);
-    need(db.projectId === projectId && snapshot.exists, 'protected issuer project or binding unavailable');
+    // The initialized SDK exposes this runtime getter but omits it from its public Firestore type.
+    // Read the actual instance; a missing, throwing or mismatched getter must stay closed.
+    need(Reflect.get(db, 'projectId') === projectId && snapshot.exists, 'protected issuer project or binding unavailable');
     const issuer = record(snapshot.data());
     need(issuer.trusted_readback === true && issuer.executor_repository === 'LifeLoggerAI/asset-factory' && issuer.consumer === 'factory-studio' && issuer.tenant_id === (input.tenantId || 'default') && issuer.generation_job_id === input.jobId && issuer.lane === lane, 'protected Studio issuer identity changed');
     for (const [key, value] of Object.entries(fields)) need(issuer[key] === value, `protected Studio issuer ${key} changed`);

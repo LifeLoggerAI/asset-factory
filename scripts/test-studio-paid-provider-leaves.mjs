@@ -253,6 +253,12 @@ test('protected issuer absence, lookup failure and untrusted project cannot send
     finally { if (project === undefined) delete process.env.FIREBASE_PROJECT_ID; else process.env.FIREBASE_PROJECT_ID = project; if (emulator === undefined) delete process.env.FIRESTORE_EMULATOR_HOST; else process.env.FIRESTORE_EMULATOR_HOST = emulator; }
   }
 });
+test('missing, non-string or throwing SDK project identity cannot send worker credentials', async () => {
+  for (const mutate of [c => { c.fixture.issuerProjectId = undefined; }, c => { c.fixture.issuerProjectId = 123; }, c => { c.fixture.failIssuerProject = true; }]) {
+    const c = config('openai', 'graphic'); mutate(c);
+    await assert.rejects(c.run(), /protected issuer/); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, []);
+  }
+});
 test('protected Studio issuer binds exact tenant, job, lane, provider, source, account and wire fingerprints', async () => {
   for (const [field, value] of [['trusted_readback', false], ['receipt', ''], ...['executor_repository', 'consumer', 'tenant_id', 'generation_job_id', 'lane', 'job_id', 'provider', 'model', 'asset', 'request_size', 'endpoint', 'request_sha256', 'executor_source_sha', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type', 'worker_token_sha256', 'gateway_url'].map(field => [field, 'SYNTHETIC-drift'])]) {
     const c = config('openai', 'graphic'); c.fixture.issuer[field] = value;
