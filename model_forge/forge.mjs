@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import process from 'node:process';
 import dns from 'node:dns/promises';
+import { checkTriangleBudget } from './triangle-budget.mjs';
 
 const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
@@ -248,20 +249,7 @@ function structuralCandidateReport(buffer, maxTriangles) {
   const gltf = parseGlbCandidate(buffer);
   const meshes = gltf.meshes?.length ?? 0;
   if (!meshes) fail('Candidate GLB contains no meshes');
-  let triangles = 0;
-  let indexedTrianglePrimitives = 0;
-  for (const mesh of gltf.meshes ?? []) {
-    for (const primitive of mesh.primitives ?? []) {
-      const mode = primitive.mode ?? 4;
-      if (mode !== 4) continue;
-      const accessor = primitive.indices !== undefined ? gltf.accessors?.[primitive.indices] : null;
-      if (accessor?.count) {
-        triangles += Math.floor(accessor.count / 3);
-        indexedTrianglePrimitives += 1;
-      }
-    }
-  }
-  if (triangles > maxTriangles) fail(`Candidate triangle estimate ${triangles} exceeds spec budget ${maxTriangles}`);
+  const { triangles, indexedTriangles, indexedTrianglePrimitives } = checkTriangleBudget(gltf, maxTriangles);
   const required = gltf.extensionsRequired ?? [];
   const unsafeRequired = required.filter((name) => ![
     'KHR_draco_mesh_compression',
@@ -281,7 +269,8 @@ function structuralCandidateReport(buffer, maxTriangles) {
     materials: gltf.materials?.length ?? 0,
     images: gltf.images?.length ?? 0,
     animations: gltf.animations?.length ?? 0,
-    trianglesEstimatedFromIndexedTrianglePrimitives: triangles,
+    trianglesEstimated: triangles,
+    trianglesEstimatedFromIndexedTrianglePrimitives: indexedTriangles,
     indexedTrianglePrimitives,
     extensionsUsed: gltf.extensionsUsed ?? [],
     extensionsRequired: required,
@@ -676,8 +665,12 @@ async function main() {
     });
   }
   runReceipt.completedAt = new Date().toISOString();
+  runReceipt.completedCandidates = runReceipt.providers.filter((entry) => entry.status === 'candidate-structurally-valid').length;
+  runReceipt.status = runReceipt.completedCandidates === providers.length ? 'completed' : (runReceipt.completedCandidates > 0 ? 'partial' : 'failed');
   fs.writeFileSync(path.join(runRoot, 'run-receipt.json'), `${JSON.stringify(runReceipt, null, 2)}\n`);
   console.log(JSON.stringify(runReceipt, null, 2));
+  // Retain failed/blocked receipts and return a failing process status.
+  if (runReceipt.status !== 'completed') process.exitCode = 1;
 }
 
 main().catch((error) => {
