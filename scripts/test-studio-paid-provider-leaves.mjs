@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import path from 'node:path';
 import vm from 'node:vm';
-import { syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs';
+import { syntheticArtifactRetrieve, syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs';
 
 const sourceRoot = new URL('../assetfactory-studio/lib/server/', import.meta.url);
 const modules = new Map();
@@ -15,7 +15,7 @@ async function load(name) {
   const module = new vm.SourceTextModule(source, { identifier: name }); modules.set(name, module);
   await module.link(async specifier => {
     if (specifier.startsWith('./')) return load(specifier.slice(2));
-    const exports = await import(specifier);
+    const exports = specifier.endsWith('/protected-artifact.mjs') ? { ...(await import('../model_forge/protected-artifact.mjs')), retrievePublicArtifact: syntheticArtifactRetrieve } : await import(specifier);
     return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); });
   });
   return module;
@@ -30,6 +30,12 @@ const build = syntheticCleanBuild(); after(() => build.restore());
 const priorEnv = { ...process.env }, originalFetch = globalThis.fetch;
 after(() => { globalThis.fetch = originalFetch; for (const key of Object.keys(process.env)) if (!(key in priorEnv)) delete process.env[key]; for (const [key, value] of Object.entries(priorEnv)) process.env[key] = value; });
 const input = (type = 'graphic') => ({ jobId: `synthetic-${type}`, tenantId: 'synthetic-tenant', prompt: 'Synthetic café 😀, no private input', type });
+test('actual Studio semantic digest ignores JSON formatting and preserves exact multipart fields', () => {
+  const first = Buffer.from('{"seed":1,"prompt":"synthetic"}'), second = Buffer.from('{ "prompt":"synthetic", "seed":1 }');
+  assert.equal(protector.studioSemanticInputDigest(first, 'application/json'), protector.studioSemanticInputDigest(second, 'application/json'));
+  const multipart = protector.studioMultipart({ prompt: 'synthetic', output_format: 'png' });
+  assert.equal(protector.studioSemanticInputDigest(multipart.body, multipart.contentType), protector.studioSemanticInputDigest(Buffer.from('{"prompt":"synthetic","output_format":"png"}'), 'application/json'));
+});
 const jsonHeaders = extra => ({ 'content-type': 'application/json', ...extra });
 const genericModel = 'synthetic/model';
 const artifactUrl = 'https://outputs.example.test/artifact';
@@ -230,7 +236,7 @@ test('local provenance and proof checks cannot consume the runtime then reach th
   try { await assert.rejects(c.run(), /deadline/); assert.equal(c.counts().posts, 0); assert.equal(c.fixture.held, true); } finally { Date.now = originalNow; }
 });
 test('protected pricing requires its receipt, trusted identity and every actual transport fingerprint', async () => {
-  const changes = [e => { delete e.protected_pricing; }, e => { e.protected_pricing = []; }, e => { e.protected_pricing.trusted_readback = false; }, e => { e.protected_pricing.receipt = ''; }, ...['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'content_type'].map(field => e => { e.protected_pricing[field] = 'SYNTHETIC-other-price'; })];
+  const changes = [e => { delete e.protected_pricing; }, e => { e.protected_pricing = []; }, e => { e.protected_pricing.trusted_readback = false; }, e => { e.protected_pricing.receipt = ''; }, ...['provider', 'account_id', 'model_version', 'request_sha256', 'credential_sha256', 'semantic_headers_sha256', 'source_input_sha256', 'semantic_input_sha256', 'content_type'].map(field => e => { e.protected_pricing[field] = 'SYNTHETIC-other-price'; })];
   for (const mutate of changes) { const c = config('openai', 'graphic'); c.fixture.mutatePreflight = mutate; await assert.rejects(c.run()); assert.equal(c.counts().posts, 0); assert.deepEqual(c.fixture.calls, ['preflight']); }
 });
 test('protected pricing rates cannot differ from the exact approved budget rates', async () => {

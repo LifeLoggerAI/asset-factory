@@ -56,6 +56,6 @@ jobs:
       - name: Strict gateway types
         run: node "$RUNNER_TEMP/spend-compiler/node_modules/typescript/bin/tsc" --strict --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --typeRoots "$RUNNER_TEMP/spend-compiler/node_modules/@types" assetfactory-studio/lib/server/productionSpend.ts
       - name: Actual account race and retained gateway Forge Studio contracts
-        run: node --experimental-strip-types --experimental-vm-modules --test scripts/test-shared-spend-concurrency.mjs scripts/test-production-spend-gateway.mjs scripts/test-model-forge-spend-client.mjs scripts/test-studio-paid-provider-leaves.mjs
+        run: node --experimental-strip-types --experimental-vm-modules --test scripts/test-shared-spend-concurrency.mjs scripts/test-production-spend-gateway.mjs scripts/test-model-forge-spend-client.mjs scripts/test-studio-paid-provider-leaves.mjs scripts/test-protected-artifact.mjs
       - name: Final tracked source parity
         run: git diff --exit-code HEAD

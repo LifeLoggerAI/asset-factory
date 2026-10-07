@@ -2,6 +2,8 @@
 
 Factory owner #421 at `894bcbe5d052589fdcfbcb3144678d060535b53e` already integrates the actual IMAGE, Model Forge and Studio consumers with the canonical protected gateway, scoped credentials, pricing, absolute admission windows and independent charge reconciliation. This donor repairs that gateway rather than adding a second executor. Owner/main branches and the retained alternative #441 are unchanged.
 
+The compatible restack preserves newer owner `1d2439e7de4125ac1d4597050d8de7249a3102bf`, including its actual semantic-input claims, globally consumed task/charge receipts and pinned IMAGE/Forge/Studio artifact transports. The cap-one regression also reproduces thirty reservations on that newer exact source with valid distinct semantic-input records. No predecessor test result is transferred to the restack; it requires its own local, native and bounded peer checks.
+
 The original actual account transaction checked shared cash and credit exposure but ignored concurrency. With ample funds and a genuinely signed synthetic concurrency cap of one, thirty distinct IMAGE/Forge/Studio-labeled jobs all reserved. `scripts/test-shared-spend-concurrency.mjs` reproduces that failure against the original source and verifies one admitted reservation against this repair. These are local serialized transactions with synthetic keys/records, not real Firestore contention, provider identity or financial authority.
 
 ## One account policy
