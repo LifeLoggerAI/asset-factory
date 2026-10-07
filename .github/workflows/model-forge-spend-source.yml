@@ -1,0 +1,56 @@
+name: Model Forge Spend Source
+
+on:
+  pull_request:
+    paths:
+      - model_forge/forge.mjs
+      - model_forge/model-spend-client.mjs
+      - scripts/test-model-forge-spend-client.mjs
+      - scripts/test-model-forge-spend-leaves.mjs
+      - scripts/test-model-forge-execution-outcomes.mjs
+      - .github/workflows/model-forge-spend-source.yml
+  push:
+    paths:
+      - model_forge/forge.mjs
+      - model_forge/model-spend-client.mjs
+      - scripts/test-model-forge-spend-client.mjs
+      - scripts/test-model-forge-spend-leaves.mjs
+      - scripts/test-model-forge-execution-outcomes.mjs
+      - .github/workflows/model-forge-spend-source.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-forge-spend-source-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Exact-head bounded Model Forge submission behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Require exact clean source
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Run source-only controls and actual-leaf regressions
+        run: |
+          node --check model_forge/forge.mjs
+          node --check model_forge/model-spend-client.mjs
+          node --test scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-execution-outcomes.mjs
+          git diff --check
+          test -z "$(git status --porcelain --untracked-files=all)"
