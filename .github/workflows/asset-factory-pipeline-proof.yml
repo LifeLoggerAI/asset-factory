@@ -148,8 +148,12 @@ jobs:
           rc=$?
           set -e
           test "$rc" -ne 0
-          rg -q "Production visual gate is required and remains blocked." production-visual-negative.log
-          rg -q '"production_visual_authority": false' image_asset_generator/production_visual_gate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          assert "Production visual gate is required and remains blocked." in Path("production-visual-negative.log").read_text()
+          assert json.loads(Path("image_asset_generator/production_visual_gate.json").read_text())["production_visual_authority"] is False
+          PY
           echo "Production-required negative path failed closed without provider mode."
 
       - name: Assert retained proof is explicitly non-production and self-describing
