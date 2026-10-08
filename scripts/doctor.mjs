@@ -79,7 +79,7 @@ check('studio typecheck script exists', Boolean(studioPkg.scripts?.typecheck), '
 check('launch readiness file exists', fs.existsSync('LAUNCH_READINESS.md'), 'Expected LAUNCH_READINESS.md at repo root.');
 check('fail-fast local setup helper exists', fs.existsSync('scripts/setup-local.mjs'), 'Expected scripts/setup-local.mjs. Recover from origin/main if missing.');
 check('fail-fast local setup uses Node 22', setupLocal.includes('Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'), 'Expected setup helper to require Node 22 before install.');
-check('fail-fast local setup avoids root lockfile generation', setupLocal.includes("'--package-lock=false'"), 'Expected setup helper to avoid transient root package-lock generation.');
+check('fail-fast local setup uses the frozen workspace installer', setupLocal.includes("run('Install frozen workspace dependencies', process.execPath, ['scripts/install-locked-dependencies.mjs'])"), 'Expected setup helper to install only the reviewed frozen workspace graph.');
 check('unit behavior test exists', fs.existsSync('scripts/test-asset-factory-units.mjs'), 'Expected targeted unit behavior test script.');
 check('remote smoke script exists', fs.existsSync('scripts/smoke-asset-factory-remote.mjs'), 'Expected remote smoke script.');
 check('studio node_modules installed', fs.existsSync('assetfactory-studio/node_modules'), 'Run npm --prefix assetfactory-studio install if missing.');
