@@ -5,8 +5,8 @@
   "main": "server.v1.js",
   "scripts": {
     "start": "node server.v1.js",
-    "harden": "npm audit fix --production",
-    "lock": "npm shrinkwrap",
+    "harden": "node ../scripts/retired-npm-dependency-command.mjs engine:harden",
+    "lock": "node ../scripts/retired-npm-dependency-command.mjs engine:lock",
     "check-unused": "node ../scripts/run-engine-unused-audit.mjs",
     "test": "node --test test/*.test.js"
   },
