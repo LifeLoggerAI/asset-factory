@@ -1,5 +1,6 @@
 import { getAdminBucket, getAdminDb } from './firebaseAdmin';
 import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -123,16 +124,108 @@ type StoredMetadata = {
 };
 
 type StorageFile = ReturnType<NonNullable<ReturnType<typeof getAdminBucket>>['file']>;
+type StorageBucket = NonNullable<ReturnType<typeof getAdminBucket>>;
+type TrackedStorageStream = { destroy(error?: Error): unknown; once(event: 'close' | 'error', listener: () => void): unknown };
+type StorageOperation = {
+  assertOpen(phase?: string): void;
+  remainingMs(): number;
+  track(stream: TrackedStorageStream, phase: string): void;
+};
 
-async function readStoredMetadata(file: StorageFile): Promise<StoredMetadata> {
+async function withStorageOperation<T>(bucket: StorageBucket, run: (scoped: StorageBucket, operation: StorageOperation) => Promise<T>) {
+  const started = performance.now();
+  const deadline = started + storageRequestTimeoutMs;
+  const original = bucket.storage;
+  const credential = original.authClient;
+  const authorize = credential.authorizeRequest.bind(credential);
+  let phase = 'upload';
+  let closed: Error | null = null;
+  const streams = new Set<TrackedStorageStream>();
+  let rejectDeadline: (error: Error) => void = () => {};
+  const deadlineFailure = new Promise<never>((_, reject) => { rejectDeadline = reject; });
+  const expire = () => {
+    if (!closed) closed = new Error(`Generated artifact ${phase} deadline exceeded`);
+    for (const stream of streams) stream.destroy(closed);
+    rejectDeadline(closed);
+  };
+  const operation: StorageOperation = {
+    assertOpen(nextPhase) {
+      if (nextPhase) phase = nextPhase;
+      if (!closed && performance.now() >= deadline) expire();
+      if (closed) throw closed;
+    },
+    remainingMs() { operation.assertOpen(); return Math.max(1, Math.ceil(deadline - performance.now())); },
+    track(stream, nextPhase) {
+      // A stream can be created as the deadline expires. Handle its abort error
+      // even when admission fails before the caller installs its own listener.
+      streams.add(stream); stream.once('error', () => {});
+      stream.once('close', () => streams.delete(stream));
+      operation.assertOpen(nextPhase);
+    },
+  };
+  const timeout = setTimeout(expire, storageRequestTimeoutMs);
+  timeout.unref();
+  try {
+    // Reuse the SDK and the existing ADC authority. Scope only its admission
+    // boundary; never mutate the shared credential or its cached client.
+    const scopedCredential = new Proxy(credential, {
+      get(target, key) {
+        if (key === 'authorizeRequest') return async (...args: Parameters<typeof authorize>) => {
+          operation.assertOpen();
+          let authorized: Awaited<ReturnType<typeof authorize>>;
+          try { authorized = await authorize(...args); }
+          catch { operation.assertOpen(); throw new Error('Generated artifact Storage authorization is unavailable'); }
+          operation.assertOpen();
+          return authorized;
+        };
+        const value = Reflect.get(target, key, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const StorageConstructor = original.constructor as new (options: Record<string, unknown>) => typeof original;
+    const scopedStorage = new StorageConstructor({
+      projectId: original.projectId, apiEndpoint: original.apiEndpoint,
+      authClient: scopedCredential, useAuthWithCustomEndpoint: true,
+      retryOptions: { autoRetry: false, maxRetries: 0, totalTimeout: storageRequestTimeoutMs / 1000 },
+    });
+    // The locked SDK constructor treats a zero retry count as its default.
+    // Keep autoRetry disabled and set the isolated client's actual count to zero.
+    scopedStorage.retryOptions.maxRetries = 0;
+    if (scopedStorage.authClient !== scopedCredential || scopedStorage.projectId !== original.projectId
+        || scopedStorage.apiEndpoint !== original.apiEndpoint) throw new Error('Storage operation authority differs from its configured SDK');
+    const scopedBucket = scopedStorage.bucket(bucket.name);
+    if (scopedBucket.name !== bucket.name) throw new Error('Storage operation bucket differs from its configured authority');
+    return await Promise.race([run(scopedBucket, operation).then((value) => { operation.assertOpen(); return value; }), deadlineFailure]);
+  } finally {
+    if (!closed) closed = new Error('Generated artifact Storage operation is closed');
+    clearTimeout(timeout);
+    for (const stream of streams) stream.destroy();
+  }
+}
+
+async function writeStoredBytes(file: StorageFile, payload: Buffer, options: Parameters<StorageFile['createWriteStream']>[0], operation: StorageOperation) {
+  operation.assertOpen('upload');
+  const stream = file.createWriteStream(options);
+  operation.track(stream, 'upload');
+  await new Promise<void>((resolve, reject) => {
+    let finished = false;
+    stream.once('error', reject);
+    stream.once('finish', () => { finished = true; resolve(); });
+    stream.once('close', () => { if (!finished) reject(new Error('Generated artifact upload closed before verification')); });
+    stream.end(payload);
+  });
+  operation.assertOpen();
+}
+
+async function readStoredMetadata(file: StorageFile, operation: StorageOperation): Promise<StoredMetadata> {
   // getMetadata's high-level promise has no application cancellation boundary.
   // Use the same SDK's cancellable REST stream with no implicit metadata retry.
-  const stream = file.requestStream({ method: 'GET', uri: '', json: false, timeout: storageRequestTimeoutMs, maxRetries: 0 });
+  operation.assertOpen('metadata');
+  const stream = file.requestStream({ method: 'GET', uri: '', json: false, timeout: operation.remainingMs(), maxRetries: 0 });
+  operation.track(stream, 'metadata');
   const chunks: Buffer[] = [];
   let received = 0;
   let responseSeen = false;
-  const timeout = setTimeout(() => stream.destroy(new Error('Generated artifact metadata deadline exceeded')), storageRequestTimeoutMs);
-  timeout.unref();
   stream.on('response', (response: { statusCode?: unknown }) => {
     responseSeen = true;
     if (response.statusCode !== 200) {
@@ -150,15 +243,15 @@ async function readStoredMetadata(file: StorageFile): Promise<StoredMetadata> {
     const value: unknown = JSON.parse(Buffer.concat(chunks, received).toString('utf8'));
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Storage response has an invalid metadata envelope');
     return value as StoredMetadata;
-  } finally { clearTimeout(timeout); stream.destroy(); }
+  } finally { stream.destroy(); }
 }
 
-async function readStoredBytes(file: StorageFile, size: number) {
+async function readStoredBytes(file: StorageFile, size: number, operation: StorageOperation) {
+  operation.assertOpen('read');
   const stream = file.createReadStream({ validation: 'crc32c', decompress: false });
+  operation.track(stream, 'read');
   const chunks: Buffer[] = [];
   let received = 0;
-  const timeout = setTimeout(() => stream.destroy(new Error('Generated artifact read deadline exceeded')), storageRequestTimeoutMs);
-  timeout.unref();
   try {
     for await (const chunk of stream) {
       if (!Buffer.isBuffer(chunk) || received + chunk.length > size || received + chunk.length > maxGeneratedBytes) {
@@ -170,7 +263,6 @@ async function readStoredBytes(file: StorageFile, size: number) {
     if (received !== size) throw new Error('Generated artifact size verification failed');
     return Buffer.concat(chunks, received);
   } finally {
-    clearTimeout(timeout);
     stream.destroy();
   }
 }
@@ -205,7 +297,7 @@ export async function cloudWriteGenerated(fileName: string, buffer: Buffer, cont
   const payload = Buffer.from(buffer);
   const type = contentType ?? 'application/octet-stream';
   if (typeof type !== 'string' || !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/i.test(type)) throw new Error('Invalid artifact content type');
-  const bucket = bucketOrThrow();
+  return withStorageOperation(bucketOrThrow(), async (bucket, operation) => {
   // SDK checksum-failure cleanup uses this File's default precondition. A zero
   // create precondition cannot delete any existing generation, even if a response
   // is corrupted or a different writer replaces the name during validation.
@@ -217,17 +309,17 @@ export async function cloudWriteGenerated(fileName: string, buffer: Buffer, cont
   const sha256 = createHash('sha256').update(payload).digest('hex');
   let existing = false;
   try {
-    await file.save(payload, {
-      resumable: false, validation: 'crc32c', timeout: storageRequestTimeoutMs,
+    await writeStoredBytes(file, payload, {
+      resumable: false, validation: 'crc32c', timeout: operation.remainingMs(),
       preconditionOpts: { ifGenerationMatch: 0 },
       contentType: type,
       metadata: { crc32c, cacheControl: 'private, max-age=60', metadata: { sha256 } },
-    });
+    }, operation);
   } catch (error) {
     if (storageErrorCode(error) !== 412) throw error;
     existing = true;
   }
-  const metadata = await readStoredMetadata(bucket.file(objectPath));
+  const metadata = await readStoredMetadata(bucket.file(objectPath), operation);
   const identity = storedIdentity(metadata);
   if (identity.size !== payload.length || identity.crc32c !== crc32c || metadata.contentType !== type
       || (metadata.metadata?.sha256 !== undefined && metadata.metadata.sha256 !== sha256)
@@ -238,25 +330,26 @@ export async function cloudWriteGenerated(fileName: string, buffer: Buffer, cont
     // A CRC32C match alone cannot prove semantic byte identity. Read the captured
     // generation and compare SHA-256 before admitting an idempotent retry/legacy reuse.
     const pinned = bucket.file(objectPath, { generation: identity.generation });
-    const stored = await readStoredBytes(pinned, identity.size);
+    const stored = await readStoredBytes(pinned, identity.size, operation);
     if (!Buffer.isBuffer(stored) || stored.length !== payload.length || createHash('sha256').update(stored).digest('hex') !== sha256) {
       throw new Error('Existing generated artifact bytes failed identity verification');
     }
   }
   // Never perform an unconditional cleanup delete: it could remove another version.
   return `gs://${bucket.name}/${objectPath}`;
+  });
 }
 
 export async function cloudReadGenerated(fileName: string, storagePath?: string) {
   const objectPath = generatedObjectPath(fileName, storagePath);
-  const bucket = bucketOrThrow();
+  return withStorageOperation(bucketOrThrow(), async (bucket, operation) => {
   const file = bucket.file(objectPath);
   let metadata;
-  try { metadata = await readStoredMetadata(file); }
+  try { metadata = await readStoredMetadata(file, operation); }
   catch (error) { if (storageErrorCode(error) === 404) return null; throw error; }
   const identity = storedIdentity(metadata);
   const pinned = bucket.file(objectPath, { generation: identity.generation });
-  const buffer = await readStoredBytes(pinned, identity.size);
+  const buffer = await readStoredBytes(pinned, identity.size, operation);
   if (!Buffer.isBuffer(buffer) || buffer.length !== identity.size) throw new Error('Generated artifact size verification failed');
   const checksum = pinned.crc32cGenerator(); checksum.update(buffer);
   if (checksum.toString() !== identity.crc32c
@@ -264,6 +357,7 @@ export async function cloudReadGenerated(fileName: string, storagePath?: string)
     throw new Error('Generated artifact checksum verification failed');
   }
   return buffer;
+  });
 }
 
 export async function cloudQueueJob(jobId: string, patch: GenericRecord = {}) {
