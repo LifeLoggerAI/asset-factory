@@ -13,10 +13,10 @@
       "version": "16.3.8",
       "upstreamRegistryTarball": "https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-16.3.8.tgz",
       "patchPath": "patches/next-eslint-plugin-next-16.3.8-glob.patch",
-      "patchSha256": "028163e70d729f1d521227342b7dfaf30cfaa6b8c92387fd3a3a4e80e0cf2a2b",
+      "patchSha256": "17d62725c8701d7812b4a6c737962204dd265280f8b1d6c6a8c6a45dbeb59655",
       "removedDependency": "fast-glob",
-      "replacementDependency": "glob",
-      "replacementVersion": "13.0.6",
+      "replacementDependency": "@nodelib/fs.walk",
+      "replacementVersion": "1.2.8",
       "files": [
         {
           "path": "dist/index.d.ts",
@@ -266,7 +266,7 @@
         {
           "path": "dist/utils/get-root-dirs.js",
           "upstreamSha256": "886677432990a735e5ebdfb345ff1cbd40e264f9947a8432eeeb254b3a926bde",
-          "installedSha256": "25c96fa3600a5cdf1c70fff1e37c60093fb4b249bcbb3c6b9a9ffa96bbbb3003"
+          "installedSha256": "e266136ba9fbb988caa2f073251b8bdffe325125308e293d5ad1e28f6e156923"
         },
         {
           "path": "dist/utils/node-attributes.d.ts",
@@ -277,6 +277,16 @@
           "path": "dist/utils/node-attributes.js",
           "upstreamSha256": "48fd96af82f72bd5ac5fd6e459a60768638d4f4fcd44b222f128c39e7336997a",
           "installedSha256": "48fd96af82f72bd5ac5fd6e459a60768638d4f4fcd44b222f128c39e7336997a"
+        },
+        {
+          "path": "dist/utils/urai-next-root-glob.LICENSE",
+          "upstreamSha256": null,
+          "installedSha256": "9363d160bf41d46d83901a5d24fc3fe2094c2afc17b4a2378914b273977ee2de"
+        },
+        {
+          "path": "dist/utils/urai-next-root-glob.js",
+          "upstreamSha256": null,
+          "installedSha256": "a8103902a33aca43034bfbd6ffad69c1e69523ba42cb50b84f6956b6695c3832"
         },
         {
           "path": "dist/utils/url.d.ts",
@@ -291,9 +301,23 @@
         {
           "path": "package.json",
           "upstreamSha256": "ca413c6096bb8c2c28e95b5cd9be84a0ac6d926435985fe1701e2d0d7f985d07",
-          "installedSha256": "0a25ad6f596f6e9a59e41b460186d7607dcfbec1395dfa237a8e0b9c7b7a61cf"
+          "installedSha256": "eeecb5e549e2959f6779d7c7c7fd844c4a2126d69688ca3363c55ee7dafe5c2d"
         }
-      ]
+      ],
+      "replacementDependencies": {
+        "@nodelib/fs.walk": "1.2.8",
+        "brace-expansion": "5.0.12",
+        "glob-parent": "5.1.2",
+        "picomatch": "2.3.2"
+      },
+      "consumerScope": "Next getRootDirs directory-only task, path, static/partial matcher and BFS contract; no general glob API",
+      "retiredBundledRuntime": {
+        "package": "glob",
+        "version": "13.0.6",
+        "defaultEntry": "dist/commonjs/index.min.js",
+        "actualEntrypointUsed": false,
+        "reason": "Bundled matcher code bypassed current declared dependency pins and did not preserve ordered root directory semantics"
+      }
     },
     {
       "package": "findup-sync",

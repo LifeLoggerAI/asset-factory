@@ -1,53 +1,261 @@
 diff --git a/dist/utils/get-root-dirs.js b/dist/utils/get-root-dirs.js
+index 47108c94..5a580b4e 100644
 --- a/dist/utils/get-root-dirs.js
 +++ b/dist/utils/get-root-dirs.js
-@@ -8,12 +8,30 @@
+@@ -8,13 +8,11 @@ Object.defineProperty(exports, "getRootDirs", {
          return getRootDirs;
      }
  });
 -var _fastglob = require("fast-glob");
-+var _glob = require("glob");
-+var _fs = require("fs");
++var _rootglob = require("./urai-next-root-glob.js");
  /**
   * Process a Next.js root directory glob.
   */ var processRootDir = function(rootDir) {
 -    return (0, _fastglob.globSync)(rootDir.replace(/\\/g, '/'), {
 -        onlyDirectories: true
-+    var pattern = rootDir.replace(/\\/g, '/');
-+    if (pattern[0] === '!' && pattern[1] !== '(') return [];
-+    if (!(0, _glob.hasMagic)(pattern, { magicalBraces: true })) {
-+        try {
-+            return _fs.statSync(pattern).isDirectory() ? [pattern] : [];
-+        } catch (error) {
-+            if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return [];
-+            throw error;
-+        }
-+    }
-+    // fast-glob's terminal globstar selects descendants, excluding its parent.
-+    var search = pattern === '**' || pattern.endsWith('/**') ? pattern + '/*' : pattern;
-+    return (0, _glob.globSync)(search, { dot: false, follow: true }).filter(function(dir) {
-+        try {
-+            return _fs.statSync(dir).isDirectory();
-+        } catch (error) {
-+            if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false;
-+            throw error;
-+        }
-     });
+-    });
++    return (0, _rootglob.rootDirectories)(rootDir.replace(/\\/g, '/'));
  };
  var getRootDirs = function(context) {
+     var rootDirs = [
+diff --git a/dist/utils/urai-next-root-glob.js b/dist/utils/urai-next-root-glob.js
+new file mode 100644
+index 00000000..ed5f8774
+--- /dev/null
++++ b/dist/utils/urai-next-root-glob.js
+@@ -0,0 +1,188 @@
++"use strict";
++// Next getRootDirs only. Directory/task/partial-match behavior is derived from
++// fast-glob 3.3.1 (MIT; license beside this file). No general glob API is exposed.
++const fs = require("fs");
++const path = require("path");
++const walk = require("@nodelib/fs.walk");
++const parent = require("glob-parent");
++const picomatch = require("picomatch");
++const { expand } = require("brace-expansion");
++const MATCH = { dot: false, matchBase: false, nobrace: false, nocase: false,
++    noext: false, noglobstar: false, posix: true, strictSlashes: false };
++const LIMIT = { input: 65536, depth: 128, count: 10000, bytes: 3000000, range: 1000 };
++function rejected(reason) { throw new TypeError("Next root pattern rejected: " + reason); }
++function dynamic(pattern) {
++    return pattern !== "" && (pattern.includes("\\") || /[*?]|^!/.test(pattern) ||
++        /\[[^[]*]/.test(pattern) || /(?:^|[^!*+?@])\([^(]*\|[^|]*\)/.test(pattern) ||
++        /[!*+?@]\([^(]*\)/.test(pattern) || /\{[^}]*?(?:,|\.\.)[^}]*\}/.test(pattern));
++}
++function negative(pattern) { return pattern[0] === "!" && pattern[1] !== "("; }
++function cleanDot(value) { return value.startsWith("./") || value.startsWith(".\\") ? value.slice(2) : value; }
++function expandPatterns(pattern) {
++    if (typeof pattern !== "string" || pattern === "") throw new TypeError("Patterns must be a string (non empty) or an array of strings");
++    if (pattern.length > LIMIT.input || pattern.includes("\0")) rejected("input length or NUL");
++    const hasBrace = pattern.includes("{");
++    let depth = 0, groups = 0, closing = 0;
++    for (let index = 0; index < pattern.length; index++) {
++        const char = pattern[index];
++        // Only the exact matched spans protected below can hide syntax. An
++        // unmatched quote remains literal and cannot bypass structural limits.
++        if ((char === '"' || char === "'") && hasBrace) {
++            const end = pattern.indexOf(char, index + 1);
++            if (end !== -1) { index = end; continue; }
++        }
++        if (char === "{" || char === "(") { if (++depth > LIMIT.depth) rejected("nesting limit"); if (++groups > 1024) rejected("group limit"); }
++        if (char === "}" || char === ")") { depth = Math.max(0, depth - 1); if (++closing > 1024) rejected("group limit"); }
++    }
++    const values = [];
++    const protect = value => { const token = "\0URAIROOT" + values.length + "\0"; values.push(value); return token; };
++    const restore = value => value.replace(/\0URAIROOT(\d+)\0/g, (_, index) => values[Number(index)]);
++    const integer = value => value !== "" && Number.isInteger(Number(value));
++    const zeros = value => { if (value[0] === "-") value = value.slice(1); return value !== "0" && value[0] === "0"; };
++    // Braces' quoted comma members are single alternatives with quote marks
++    // removed. Bash expansion alone splits those members, so protect them first.
++    let prepared = "";
++    for (let index = 0; index < pattern.length; index++) {
++        const char = pattern[index];
++        if ((char === '"' || char === "'") && hasBrace) {
++            const end = pattern.indexOf(char, index + 1);
++            if (end !== -1) { prepared += protect(pattern.slice(index + 1, end)); index = end; continue; }
++        }
++        prepared += char;
++    }
++    prepared = prepared.replace(/\{([^{}]+?)\.\.([^{}]+?)((?:\.\.[^{}]+)?)\}/g, (whole, start, finish, tail, index) => {
++        if (prepared[index - 1] === "$") return whole;
++        if (whole.includes(",")) return whole;
++        // A dot in the unquoted start creates extra legacy AST nodes, making
++        // that whole brace literal. Quoted starts and decimal finishes do not.
++        if (start.includes(".")) return protect(restore(whole));
++        start = restore(start); finish = restore(finish);
++        const numeric = integer(start) && integer(finish);
++        if (!numeric && [start, finish].some(value => value.length !== 1 && !integer(value))) return whole;
++        const encodedStep = tail ? tail.slice(2) : "1";
++        const rawStep = restore(encodedStep);
++        let step = rawStep;
++        if (!integer(step) || Number(step) === 0 || !Number.isSafeInteger(Number(step))) rejected("invalid range step");
++        // The original numeric parser rejects decimal-spelled steps here. Keep
++        // that rejection instead of allowing a formerly rejected root selection.
++        if (numeric && encodedStep.includes(".")) throw new RangeError("expanded array length exceeds range limit. Use options.rangeLimit to increase or disable the limit.");
++        step = Math.abs(Number(step));
++        const first = numeric ? Number(start) : start.charCodeAt(0);
++        const last = numeric ? Number(finish) : finish.charCodeAt(0);
++        if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last)) rejected("unsafe range endpoint");
++        const count = Math.floor(Math.abs(last - first) / step) + 1;
++        if (count > LIMIT.range) rejected("range limit");
++        const padded = numeric && [start, finish, rawStep].some(zeros);
++        const width = Math.max(start.length, finish.length, rawStep.length);
++        const alternatives = [];
++        for (let position = 0; position < count; position++) {
++            const current = first + position * step * (last < first ? -1 : 1);
++            let value = numeric ? String(current) : String.fromCharCode(current);
++            if (padded) value = current < 0 ? "-" + value.slice(1).padStart(width - 1, "0") : value.padStart(width, "0");
++            alternatives.push(protect(value));
++        }
++        return alternatives.length === 1 ? alternatives[0] : "{" + alternatives.join(",") + "}";
++    });
++    // A non-expanding brace group is literal in the original consumer. Protect
++    // its braces so Bash's malformed `{a},b}` rewrite cannot select new roots.
++    // Protect only the delimiters; token values never contain nested tokens.
++    for (let level = 0; level < LIMIT.depth; level++) {
++        let changed = false;
++        prepared = prepared.replace(/\{([^{}]*)\}/g, (whole, body) => {
++            if (body.includes(",") || body.includes("..")) return whole;
++            changed = true; return protect("{") + body + protect("}");
++        });
++        if (!changed) break;
++    }
++    if (prepared.length > LIMIT.input) rejected("prepared input limit");
++    const maxLength = LIMIT.bytes + LIMIT.input;
++    const expanded = expand(prepared, { max: LIMIT.count + 1, maxLength,
++        maxDepth: LIMIT.depth, maxRewrites: 1024 });
++    if (expanded.length > LIMIT.count) rejected("expansion count limit");
++    // The maintained expander truncates at its resource ceiling. Reject before
++    // returning any roots when that ceiling could have truncated a result.
++    // Expansion cannot lengthen a prepared alternative beyond prepared.length.
++    if (expanded.reduce((total, value) => total + value.length, 0) >= maxLength - prepared.length) rejected("expansion length ceiling");
++    let bytes = 0;
++    const restored = [];
++    for (const value of expanded) {
++        const text = restore(value);
++        bytes += Buffer.byteLength(text);
++        if (bytes > LIMIT.bytes) rejected("expansion byte limit");
++        if (text !== "") restored.push(text);
++    }
++    // Braces deduplication precedes stable length ordering; static tasks precede
++    // dynamic tasks. Both affect the observable literal Next return array.
++    return [...new Set(restored)].sort((left, right) => left.length - right.length)
++        .map(value => value.replace(/(?!^)\/{2,}/g, "/"));
++}
++function tasks(patterns, isDynamic) {
++    const inside = patterns.filter(value => !value.startsWith("..") && !value.startsWith("./.."));
++    const outside = patterns.filter(value => value.startsWith("..") || value.startsWith("./.."));
++    const groups = values => {
++        const result = Object.create(null);
++        for (const value of values) { const base = parent(value, { flipBackslashes: false }); (result[base] || (result[base] = [])).push(value); }
++        return result;
++    };
++    const toTasks = grouped => Object.keys(grouped).map(base => ({ base, patterns: grouped[base], dynamic: isDynamic }));
++    const inner = groups(inside);
++    return [...toTasks(groups(outside)), ...("." in inner ? [{ base: ".", patterns: inside, dynamic: isDynamic }] : toTasks(inner))];
++}
++function partial(patterns) {
++    const storage = patterns.map(pattern => {
++        let { parts } = picomatch.scan(pattern, { ...MATCH, parts: true });
++        if (!parts.length) parts = [pattern];
++        if (parts[0].startsWith("/")) parts = ["", parts[0].slice(1), ...parts.slice(1)];
++        const segments = parts.map(value => ({ value, dynamic: dynamic(value), regex: dynamic(value) ? picomatch.makeRe(value, MATCH) : null }));
++        const star = segments.findIndex(segment => segment.dynamic && segment.value.includes("**"));
++        return { segments, complete: star === -1, firstLength: star === -1 ? segments.length : star };
++    });
++    return entry => {
++        const parts = cleanDot(entry.path).split("/");
++        return storage.some(info => (!info.complete || info.segments.length > parts.length) &&
++            (!info.complete && parts.length > info.firstLength || parts.every((value, index) => {
++                const segment = info.segments[index];
++                return segment && (segment.dynamic ? segment.regex.test(value) : segment.value === value);
++            })));
++    };
++}
++function rootDirectories(pattern) {
++    const expanded = expandPatterns(pattern);
++    const positive = expanded.filter(value => !negative(value));
++    const negatives = expanded.filter(negative).map(value => value.slice(1));
++    const negativeRegex = negatives.map(value => picomatch.makeRe(value, { ...MATCH, dot: true }));
++    const negativeDeepRegex = negatives.filter(value => value.endsWith("/**") || !dynamic(path.basename(value)))
++        .map(value => picomatch.makeRe(value, MATCH));
++    const allTasks = [...tasks(positive.filter(value => !dynamic(value)), false), ...tasks(positive.filter(dynamic), true)];
++    const seen = new Set(), result = [];
++    for (const task of allTasks) {
++        const matches = task.patterns.map(value => picomatch.makeRe(value, MATCH));
++        const accept = entry => {
++            if (!entry.dirent.isDirectory()) return false;
++            const value = cleanDot(entry.path);
++            if (seen.has(value)) return false;
++            const selected = matches.some(regex => regex.test(value) || regex.test(value + "/"));
++            const excluded = negativeRegex.some(regex => regex.test(value) || regex.test(value + "/"));
++            if (!selected || excluded) return false;
++            seen.add(value); return true;
++        };
++        if (task.dynamic) {
++            const descend = partial(task.patterns);
++            const entries = walk.walkSync(path.resolve(process.cwd(), task.base), {
++                basePath: task.base === "." ? "" : task.base, pathSegmentSeparator: "/",
++                followSymbolicLinks: true, throwErrorOnBrokenSymbolicLink: false,
++                entryFilter: accept,
++                deepFilter: entry => descend(entry) && !negativeDeepRegex.some(regex => regex.test(cleanDot(entry.path))),
++                errorFilter: error => error.code === "ENOENT"
++            });
++            result.push(...entries.map(entry => entry.path));
++        } else {
++            for (const value of task.patterns) {
++                try { if (accept({ path: value, dirent: fs.statSync(path.resolve(process.cwd(), value)) })) result.push(value); }
++                catch (error) { if (error.code !== "ENOENT") throw error; }
++            }
++        }
++    }
++    return result;
++}
++module.exports = { rootDirectories };
+diff --git a/dist/utils/urai-next-root-glob.LICENSE b/dist/utils/urai-next-root-glob.LICENSE
+new file mode 100644
+index 00000000..65a99946
+--- /dev/null
++++ b/dist/utils/urai-next-root-glob.LICENSE
+@@ -0,0 +1,21 @@
++The MIT License (MIT)
++
++Copyright (c) Denis Malinochkin
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
 diff --git a/package.json b/package.json
+index 8bb735f4..b086f807 100644
 --- a/package.json
 +++ b/package.json
-@@ -14,7 +14,7 @@
+@@ -14,7 +14,10 @@
    ],
    "dependencies": {
      "@eslint-community/eslint-utils": "4.9.1",
 -    "fast-glob": "3.3.1"
-+    "glob": "13.0.6"
++    "@nodelib/fs.walk": "1.2.8",
++    "brace-expansion": "5.0.12",
++    "glob-parent": "5.1.2",
++    "picomatch": "2.3.2"
    },
    "devDependencies": {
      "@types/eslint": "9.6.1",
-@@ -26,4 +26,4 @@
+@@ -26,4 +29,4 @@
      "build": "swc -d dist src && pnpm types",
      "types": "tsc --project tsconfig.json --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist"
    }

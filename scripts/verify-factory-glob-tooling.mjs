@@ -26,7 +26,8 @@ export function verifyFactoryGlobTooling(repositoryRoot = root) {
   for (const item of proof.consumers) {
     assert.equal(config.pnpm.patchedDependencies[item.package + '@' + item.version], item.patchPath);
     assert.equal(config.pnpm.overrides[item.package + '@' + item.version + '>' + item.removedDependency], '-');
-    assert.deepEqual(config.pnpm.packageExtensions[item.package + '@' + item.version].dependencies, {[item.replacementDependency]: item.replacementVersion});
+    const replacements = item.replacementDependencies || {[item.replacementDependency]: item.replacementVersion};
+    assert.deepEqual(config.pnpm.packageExtensions[item.package + '@' + item.version].dependencies, replacements);
     assert.equal(hash(fs.readFileSync(path.join(repositoryRoot, item.patchPath))), item.patchSha256);
     const require = item.package === 'findup-sync' ? depcheck : studio;
     const entry = require.resolve(item.package);
@@ -36,14 +37,19 @@ export function verifyFactoryGlobTooling(repositoryRoot = root) {
     assert.equal(manifest.name, item.package);
     assert.equal(manifest.version, item.version);
     assert.equal(manifest.dependencies[item.removedDependency], undefined);
-    assert.equal(manifest.dependencies[item.replacementDependency], item.replacementVersion);
     const moduleRequire = createRequire(path.join(packageRoot, 'package.json'));
-    const replacement = JSON.parse(fs.readFileSync(moduleRequire.resolve(item.replacementDependency + '/package.json')));
-    assert.equal(replacement.name, item.replacementDependency);
-    assert.equal(replacement.version, item.replacementVersion);
+    const actualReplacements = [];
+    for (const [name, version] of Object.entries(replacements)) {
+      assert.equal(manifest.dependencies[name], version);
+      const replacement = JSON.parse(fs.readFileSync(moduleRequire.resolve(name + '/package.json')));
+      assert.equal(replacement.name, name);
+      assert.equal(replacement.version, version);
+      actualReplacements.push(name + '@' + version);
+    }
+    if (item.package === '@next/eslint-plugin-next') assert.equal(manifest.dependencies.glob, undefined, 'The retired bundled glob runtime cannot remain a consumer ingress');
     assert.deepEqual(listFiles(packageRoot).filter(file => file === 'package.json' || file === 'index.js' || file.startsWith('dist' + path.sep)), item.files.map(file => file.path).sort());
     for (const file of item.files) assert.equal(hash(fs.readFileSync(path.join(packageRoot, file.path))), file.installedSha256, item.package + '/' + file.path);
-    consumers.push({package: manifest.name, version: manifest.version, packageRoot: path.relative(repositoryRoot, packageRoot), replacement: replacement.name + '@' + replacement.version, patchedFiles: item.files.filter(file => file.installedSha256 !== file.upstreamSha256).map(file => file.path), intactSourceFiles: item.files.filter(file => file.installedSha256 === file.upstreamSha256).length});
+    consumers.push({package: manifest.name, version: manifest.version, packageRoot: path.relative(repositoryRoot, packageRoot), replacements: actualReplacements, consumerScope: item.consumerScope || null, retiredBundledRuntime: item.retiredBundledRuntime || null, patchedFiles: item.files.filter(file => file.installedSha256 !== file.upstreamSha256).map(file => file.path), intactSourceFiles: item.files.filter(file => file.installedSha256 === file.upstreamSha256).length});
   }
   assert.equal(config.pnpm.patchedDependencies['braces@3.0.3'], undefined, 'Historical mitigation cannot authorize a new current graph');
   const importers = ['.', ...fs.readFileSync(path.join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8').split('\n').filter(line => /^  - /.test(line)).map(line => line.slice(4).trim())];

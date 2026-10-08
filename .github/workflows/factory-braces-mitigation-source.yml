@@ -9,6 +9,8 @@ on:
       - 'pnpm-lock.yaml'
       - 'scripts/*factory-braces*'
       - 'scripts/*factory-glob*'
+      - 'scripts/test-next-root-dirs-exact-differential.mjs'
+      - 'scripts/fixtures/factory-next-root-pattern-regressions.json'
       - 'scripts/run-engine-unused-audit.mjs'
       - 'scripts/setup-local.mjs'
       - 'engine/package.json'
@@ -55,7 +57,9 @@ jobs:
       - name: Compare actual lint and unused-audit behavior with upstream
         env:
           URAI_GLOB_BASELINE_ROOT: ${{ runner.temp }}/factory-tooling-upstream
-        run: node --test scripts/test-factory-glob-tooling-compatibility.mjs scripts/test-installed-reviewed-advisories.mjs
+        run: node --test scripts/test-factory-glob-tooling-compatibility.mjs scripts/test-next-root-dirs-exact-differential.mjs scripts/test-installed-reviewed-advisories.mjs
+      - name: Run launch readiness with the actual frozen Studio compiler and source
+        run: npm run test:launch-readiness
       - name: Run unchanged Studio lint, strict types and production build
         run: |
           npm --prefix assetfactory-studio run lint
@@ -97,6 +101,7 @@ jobs:
           name: factory-tooling-installed-compatibility-${{ env.ASSET_FACTORY_EXACT_HEAD }}
           path: |
             artifacts/factory-glob-installed-replacement.json
+            artifacts/factory-next-root-dirs-exact-differential.json
             artifacts/installed-dependency-security.json
             artifacts/current-installed-dependency-security.json
             artifacts/factory-unused-dependency-audit.json
