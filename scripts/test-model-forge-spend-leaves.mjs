@@ -12,12 +12,13 @@ const source = fs.readFileSync(path.join(root, 'model_forge/forge.mjs'), 'utf8')
 function section(first, last) { return source.slice(source.indexOf(first), source.indexOf(last, source.indexOf(first))); }
 const requestSource = section('async function requestJson(', '\nfunction assertTripoOk');
 const generators = section('async function generateMeshy(', '\nfunction dryRunReceipt');
+const responseGlobals = { Response, TextDecoder, Uint8Array };
 const failure = message => { throw new Error(message); };
 
 function replicateFixture({ getUrl = 'https://api.replicate.com/v1/predictions/synthetic-task', taskId = 'synthetic-task', polls, redirect = false, initialStatus = 'processing' } = {}) {
   const calls = [];
   const pollResults = [...(polls ?? [{ id: taskId, status: 'succeeded', output: 'https://synthetic-artifact.invalid/model.glb' }])];
-  const context = vm.createContext({
+  const context = vm.createContext({ ...responseGlobals,
     process: { env: { REPLICATE_API_TOKEN: 'synthetic-poll-secret' } }, URL, AbortSignal,
     fail: failure, timeoutMs: () => 1000, sleep: async () => {}, retryAfterMs: () => 0,
     assertPublicHttpUrl: value => value,
@@ -28,7 +29,7 @@ function replicateFixture({ getUrl = 'https://api.replicate.com/v1/predictions/s
       if (redirect) throw new TypeError('synthetic redirect rejected by fetch redirect:error');
       const payload = pollResults.shift();
       assert.ok(payload, 'unexpected additional polling request');
-      return { ok: true, status: 200, text: async () => JSON.stringify(payload) };
+      return new Response(JSON.stringify(payload));
     },
   });
   vm.runInContext(requestSource + '\n' + section('async function pollJson(', '\nfunction firstHttpUrl') + '\n' + section('function replicateOfficialModel()', '\nasync function generate(provider'), context);
@@ -106,32 +107,32 @@ test('already completed Replicate create responses still require coherent truste
 });
 
 test('actual requestJson refuses every billable POST without protected client', async () => {
-  let fetchCalls = 0; const context = vm.createContext({ fail: failure, fetch: async () => { fetchCalls++; } });
+  let fetchCalls = 0; const context = vm.createContext({ ...responseGlobals, fail: failure, fetch: async () => { fetchCalls++; } });
   vm.runInContext(requestSource, context);
   await assert.rejects(context.requestJson('https://api.replicate.com/v1/predictions', { method: 'POST', body: '{}' }), /protected Model Forge spend client/);
   assert.equal(fetchCalls, 0);
 });
 test('actual requestJson never repeats billable POST even with maxRateLimitRetries=4', async () => {
-  let calls = 0; const context = vm.createContext({ fail: failure }); vm.runInContext(requestSource, context);
+  let calls = 0; const context = vm.createContext({ ...responseGlobals, fail: failure }); vm.runInContext(requestSource, context);
   await assert.rejects(context.requestJson('https://api.replicate.com/v1/predictions', { method: 'POST', body: '{}' }, 4, { submit: async () => { calls++; throw Error('synthetic HTTP 429'); } }, 'synthetic/model'), /429/);
   assert.equal(calls, 1);
 });
 test('actual read-only POST exception is limited to existing Rodin status/download', async () => {
-  let calls = 0; const context = vm.createContext({ fail: failure, AbortSignal, timeoutMs: () => 1000, sleep: async () => {}, fetch: async () => { calls++; return { ok: true, status: 200, text: async () => '{}' }; } }); vm.runInContext(requestSource, context);
+  let calls = 0; const context = vm.createContext({ ...responseGlobals, fail: failure, AbortSignal, timeoutMs: () => 1000, sleep: async () => {}, fetch: async () => { calls++; return new Response('{}'); } }); vm.runInContext(requestSource, context);
   await assert.rejects(context.requestJson('https://api.hyper3d.com/api/v2/rodin', { method: 'POST' }, 4, null, null, true), /Unrecognized read-only/);
   for (const lane of ['status', 'download']) await context.requestJson(`https://api.hyper3d.com/api/v2/${lane}`, { method: 'POST' }, 4, null, null, true);
   assert.equal(calls, 2);
 });
 test('existing GET rate-limit handling remains read-only', async () => {
-  let calls = 0; const context = vm.createContext({ fail: failure, AbortSignal, timeoutMs: () => 1000, sleep: async () => {}, retryAfterMs: () => 0, fetch: async () => { calls++; return { ok: calls > 1, status: calls > 1 ? 200 : 429, text: async () => '{}' }; } }); vm.runInContext(requestSource, context);
+  let calls = 0; const context = vm.createContext({ ...responseGlobals, fail: failure, AbortSignal, timeoutMs: () => 1000, sleep: async () => {}, retryAfterMs: () => 0, fetch: async () => { calls++; return new Response('{}', { status: calls > 1 ? 200 : 429 }); } }); vm.runInContext(requestSource, context);
   await context.requestJson('https://api.replicate.com/v1/predictions/synthetic-task'); assert.equal(calls, 2);
 });
 
 test('all actual Model Forge adapters delegate each billable leaf with exact model', async () => {
   const calls = []; let readOnly = 0;
-  const context = vm.createContext({ process: { env: {} }, fail: failure, FormData, Blob, path, URL, fs: { existsSync: () => false }, TRIPO_STABLE_MODEL: 'v3.1-20260211', timeoutMs: () => 1000, sleep: async () => {}, AbortSignal,
+  const context = vm.createContext({ ...responseGlobals, process: { env: {} }, fail: failure, FormData, Blob, path, URL, fs: { existsSync: () => false }, TRIPO_STABLE_MODEL: 'v3.1-20260211', timeoutMs: () => 1000, sleep: async () => {}, AbortSignal,
     pollJson: async url => url.includes('tripo') ? { code: 0, data: { status: 'success', output: { model: 'https://synthetic-artifact.invalid/model.glb' } } } : { status: 'SUCCEEDED', model_urls: { glb: 'https://synthetic-artifact.invalid/model.glb' } },
-    fetch: async url => { readOnly++; return { ok: true, status: 200, text: async () => JSON.stringify(url.endsWith('/status') ? { jobs: [{ status: 'Done' }] } : { list: [{ name: 'candidate.glb', url: 'https://synthetic-artifact.invalid/model.glb' }] }) }; },
+    fetch: async url => { readOnly++; return new Response(JSON.stringify(url.endsWith('/status') ? { jobs: [{ status: 'Done' }] } : { list: [{ name: 'candidate.glb', url: 'https://synthetic-artifact.invalid/model.glb' }] })); },
     firstHttpUrl: value => typeof value === 'string' ? value : Object.values(value || {}).find(v => typeof v === 'string' && v.startsWith('https://')),
     assertPublicHttpUrl: value => value,
     assertTripoOk: payload => payload,
@@ -147,7 +148,7 @@ test('all actual Model Forge adapters delegate each billable leaf with exact mod
 
 test('actual Meshy resume delegates only refinement after authenticated preview readback', async () => {
   let paid = 0, verified = 0;
-  const context = vm.createContext({ process: { env: {} }, fs: { existsSync: () => false }, fail: failure, encodeURIComponent,
+  const context = vm.createContext({ ...responseGlobals, process: { env: {} }, fs: { existsSync: () => false }, fail: failure, encodeURIComponent,
     pollJson: async () => ({ status: 'SUCCEEDED', model_urls: { glb: 'https://synthetic-artifact.invalid/model.glb' } }), firstHttpUrl: value => value,
   }); vm.runInContext(requestSource + '\n' + generators, context);
   const client = { previewCheckpoint: { synthetic: true }, verifiedPreview: async () => { verified++; return 'settled-preview'; }, submit: async (_url, request) => { paid++; const body = JSON.parse(request.body); assert.equal(body.mode, 'refine'); assert.equal(body.preview_task_id, 'settled-preview'); return { payload: { result: 'refined-task' } }; } };
@@ -161,14 +162,14 @@ for (const mode of ['provider loss', 'download loss', 'structural rejection', 'r
     const specPath = path.join(dir, 'spec.json'); const spec = { id: 'fixture', prompt: 'synthetic', providers: ['replicate'], generation: { maxProviderAttempts: 3 }, target: { maxTriangles: 100 } };
     if (mode === 'remote reference') spec.referenceImages = ['https://synthetic-reference.invalid/mutable.png'];
     fs.writeFileSync(specPath, JSON.stringify(spec)); let generationCalls = 0, output;
-    const context = vm.createContext({ fs, path, crypto, Date, structuredClone, process: { argv: ['node', 'forge', '--spec', specPath], env: { REPLICATE_API_TOKEN: 'synthetic-key' }, exitCode: 0 }, console: { log: text => output = JSON.parse(text) },
+    const context = vm.createContext({ ...responseGlobals, fs, path, crypto, Date, structuredClone, process: { argv: ['node', 'forge', '--spec', specPath], env: { REPLICATE_API_TOKEN: 'synthetic-key' }, exitCode: 0 }, console: { log: text => output = JSON.parse(text) },
       parseArgs: () => ({ spec: specPath, providers: [], dryRun: false, out: path.join(dir, 'runs') }), validateSpec: value => value, SUPPORTED_PROVIDERS: new Set(['replicate']), spendAllowed: () => true, requiredEnv: () => 'REPLICATE_API_TOKEN', fail: failure,
       ModelSpendClient: class { records = [{ attempt_id: 'synthetic-reservation', reconciliation_required: true }]; remainingMs() { return 1000; } },
       generate: async () => { generationCalls++; if (mode === 'provider loss') throw Error('synthetic unknown remote task'); return { url: 'https://synthetic-artifact.invalid/file', taskId: 'synthetic-task', model: 'synthetic/model' }; },
       downloadFile: async (_url, filename) => { if (mode === 'download loss') throw Error('synthetic download failure'); fs.writeFileSync(filename, 'synthetic'); return { bytes: 9, sha256: 'f'.repeat(64) }; },
       structuralCandidateReport: () => { throw Error('synthetic rejected geometry'); },
     });
-    vm.runInContext(section('async function main()', '\nmain().catch'), context); await context.main();
+    vm.runInContext(section('function safeFailureMessage(', '\nfunction parseArgs') + '\n' + section('async function main()', '\nmain().catch'), context); await context.main();
     assert.equal(generationCalls, mode === 'remote reference' ? 0 : 1); assert.equal(output.providers[0].attempts.length, 1); assert.equal(output.providers[0].status, 'failed'); assert.equal(context.process.exitCode, 1);
   });
 }

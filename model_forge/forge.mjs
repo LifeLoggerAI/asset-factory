@@ -20,6 +20,29 @@ function fail(message) {
   throw new Error(message);
 }
 
+function safeFailureMessage(error) {
+  // Only trusted fixed diagnostics cross into persistent receipts or CLI output.
+  const message = error instanceof Error ? error.message : '';
+  if (message === 'MODEL_SPEND_BLOCKED: immutable executor source SHA required') return message;
+  if ([
+    'Provider metadata deadline exceeded',
+    'Provider metadata transport failed or redirect rejected',
+    'Provider metadata response has no readable body',
+    'Provider metadata response exceeds the byte bound',
+    'Provider metadata response is not a byte stream',
+    'Provider metadata response is not valid UTF-8',
+    'Provider metadata response is not valid JSON',
+    'Provider metadata response must be a JSON object',
+    'Provider metadata JSON exceeds structural bounds',
+    'Provider metadata JSON contains a non-finite number',
+    'Provider metadata retry exceeds the admission deadline',
+    'Provider metadata HTTP request failed',
+    'Read-only provider rate-limit retries exhausted',
+    'Remote reference fixity requires protected materialization before Model Forge spend',
+  ].includes(message)) return message;
+  return 'Model Forge operation failed; protected reconciliation or source validation is required';
+}
+
 function parseArgs(argv) {
   const out = { spec: '', providers: [], dryRun: false, out: 'model_forge/runs', resumeMeshyPreview: '' };
   for (let i = 0; i < argv.length; i += 1) {
@@ -153,7 +176,7 @@ async function assertPublicResolvedUrl(value, label = 'URL') {
   try {
     addresses = await dns.lookup(parsed.hostname, { all: true, verbatim: true });
   } catch (error) {
-    fail(`${label} hostname could not be resolved: ${error?.message ?? error}`);
+    fail(`${label} hostname could not be resolved`);
   }
   if (!addresses.length) fail(`${label} hostname resolved to no addresses`);
   for (const entry of addresses) {
@@ -180,40 +203,101 @@ async function requestJson(url, init = {}, maxRateLimitRetries = 4, spend = null
     if (!spend) fail('Paid provider leaf requires a protected Model Forge spend client');
     return spend.submit(url, init, model);
   } else if (!['GET', 'HEAD'].includes(method)) fail('Unrecognized provider mutation');
+  if (!Number.isInteger(maxRateLimitRetries) || maxRateLimitRetries < 0 || maxRateLimitRetries > 4) fail('Read-only provider retries must be bounded to 0-4');
+  const requestDeadline = Date.now() + Math.min(timeoutMs(), 120000);
+  const remaining = () => {
+    spend?.checkAdmission?.();
+    const local = Math.floor(requestDeadline - Date.now());
+    if (local <= 0) fail('Provider metadata deadline exceeded');
+    return spend ? spend.remainingMs(local) : local;
+  };
+  const waitFor = (promise, signal) => new Promise((resolve, reject) => {
+    const abort = () => { cleanup(); reject(new Error('Provider metadata deadline exceeded')); };
+    const cleanup = () => signal.removeEventListener('abort', abort);
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve(promise).then(value => { cleanup(); resolve(value); }, () => { cleanup(); reject(new Error('Provider metadata transport failed or redirect rejected')); });
+  });
+  const boundedPayload = async (response, signal) => {
+    const MAX_METADATA_BYTES = 65536;
+    let reader;
+    let finished = false;
+    try {
+      if (!response.body) {
+        if (method === 'HEAD' || response.status === 204) return {};
+        fail('Provider metadata response has no readable body');
+      }
+      reader = response.body.getReader();
+      const declared = response.headers.get('content-length');
+      if (declared !== null && (!/^(0|[1-9][0-9]*)$/.test(declared) || !Number.isSafeInteger(Number(declared)) || Number(declared) > MAX_METADATA_BYTES)) fail('Provider metadata response exceeds the byte bound');
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      let bytes = 0;
+      let text = '';
+      while (true) {
+        const chunk = await waitFor(Promise.resolve().then(() => reader.read()), signal);
+        spend?.checkAdmission?.();
+        if (chunk.done) { finished = true; break; }
+        if (!(chunk.value instanceof Uint8Array)) fail('Provider metadata response is not a byte stream');
+        bytes += chunk.value.byteLength;
+        if (bytes > MAX_METADATA_BYTES) fail('Provider metadata response exceeds the byte bound');
+        try { text += decoder.decode(new Uint8Array(chunk.value), { stream: true }); } catch { fail('Provider metadata response is not valid UTF-8'); }
+      }
+      try { text += decoder.decode(); } catch { fail('Provider metadata response is not valid UTF-8'); }
+      spend?.checkAdmission?.();
+      let payload;
+      try { payload = text ? JSON.parse(text) : {}; } catch { fail('Provider metadata response is not valid JSON'); }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) fail('Provider metadata response must be a JSON object');
+      const pending = [[payload, 0]];
+      let nodes = 0;
+      while (pending.length) {
+        const [value, depth] = pending.pop();
+        if (++nodes > 4096 || depth > 64) fail('Provider metadata JSON exceeds structural bounds');
+        if (typeof value === 'number' && !Number.isFinite(value)) fail('Provider metadata JSON contains a non-finite number');
+        if (value && typeof value === 'object') for (const child of Object.values(value)) pending.push([child, depth + 1]);
+      }
+      return payload;
+    } finally {
+      if (reader) {
+        if (!finished) {
+          try { Promise.resolve(reader.cancel()).catch(() => {}); } catch {}
+        }
+        try { reader.releaseLock(); } catch {}
+      }
+    }
+  };
   for (let attempt = 0; attempt <= maxRateLimitRetries; attempt += 1) {
-    spend?.checkAdmission?.();
-    const response = await fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(spend ? spend.remainingMs(Math.min(timeoutMs(), 120000)) : Math.min(timeoutMs(), 120000)) });
-    spend?.checkAdmission?.();
-    const text = await response.text();
-    spend?.checkAdmission?.();
+    const signal = AbortSignal.timeout(remaining());
+    const response = await waitFor(Promise.resolve().then(() => fetch(url, { ...init, redirect: 'error', signal })), signal);
     let payload;
-    try { payload = text ? JSON.parse(text) : {}; } catch { payload = { raw: text }; }
+    try {
+      spend?.checkAdmission?.();
+      payload = await boundedPayload(response, signal);
+      spend?.checkAdmission?.();
+    } catch (error) {
+      try { Promise.resolve(response.body?.cancel()).catch(() => {}); } catch {}
+      throw error;
+    }
     if (response.status === 429 && attempt < maxRateLimitRetries) {
-      await sleep(retryAfterMs(response, Math.min(30000, 3000 * (attempt + 1))));
+      const delay = retryAfterMs(response, Math.min(30000, 3000 * (attempt + 1)));
+      if (!Number.isFinite(delay) || delay < 0 || delay > 30000 || delay >= remaining()) fail('Provider metadata retry exceeds the admission deadline');
+      await waitFor(sleep(delay), signal);
       spend?.checkAdmission?.();
       continue;
     }
-    if (!response.ok) fail(`HTTP ${response.status} from ${url}: ${JSON.stringify(payload).slice(0, 1200)}`);
+    if (!response.ok) fail('Provider metadata HTTP request failed');
     return { payload, response };
   }
-  fail(`Rate-limit retries exhausted for ${url}`);
+  fail('Read-only provider rate-limit retries exhausted');
 }
 
 function assertTripoOk(payload, context) {
-  if (payload?.code !== undefined && payload.code !== 0) fail(`Tripo ${context} failed with code ${payload.code}: ${payload.message ?? JSON.stringify(payload)}`);
+  if (payload?.code !== undefined && payload.code !== 0) fail('Tripo provider operation failed');
   return payload;
 }
 
 function providerFailureSummary(payload) {
-  return JSON.stringify({
-    id: payload?.id ?? null,
-    status: payload?.status ?? null,
-    error: payload?.error ?? null,
-    logs: payload?.logs ?? payload?.log ?? null,
-    metrics: payload?.metrics ?? null,
-    model: payload?.model ?? null,
-    version: payload?.version ?? null,
-  }).slice(0, 4000);
+  const status = ['failed', 'canceled', 'FAILED', 'CANCELED', 'Failed', 'cancelled', 'banned', 'expired'].includes(payload?.status) ? payload.status : 'failed';
+  return JSON.stringify({ status });
 }
 
 async function pollJson(url, headers, isDone, isFailed, intervalMs = 3000, spend = null) {
@@ -400,7 +484,7 @@ async function generateTripo(spec, spend) {
   }, 4, spend, model);
   const payload = assertTripoOk(create.payload, 'create task');
   const taskId = payload.data?.task_id;
-  if (!taskId) fail(`Tripo did not return task_id: ${JSON.stringify(payload)}`);
+  if (!taskId) fail('Tripo did not return a task identity; reconciliation required');
   const result = await pollJson(
     `https://api.tripo3d.ai/v2/openapi/task/${encodeURIComponent(taskId)}`,
     { Authorization: `Bearer ${key}` },
@@ -411,7 +495,7 @@ async function generateTripo(spec, spend) {
   assertTripoOk(result, 'task result');
   const output = result.data?.output ?? {};
   const url = output.pbr_model || output.model || output.base_model;
-  if (!url) fail(`Tripo task completed without downloadable model output: ${JSON.stringify(output)}`);
+  if (!url) fail('Tripo task completed without downloadable model output');
   return { url, taskId, model, creditsConsumed: output.consumed_credit ?? null, raw: result.data };
 }
 
@@ -449,7 +533,7 @@ async function generateRodin(spec, spend) {
   form.append('is_symmetric', 'asymmetric');
 
   const { payload } = await requestJson('https://api.hyper3d.com/api/v2/rodin', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form }, 4, spend, tier);
-  if (payload.error) fail(`Rodin rejected generation despite transport success: ${payload.error}: ${payload.message ?? JSON.stringify(payload)}`);
+  if (payload.error) fail('Rodin rejected generation despite transport success; reconciliation required');
   const taskUuid = payload.uuid;
   const subscriptionKey = payload.jobs?.subscription_key;
   if (!taskUuid || !subscriptionKey) fail('Rodin response missing uuid/subscription_key');
@@ -459,14 +543,14 @@ async function generateRodin(spec, spend) {
     await sleep(delay);
     const { payload: status } = await requestJson('https://api.hyper3d.com/api/v2/status', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription_key: subscriptionKey }) }, 4, spend, null, true);
     const states = Array.isArray(status.jobs) ? status.jobs.map((j) => j.status) : [];
-    if (states.includes('Failed')) fail(`Rodin task failed: ${JSON.stringify(status)}`);
+    if (states.includes('Failed')) fail('Rodin provider task failed; reconciliation required');
     if (states.length && states.every((s) => s === 'Done')) break;
     delay = Math.min(delay + 5000, 30000);
   }
   if (Date.now() >= deadline) fail('Rodin task timed out');
   const { payload: downloads } = await requestJson('https://api.hyper3d.com/api/v2/download', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ task_uuid: taskUuid }) }, 4, spend, null, true);
   const glb = Array.isArray(downloads.list) ? downloads.list.find((item) => String(item.name ?? '').toLowerCase().endsWith('.glb')) : null;
-  if (!glb?.url) fail(`Rodin download list had no GLB: ${JSON.stringify(downloads)}`);
+  if (!glb?.url) fail('Rodin download list had no GLB');
   return { url: glb.url, taskId: taskUuid, model: tier, consumed: payload.consumed ?? null, raw: downloads };
 }
 
@@ -474,7 +558,7 @@ function replicateOfficialModel() {
   const model = process.env.URAI_REPLICATE_MODEL || 'tencent/hunyuan-3d-3.1';
   const parts = model.split('/');
   if (parts.length !== 2 || parts.some((part) => !/^[a-zA-Z0-9_.-]+$/.test(part))) {
-    fail(`URAI_REPLICATE_MODEL must be owner/name for an official Replicate model: ${model}`);
+    fail('URAI_REPLICATE_MODEL must be owner/name for an official Replicate model');
   }
   return model;
 }
@@ -547,7 +631,7 @@ async function generateReplicate(spec, spend) {
     );
   }
   const url = firstHttpUrl(current.output);
-  if (!url) fail(`Replicate Hunyuan prediction completed without output URI: ${JSON.stringify(current).slice(0, 1200)}`);
+  if (!url) fail('Replicate Hunyuan prediction completed without output URI');
   return {
     url,
     taskId,
@@ -677,7 +761,7 @@ async function main() {
         attempts.push({ attempt, status: 'candidate-structurally-valid', artifact: path.relative(runRoot, candidatePath), sha256: artifact.sha256, taskId: result.taskId, structuralValidation: path.relative(runRoot, path.join(attemptDir, 'structural-validation.json')) });
         completed = true;
       } catch (error) {
-        attempts.push({ attempt, status: 'failed', error: String(error?.message ?? error), spendAttempts: structuredClone(spend.records) });
+        attempts.push({ attempt, status: 'failed', error: safeFailureMessage(error), spendAttempts: structuredClone(spend.records) });
         // Polling/download/validation failures cannot grant another paid attempt.
         // A later invocation still needs independently reconciled gateway authority.
         break;
@@ -702,6 +786,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(`URAI_MODEL_FORGE_ERROR=${error?.message ?? error}`);
+  console.error(`URAI_MODEL_FORGE_ERROR=${safeFailureMessage(error)}`);
   process.exitCode = 1;
 });
