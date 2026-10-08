@@ -250,6 +250,25 @@ async function sdkFixture({ corruptResponse = false } = {}) {
   const module = await actualModule('cloudAssetFactoryStore', { './firebaseAdmin': { getAdminBucket: () => bucket, getAdminDb: () => null }, 'node:crypto': { createHash } });
   return { module, requests, object: () => object, replacementsDeleted: () => replacementsDeleted, authAttempts: () => authAttempts, sdkPackage };
 }
+test('actual locked SDK recognizes its direct emulator endpoint alias without authentication/network', () => {
+  const previous = process.env.STORAGE_EMULATOR_HOST;
+  try {
+    process.env.STORAGE_EMULATOR_HOST = 'http://127.0.0.1:9199';
+    const require = createRequire(import.meta.url);
+    const adminPath = require.resolve('firebase-admin/storage', { paths: [resolve(root, 'assetfactory-studio')] });
+    const sdkRequire = createRequire(adminPath);
+    const { Storage } = sdkRequire('@google-cloud/storage');
+    const sdk = new Storage({ projectId: 'synthetic-asset-factory', retryOptions: { autoRetry: false } });
+    let authAttempts = 0;
+    const authDenied = () => { authAttempts++; throw new Error('Synthetic endpoint fixture denies real authentication'); };
+    sdk.authClient.getClient = authDenied; sdk.makeAuthenticatedRequest = authDenied;
+    assert.equal(sdk.apiEndpoint, 'http://127.0.0.1:9199');
+    assert.equal(authAttempts, 0);
+  } finally {
+    if (previous === undefined) delete process.env.STORAGE_EMULATOR_HOST;
+    else process.env.STORAGE_EMULATOR_HOST = previous;
+  }
+});
 test('actual locked SDK constructs a checksummed conditional multipart write without authentication/network', async () => {
   const f = await sdkFixture(); await f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path);
   const wire = f.requests.find(x => x.method === 'POST'); assert.equal(wire.qs.ifGenerationMatch, 0);
@@ -409,7 +428,7 @@ test('legacy development project is available only outside production', async ()
   const development = await adminFixture({ ...env, NODE_ENV: 'development' }); assert.ok(development.module.getAdminApp());
   const production = await adminFixture({ ...env, NODE_ENV: 'production' }); assert.equal(production.module.getAdminApp(), null); assert.equal(production.calls.initialize.length, 0);
 });
-for (const name of ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_STORAGE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST']) {
+for (const name of ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_STORAGE_EMULATOR_HOST', 'STORAGE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST']) {
   test(`production cannot substitute local emulator authority: ${name}`, async () => {
     const f = await adminFixture({ ...target(), NODE_ENV: 'production', [name]: '127.0.0.1:9199' });
     assert.equal(f.module.getAdminApp(), null); assert.equal(f.calls.initialize.length, 0); assert.equal(f.calls.credentials, 0);
