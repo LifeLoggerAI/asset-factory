@@ -1,0 +1,9 @@
+# Factory manifest configuration and runtime authority
+
+The system manifest reports configuration only. The local proof adapter is always configured and cannot satisfy a selected paid-provider prerequisite. Whitespace-only declared credentials are absent. Even complete selected credentials, auth, persistence and queue configuration leave runtime verification and provider-call authorization false; the status becomes `provider-evidence-required`, never runtime availability or release approval. Current authenticated approvals, source/input/pricing identity, reservations and execution receipts remain owned by the existing protected executor.
+
+The full authenticated manifest describes the current ADC-only boundary rather than requiring the long-lived Firebase keys that current server initialization rejects. Project aliases are alternatives that must agree when both are supplied; the configured project must be dedicated. The bucket is optional and project-bound. An application-default credential object or external-account declaration is configuration, not proof of deployed identity or IAM.
+
+Full diagnostic authentication runs before backend initialization. Public/full/error responses are not cached. Values of credentials, signed URLs and tokens are never returned. Neither configuration flags nor the status field are approval or a canary receipt.
+
+The actual handler, actual adapter diagnostics and actual API-key guard are exercised with synthetic read-only backend/queue/Next transports. They prove configuration, privacy and fail-closed reporting behavior; actual cloud/provider/account/IAM canaries, native combined checks and deployment readback remain separate. No provider request, storage write, paid execution, billing activation, source signing, promotion or Golden Master is authorized.

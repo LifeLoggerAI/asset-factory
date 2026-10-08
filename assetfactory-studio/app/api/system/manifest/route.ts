@@ -6,10 +6,6 @@ import { getQueueDiagnostics } from '@/lib/server/assetQueueDispatcher';
 import { requireConfiguredAssetFactoryApiKey } from '@/lib/server/apiAuth';
 
 const requiredProductionEnv = [
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
-  'FIREBASE_STORAGE_BUCKET',
   'ASSET_FACTORY_API_KEY',
   'ASSET_FACTORY_REQUIRE_API_KEY',
   'ASSET_FACTORY_REQUIRE_AUTH',
@@ -35,22 +31,28 @@ function enabled(name: string) {
 }
 
 function configured(name: string) {
-  return Boolean(process.env[name]);
+  return Boolean(process.env[name]?.trim());
 }
 
 export async function GET(req: NextRequest) {
-  const diagnostics = getStoreDiagnostics();
-  const supportedAssetTypes = listAssetTypeDefinitions();
-  const providers = getProviderDiagnostics();
-  const queue = getQueueDiagnostics();
   const fullDiagnostics = new URL(req.url).searchParams.get('full') === 'true';
 
   if (fullDiagnostics) {
     const authError = requireConfiguredAssetFactoryApiKey(req);
-    if (authError) return authError;
+    if (authError) {
+      authError.headers.set('Cache-Control', 'no-store');
+      return authError;
+    }
   }
 
-  const providerConfigured = providers.adapters.some((provider) => provider.configured);
+  const diagnostics = getStoreDiagnostics();
+  const supportedAssetTypes = listAssetTypeDefinitions();
+  const providers = getProviderDiagnostics();
+  const queue = getQueueDiagnostics();
+  // Credentials are configuration, never a successful canary or paid approval.
+  // The always-configured local proof adapter cannot satisfy a paid-provider gate.
+  const providerConfigured = providers.selected !== 'local-proof' && providers.selectedConfigured;
+  const anyPaidProviderCredentialConfigured = providers.adapters.some((provider) => provider.name !== 'local-proof' && provider.configured);
   const replicateCredentialVisible = providers.adapters.some(
     (provider) => provider.name === 'replicate' && provider.configured
   );
@@ -74,11 +76,18 @@ export async function GET(req: NextRequest) {
   const signedJwtRequired = enabled('ASSET_FACTORY_REQUIRE_JWT_SIGNATURE');
   const hs256JwtVerifierConfigured = configured('ASSET_FACTORY_JWT_HS256_SECRET');
   const legacyHeaderAuthDisabled = !enabled('ASSET_FACTORY_ALLOW_LEGACY_HEADER_AUTH');
-  const productionAuthReady = authConfigured && signedJwtRequired && hs256JwtVerifierConfigured && legacyHeaderAuthDisabled;
+  const authConfigurationReady = authConfigured && signedJwtRequired && hs256JwtVerifierConfigured && legacyHeaderAuthDisabled;
+  const productionAuthReady = false; // An auth runtime receipt is not established by environment fields.
+  const configurationPrerequisitesPresent = !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage'
+    && authConfigurationReady && durableQueueConfigured && providerConfigured
+    && requiredProductionEnv.every(configured);
 
   const publicPayload = {
     ok: true,
     service: 'asset-factory-studio',
+    evidenceScope: 'configuration-only',
+    runtimeVerified: false,
+    productionVerified: false,
     checkedAt: new Date().toISOString(),
     persistenceMode: diagnostics.mode,
     fallbackActive: diagnostics.fallbackActive,
@@ -95,8 +104,13 @@ export async function GET(req: NextRequest) {
       rollbackWorkflow: true,
       approvals: true,
       versioningWorkflow: true,
-      stripeWebhooks: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      providerBackedRendering: providerConfigured,
+      stripeWebhooks: configured('STRIPE_WEBHOOK_SECRET'),
+      providerBackedRendering: false,
+      providerAdaptersImplemented: true,
+      providerRuntimeVerified: false,
+      providerCallAuthorized: false,
+      selectedProviderCredentialConfigured: providerConfigured,
+      anyPaidProviderCredentialConfigured,
       replicateCredentialVisible,
       falCredentialVisible,
       higgsfieldCredentialVisible,
@@ -126,21 +140,25 @@ export async function GET(req: NextRequest) {
       hs256JwtVerifierConfigured,
       legacyHeaderAuthDisabled,
       productionAuthReady,
+      authConfigurationReady,
       durableQueueConfigured,
       providerConfigured,
+      selectedProvider: providers.selected,
+      evidenceScope: 'configuration-only',
+      providerRuntimeVerified: false,
+      providerCallAuthorized: false,
+      configurationPrerequisitesPresent,
       falGraphicsConfigured,
       higgsfieldRegistryConfigured,
       replicateRegistryConfigured,
-      stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      cronSecretConfigured: Boolean(process.env.CRON_SECRET),
-      status: !diagnostics.fallbackActive && diagnostics.mode === 'firestore-storage' && productionAuthReady && durableQueueConfigured && providerConfigured && process.env.STRIPE_WEBHOOK_SECRET && process.env.CRON_SECRET
-        ? 'ready-for-smoke'
-        : 'not-ready-for-smoke',
+      stripeWebhookConfigured: configured('STRIPE_WEBHOOK_SECRET'),
+      cronSecretConfigured: configured('CRON_SECRET'),
+      status: configurationPrerequisitesPresent ? 'provider-evidence-required' : 'not-ready-for-smoke',
     },
   };
 
   if (!fullDiagnostics) {
-    return NextResponse.json(publicPayload);
+    return NextResponse.json(publicPayload, { headers: { 'Cache-Control': 'no-store' } });
   }
 
   return NextResponse.json({
@@ -153,5 +171,12 @@ export async function GET(req: NextRequest) {
     collections: diagnostics.collections,
     generatedPrefix: diagnostics.generatedPrefix,
     requiredProductionEnv,
-  });
+    requiredProductionConfiguration: {
+      firebaseProject: { oneOf: ['ASSET_FACTORY_FIREBASE_PROJECT_ID', 'FIREBASE_PROJECT_ID'], constraint: 'Dedicated matching Factory project; shared and production development targets are refused.' },
+      firebaseBucket: { optional: 'FIREBASE_STORAGE_BUCKET', constraint: 'Exact project-bound default bucket; omitted value uses the canonical default.' },
+      firebaseCredentials: { mode: 'application-default', declaredFileMode: 'external-account-only', deployedIdentityVerified: false },
+      forbiddenLongLivedCredentialEnv: ['FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT_KEY', 'GOOGLE_APPLICATION_CREDENTIALS_JSON'],
+      providerAuthority: 'Current authenticated approval, exact semantic/source/pricing binding, atomic reservation and executor receipt are required separately. This manifest never authorizes a provider call.',
+    },
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }
