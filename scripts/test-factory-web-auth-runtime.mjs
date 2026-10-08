@@ -33,15 +33,17 @@ const code = {
   auth: compile('lib/server/assetAuth.ts'),
   key: compile('lib/server/apiAuth.ts'),
   generate: compile('app/api/generate/route.ts'),
+  jobs: compile('app/api/jobs/route.ts'),
+  assets: compile('app/api/assets/route.ts'),
 };
 
 function instantiate(program, env, clock, dependencies) {
   const module = { exports: {} };
   class FixtureDate extends Date { static now() { return clock.value; } }
-  const context = vm.createContext({ module, exports: module.exports, Buffer, Error, Date: FixtureDate,
+  const context = vm.createContext({ module, exports: module.exports, Buffer, Error, URL, Date: FixtureDate,
     process: { env }, fetch: forbidden, console: { log: forbidden, error: forbidden },
     require(name) {
-      if (name === 'crypto') return createRequire(import.meta.url)('node:crypto');
+      if (name === 'crypto' || name === 'node:crypto') return createRequire(import.meta.url)('node:crypto');
       if (name === 'next/server') return next;
       if (Object.hasOwn(dependencies, name)) return dependencies[name];
       throw new Error(`Unregistered module dependency ${name}`);
@@ -68,6 +70,11 @@ function fixture(overrides = {}, quotaHook = null, readHook = null) {
       return [{ jobId: 'own-fixture', tenantId: 'fixture-tenant' },
         { jobId: 'foreign-fixture', tenantId: 'foreign-tenant' }];
     },
+      listAssets: async () => {
+        if (readHook) await readHook({ env, clock, writes });
+        return [{ jobId: 'own-fixture', tenantId: 'fixture-tenant' },
+          { jobId: 'foreign-fixture', tenantId: 'foreign-tenant' }];
+      },
       addJob: async job => { writes.push(structuredClone(job)); },
       getStoreDiagnostics: () => ({ mode: 'synthetic', fallbackActive: false }) },
     '@/lib/server/assetFactoryValidation': { validateGenerateRequest: () => null },
@@ -80,6 +87,8 @@ function fixture(overrides = {}, quotaHook = null, readHook = null) {
       ({ canonicalType: 'graphic', family: 'graphic' }) },
   };
   const generate = instantiate(code.generate, env, clock, dependencies);
+  const jobs = instantiate(code.jobs, env, clock, dependencies);
+  const assets = instantiate(code.assets, env, clock, dependencies);
   const claims = extra => ({ sub: 'fixture-actor', tenantId: 'fixture-tenant', roles: ['creator'],
     iss: issuer, aud: audience, exp: clock.value / 1000 + 600, ...extra });
   const token = (payload, secret = signingSecret, header = { alg: 'HS256', typ: 'JWT' }) => {
@@ -93,7 +102,10 @@ function fixture(overrides = {}, quotaHook = null, readHook = null) {
         'Content-Type': 'application/json', ...extraHeaders },
       body: JSON.stringify({ jobId: 'fixture-job', tenantId: 'fixture-tenant', type: 'graphic',
         prompt: 'Synthetic prompt, no private data.' }) });
-  return { env, clock, auth, generate, claims, token, request, writes,
+  const readRequest = (payload = claims({}), extraHeaders = {}, relativePath = '/api/generate') =>
+    new next.NextRequest('https://factory.fixture.invalid' + relativePath, { method: 'GET',
+      headers: { authorization: `Bearer ${token(payload)}`, ...extraHeaders } });
+  return { env, clock, auth, generate, jobs, assets, claims, token, request, readRequest, writes,
     quotaCalls: () => quotaCalls };
 }
 
@@ -217,37 +229,200 @@ test('actual Generate POST redacts internal exception detail', async () => {
 
 test('actual Generate GET reads only the authenticated tenant', async () => {
   const f = fixture();
-  const response = await f.generate.GET(f.request());
+  const response = await f.generate.GET(f.readRequest());
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), [{ jobId: 'own-fixture', tenantId: 'fixture-tenant' }]);
 });
 test('actual Generate GET rejects expiration during storage await', async () => {
   const f = fixture({}, null, ({ clock }) => { clock.value += 3600_000; });
-  const response = await f.generate.GET(f.request());
+  const response = await f.generate.GET(f.readRequest());
   assert.equal(response.status, 401);
   assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
 });
 test('actual Generate GET rejects verifier rotation during storage await', async () => {
   const f = fixture({}, null, ({ env }) => { env.ASSET_FACTORY_JWT_HS256_SECRET = 'rotated-fixture-' + 'r'.repeat(48); });
-  const response = await f.generate.GET(f.request());
+  const response = await f.generate.GET(f.readRequest());
   assert.equal(response.status, 401);
   assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
 });
 test('actual Generate GET rejects changed actor during storage await', async () => {
   let req;
   const f = fixture({}, null, () => { req.headers.set('authorization', `Bearer ${f.token(f.claims({ sub: 'different-fixture-actor' }))}`); });
-  req = f.request();
+  req = f.readRequest();
   const response = await f.generate.GET(req);
   assert.equal(response.status, 403);
   assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
 });
 test('actual Generate GET redacts storage exception detail', async () => {
   const f = fixture({}, null, () => { throw new Error('synthetic-private-read-sentinel'); });
-  const response = await f.generate.GET(f.request());
+  const response = await f.generate.GET(f.readRequest());
   assert.equal(response.status, 500);
   const data = await response.json();
   assert.equal(data.error, 'Unable to read asset jobs.');
   assert.ok(!JSON.stringify(data).includes('synthetic-private-read-sentinel'));
+});
+
+
+test('signed canonical tenant rejects a foreign selected header without an expected-tenant argument', () => {
+  const f = fixture();
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({}), { 'x-tenant-id': 'foreign-tenant' }));
+  assert.equal(result.ok, false); assert.equal(result.status, 403); assert.equal(result.error, 'Tenant mismatch');
+});
+test('blank selected header cannot silently select the signed tenant', () => {
+  const f = fixture();
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({}), { 'x-tenant-id': ' ' }));
+  assert.equal(result.ok, false); assert.equal(result.status, 403);
+});
+test('matching normalized selected header retains signed tenant access', () => {
+  const f = fixture();
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({}), { 'x-tenant-id': ' fixture-tenant ' }));
+  assert.equal(result.ok, true); assert.equal(result.tenantId, 'fixture-tenant');
+});
+test('selected header cannot substitute a missing canonical tenant claim', () => {
+  const f = fixture();
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({ tenantId: undefined }), { 'x-tenant-id': 'fixture-tenant' }));
+  assert.equal(result.ok, false); assert.equal(result.status, 401);
+});
+test('selected and role headers cannot substitute a missing signed production role', () => {
+  const f = fixture();
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({ roles: undefined }), { 'x-tenant-id': 'fixture-tenant', 'x-asset-roles': 'admin' }));
+  assert.equal(result.ok, false); assert.equal(result.status, 401);
+});
+test('custom canonical tenant claim agrees with the selected request context', () => {
+  const f = fixture({ ASSET_FACTORY_TENANT_CLAIM: 'canonicalTenant' });
+  const result = f.auth.authorizeAssetRequest(f.readRequest(f.claims({ canonicalTenant: 'fixture-tenant', tenantId: 'foreign-legacy-value' }), { 'x-tenant-id': 'fixture-tenant' }));
+  assert.equal(result.ok, true); assert.equal(result.tenantId, 'fixture-tenant');
+});
+test('actual Generate POST rejects changed selected header after quota', async () => {
+  let req;
+  const f = fixture({}, () => { req.headers.set('x-tenant-id', 'foreign-tenant'); });
+  req = f.request();
+  const response = await f.generate.POST(req);
+  assert.equal(response.status, 403); assert.equal(f.writes.length, 0);
+});
+test('actual Generate GET rejects changed selected header after storage', async () => {
+  let req;
+  const f = fixture({}, null, () => { req.headers.set('x-tenant-id', 'foreign-tenant'); });
+  req = f.readRequest();
+  const response = await f.generate.GET(req);
+  assert.equal(response.status, 403);
+  assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
+});
+test('actual alternate Jobs POST rejects viewer before quota and writes', async () => {
+  const f = fixture();
+  const response = await f.jobs.POST(f.request(f.claims({ roles: ['viewer'] })));
+  assert.equal(response.status, 403); assert.equal(f.quotaCalls(), 0); assert.equal(f.writes.length, 0);
+});
+test('actual alternate Jobs POST retains creator, job identity and tenant', async () => {
+  const f = fixture();
+  const response = await f.jobs.POST(f.request());
+  assert.equal(response.status, 202); assert.equal(f.writes.length, 1);
+  const body = await response.json();
+  assert.equal(body.jobId, 'fixture-job'); assert.equal(f.writes[0].tenantId, 'fixture-tenant');
+});
+test('actual alternate Jobs POST still requires the server API key', async () => {
+  const f = fixture();
+  const response = await f.jobs.POST(f.request(f.claims({}), { 'x-asset-factory-api-key': '' }));
+  assert.equal(response.status, 401); assert.equal(f.quotaCalls(), 0); assert.equal(f.writes.length, 0);
+});
+test('actual alternate Jobs POST retains server-generated ID and default graphic type', async () => {
+  const f = fixture();
+  const req = new next.NextRequest('https://factory.fixture.invalid/api/jobs', { method: 'POST',
+    headers: { authorization: `Bearer ${f.token(f.claims({}))}`, 'x-asset-factory-api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tenantId: 'fixture-tenant', prompt: 'Synthetic default-field proof.' }) });
+  const response = await f.jobs.POST(req);
+  assert.equal(response.status, 202); assert.equal(f.writes.length, 1);
+  const body = await response.json();
+  assert.match(body.jobId, /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
+  assert.equal(f.writes[0].jobId, body.jobId); assert.equal(f.writes[0].requestedType, 'graphic');
+});
+for (const [name, mutate, status] of [
+  ['expiry', ({ clock }) => { clock.value += 3600_000; }, 401],
+  ['verifier rotation', ({ env }) => { env.ASSET_FACTORY_JWT_HS256_SECRET = 'rotated-fixture-' + 'r'.repeat(48); }, 401],
+  ['auth disablement', ({ env }) => { env.ASSET_FACTORY_REQUIRE_AUTH = 'false'; }, 503],
+]) {
+  test(`actual alternate Jobs POST rejects ${name} during quota`, async () => {
+    const f = fixture({}, mutate);
+    const response = await f.jobs.POST(f.request());
+    assert.equal(response.status, status); assert.equal(f.quotaCalls(), 1); assert.equal(f.writes.length, 0);
+  });
+}
+for (const [name, mutate] of [
+  ['actor', (f, req) => req.headers.set('authorization', `Bearer ${f.token(f.claims({ sub: 'different-fixture-actor' }))}`)],
+  ['selected tenant', (_f, req) => req.headers.set('x-tenant-id', 'foreign-tenant')],
+]) {
+  test(`actual alternate Jobs POST rejects changed ${name} after quota`, async () => {
+    let req;
+    const f = fixture({}, () => mutate(f, req));
+    req = f.request();
+    const response = await f.jobs.POST(req);
+    assert.equal(response.status, 403); assert.equal(f.writes.length, 0);
+  });
+}
+test('actual alternate Jobs POST redacts quota exception details', async () => {
+  const f = fixture({}, () => { throw new Error('synthetic-private-quota-sentinel'); });
+  const response = await f.jobs.POST(f.request());
+  assert.equal(response.status, 500);
+  const body = await response.json();
+  assert.equal(body.error, 'Unable to create asset job.');
+  assert.ok(!JSON.stringify(body).includes('synthetic-private-quota-sentinel')); assert.equal(f.writes.length, 0);
+});
+for (const [name, route, relativePath, readError] of [
+  ['Jobs', 'jobs', '/api/jobs', 'Unable to read asset jobs.'],
+  ['Assets', 'assets', '/api/assets', 'Unable to read asset metadata.'],
+]) {
+  test(`actual ${name} GET retains only the signed tenant data`, async () => {
+    const f = fixture();
+    const response = await f[route].GET(f.readRequest(f.claims({}), { 'x-tenant-id': 'fixture-tenant' }, relativePath));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), [{ jobId: 'own-fixture', tenantId: 'fixture-tenant' }]);
+  });
+  test(`actual ${name} GET rejects a foreign selected context before data delivery`, async () => {
+    const f = fixture();
+    const response = await f[route].GET(f.readRequest(f.claims({}), { 'x-tenant-id': 'foreign-tenant' }, relativePath));
+    assert.equal(response.status, 403);
+    assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
+  });
+  for (const [mutation, mutate, status] of [
+    ['expiry', ({ clock }) => { clock.value += 3600_000; }, 401],
+    ['verifier rotation', ({ env }) => { env.ASSET_FACTORY_JWT_HS256_SECRET = 'rotated-fixture-' + 'r'.repeat(48); }, 401],
+    ['auth disablement', ({ env }) => { env.ASSET_FACTORY_REQUIRE_AUTH = 'false'; }, 503],
+  ]) {
+    test(`actual ${name} GET rejects ${mutation} during storage`, async () => {
+      const f = fixture({}, null, mutate);
+      const response = await f[route].GET(f.readRequest(f.claims({}), {}, relativePath));
+      assert.equal(response.status, status);
+      assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
+    });
+  }
+  for (const [mutation, mutate] of [
+    ['actor', (f, req) => req.headers.set('authorization', `Bearer ${f.token(f.claims({ sub: 'different-fixture-actor' }))}`)],
+    ['selected tenant', (_f, req) => req.headers.set('x-tenant-id', 'foreign-tenant')],
+  ]) {
+    test(`actual ${name} GET rejects changed ${mutation} during storage`, async () => {
+      let req;
+      const f = fixture({}, null, () => mutate(f, req));
+      req = f.readRequest(f.claims({}), {}, relativePath);
+      const response = await f[route].GET(req);
+      assert.equal(response.status, 403);
+      assert.ok(!JSON.stringify(await response.json()).includes('own-fixture'));
+    });
+  }
+  test(`actual ${name} GET redacts storage exception details`, async () => {
+    const f = fixture({}, null, () => { throw new Error('synthetic-private-read-sentinel'); });
+    const response = await f[route].GET(f.readRequest(f.claims({}), {}, relativePath));
+    assert.equal(response.status, 500);
+    const body = await response.json();
+    assert.equal(body.error, readError); assert.ok(!JSON.stringify(body).includes('synthetic-private-read-sentinel'));
+  });
+}
+test('actual Jobs GET retains same-tenant item lookup and hides a foreign job', async () => {
+  const f = fixture();
+  const own = await f.jobs.GET(f.readRequest(f.claims({}), {}, '/api/jobs?jobId=own-fixture'));
+  assert.equal(own.status, 200); assert.equal((await own.json()).jobId, 'own-fixture');
+  const foreign = await f.jobs.GET(f.readRequest(f.claims({}), {}, '/api/jobs?jobId=foreign-fixture'));
+  assert.equal(foreign.status, 404);
+  assert.deepEqual(await foreign.json(), { error: 'Job not found' });
 });
 
 console.log(JSON.stringify({ proof: 'actual compiled source with real Next Request/Response SDK',

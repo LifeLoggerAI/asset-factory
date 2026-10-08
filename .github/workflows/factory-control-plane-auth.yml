@@ -6,6 +6,8 @@ on:
       - assetfactory-studio/lib/server/assetAuth.ts
       - assetfactory-studio/lib/server/apiAuth.ts
       - assetfactory-studio/app/api/generate/route.ts
+      - assetfactory-studio/app/api/jobs/route.ts
+      - assetfactory-studio/app/api/assets/route.ts
       - assetfactory-studio/package.json
       - pnpm-lock.yaml
       - scripts/test-asset-factory-auth.mjs

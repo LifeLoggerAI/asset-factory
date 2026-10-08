@@ -192,6 +192,13 @@ export function authorizeAssetRequest(
     return { ok: false, status: 403, error: 'Tenant mismatch' };
   }
 
+  // A selected tenant is a request constraint, never an identity grant. Signed
+  // canonical ownership must agree before returning data for that UI context.
+  const selectedTenantId = req.headers.get('x-tenant-id');
+  if (auth.mode === 'jwt' && selectedTenantId !== null && selectedTenantId.trim() !== auth.tenantId) {
+    return { ok: false, status: 403, error: 'Tenant mismatch' };
+  }
+
   if (!hasRole(auth.roles, requiredRole)) return { ok: false, status: 403, error: `Role ${requiredRole} required` };
 
   return auth;
