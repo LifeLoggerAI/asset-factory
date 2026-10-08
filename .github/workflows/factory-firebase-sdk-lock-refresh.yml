@@ -1,30 +1,26 @@
-# Exact remediation receipt: docs/security/factory-firebase-sdk-node-forge-remediation-20261007.md
+# Historical remediation: docs/security/factory-firebase-sdk-node-forge-remediation-20261007.md
 name: Factory Firebase SDK lock refresh proof
-
 on:
   pull_request:
-    branches:
-      - repair/model-forge-current-main-20261007
+    branches: [main, repair/model-forge-current-main-20261007]
     paths:
       - package.json
-      - functions/package.json
       - functions/**
       - life-map-pipeline/functions/package.json
       - life-map-pipeline/functions/src/**
       - pnpm-lock.yaml
       - life-map-pipeline/functions/package-lock.json
+      - patches/**
+      - scripts/check-current-factory-reviewed-advisories.mjs
       - .github/workflows/factory-firebase-sdk-lock-refresh.yml
-
 permissions:
-  contents: write
-
+  contents: read
 concurrency:
   group: factory-firebase-sdk-lock-refresh-${{ github.event.pull_request.number }}
   cancel-in-progress: true
-
 jobs:
   refresh-and-prove:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 20
     env:
       EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
@@ -34,76 +30,50 @@ jobs:
         with:
           ref: ${{ env.EXACT_SOURCE_SHA }}
           persist-credentials: false
+      - name: Verify exact immutable source
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
       - name: Setup Node 22
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Regenerate workspace and deployment locks without scripts
-        shell: bash
+      - name: Install the exact frozen workspace and deployment graphs without scripts
         run: |
-          set -euo pipefail
-          corepack pnpm@9.15.9 install --lockfile-only --ignore-scripts
-          npm --prefix life-map-pipeline/functions install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Prove node-forge leaves governed lock graphs
-        shell: bash
+          node scripts/install-locked-dependencies.mjs
+          node scripts/install-locked-dependencies.mjs --deployment-functions
+      - name: Reject node-forge in both governed lock graphs
         run: |
-          set -euo pipefail
           if grep -n "node-forge" pnpm-lock.yaml life-map-pipeline/functions/package-lock.json; then
             echo "node-forge remains in a governed lock graph" >&2
             exit 1
           fi
-      - name: Install regenerated frozen graphs
-        run: |
-          corepack pnpm@9.15.9 install --frozen-lockfile --ignore-scripts
-          npm --prefix life-map-pipeline/functions ci --ignore-scripts --no-audit --no-fund
-      - name: Build and test Firebase packages
+      - name: Verify full actual installed safe-tooling source and graph
+        run: node scripts/verify-factory-glob-tooling.mjs
+      - name: Build and test the unchanged Firebase packages
         run: |
           npm --prefix life-map-pipeline/functions run build
           npm --prefix life-map-pipeline/functions test
           npm --prefix functions test
-      - name: Prove only the separately unresolved braces HIGH remains
-        shell: bash
+      - name: Read complete historical official reviewed advisory source
         run: |
-          set -euo pipefail
           git init .public-reviewed-advisories
           git -C .public-reviewed-advisories remote add origin https://github.com/github/advisory-database.git
           git -C .public-reviewed-advisories fetch --depth 1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
-          set +e
-          node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-remediation-security.json
-          status=$?
-          set -e
-          test "$status" -eq 1
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const result=JSON.parse(fs.readFileSync('artifacts/firebase-sdk-remediation-security.json','utf8'));
-          const expected=['GHSA-vfj7-8cjw-p6xm'];
-          if (JSON.stringify(result.severeUniqueAdvisories)!==JSON.stringify(expected)) {
-            throw new Error('Unexpected remaining high/critical advisories: '+JSON.stringify(result.severeUniqueAdvisories));
-          }
-          if (result.problems?.length) throw new Error('Installed dependency graph has unresolved package problems');
-          if (result.findings?.some(f=>f.name==='node-forge' && ['high','critical'].includes(f.severity))) {
-            throw new Error('node-forge HIGH/CRITICAL finding survived SDK remediation');
-          }
-          console.log(JSON.stringify({status:'EXPECTED_FAIL_CLOSED_BRACES_ONLY',installedNodes:result.installedNodes,severeUniqueAdvisories:result.severeUniqueAdvisories}));
-          NODE
-      - name: Commit proven generated lock candidates
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Reject every installed historical HIGH or CRITICAL without exceptions
+        run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-remediation-security.json
+      - name: Read complete current official reviewed advisory source
         run: |
-          set -euo pipefail
-          git add pnpm-lock.yaml life-map-pipeline/functions/package-lock.json
-          if git diff --cached --quiet; then
-            echo "Generated lock candidates already match committed bytes."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(deps): commit proven Firebase SDK lock candidates"
-          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\r\n')"
-          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" push origin "HEAD:${GITHUB_HEAD_REF}"
-      - name: Retain generated lock candidates
+          git -C .public-reviewed-advisories fetch --depth 1 origin bd4903bcb0086eb4b511a155cd54179818bbefe3
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject every installed current HIGH or CRITICAL without exceptions
+        run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-current-security.json
+      - name: Refuse source or lock drift during proof
+        run: git diff --exit-code
+      - name: Retain exact frozen lock and installed source/security receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -112,4 +82,6 @@ jobs:
           path: |
             pnpm-lock.yaml
             life-map-pipeline/functions/package-lock.json
+            artifacts/factory-glob-installed-replacement.json
             artifacts/firebase-sdk-remediation-security.json
+            artifacts/firebase-sdk-current-security.json
