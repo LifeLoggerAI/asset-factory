@@ -125,10 +125,11 @@ const sdk = probeRoot ? {
 } : Object.fromEntries(['firebase-functions/v2', 'firebase-admin/firestore', 'firebase-functions/v1'].map(name => [name, candidate(name)]));
 function generate(require, generated, partial) {
   const file = path.join(firebaseRoot(require), 'lib/cloudevent/generate.js');
+  const callerRequire = createRequire(file);
   const module = {exports: {}};
   const load = name => name === './mocks/partials'
     ? {LIST_OF_MOCK_CLOUD_EVENT_PARTIALS: [{match: () => true, generateMock: () => generated}]}
-    : sdk[name] ?? require(name);
+    : sdk[name] ?? callerRequire(name);
   vm.runInThisContext('(function(exports,require,module){' + fs.readFileSync(file, 'utf8') + '\n})', {filename: file})(module.exports, load, module);
   return module.exports.generateCombinedCloudEvent({}, partial);
 }
