@@ -30,7 +30,9 @@ env:
 
 jobs:
   installed-consumer-proof:
-    runs-on: macos-latest
+    # Retained ordered fixtures include distinct z/Z roots; use a case-sensitive
+    # filesystem without removing any legacy selection/order/security assertion.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
