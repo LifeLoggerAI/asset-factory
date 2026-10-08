@@ -2,7 +2,7 @@ name: FINITE TIME No-Spend Animatic
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, repair/model-forge-current-main-20261007]
     paths:
       - 'film_foundry/finite_time/**'
       - 'scripts/test-finite-time-storyboard-contract.mjs'
