@@ -1,6 +1,6 @@
 # Factory safe tooling replacement — isolated donor
 
-This donor starts from Factory owner `4a4f5d873391804815de8e0dff17eb1a46e5eb2e`. It is source preparation for that sole owner, not a frozen candidate or approval.
+This donor starts from Factory owner `dc9f2f3aa229ce8ada3750a81bfcd6be4da76da1`. It is source preparation for that sole owner, not a frozen candidate or approval.
 
 The former installed ingress was `eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces` and `depcheck → findup-sync → micromatch → braces`. Official HIGH `GHSA-vfj7-8cjw-p6xm` has no fixed upstream braces release. The original depth-bound patch, provenance and raw-finding history remain unchanged. No advisory, graph node, lint rule, audit finding or security check is waived.
 
@@ -13,3 +13,5 @@ Compatibility compares actual upstream packages with actual installed consumer m
 The native workflow requires clean exact-head checkout, frozen full workspace install, installed source/complete graph proof, real consumer comparison, unchanged Studio lint/types/build, retained genuine depcheck findings, and both historical 161aa and current bd4903 full reviewed primary advisory snapshots. The original installed-advisory comparator is byte-for-byte unchanged; the current wrapper streams the complete exact reviewed scope through that same comparator. No private dependency graph is uploaded. Current official scope is `github/advisory-database@bd4903bcb0086eb4b511a155cd54179818bbefe3`. Any current installed HIGH/CRITICAL or graph problem blocks.
 
 Admission requires real exact donor/full-installed/native evidence and an expected-head lease against #421. Raw HIGH is unresolved on the old owner until that admission and successor proof. No production deployment, provider request/spend, genuine signing authority, device/art/private reconstruction acceptance or Golden Master is granted by this donor.
+
+Predecessor isolated donor `f522b3a5dfaa8e5649679166df0752f33d4938f0` native run37704500808/job113075535169 passed exact frozen install, full actual graph/source proof, upstream comparisons, unchanged Studio lint/types/build, original audit findings and both complete official reviewed advisory gates. Artifact11518499103 ZIP SHA256 `90e43a3149c2fe625d787e29f5888e2878986f8f1d8dbf6edeb9a929deb6732d`. These are predecessor receipts: after the Storage source advances the owner, this donor preserves its current files and regenerates all exact successor evidence. The old SDK lock-regeneration workflow is tightened to read-only frozen exact-source verification with both no-HIGH gates; it cannot regenerate or push a successor while certifying its predecessor.

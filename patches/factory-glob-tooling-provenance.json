@@ -1,7 +1,7 @@
 {
   "schemaVersion": "urai-factory-glob-tooling-replacement-v1",
   "advisoryId": "GHSA-vfj7-8cjw-p6xm",
-  "baseSource": "4a4f5d873391804815de8e0dff17eb1a46e5eb2e",
+  "baseSource": "dc9f2f3aa229ce8ada3750a81bfcd6be4da76da1",
   "securityGateWaived": false,
   "historicalMitigation": {
     "path": "patches/braces-3.0.3-security.patch",
