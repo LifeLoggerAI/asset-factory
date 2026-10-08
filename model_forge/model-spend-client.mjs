@@ -8,7 +8,7 @@ import { admittedArtifactHosts } from './protected-artifact.mjs';
 
 const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
 const MAX_GATEWAY_BYTES = 65536;
-const PROVIDER_ORIGINS = { meshy: 'https://api.meshy.ai', tripo: 'https://api.tripo3d.ai', rodin: 'https://api.hyper3d.com', replicate: 'https://api.replicate.com' };
+const PROVIDER_ORIGINS = { meshy: 'https://api.meshy.ai', tripo: 'https://openapi.tripo3d.ai', rodin: 'https://api.hyper3d.com', replicate: 'https://api.replicate.com' };
 const EXECUTOR_FILES = ['model_forge/forge.mjs', 'model_forge/model-spend-client.mjs', 'model_forge/triangle-budget.mjs', 'model_forge/glb-container.mjs', 'model_forge/protected-artifact.mjs'];
 const root = fileURLToPath(new URL('../', import.meta.url));
 

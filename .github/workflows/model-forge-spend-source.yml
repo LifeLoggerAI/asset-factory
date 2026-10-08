@@ -6,6 +6,7 @@ on:
       - model_forge/protected-artifact.mjs
       - scripts/test-protected-artifact.mjs
       - model_forge/forge.mjs
+      - model_forge/provider-preflight.mjs
       - model_forge/model-spend-client.mjs
       - model_forge/triangle-budget.mjs
       - model_forge/glb-container.mjs
@@ -14,6 +15,7 @@ on:
       - .github/workflows/replicate-bounded-model3d-smoke.yml
       - scripts/test-model-forge-spend-client.mjs
       - scripts/test-model-forge-spend-leaves.mjs
+      - scripts/test-model-forge-tripo-v3.mjs
       - scripts/test-model-forge-response-boundary.mjs
       - scripts/test-model-forge-execution-outcomes.mjs
       - .github/workflows/model-forge-spend-source.yml
@@ -22,6 +24,7 @@ on:
       - model_forge/protected-artifact.mjs
       - scripts/test-protected-artifact.mjs
       - model_forge/forge.mjs
+      - model_forge/provider-preflight.mjs
       - model_forge/model-spend-client.mjs
       - model_forge/triangle-budget.mjs
       - model_forge/glb-container.mjs
@@ -30,6 +33,7 @@ on:
       - .github/workflows/replicate-bounded-model3d-smoke.yml
       - scripts/test-model-forge-spend-client.mjs
       - scripts/test-model-forge-spend-leaves.mjs
+      - scripts/test-model-forge-tripo-v3.mjs
       - scripts/test-model-forge-response-boundary.mjs
       - scripts/test-model-forge-execution-outcomes.mjs
       - .github/workflows/model-forge-spend-source.yml
@@ -67,6 +71,7 @@ jobs:
         run: |
           node --check model_forge/forge.mjs
           node --check model_forge/model-spend-client.mjs
-          node --test scripts/test-protected-artifact.mjs scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-response-boundary.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-model-forge-glb-container.mjs scripts/test-protected-workflow-spend-leaves.mjs
+          node --check model_forge/provider-preflight.mjs
+          node --test scripts/test-protected-artifact.mjs scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-tripo-v3.mjs scripts/test-model-forge-response-boundary.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-model-forge-glb-container.mjs scripts/test-protected-workflow-spend-leaves.mjs
           git diff --check
           test -z "$(git status --porcelain --untracked-files=all)"

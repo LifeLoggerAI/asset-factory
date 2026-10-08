@@ -131,7 +131,7 @@ test('existing GET rate-limit handling remains read-only', async () => {
 test('all actual Model Forge adapters delegate each billable leaf with exact model', async () => {
   const calls = []; let readOnly = 0;
   const context = vm.createContext({ ...responseGlobals, process: { env: {} }, fail: failure, FormData, Blob, path, URL, fs: { existsSync: () => false }, TRIPO_STABLE_MODEL: 'v3.1-20260211', timeoutMs: () => 1000, sleep: async () => {}, AbortSignal,
-    pollJson: async url => url.includes('tripo') ? { code: 0, data: { status: 'success', output: { model: 'https://synthetic-artifact.invalid/model.glb' } } } : { status: 'SUCCEEDED', model_urls: { glb: 'https://synthetic-artifact.invalid/model.glb' } },
+    pollJson: async url => url.includes('tripo') ? { code: 0, data: { task_id: 'synthetic-tripo-task', type: 'text_to_model', status: 'success', progress: 100, output: { model_url: 'https://synthetic-artifact.invalid/model.glb' }, credits_consumed: 40 } } : { status: 'SUCCEEDED', model_urls: { glb: 'https://synthetic-artifact.invalid/model.glb' } },
     fetch: async url => { readOnly++; return new Response(JSON.stringify(url.endsWith('/status') ? { jobs: [{ status: 'Done' }] } : { list: [{ name: 'candidate.glb', url: 'https://synthetic-artifact.invalid/model.glb' }] })); },
     firstHttpUrl: value => typeof value === 'string' ? value : Object.values(value || {}).find(v => typeof v === 'string' && v.startsWith('https://')),
     assertPublicHttpUrl: value => value,

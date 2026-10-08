@@ -291,7 +291,7 @@ async function requestJson(url, init = {}, maxRateLimitRetries = 4, spend = null
 }
 
 function assertTripoOk(payload, context) {
-  if (payload?.code !== undefined && payload.code !== 0) fail('Tripo provider operation failed');
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.code !== 0) fail('Tripo provider operation failed');
   return payload;
 }
 
@@ -442,9 +442,11 @@ async function generateTripo(spec, spend) {
   const refs = spec.referenceImages ?? [];
   const views = spec.referenceViews ?? null;
   const model = process.env.URAI_TRIPO_MODEL || TRIPO_STABLE_MODEL;
-
+  // This retained Ultra/auto-size contract is documented for these H models.
+  // A different model needs a deliberate schema/source/price approval; never substitute.
+  if (!['v3.1-20260211', 'v3.0-20250812'].includes(model)) fail('Tripo model is not admitted by the current V3 generation schema');
   const common = {
-    model_version: model,
+    model,
     texture: true,
     pbr: spec.target.pbr,
     texture_quality: spec.target.textureResolution === '8k' ? 'extreme' : 'detailed',
@@ -453,50 +455,57 @@ async function generateTripo(spec, spend) {
     auto_size: true,
     ...(spec.generation.seed === null ? {} : { model_seed: spec.generation.seed, texture_seed: spec.generation.seed }),
   };
-
   const fileInput = (ref) => {
-    if (!ref) return {};
-    if (!/^https?:\/\//.test(ref)) fail('Tripo reference-driven generation currently requires public JPEG/PNG URLs; local/private references must be materialized and uploaded before paid execution');
+    if (typeof ref !== 'string' || !/^https:\/\//.test(ref)) fail('Tripo reference-driven generation requires public HTTPS image URLs; local/private references require protected materialization before paid execution');
     const parsed = new URL(assertPublicHttpUrl(ref, 'Tripo reference URL'));
-    const ext = path.extname(parsed.pathname).toLowerCase();
-    return { type: ext === '.png' ? 'png' : 'jpg', url: parsed.toString() };
+    if (parsed.username || parsed.password || parsed.hash) fail('Tripo reference URL is invalid');
+    return parsed.toString();
   };
-
-  let body;
+  let body, operation;
   if (views) {
-    body = {
-      type: 'multiview_to_model',
-      files: ['front', 'left', 'back', 'right'].map((view) => fileInput(views[view])),
-      ...common,
-    };
+    const order = ['front', 'left', 'back', 'right'];
+    if (!views.front || Object.keys(views).length < 2 || Object.keys(views).some(view => !order.includes(view))) fail('Tripo multiview requires front and at least one other named view');
+    operation = 'multiview-to-model';
+    body = { inputs: order.filter(view => views[view] !== undefined).map(view => ({ [view]: fileInput(views[view]) })), ...common };
   } else if (refs.length === 1) {
-    body = { type: 'image_to_model', file: fileInput(refs[0]), ...common };
+    operation = 'image-to-model';
+    body = { input: fileInput(refs[0]), ...common };
   } else if (refs.length > 1) {
     fail('Use referenceViews for Tripo multiview so front/left/back/right ordering is explicit');
   } else {
-    body = { type: 'text_to_model', prompt: spec.prompt.slice(0, 1024), ...common };
+    operation = 'text-to-model';
+    body = { prompt: spec.prompt.slice(0, 1024), ...common };
   }
-
-  const create = await requestJson('https://api.tripo3d.ai/v2/openapi/task', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
+  const expectedType = operation.replaceAll('-', '_');
+  const create = await requestJson(`https://openapi.tripo3d.ai/v3/generation/${operation}`, {
+    method: 'POST', headers, body: JSON.stringify(body),
   }, 4, spend, model);
   const payload = assertTripoOk(create.payload, 'create task');
   const taskId = payload.data?.task_id;
-  if (!taskId) fail('Tripo did not return a task identity; reconciliation required');
+  if (typeof taskId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(taskId)) fail('Tripo did not return a valid task identity; reconciliation required');
+  const taskData = (value) => {
+    assertTripoOk(value, 'task poll');
+    const task = value.data;
+    if (!task || typeof task !== 'object' || Array.isArray(task) || task.task_id !== taskId || task.type !== expectedType) fail('Tripo V3 task identity or type changed; reconciliation required');
+    if (!['queued', 'running', 'success', 'failed', 'cancelled', 'banned', 'expired'].includes(task.status) || !Number.isInteger(task.progress) || task.progress < 0 || task.progress > 100) fail('Tripo V3 task status or progress is invalid; reconciliation required');
+    if (task.credits_consumed !== undefined && (typeof task.credits_consumed !== 'number' || !Number.isFinite(task.credits_consumed) || task.credits_consumed < 0 || task.credits_consumed > Number.MAX_SAFE_INTEGER / 100 || Math.abs(task.credits_consumed * 100 - Math.round(task.credits_consumed * 100)) > 0.000001)) fail('Tripo V3 reported credits are invalid; reconciliation required');
+    return task;
+  };
   const result = await pollJson(
-    `https://api.tripo3d.ai/v2/openapi/task/${encodeURIComponent(taskId)}`,
+    `https://openapi.tripo3d.ai/v3/tasks/${encodeURIComponent(taskId)}`,
     { Authorization: `Bearer ${key}` },
-    (p) => { assertTripoOk(p, 'task poll'); return p.data?.status === 'success'; },
-    (p) => ['failed', 'cancelled', 'banned', 'expired'].includes(p.data?.status),
+    (value) => taskData(value).status === 'success',
+    (value) => ['failed', 'cancelled', 'banned', 'expired'].includes(taskData(value).status),
     3000, spend,
   );
-  assertTripoOk(result, 'task result');
-  const output = result.data?.output ?? {};
-  const url = output.pbr_model || output.model || output.base_model;
-  if (!url) fail('Tripo task completed without downloadable model output');
-  return { url, taskId, model, creditsConsumed: output.consumed_credit ?? null, raw: result.data };
+  const task = taskData(result);
+  const url = task.output?.model_url;
+  if (typeof url !== 'string' || url.length > 4096 || !/^https:\/\//.test(url)) fail('Tripo V3 task completed without a valid model URL; reconciliation required');
+  const parsed = new URL(assertPublicHttpUrl(url, 'Tripo model URL'));
+  if (parsed.username || parsed.password || parsed.hash) fail('Tripo V3 model URL is invalid');
+  // This is only provider-reported usage. The protected gateway retains its hold
+  // until independently authenticated charge reconciliation; it never authorizes retries.
+  return { url: parsed.toString(), taskId, model, creditsConsumed: task.credits_consumed ?? null, raw: task };
 }
 
 function mimeFor(file) {
