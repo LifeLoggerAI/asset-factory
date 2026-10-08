@@ -11,6 +11,8 @@ on:
       - 'scripts/*factory-glob*'
       - 'scripts/test-next-root-dirs-exact-differential.mjs'
       - 'scripts/fixtures/factory-next-root-pattern-regressions.json'
+      - 'scripts/*factory-dependency*'
+      - 'scripts/*factory-all-severity*'
       - 'scripts/run-engine-unused-audit.mjs'
       - 'scripts/setup-local.mjs'
       - 'engine/package.json'
@@ -60,6 +62,14 @@ jobs:
         run: node --test scripts/test-factory-glob-tooling-compatibility.mjs scripts/test-next-root-dirs-exact-differential.mjs scripts/test-installed-reviewed-advisories.mjs
       - name: Run launch readiness with the actual frozen Studio compiler and source
         run: npm run test:launch-readiness
+      - name: Install exact public predecessor consumer packages outside the candidate
+        run: >-
+          npm install --prefix "$RUNNER_TEMP/factory-supported-dependency-upstream" --ignore-scripts --no-audit --no-fund --legacy-peer-deps --save-exact
+          firebase-functions-test@3.4.1 ts-deepmerge@2.0.7 js-yaml@3.15.2
+      - name: Prove actual supported caller compatibility and corrected unsafe merge
+        env:
+          URAI_DEPENDENCY_BASELINE_ROOT: ${{ runner.temp }}/factory-supported-dependency-upstream
+        run: node --test scripts/test-factory-dependency-compatibility.mjs scripts/test-factory-all-severity.mjs
       - name: Run unchanged Studio lint, strict types and production build
         run: |
           npm --prefix assetfactory-studio run lint
@@ -92,6 +102,8 @@ jobs:
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject current installed high or critical findings with the unchanged comparator
         run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json
+      - name: Require closure of every installed advisory severity without exceptions
+        run: node scripts/check-factory-all-severity.mjs artifacts/installed-dependency-security.json artifacts/current-installed-dependency-security.json
       - name: Verify tracked source remains unchanged
         run: git diff --exit-code
       - name: Retain exact installed evidence

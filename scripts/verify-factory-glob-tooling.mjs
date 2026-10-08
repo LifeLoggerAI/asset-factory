@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {installedGraph} from './check-installed-reviewed-advisories.mjs';
+import {verifyFactoryDependencyRemediation} from './verify-factory-dependency-remediation.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const hash = value => createHash('sha256').update(value).digest('hex');
 function listFiles(dir, relative = '') {
@@ -56,9 +57,10 @@ export function verifyFactoryGlobTooling(repositoryRoot = root) {
   const graph = installedGraph(repositoryRoot, importers);
   assert.deepEqual(graph.problems, [], 'Complete installed workspace graph is required');
   assert.deepEqual(graph.nodes.filter(node => ['braces', 'micromatch', 'fast-glob'].includes(node.name)), [], 'All affected tooling ingress must be genuinely absent');
+  const supportedDependencies = verifyFactoryDependencyRemediation(repositoryRoot, graph);
   const head = execFileSync('git', ['-C', repositoryRoot, 'rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
   const tree = execFileSync('git', ['-C', repositoryRoot, 'rev-parse', 'HEAD^{tree}'], {encoding: 'utf8'}).trim();
-  return {schemaVersion: proof.schemaVersion, head, tree, advisoryId: proof.advisoryId, pnpmLockSha256: hash(fs.readFileSync(path.join(repositoryRoot, 'pnpm-lock.yaml'))), installedNodes: graph.nodes.length, graphProblems: 0, actualAffectedPackages: [], consumers, localMitigationHistoryPreserved: true, securityGateWaived: false, upstreamBracesFixed: false, fullOfficialAdvisoryResultRequiredSeparately: true, providerAcceptance: false, productionAcceptance: false};
+  return {schemaVersion: proof.schemaVersion, head, tree, advisoryId: proof.advisoryId, pnpmLockSha256: hash(fs.readFileSync(path.join(repositoryRoot, 'pnpm-lock.yaml'))), installedNodes: graph.nodes.length, graphProblems: 0, actualAffectedPackages: [], consumers, supportedDependencies, localMitigationHistoryPreserved: true, securityGateWaived: false, upstreamBracesFixed: false, fullOfficialAdvisoryResultRequiredSeparately: true, providerAcceptance: false, productionAcceptance: false};
 }
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = verifyFactoryGlobTooling();
