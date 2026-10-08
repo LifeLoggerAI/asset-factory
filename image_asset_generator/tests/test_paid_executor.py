@@ -541,7 +541,7 @@ class ExecutorTests(unittest.TestCase):
 
 
     def test_actual_request_semantics_ignore_json_key_order_and_whitespace(self):
-        bodies = [b'{"model":"synthetic-model","prompt":"synthetic","n":1}', b'{ "n":1, "prompt":"synthetic", "model":"synthetic-model" }']
+        bodies = [b'{"model":"synthetic-model","prompt":"synthetic","n":1}', b'{ "n":1.0, "prompt":"synthetic", "model":"synthetic-model" }']
         captured = []
         headers = {"Authorization": "Bearer SYNTHETIC-PROVIDER-KEY", "Content-Type": "application/json"}
         for body in bodies:

@@ -217,7 +217,7 @@ def _execute_once(endpoint, body, headers, provider, model, entry, width, height
         request_size=f"{width}x{height}", endpoint=endpoint,
         request_sha256=paid_request_guard.request_digest(endpoint, request.data),
         source_input_sha256=source_digest,
-        semantic_input_sha256=paid_request_guard.source_input_digest(json.loads(request.data, object_pairs_hook=paid_request_guard.unique_object)), **fingerprint,
+        semantic_input_sha256=paid_request_guard.semantic_input_digest(json.loads(request.data, object_pairs_hook=paid_request_guard.unique_object)), **fingerprint,
     )
     def check_request():
         if paid_request_guard.request_digest(request.full_url, request.data) != reservation["bindingFields"]["request_sha256"] or paid_request_guard.source_input_digest(source_input) != source_digest or paid_request_guard.request_header_bindings(dict(request.header_items()), credential_names) != fingerprint:
