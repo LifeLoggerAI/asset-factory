@@ -1,0 +1,80 @@
+name: Factory control-plane authentication source
+
+on:
+  pull_request:
+    paths:
+      - assetfactory-studio/lib/server/assetAuth.ts
+      - assetfactory-studio/lib/server/apiAuth.ts
+      - assetfactory-studio/app/api/generate/route.ts
+      - assetfactory-studio/package.json
+      - pnpm-lock.yaml
+      - scripts/test-asset-factory-auth.mjs
+      - scripts/test-factory-web-auth-runtime.mjs
+      - .github/workflows/factory-control-plane-auth.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-control-plane-auth-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  auth-source:
+    name: Exact-source signed auth and private job fences
+    runs-on: macos-latest
+    timeout-minutes: 25
+    env:
+      FACTORY_AUTH_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      NODE_DISABLE_COMPILE_CACHE: '1'
+    steps:
+      - name: Checkout exact source without persistent credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.FACTORY_AUTH_EXACT_HEAD }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Require exact clean source
+        run: |
+          test "$(git rev-parse HEAD)" = "$FACTORY_AUTH_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install actual frozen workspace without audit upload
+        run: node scripts/install-locked-dependencies.mjs
+      - name: Require actual Next SDK to match the declared locked version
+        run: |
+          node --input-type=module - <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import { createRequire } from 'node:module';
+          const fromStudio = createRequire(process.cwd() + '/assetfactory-studio/package.json');
+          const declared = JSON.parse(fs.readFileSync('assetfactory-studio/package.json', 'utf8')).dependencies.next;
+          const installed = fromStudio('next/package.json').version;
+          assert.equal(installed, declared, 'Actual Factory Next SDK must match its declared version');
+          console.log(JSON.stringify({ declaredNext: declared, actualNext: installed, exactInstalledSDK: true }));
+          NODE
+      - name: Test actual compiled auth and handlers with synthetic boundaries
+        env:
+          NODE_ENV: test
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/factory-control-plane-auth"
+          node scripts/test-asset-factory-auth.mjs 2>&1 | tee "$RUNNER_TEMP/factory-control-plane-auth/existing-auth.log"
+          node scripts/test-factory-web-auth-runtime.mjs 2>&1 | tee "$RUNNER_TEMP/factory-control-plane-auth/compiled-auth-handlers.log"
+      - name: Strict TypeScript and lint current Studio consumers
+        run: |
+          npm --prefix assetfactory-studio run typecheck
+          npm --prefix assetfactory-studio run lint
+      - name: Require unchanged tracked source
+        run: git diff --exit-code
+      - name: Retain actual compiled module proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-control-plane-auth-${{ env.FACTORY_AUTH_EXACT_HEAD }}
+          path: ${{ runner.temp }}/factory-control-plane-auth/*.log
+          if-no-files-found: warn
+          retention-days: 14

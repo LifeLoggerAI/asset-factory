@@ -1,0 +1,17 @@
+# Factory production authentication source boundary
+
+Source base: `2114e86d547b5c8c419e4aa3e63efaf58a20cd1d` on the existing #421 convergence lineage. This is a bounded source correction, not a release, deployment, account or provider certification.
+
+Production must explicitly enable signed JWT authentication. Disabled authentication and header-only tenant/role identities are rejected. JWTs always require a real configured HS256 verifier and valid signature, even if the old optional-signature flag is unset or false. Production also requires a configured issuer and audience, a verifier of at least 32 UTF-8 bytes, a canonical tenant claim, explicit recognized roles and canonical subject. A finite future expiration is mandatory; its remaining validity window is at most one hour in production. A supplied activation time must be finite and active. Byte length does not establish verifier entropy, custody or signing/account authority.
+
+Generate POST requires creator access, then rechecks authentication after the asynchronous quota boundary and before persisting a private job. Expiration, verifier rotation, auth disablement or actor/tenant/mode changes cannot carry stale authorization into that write. Generate GET rechecks after storage returns and before releasing tenant-filtered private jobs. Internal quota or storage exception text is replaced with fixed public errors.
+
+The existing explicit development/test local and legacy-header paths remain confined to non-production mode. The development E2E script still spawns an explicitly local dev server; this does not establish production authentication or provider readiness. No signing verifier or shared API key is placed in browser code.
+
+## Actual source proof and limits
+
+The credentialless compiled-module fixture executes the actual TypeScript auth/API-key/Generate handlers with genuine HMAC/timing-safe signature code and real Next Request/Response classes. Quota, storage and generation-policy boundaries are synthetic and cannot make provider calls. The fixture includes production config/claim/signature/tenant/role failures, valid creator behavior, expiry/rotation/identity changes across asynchronous write/read boundaries and redacted failures.
+
+Local bounded proof used Node 22.23.3, TypeScript 5.9.3 and an existing Next 15.5.27 SDK because the Factory's locked Next 16.3.8 was not installed locally. The unmodified predecessor produced 12 passes and 31 failures; the corrected actual modules passed 43/43 cases. The existing nine-case auth suite also passed. This is source runtime evidence with a different SDK, not exact Factory installed-graph, strict-consumer, native-CI or deployment acceptance. The focused native workflow separately requires the actual installed Next SDK to match the declared frozen version and then runs both suites, strict consumer typing and lint. Queued runs are unaccepted.
+
+A real authenticated credential broker/current tenant-membership and revocation authority, trustworthy issuer/audience/verifier binding, dedicated production identity/configuration, current-head native proof and production readback remain required. This change does not claim online token revocation, establish legal/subject/asset rights, authorize paid execution, generate assets, change storage rules, admit a release or transfer historical approval. Previously issued correctly signed credentials can remain valid until their bounded expiration unless the real broker/authority revokes them by an actually supported mechanism.
