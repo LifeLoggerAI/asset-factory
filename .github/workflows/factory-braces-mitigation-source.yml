@@ -32,7 +32,13 @@ env:
 
 jobs:
   installed-consumer-proof:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -60,6 +66,21 @@ jobs:
         env:
           URAI_GLOB_BASELINE_ROOT: ${{ runner.temp }}/factory-tooling-upstream
         run: node --test scripts/test-factory-glob-tooling-compatibility.mjs scripts/test-next-root-dirs-exact-differential.mjs scripts/test-installed-reviewed-advisories.mjs
+      - name: Require actual filesystem evidence for the selected platform
+        env:
+          URAI_PROOF_RUNNER_OS: ${{ runner.os }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const proof = JSON.parse(fs.readFileSync('artifacts/factory-next-root-dirs-exact-differential.json', 'utf8'));
+          assert.equal(typeof proof.filesystemCaseSensitive, 'boolean', 'actual filesystem probe is required');
+          assert.ok(['Linux', 'macOS'].includes(process.env.URAI_PROOF_RUNNER_OS), 'only the selected platforms may certify this proof');
+          if (process.env.URAI_PROOF_RUNNER_OS === 'Linux') {
+            assert.equal(proof.filesystemCaseSensitive, true, 'Linux must exercise the complete case-sensitive fixture');
+          }
+          console.log('PASS actual platform/filesystem evidence', process.env.URAI_PROOF_RUNNER_OS, proof.filesystemCaseSensitive);
+          NODE
       - name: Run launch readiness with the actual frozen Studio compiler and source
         run: npm run test:launch-readiness
       - name: Install exact public predecessor consumer packages outside the candidate
@@ -110,7 +131,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: factory-tooling-installed-compatibility-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          name: factory-tooling-installed-compatibility-${{ env.ASSET_FACTORY_EXACT_HEAD }}-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             artifacts/factory-glob-installed-replacement.json
             artifacts/factory-next-root-dirs-exact-differential.json
