@@ -29,7 +29,7 @@ const receipt = {schemaVersion: 'urai-next-root-dirs-exact-differential-v1', nod
   upstreamNext: '16.3.8', upstreamFastGlob: '3.3.1',
   upstreamLiteralSha256: sha256(fs.readFileSync(baselinePath)), currentLiteralSha256: sha256(fs.readFileSync(currentPath)),
   helperSha256: sha256(helperSource), dependencies: expectedDependencies,
-  orderedDirectoryCases: 0, expansionCases: 0, resourceCases: 0, fixedExpectedCases: 0,
+  orderedDirectoryCases: 0, expansionCases: 0, resourceCases: 0, fixedExpectedCases: 0, filesystemCaseSensitive: null,
   scope: probe ? 'selected-package source comparison; not a whole installed workspace' : 'actual installed candidate consumers; full graph/advisory acceptance is separate',
   humanIndependentAcceptance: false, productionAcceptance: false, providerCallsExecuted: 0};
 function observe(fn, value) {
@@ -39,13 +39,32 @@ function fixture(callback) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'factory-next-exact-'));
   const previous = process.cwd();
   try {
+    const caseProbe = path.join(dir, '.urai-case-probe');
+    const caseAlias = path.join(dir, '.URAI-CASE-PROBE');
+    fs.writeFileSync(caseProbe, 'fixture filesystem identity');
+    const caseSensitive = !fs.existsSync(caseAlias);
+    if (!caseSensitive) {
+      const original = fs.statSync(caseProbe), alias = fs.statSync(caseAlias);
+      assert.equal(alias.dev, original.dev); assert.equal(alias.ino, original.ino);
+    }
+    fs.unlinkSync(caseProbe);
+    if (receipt.filesystemCaseSensitive !== null) assert.equal(caseSensitive, receipt.filesystemCaseSensitive);
+    receipt.filesystemCaseSensitive = caseSensitive;
     const names = ['web','admin','api','.hidden','unicodé','01','02','03','literal{directory}','a,b','c','"a','b"',"'a","b'",'0','1','2','3','-1','-2','-3','{-3..+3}','a','z','_','Z','b','λ','μ','ν','001','002','003','-01','-02','-03','-001','-002','-003','+1','+2','+3','a,{b,c}','a{b,c}','ab,cd','web:admin','true','__proto__','constructor','toString'];
     for (const name of names) fs.mkdirSync(path.join(dir, 'apps', name), {recursive: true});
     for (const name of ['apps/web/child','apps/admin/nested/deep','apps/.hidden/sub']) fs.mkdirSync(path.join(dir, name), {recursive: true});
     fs.symlinkSync(path.join(dir, 'apps/missing'), path.join(dir, 'apps/broken-symlink'), 'dir');
     fs.symlinkSync(path.join(dir, 'apps/web'), path.join(dir, 'apps/symlink-web'), 'dir');
     fs.writeFileSync(path.join(dir, 'apps/not-a-directory.js'), 'fixture');
-    process.chdir(dir); callback(dir);
+    const upper = fs.statSync(path.join(dir, 'apps/Z')), lower = fs.statSync(path.join(dir, 'apps/z'));
+    assert.equal(upper.dev, lower.dev);
+    if (caseSensitive) assert.notEqual(upper.ino, lower.ino);
+    else {
+      assert.equal(upper.ino, lower.ino);
+      const actualNames = fs.readdirSync(path.join(dir, 'apps'));
+      assert.ok(actualNames.includes('z')); assert.ok(!actualNames.includes('Z'));
+    }
+    process.chdir(dir); callback(dir, caseSensitive);
   } finally {process.chdir(previous); fs.rmSync(dir, {recursive: true, force: true});}
 }
 test('the real literal Next helper uses exact maintained directory-only dependencies', () => {
@@ -92,12 +111,29 @@ function exposeExpansion() {
   vm.runInNewContext(helperSource + '\nmodule.exports.reviewExpand = expandPatterns;', {module, exports: module.exports, require: helperRequire, Buffer, process}, {filename: helperPath, timeout: 1000});
   return module.exports.reviewExpand;
 }
+function expectedNegativeWalk(row, caseSensitive) {
+  assert.equal(typeof caseSensitive, 'boolean', 'Actual filesystem case identity required');
+  assert.ok(Array.isArray(row.expected)); assert.ok(Array.isArray(row.expectedCaseInsensitive));
+  // The only declared fixture collision is z/Z. Keep every other literal path,
+  // ordering and negative-depth result; never normalize arbitrary output.
+  assert.deepEqual(row.expectedCaseInsensitive, row.expected.filter(entry => entry !== 'apps/Z'));
+  return caseSensitive ? row.expected : row.expectedCaseInsensitive;
+}
+test('fixed filesystem expectations retain every original case-sensitive and case-folded path', () => {
+  for (const row of regression.negativeWalk) {
+    assert.equal(expectedNegativeWalk(row, true), row.expected);
+    assert.equal(expectedNegativeWalk(row, false), row.expectedCaseInsensitive);
+    assert.throws(() => expectedNegativeWalk(row, undefined), /Actual filesystem case identity/);
+    assert.throws(() => expectedNegativeWalk({...row, expectedCaseInsensitive: [...row.expectedCaseInsensitive, 'apps/invented']}, false));
+  }
+});
 test('retained legacy boundary and negative-depth results match exact ordered fixtures', () => {
-  fixture(dir => {
+  fixture((dir, caseSensitive) => {
     for (const row of regression.negativeWalk) {
       const context = {cwd: dir, settings: {next: {rootDir: row.pattern}}};
-      assert.deepEqual(observe(before, context), row.expected, 'upstream fixture ' + row.pattern);
-      assert.deepEqual(observe(after, context), row.expected, row.pattern);
+      const expected = expectedNegativeWalk(row, caseSensitive);
+      assert.deepEqual(observe(before, context), expected, 'upstream fixture ' + row.pattern);
+      assert.deepEqual(observe(after, context), expected, row.pattern);
       receipt.orderedDirectoryCases++; receipt.fixedExpectedCases++;
     }
   });
