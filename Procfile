@@ -1,3 +1,6 @@
-api: node engine/server.js
-worker_v2: node engine/worker_v2.js
+# Preserved legacy engine launches are unsupported by the adopted deployment.
+# Historical api: node engine/server.js
+# Historical worker_v2: node engine/worker_v2.js
+api: node scripts/reject-legacy-engine-deployment.mjs api
+worker_v2: node scripts/reject-legacy-engine-deployment.mjs worker_v2
 validator: node validator/validator.js

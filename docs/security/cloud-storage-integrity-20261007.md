@@ -36,6 +36,8 @@ The current root Firebase configuration deploys `life-map-pipeline/functions`, a
 
 `engine/package.json` starts `server.v1.js`, which forks `engine-worker.js` for explicit local proof. The separate `engine/worker.js` GCS prototype is not that start path, chooses an unbound default bucket and imports a deliberately unavailable database binding. It too is preserved and explicitly superseded; the cloud worker's body rejects before Storage initialization or a job watcher. The current local proof worker is unchanged. Three actual-module synthetic tests prove these preserved paths cannot dispatch or certify simulated cloud output. No historical objects, data, repositories or source code were deleted.
 
+The historical `Procfile` still advertised `engine/server.js` and the malformed `engine/worker_v2.js`, bypassing that supported local start path. Its two legacy engine process labels now reject before loading either prototype or opening a listener. The original commands remain recorded as comments and all prototype bodies are retained. This does not route local proof into production or alter the existing Firebase/Studio deployment and release gates. The separate validator process label and PM2 validator configuration are unchanged; their adoption, signing authority and deployed identity are not certified by this engine repair.
+
 ## Remaining operational proof
 
 - Refresh the authenticated deployment's project, default bucket and installed package/build digest. Source settings cannot prove deployment parity.
