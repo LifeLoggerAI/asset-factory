@@ -2,7 +2,7 @@
 name: Factory Firebase SDK lock refresh proof
 on:
   pull_request:
-    branches: [repair/model-forge-current-main-20261007]
+    branches: [main, repair/model-forge-current-main-20261007]
     paths:
       - package.json
       - functions/**
