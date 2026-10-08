@@ -127,7 +127,7 @@ jobs:
         run: |
           git -C .public-reviewed-advisories sparse-checkout init --cone
           git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
-          git -C .public-reviewed-advisories fetch --depth 1 origin bd4903bcb0086eb4b511a155cd54179818bbefe3
+          git -C .public-reviewed-advisories fetch --depth 1 origin ccd4868bd8cfbed178f5ada1194b4fe30674c25b
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject current installed high or critical findings with the unchanged comparator
         run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json

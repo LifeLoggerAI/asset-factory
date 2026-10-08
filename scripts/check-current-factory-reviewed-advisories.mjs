@@ -5,7 +5,7 @@ import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {installedGraph, match, primaryCommit as historicalPrimaryCommit} from './check-installed-reviewed-advisories.mjs';
-export const currentPrimaryCommit = 'bd4903bcb0086eb4b511a155cd54179818bbefe3';
+export const currentPrimaryCommit = 'ccd4868bd8cfbed178f5ada1194b4fe30674c25b';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const [checkout, output] = process.argv.slice(2);
 if (!checkout || !output) throw new Error('Usage: node scripts/check-current-factory-reviewed-advisories.mjs OFFICIAL_CHECKOUT OUTPUT_JSON');

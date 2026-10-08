@@ -67,7 +67,7 @@ jobs:
         run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-remediation-security.json
       - name: Read complete current official reviewed advisory source
         run: |
-          git -C .public-reviewed-advisories fetch --depth 1 origin bd4903bcb0086eb4b511a155cd54179818bbefe3
+          git -C .public-reviewed-advisories fetch --depth 1 origin ccd4868bd8cfbed178f5ada1194b4fe30674c25b
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject every installed current HIGH or CRITICAL without exceptions
         run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-current-security.json
