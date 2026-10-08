@@ -23,8 +23,14 @@ body {
   outline-offset: 4px;
 }
 
-:where(button, [role="button"], input, select) {
-  min-height: 44px;
+:where(button, [role="button"], input, textarea, select, summary, a[href]) {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+:where(a[href]) {
+  display: inline-flex;
+  align-items: center;
 }
 
 main,
