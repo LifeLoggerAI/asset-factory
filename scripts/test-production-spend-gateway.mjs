@@ -659,6 +659,48 @@ test('actual Studio HTTP reservation delayed beyond its window keeps the full ho
   } finally { t.restore(); }
 });
 
+test('numeric-equivalent IMAGE and Model wire inputs cannot create a second signed gateway reservation', async () => {
+  const vectors = [
+    ['{"n":1}', '{"n":1.0}'],
+    ['{"n":0}', '{"n":-0.0}'],
+    ['{"b":[1.0,-0.0],"a":1e-7}', '{"a":0.0000001,"b":[1,0]}'],
+  ];
+  // These same wire vectors are checked against the actual Python IMAGE helper
+  // in test_semantic_input.py. All records below are synthetic, never spend authority.
+  const bindWire = (f, body, semanticDigest) => {
+    const requestDigest = hash(Buffer.concat([Buffer.from(`POST\n${f.job.executor.endpoint}\n`), Buffer.from(body)]));
+    const sourceDigest = hash(`SYNTHETIC-SOURCE:${f.job.job_id}`);
+    Object.assign(f.job.executor, { request_sha256: requestDigest, request_size: Buffer.byteLength(body), semantic_input_sha256: semanticDigest, source_input_sha256: sourceDigest });
+    f.job.input_sha256 = [sourceDigest, requestDigest]; f.job.reuse_review.input_sha256 = f.job.input_sha256;
+    for (const record of [f.input, f.controls, f.db.rows.get(`assetFactorySpendPricing/${f.job.pricing_ref}`)]) {
+      Object.assign(record, { request_sha256: requestDigest, semantic_input_sha256: semanticDigest, source_input_sha256: sourceDigest });
+    }
+    f.input.request_size = f.job.executor.request_size;
+    f.input.job_digest = jobDigest(f.job);
+    f.db.rows.set(`assetFactorySpendApprovals/${f.job.approval_ref}`, signing({ ...f.approval, job_digest: f.input.job_digest }));
+  };
+  for (const [original, encoded] of vectors) {
+    const freeze = body => freezeRequest('https://api.replicate.com/v1/models/synthetic/model/predictions', { method: 'POST', headers: { authorization: 'Bearer SYNTHETIC-ONLY', 'content-type': 'application/json' }, body }, 'replicate');
+    const [firstWire, secondWire] = await Promise.all([freeze(original), freeze(encoded)]);
+    assert.equal(firstWire.semantic_input_sha256, secondWire.semantic_input_sha256);
+    assert.notEqual(firstWire.request_sha256, secondWire.request_sha256);
+    for (const settled of [false, true]) {
+      const first = fixture(); bindWire(first, original, firstWire.semantic_input_sha256);
+      const attempt = await act(first, 'reserve');
+      if (settled) await act(first, 'reconcile', charge(first, attempt, 'SUCCEEDED'));
+      const other = fixture(first.db, 'SYNTHETIC-DISTINCT-IMAGE-SOURCE');
+      first.db.rows.get(first.accountPath).available_usd_micros = 10_000_000;
+      bindWire(other, encoded, secondWire.semantic_input_sha256);
+      assert.notEqual(first.job.executor.request_sha256, other.job.executor.request_sha256);
+      assert.notEqual(first.job.executor.source_input_sha256, other.job.executor.source_input_sha256);
+      const before = structuredClone(other.db.rows);
+      await assert.rejects(act(other, 'reserve'), /semantic input already reserved/);
+      assert.deepEqual(other.db.rows, before);
+      assert.equal([...other.db.rows.keys()].filter(k => k.startsWith('assetFactorySpendInputClaims/')).length, 1);
+    }
+  }
+});
+
 test('renamed source job and reencoded request cannot reopen a permanent semantic claim', async () => {
   for (const settled of [false, true]) {
     const first = fixture(); const a = await act(first, 'reserve');

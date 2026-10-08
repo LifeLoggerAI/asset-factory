@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import rfc8785
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,6 +90,20 @@ def source_input_digest(value: Any) -> str:
         raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
     except (ValueError, TypeError) as exc:
         raise PaidRequestUnauthorized("source input cannot be bound exactly") from exc
+    return hashlib.sha256(raw).hexdigest()
+
+
+def semantic_input_digest(value: Any) -> str:
+    """Match ECMAScript semantic JSON without changing exact source/wire hashes.
+
+    RFC 8785 normalizes equivalent numeric spellings, including -0, and sorts
+    object keys by UTF-16 code units. Unsupported/nonfinite I-JSON rejects before
+    reservation; no ambiguous input can mint a different semantic spend claim.
+    """
+    try:
+        raw = rfc8785.dumps(value)
+    except (ValueError, TypeError, OverflowError, RecursionError) as exc:
+        raise PaidRequestUnauthorized("semantic input cannot be canonically bound") from exc
     return hashlib.sha256(raw).hexdigest()
 
 

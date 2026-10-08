@@ -98,7 +98,7 @@ def _submit(api_key: str, model: str, operation: str, body: bytes, content_type:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": content_type}
     bindings = guard.request_header_bindings(headers, {"authorization"})
     request = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
-    reservation = guard.reserve(provider="openai", model=model, asset=f"cinema/{operation}/{input_digest}", request_size=str(len(body)), endpoint=endpoint, request_sha256=guard.request_digest(endpoint, body), source_input_sha256=input_digest, semantic_input_sha256=guard.source_input_digest(fields), **bindings)
+    reservation = guard.reserve(provider="openai", model=model, asset=f"cinema/{operation}/{input_digest}", request_size=str(len(body)), endpoint=endpoint, request_sha256=guard.request_digest(endpoint, body), source_input_sha256=input_digest, semantic_input_sha256=guard.semantic_input_digest(fields), **bindings)
     state = {"reservation": reservation, "source_sha": source, "sources_digest": sources_digest, "credential": api_key}
     try:
         data = _read(request, state, 65_536 if operation == "videos" else MAX_OUTPUT_BYTES)
