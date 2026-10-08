@@ -11,6 +11,8 @@ on:
       - pnpm-lock.yaml
       - life-map-pipeline/functions/package-lock.json
       - patches/**
+      - scripts/*factory-dependency*
+      - scripts/*factory-all-severity*
       - scripts/check-current-factory-reviewed-advisories.mjs
       - .github/workflows/factory-firebase-sdk-lock-refresh.yml
 permissions:
@@ -71,6 +73,8 @@ jobs:
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject every installed current HIGH or CRITICAL without exceptions
         run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-current-security.json
+      - name: Require closure of every installed advisory severity without exceptions
+        run: node scripts/check-factory-all-severity.mjs artifacts/firebase-sdk-remediation-security.json artifacts/firebase-sdk-current-security.json
       - name: Refuse source or lock drift during proof
         run: git diff --exit-code
       - name: Retain exact frozen lock and installed source/security receipts

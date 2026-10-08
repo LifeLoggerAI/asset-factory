@@ -113,6 +113,8 @@ jobs:
         run: node scripts/install-locked-dependencies.mjs --deployment-functions
       - name: Test local advisory rejection and installed graph resolution
         run: node --test scripts/test-installed-reviewed-advisories.mjs
+      - name: Verify actual supported dependency sources and genuinely absent vulnerable ingress
+        run: node scripts/verify-factory-glob-tooling.mjs
       - name: Download pinned public reviewed advisory data without uploading dependency metadata
         run: |
           git init .public-reviewed-advisories
@@ -131,6 +133,8 @@ jobs:
           git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
       - name: Reject current installed high or critical findings with the unchanged comparator
         run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json
+      - name: Require closure of every installed advisory severity without exceptions
+        run: node scripts/check-factory-all-severity.mjs artifacts/installed-dependency-security.json artifacts/current-installed-dependency-security.json
       - name: Retain actual installed graph and unresolved security findings
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -139,6 +143,7 @@ jobs:
           path: |
             artifacts/installed-dependency-security.json
             artifacts/current-installed-dependency-security.json
+            artifacts/factory-glob-installed-replacement.json
           if-no-files-found: warn
 
   deploy:
