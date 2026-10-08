@@ -13,8 +13,9 @@ Pipeline:
 
 A successful default run proves mechanical packaging/integrity only. Set
 ASSET_PIPELINE_REQUIRE_PRODUCTION_VISUALS=1 in a production/promotion lane to
-fail closed unless every retained visual is provider-backed, semantically
-distinct, and explicitly approved/committed/shipped.
+fail closed. Provider render labels, manifest statuses and structural checks
+describe mechanical candidates only; they cannot supply independent exact-asset
+acceptance, trusted final-charge reconciliation or production release authority.
 """
 
 from __future__ import annotations
@@ -179,11 +180,23 @@ def build_production_visual_gate(
     if unapproved_assets:
         reasons.append(f"{len(unapproved_assets)} manifest asset(s) lack explicit visual approval")
 
-    status = "eligible" if not reasons else "blocked"
+    candidate_status = "eligible" if not reasons else "blocked"
+    # This pipeline has no authenticated production-admission input. A local
+    # provider label/status (even an "approved" one) is not a signed charge,
+    # independent visual acceptance or exact frozen-release manifest receipt.
+    # Preserve candidate checks without inventing a parallel release authority.
+    reasons.append(
+        "independent exact-asset production acceptance and trusted final-charge "
+        "reconciliation are not verified by this mechanical pipeline"
+    )
     return {
-        "status": status,
-        "production_visual_authority": status == "eligible",
-        "promotion_allowed": status == "eligible",
+        "status": "blocked",
+        "authority_scope": "mechanical-candidate-only",
+        "candidate_status": candidate_status,
+        "candidate_eligible": candidate_status == "eligible",
+        "production_admission_status": "not-verified",
+        "production_visual_authority": False,
+        "promotion_allowed": False,
         "reasons": reasons,
         "renderer_counts": dict(sorted(renderer_counts.items())),
         "non_provider_assets": non_provider_assets,

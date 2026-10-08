@@ -1,10 +1,10 @@
 """
 Create Firebase-ready metadata seed records from generated image assets.
 
-The output is a no-network metadata export. Production eligibility is fail-closed:
-a record can be production eligible only when the current in-process production
-visual gate is eligible, per-file render provenance identifies the provider
-renderer, and the manifest entry has explicit visual approval.
+The output is a no-network metadata export. Provider labels, manifest statuses
+and an in-process dictionary can describe mechanical candidates, but cannot
+grant production import or promotion. The current pipeline has no authenticated
+independent exact-asset acceptance/final-charge/release admission input.
 """
 
 from __future__ import annotations
@@ -46,13 +46,13 @@ def read_render_metadata(local_path: Path) -> Dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def gate_allows_production(production_visual_gate: Dict[str, Any] | None) -> bool:
+def gate_describes_candidate(production_visual_gate: Dict[str, Any] | None) -> bool:
     if not isinstance(production_visual_gate, dict):
         return False
     return (
-        production_visual_gate.get("status") == "eligible"
-        and production_visual_gate.get("production_visual_authority") is True
-        and production_visual_gate.get("promotion_allowed") is True
+        production_visual_gate.get("authority_scope") == "mechanical-candidate-only"
+        and production_visual_gate.get("candidate_status") == "eligible"
+        and production_visual_gate.get("candidate_eligible") is True
     )
 
 
@@ -61,7 +61,7 @@ def make_seed(
 ) -> Dict[str, Any]:
     generated_at = datetime.now(timezone.utc).isoformat()
     records: List[Dict[str, Any]] = []
-    production_gate_eligible = gate_allows_production(production_visual_gate)
+    candidate_gate_eligible = gate_describes_candidate(production_visual_gate)
 
     for entry in load_manifest():
         storage_prefix = str(entry.get("firebase_storage_prefix") or DEFAULT_STORAGE_PREFIX).strip("/")
@@ -76,8 +76,9 @@ def make_seed(
             render_metadata = read_render_metadata(local_path)
             renderer = str(render_metadata.get("renderer") or entry.get("renderer") or "unknown")
             provenance_known = bool(render_metadata)
-            production_eligible = (
-                production_gate_eligible
+            candidate_eligible = (
+                candidate_gate_eligible
+                and local_path.is_file()
                 and renderer == "provider"
                 and provenance_known
                 and approved
@@ -99,16 +100,17 @@ def make_seed(
                 "renderer": renderer,
                 "renderProvenanceKnown": provenance_known,
                 "promptVersion": entry.get("prompt_version", "v1"),
-                "productionEligible": production_eligible,
-                "visualAuthority": "production-candidate" if production_eligible else "diagnostic-only",
+                "productionCandidateEligible": candidate_eligible,
+                "productionEligible": False,
+                "visualAuthority": "mechanical-candidate" if candidate_eligible else "diagnostic-only",
             }
             if local_path.exists():
                 record["bytes"] = local_path.stat().st_size
                 record["sha256"] = sha256_file(local_path)
             records.append(record)
 
-    all_production_eligible = bool(records) and all(
-        bool(record.get("productionEligible")) for record in records
+    all_candidates_eligible = bool(records) and all(
+        bool(record.get("productionCandidateEligible")) for record in records
     )
     return {
         "generatedAt": generated_at,
@@ -120,13 +122,12 @@ def make_seed(
             if isinstance(production_visual_gate, dict)
             else "not-evaluated"
         ),
-        "productionGateEligible": production_gate_eligible,
-        "productionEligible": all_production_eligible,
-        "usagePolicy": (
-            "production-import-allowed"
-            if all_production_eligible
-            else "diagnostic-only-do-not-promote"
-        ),
+        "authorityScope": "mechanical-candidate-only",
+        "productionAdmissionStatus": "not-verified",
+        "productionGateEligible": False,
+        "productionCandidateEligible": all_candidates_eligible,
+        "productionEligible": False,
+        "usagePolicy": "diagnostic-only-do-not-promote",
         "records": records,
     }
 
