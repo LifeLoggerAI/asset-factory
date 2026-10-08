@@ -2,7 +2,7 @@ name: Factory Cloud Storage integrity source proof
 
 on:
   pull_request:
-    branches: [repair/model-forge-current-main-20261007]
+    branches: [main, repair/model-forge-current-main-20261007]
     paths:
       - assetfactory-studio/lib/server/firebaseAdmin.ts
       - assetfactory-studio/lib/server/cloudAssetFactoryStore.ts
