@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire, stripTypeScriptTypes } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
+import { performance } from 'node:perf_hooks';
 import test from 'node:test';
 import vm from 'node:vm';
 
@@ -42,7 +43,8 @@ async function actualModule(name, mocks, context = vm.createContext({ Buffer, co
   const source = stripTypeScriptTypes(readFileSync(resolve(server, `${name}.ts`), 'utf8'), { mode: 'transform' });
   const module = new vm.SourceTextModule(source, { context });
   await module.link(async specifier => {
-    const exports = mocks[specifier]; assert.ok(exports, `Missing synthetic import ${specifier}`);
+    const exports = mocks[specifier] ?? (specifier === 'node:perf_hooks' ? { performance } : undefined);
+    assert.ok(exports, `Missing synthetic import ${specifier}`);
     return new vm.SyntheticModule(Object.keys(exports), function () {
       for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
     }, { context });
@@ -71,6 +73,13 @@ async function storageFixture(hooks = {}) {
         const entry = { buffer: Buffer.from(data), metadata: { generation, size: String(data.length), crc32c: crc32c(data), contentType: input.contentType, ...structuredClone(input.metadata) } };
         objects.set(objectPath, entry); history.set(generation, entry); calls.commits++;
         if (hooks.saveError) throw coded(hooks.saveError);
+      },
+      createWriteStream(input) {
+        const file = this, chunks = [];
+        return new Writable({
+          write(chunk, encoding, callback) { chunks.push(Buffer.from(chunk)); callback(); },
+          final(callback) { file.save(Buffer.concat(chunks), input).then(() => callback(), callback); },
+        });
       },
       async getMetadata() {
         calls.metadata.push({ objectPath, options });
@@ -112,6 +121,14 @@ async function storageFixture(hooks = {}) {
       async delete() { calls.deletes++; objects.delete(objectPath); },
     };
   } };
+  class SyntheticStorage {
+    constructor(options) { Object.assign(this, options); }
+    bucket(name) { assert.equal(name, bucket.name); return { ...bucket, storage: this }; }
+  }
+  bucket.storage = new SyntheticStorage({
+    projectId: 'synthetic-asset-factory', apiEndpoint: 'https://storage.googleapis.com',
+    authClient: { async authorizeRequest(request) { return request; } },
+  });
   const context = vm.createContext({ Buffer, console, process: { env: {} }, clearTimeout,
     setTimeout(callback, delay) { if (hooks.stalledRead || hooks.stalledMetadata) { assert.equal(delay, 60000); return setTimeout(callback, 2); } return setTimeout(callback, delay); },
   });
@@ -162,7 +179,8 @@ test('actual writer sends explicit server CRC32C, client validation, create prec
   const call = f.calls.save[0]; assert.equal(call.options.metadata.crc32c, crc32c(bytes));
   assert.equal(call.options.metadata.metadata.sha256, digest(bytes)); assert.equal(call.options.validation, 'crc32c');
   assert.equal(call.options.preconditionOpts.ifGenerationMatch, 0); assert.equal(call.options.resumable, false);
-  assert.equal(call.options.timeout, 60000); assert.equal(call.options.metadata.cacheControl, 'private, max-age=60');
+  assert.ok(Number.isInteger(call.options.timeout) && call.options.timeout > 0 && call.options.timeout <= 60000);
+  assert.equal(call.options.metadata.cacheControl, 'private, max-age=60');
   // Instance-level fencing also covers the SDK's own checksum-mismatch delete.
   assert.equal(f.calls.metadata[0].options.preconditionOpts, undefined);
 });
@@ -203,9 +221,10 @@ async function sdkFixture({ corruptResponse = false } = {}) {
   const authDenied = () => { authAttempts++; throw new Error('Synthetic SDK fixture denies real authentication'); };
   sdk.authClient.getClient = authDenied;
   sdk.makeAuthenticatedRequest = authDenied;
-  const bucket = sdk.bucket('synthetic-asset-factory.appspot.com');
+  const requests = [], scopedConfigurations = []; let object = null, replacementsDeleted = 0;
+  function fixtureBucket(owner, name) {
+  const bucket = Storage.prototype.bucket.call(owner, name);
   const originalFile = bucket.file.bind(bucket);
-  const requests = []; let object = null, replacementsDeleted = 0;
   bucket.requestStream = input => {
     requests.push({ metadata: true, method: input.method, uri: input.uri, timeout: input.timeout, maxRetries: input.maxRetries, json: input.json });
     return new Readable({ read() {
@@ -243,12 +262,22 @@ async function sdkFixture({ corruptResponse = false } = {}) {
     // ServiceObject's internal delete dispatch delegates to the parent request;
     // fence that boundary too, rather than only replacing public File.request.
     bucket.request = file.request;
-    sdk.request = file.request;
+    owner.request = file.request;
     file.getMetadata = async () => { if (!object) throw coded(404); return [structuredClone(object.metadata)]; };
     return file;
   };
+  return bucket;
+  }
+  class ScopedFixtureStorage extends Storage {
+    constructor(options) {
+      super(options); this.bucket = name => fixtureBucket(this, name);
+      scopedConfigurations.push({ sdk: this, expectedCredential: options.authClient });
+    }
+  }
+  sdk.constructor = ScopedFixtureStorage;
+  const bucket = fixtureBucket(sdk, 'synthetic-asset-factory.appspot.com');
   const module = await actualModule('cloudAssetFactoryStore', { './firebaseAdmin': { getAdminBucket: () => bucket, getAdminDb: () => null }, 'node:crypto': { createHash } });
-  return { module, requests, object: () => object, replacementsDeleted: () => replacementsDeleted, authAttempts: () => authAttempts, sdkPackage };
+  return { module, requests, scopedConfigurations, object: () => object, replacementsDeleted: () => replacementsDeleted, authAttempts: () => authAttempts, sdkPackage };
 }
 test('actual locked SDK recognizes its direct emulator endpoint alias without authentication/network', () => {
   const previous = process.env.STORAGE_EMULATOR_HOST;
@@ -273,11 +302,16 @@ test('actual locked SDK constructs a checksummed conditional multipart write wit
   const f = await sdkFixture(); await f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path);
   const wire = f.requests.find(x => x.method === 'POST'); assert.equal(wire.qs.ifGenerationMatch, 0);
   assert.equal(wire.metadata.crc32c, crc32c(bytes)); assert.equal(wire.metadata.metadata.sha256, digest(bytes));
-  assert.equal(wire.sha256, digest(bytes)); assert.equal(wire.timeout, 60000); assert.equal(f.replacementsDeleted(), 0);
+  assert.equal(wire.sha256, digest(bytes)); assert.ok(Number.isInteger(wire.timeout) && wire.timeout > 0 && wire.timeout <= 60000);
+  assert.equal(f.replacementsDeleted(), 0);
   const metadata = f.requests.find(x => x.metadata === true);
-  assert.equal(metadata.method, 'GET'); assert.equal(metadata.timeout, 60000); assert.equal(metadata.maxRetries, 0);
+  assert.equal(metadata.method, 'GET'); assert.ok(Number.isInteger(metadata.timeout) && metadata.timeout > 0 && metadata.timeout <= wire.timeout);
+  assert.equal(metadata.maxRetries, 0);
   assert.equal(metadata.json, false); assert.ok(metadata.uri.endsWith(encodeURIComponent(path)));
   assert.equal(f.authAttempts(), 0);
+  assert.deepEqual(f.scopedConfigurations.map(({ sdk: s, expectedCredential }) => ({ projectId: s.projectId, apiEndpoint: s.apiEndpoint, autoRetry: s.retryOptions.autoRetry,
+    maxRetries: s.retryOptions.maxRetries, credentialRetained: s.authClient === expectedCredential })), [{ projectId: 'synthetic-asset-factory', apiEndpoint: 'https://storage.googleapis.com',
+    autoRetry: false, maxRetries: 0, credentialRetained: true }]);
 });
 test('actual locked SDK checksum-failure cleanup cannot delete a later unrelated generation', async () => {
   const f = await sdkFixture({ corruptResponse: true });
@@ -285,6 +319,126 @@ test('actual locked SDK checksum-failure cleanup cannot delete a later unrelated
   const cleanup = f.requests.find(x => x.method === 'DELETE'); assert.ok(cleanup, 'exercise actual SDK cleanup path');
   assert.equal(cleanup.qs.ifGenerationMatch, 0); assert.equal(f.replacementsDeleted(), 0); assert.equal(f.object().metadata.generation, '101');
   assert.equal(f.authAttempts(), 0);
+});
+async function sdkAuthorizationFixture({ rejectCredential = false, immediateCredential = false, manualDeadline = false } = {}) {
+  const require = createRequire(import.meta.url);
+  const adminPath = require.resolve('firebase-admin/storage', { paths: [resolve(root, 'assetfactory-studio')] });
+  const sdkRequire = createRequire(adminPath);
+  const sdkEntry = sdkRequire.resolve('@google-cloud/storage');
+  assert.equal(JSON.parse(readFileSync(resolve(dirname(sdkEntry), '../../../package.json'), 'utf8')).version, '7.21.0');
+  const { Storage } = sdkRequire('@google-cloud/storage');
+  const { util } = sdkRequire(resolve(dirname(sdkEntry), 'nodejs-common/util.js'));
+  const sdk = new Storage({ projectId: 'synthetic-asset-factory', retryOptions: { autoRetry: false } });
+  const sharedAuthorize = sdk.authClient.authorizeRequest;
+  const sharedRetries = { ...sdk.retryOptions };
+  let releaseAuthorization, signalEntered, authAttempts = 0;
+  const authorization = new Promise(resolve => { releaseAuthorization = resolve; });
+  const entered = new Promise(resolve => { signalEntered = resolve; });
+  const getClient = async () => {
+    authAttempts++; signalEntered();
+    if (rejectCredential) throw new Error('Could not load the default credentials: SYNTHETIC-PRIVATE-TOKEN');
+    if (!immediateCredential) await authorization;
+    return { async getRequestHeaders() { return {}; } };
+  };
+  // Exercise real GoogleAuth.authorizeRequest, replacing only credential lookup
+  // and the terminal HTTP boundary. No token endpoint or provider is contacted.
+  sdk.authClient.getClient = getClient;
+  const originalMakeRequest = util.makeRequest;
+  const wire = [];
+  let elapsed = 0;
+  util.makeRequest = (request, config, callback) => {
+    wire.push({ method: request.method, uri: request.uri });
+    (async () => {
+      if (request.multipart) for await (const chunk of request.multipart[1].body) assert.ok(Buffer.isBuffer(chunk));
+      callback(coded(403));
+    })().catch(callback);
+    return { abort() {} };
+  };
+  const context = vm.createContext({ Buffer, console, process: { env: {} }, clearTimeout,
+    setTimeout(callback, delay) {
+      assert.equal(delay, 60000, 'one source deadline includes SDK credential lookup');
+      // Compress only timer scheduling; keep the real asynchronous SDK path.
+      if (manualDeadline) return { unref() {} };
+      return setTimeout(callback, 20);
+    },
+  });
+  const module = await actualModule('cloudAssetFactoryStore', {
+    './firebaseAdmin': { getAdminBucket: () => sdk.bucket('synthetic-asset-factory.appspot.com'), getAdminDb: () => null },
+    'node:crypto': { createHash },
+    'node:perf_hooks': manualDeadline ? { performance: { now: () => elapsed } } : { performance },
+  }, context);
+  return {
+    module, wire, entered, releaseAuthorization, authAttempts: () => authAttempts,
+    advanceElapsed(ms) { elapsed += ms; },
+    assertSharedUnchanged() {
+      assert.equal(sdk.authClient.authorizeRequest, sharedAuthorize);
+      assert.equal(sdk.authClient.getClient, getClient);
+      assert.deepEqual(sdk.retryOptions, sharedRetries);
+    },
+    async cleanup() {
+      releaseAuthorization();
+      for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
+      util.makeRequest = originalMakeRequest;
+    },
+  };
+}
+for (const kind of ['write', 'read']) {
+  test(`actual SDK delayed authorization cannot dispatch ${kind} after the source deadline`, async () => {
+    const f = await sdkAuthorizationFixture();
+    try {
+      const operation = kind === 'write'
+        ? f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path)
+        : f.module.cloudReadGenerated('artifact.glb', path);
+      const rejected = assert.rejects(operation, kind === 'write' ? /upload deadline/ : /metadata deadline/);
+      await f.entered; assert.equal(f.authAttempts(), 1);
+      await withLiveSyntheticTransport(() => rejected);
+      assert.equal(f.wire.length, 0);
+      f.releaseAuthorization();
+      await f.cleanup();
+      assert.equal(f.wire.length, 0, 'late credential completion must not dispatch GCS');
+      f.assertSharedUnchanged();
+    } finally { await f.cleanup(); }
+  });
+}
+for (const kind of ['write', 'read']) {
+  test(`actual SDK checks monotonic ${kind} admission when authorization completes before a delayed timer fires`, async () => {
+    const f = await sdkAuthorizationFixture({ manualDeadline: true });
+    try {
+      const operation = kind === 'write'
+        ? f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path)
+        : f.module.cloudReadGenerated('artifact.glb', path);
+      const rejected = assert.rejects(operation, kind === 'write' ? /upload deadline/ : /metadata deadline/);
+      await f.entered; assert.equal(f.authAttempts(), 1);
+      f.advanceElapsed(60001); f.releaseAuthorization();
+      await rejected; await f.cleanup();
+      assert.equal(f.wire.length, 0); f.assertSharedUnchanged();
+    } finally { await f.cleanup(); }
+  });
+}
+for (const kind of ['write', 'read']) {
+  test(`actual SDK credential failure is redacted and cannot fall back to anonymous ${kind}`, async () => {
+    const f = await sdkAuthorizationFixture({ rejectCredential: true });
+    try {
+      await assert.rejects(kind === 'write'
+        ? f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path)
+        : f.module.cloudReadGenerated('artifact.glb', path), error => {
+        // An immediate upload error may win the locked SDK's inner stream race.
+        // Both exposed outcomes are fixed diagnostics without credential data.
+        assert.ok(['Generated artifact Storage authorization is unavailable', 'Cannot call write after a stream was destroyed'].includes(error.message));
+        if (kind === 'read') assert.equal(error.message, 'Generated artifact Storage authorization is unavailable');
+        assert.ok(!error.message.includes('SYNTHETIC-PRIVATE-TOKEN')); return true;
+      });
+      assert.equal(f.authAttempts(), 1); assert.equal(f.wire.length, 0); f.assertSharedUnchanged();
+    } finally { await f.cleanup(); }
+  });
+}
+test('actual SDK timely authorization reaches one fenced transport and retains shared authority', async () => {
+  const f = await sdkAuthorizationFixture({ immediateCredential: true });
+  try {
+    await assert.rejects(f.module.cloudWriteGenerated('artifact.glb', bytes, mime, path), /403/);
+    assert.equal(f.authAttempts(), 1); assert.deepEqual(f.wire.map(request => request.method), ['POST']);
+    f.assertSharedUnchanged();
+  } finally { await f.cleanup(); }
 });
 test('different MIME type at the same version rejects without metadata mutation', async () => {
   const f = await storageFixture(); f.seed(); await assert.rejects(f.module.cloudWriteGenerated('artifact.glb', bytes, 'application/octet-stream', path), /conflicts/);
@@ -349,7 +503,8 @@ test('stalled metadata destroys its SDK stream at the absolute source deadline w
   const f = await storageFixture({ stalledMetadata: true }); f.seed();
   await withLiveSyntheticTransport(() => assert.rejects(f.module.cloudReadGenerated('artifact.glb', path), /metadata deadline/));
   assert.equal(f.calls.download.length, 0); assert.equal(f.calls.deletes, 0);
-  const call = f.calls.metadata[0]; assert.equal(call.input.timeout, 60000); assert.equal(call.input.maxRetries, 0);
+  const call = f.calls.metadata[0]; assert.ok(Number.isInteger(call.input.timeout) && call.input.timeout > 0 && call.input.timeout <= 60000);
+  assert.equal(call.input.maxRetries, 0);
 });
 for (const [name, hooks] of Object.entries({ oversized: { metadataPayload: 'x'.repeat(65537) }, invalidJson: { metadataPayload: '{bad' }, array: { metadataPayload: '[]' }, null: { metadataPayload: 'null' }, noResponse: { missingMetadataResponse: true }, wrongStatus: { metadataStatus: 403 }, stringStatus: { metadataStatus: '200' } })) {
   test(`metadata transport refuses unverified response before byte download: ${name}`, async () => {
