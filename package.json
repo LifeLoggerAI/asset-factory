@@ -42,7 +42,7 @@
     "finite-time:storyboard-v2": "node film_foundry/finite_time/generate-storyboard-v2.mjs",
     "finite-time:validate-v2": "node film_foundry/finite_time/validate-storyboard-v2.mjs",
     "finite-time:validate-authorization": "node film_foundry/finite_time/validate-final-render-authorization.mjs",
-    "finite-time:proof": "npm run finite-time:animatic && npm run finite-time:validate && npm run finite-time:storyboard-v2 && npm run finite-time:validate-v2 && npm run finite-time:validate-authorization",
+    "finite-time:proof": "npm run finite-time:animatic && npm run finite-time:validate && npm run finite-time:storyboard-v2 && npm run finite-time:validate-v2 && npm run finite-time:validate-media && npm run finite-time:validate-authorization",
     "image:install": "python -m pip install -r image_asset_generator/requirements.txt",
     "image:manifest": "python image_asset_generator/validate_manifest.py",
     "image:generate": "python image_asset_generator/generate_assets.py",
@@ -81,7 +81,8 @@
     "finish:custom-domain": "node scripts/finish-custom-domain-production.mjs",
     "test:production-target-boundary": "node scripts/test-production-target-boundary.mjs",
     "validate:production-target": "node scripts/run-dedicated-firebase-deploy.mjs --check-only",
-    "test:family-source-evidence": "node scripts/check-family-source-evidence-contract.mjs"
+    "test:family-source-evidence": "node scripts/check-family-source-evidence-contract.mjs",
+    "finite-time:validate-media": "node film_foundry/finite_time/validate-decoded-media.mjs"
   },
   "pnpm": {
     "overrides": {

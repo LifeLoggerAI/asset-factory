@@ -170,4 +170,4 @@ assert.match(readText('captions.srt'), /00:00:00,000 --> 00:00:08,000/);
 assert.match(readText('captions.srt'), /Lake O’ the Pines/);
 assert.match(readText('review-gallery.html'), /30 scene-specific boards/);
 assert.match(readText('README.md'), /separate from the audited static-card v1/);
-console.log(`Validated FINITE TIME Farm-to-Lake storyboard animatic v2 at ${outputDir}`);
+console.log(`Validated FINITE TIME Farm-to-Lake storyboard source contract; decoded-media acceptance remains a separate required gate at ${outputDir}`);
