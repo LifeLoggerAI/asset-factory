@@ -44,9 +44,13 @@ export function validateFrozenLocalSetupSource(source) {
   const runs = file.statements.filter((node) => ts.isFunctionDeclaration(node) && node.name?.text === 'run');
   const run = runs[0];
   const spawn = all.filter((node) => ts.isCallExpression(node) && compact(node.expression) === 'spawnSync');
-  if (runs.length !== 1 || !run?.body || run.body.statements.length !== 5 || spawn.length !== 1 || spawn[0].pos < run.pos || spawn[0].end > run.end ||
+  if (runs.length !== 1 || !run?.body || run.asteriskToken || run.modifiers?.length || run.body.statements.length !== 5 || spawn.length !== 1 || spawn[0].pos < run.pos || spawn[0].end > run.end ||
       compact(spawn[0]) !== "spawnSync(command,args,{stdio:'inherit',shell:process.platform==='win32'})") fail('One checked synchronous command runner is required');
   const resultStatement = run.body.statements[2];
+  if (!ts.isExpressionStatement(run.body.statements[0]) ||
+      compact(run.body.statements[0].expression) !== 'console.log(`\\n>${label}`)' ||
+      !ts.isExpressionStatement(run.body.statements[1]) ||
+      compact(run.body.statements[1].expression) !== "console.log(`$${[command,...args].join('')}`)") fail('Command logging must not skip or mutate the owned runner');
   if (!ts.isVariableStatement(resultStatement) || resultStatement.declarationList.declarations.length !== 1 ||
       compact(resultStatement.declarationList.declarations[0].name) !== 'result' ||
       resultStatement.declarationList.declarations[0].initializer !== spawn[0] ||
@@ -62,8 +66,28 @@ export function validateFrozenLocalSetupSource(source) {
   const failureFunctions = file.statements.filter((node) => ts.isFunctionDeclaration(node) && node.name?.text === 'fail');
   const failFunction = failureFunctions[0];
   const exit = all.filter((node) => ts.isCallExpression(node) && compact(node.expression) === 'process.exit');
-  if (failureFunctions.length !== 1 || !failFunction?.body || failFunction.body.statements.length !== 2 ||
+  if (failureFunctions.length !== 1 || !failFunction?.body || failFunction.asteriskToken || failFunction.modifiers?.length || failFunction.body.statements.length !== 2 ||
       !ts.isExpressionStatement(failFunction.body.statements[1]) || failFunction.body.statements[1].expression !== exit[0] || exit.length !== 1 || exit[0].pos < failFunction.pos || exit[0].end > failFunction.end ||
       compact(exit[0]) !== 'process.exit(1)') fail('Failure must terminate with status one');
+  if (!ts.isExpressionStatement(failFunction.body.statements[0]) ||
+      compact(failFunction.body.statements[0].expression) !== 'console.error(`FAILlocalsetup:${message}`)') fail('Failure logging must reach the terminating exit');
+  const topVariables = file.statements.filter(ts.isVariableStatement);
+  if (topVariables.length !== 4 || topVariables.some((node) =>
+      !(node.declarationList.flags & ts.NodeFlags.Const) || node.declarationList.declarations.length !== 1) ||
+      topVariables.map((node) => compact(node.declarationList.declarations[0].name)).join(',') !== 'requiredMajor,actual,actualMajor,root' ||
+      compact(declaration('root')?.initializer ?? file) !== 'process.cwd()') fail('Setup authority must use exactly the owned immutable bindings');
+  const imports = file.statements.filter(ts.isImportDeclaration);
+  if (imports.length !== 3 || imports.some((node, index) =>
+      node.moduleSpecifier.text !== ['node:fs', 'node:path', 'node:child_process'][index] ||
+      compact(node.importClause) !== ['fs', 'path', '{spawnSync}'][index])) fail('Setup must retain only its owned imports');
+  const functions = file.statements.filter(ts.isFunctionDeclaration);
+  if (functions.length !== 3 || functions.map((node) => node.name?.text).join(',') !== 'fail,readJson,run') fail('Setup must retain only its owned functions');
+  const allowed = new Set([...imports, ...topVariables, ...functions, nodeGuard, prefixGuard, ...topRuns.map((node) => node.parent)]);
+  const finalOutput = file.statements.at(-1);
+  if (!ts.isExpressionStatement(finalOutput) || !ts.isCallExpression(finalOutput.expression) ||
+      compact(finalOutput.expression.expression) !== 'console.log' || finalOutput.expression.arguments.length !== 1 ||
+      !ts.isStringLiteral(finalOutput.expression.arguments[0])) fail('Final output must be an inert literal');
+  allowed.add(finalOutput);
+  if (file.statements.some((node) => !allowed.has(node))) fail('No other top-level statement may replace or mutate setup authority');
   return { nodeMajor: 22, frozenWorkspaceInstall: true, installedToolingProof: true, doctor: true, commandCount: 3 };
 }

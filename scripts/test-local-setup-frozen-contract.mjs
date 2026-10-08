@@ -9,20 +9,30 @@ import { validateFrozenLocalSetupSource } from './local-setup-frozen-contract.mj
 const root = fileURLToPath(new URL('../', import.meta.url));
 const setup = fs.readFileSync(path.join(root, 'scripts/setup-local.mjs'), 'utf8');
 const checker = fs.readFileSync(path.join(root, 'scripts/check-completion-lock.mjs'), 'utf8');
+const doctor = fs.readFileSync(path.join(root, 'scripts/doctor.mjs'), 'utf8');
 class Exit extends Error { constructor(code) { super('exit ' + code); this.code = code; } }
 
-async function evaluate(source, { node = '22.23.3', env = {}, spawnStatus = 0, spawnError, failAt = -1, files = {}, checkerMode = false } = {}) {
+async function evaluate(source, { node = '22.23.3', env = {}, spawnStatus = 0, spawnError, failAt = -1, files = {}, checkerMode = false, doctorMode = false, installedStudio = true } = {}) {
   const calls = [];
   const output = [];
   const currentFs = { ...fs,
     readFileSync(name, encoding) { const relative = path.relative(root, name).replaceAll('\\', '/'); return Object.hasOwn(files, relative) ? files[relative] : fs.readFileSync(name, encoding); },
+    existsSync(name) { return doctorMode && name === 'assetfactory-studio/node_modules' ? installedStudio : fs.existsSync(name); },
   };
   const context = vm.createContext({ process: { versions: { node }, env, platform: 'linux', execPath: '/owned/node22', cwd: () => root, exit: (code) => { throw new Exit(code); } },
     console: { log: (...values) => output.push(values.join(' ')), error: (...values) => output.push(values.join(' ')) } });
   const modules = {
     'node:fs': { default: currentFs },
     'node:path': { default: path },
-    'node:child_process': { spawnSync(command, args, options) { const index = calls.length; calls.push({ command, args: [...args], options: { ...options } }); return { status: index === failAt ? spawnStatus : 0, error: index === failAt ? spawnError : undefined }; } },
+    'node:child_process': {
+      spawnSync(command, args, options) { const index = calls.length; calls.push({ command, args: [...args], options: { ...options } }); return { status: index === failAt ? spawnStatus : 0, error: index === failAt ? spawnError : undefined }; },
+      execSync(command) {
+        assert.ok(doctorMode, 'Only the actual doctor may inspect synthetic command authority');
+        const responses = { 'git rev-parse --abbrev-ref HEAD': 'synthetic-owner', 'git rev-parse --short HEAD': 'synthetic-head', 'git rev-parse --short origin/main': 'synthetic-head', 'git rev-parse --abbrev-ref --symbolic-full-name @{u}': 'origin/synthetic-owner', 'node --version': 'v' + node, 'npm --version': '10.8.2' };
+        assert.ok(Object.hasOwn(responses, command), 'Unexpected doctor command: ' + command);
+        return responses[command];
+      },
+    },
     './local-setup-frozen-contract.mjs': { validateFrozenLocalSetupSource },
   };
   const subject = new vm.SourceTextModule(source, { context, identifier: checkerMode ? 'actual-completion-checker' : 'actual-local-setup' });
@@ -81,12 +91,38 @@ const changes = [
   ['ignored real child result', (source) => source.replace('const result = spawnSync(command, args,', 'const ignored = spawnSync(command, args,') .replace('if (result.error)', 'const result = { status: 0 }; if (result.error)')],
   ['duplicate runner binding', (source) => source + '\\nfunction run(label, command, args) {}\\n'],
   ['unexpected runner statement', (source) => source.replace('if (result.error)', 'if (false) return; if (result.error)')],
+  ['reassigned runner authority', (source) => source.replace('// One frozen workspace install', 'run = () => {};\n// One frozen workspace install')],
+  ['unreachable spawn', (source) => source.replace('console.log(`\\n> ${label}`);', 'return;')],
+  ['unreachable failure exit', (source) => source.replace('console.error(`FAIL local setup: ${message}`);', 'return;')],
+  ['output mutates command authority', (source) => source.replace("console.log('\\nPASS local setup completed\\n');", 'console.log(run = () => {});')],
+  ['unexecuted generator runner', (source) => source.replace('function run(', 'function* run(')],
+  ['unexecuted generator failure', (source) => source.replace('function fail(', 'function* fail(')],
   ['syntax error', (source) => source + '\nconst = ;\n'],
 ];
 for (const [name, change] of changes) test('AST authority rejects ' + name + ' even retained comments/names cannot grant', async () => {
   const altered = change(setup); assert.notEqual(altered, setup);
   assert.throws(() => validateFrozenLocalSetupSource(altered));
   const result = await evaluate(checker, { files: { 'scripts/setup-local.mjs': altered }, checkerMode: true });
+  assert.equal(result.exit, 1);
+});
+test('actual doctor accepts parsed frozen setup without the retired npm-install token', async () => {
+  assert.ok(!setup.includes("'--package-lock=false'"));
+  const result = await evaluate(doctor, { doctorMode: true });
+  assert.equal(result.exit, undefined);
+  assert.match(result.output.join('\n'), /PASS fail-fast local setup requires frozen patched workspace authority/);
+  assert.match(result.output.join('\n'), /PASS Asset Factory repo doctor/);
+});
+for (const [name, change] of changes) test('actual doctor rejects invalid setup authority: ' + name, async () => {
+  const result = await evaluate(doctor, { doctorMode: true, files: { 'scripts/setup-local.mjs': change(setup) } });
+  assert.equal(result.exit, 1);
+  assert.match(result.output.join('\n'), /FAIL fail-fast local setup requires frozen patched workspace authority/);
+});
+for (const [name, options] of [
+  ['unsupported Node', { node: '18.20.8' }],
+  ['npm prefix', { env: { NPM_CONFIG_PREFIX: '/synthetic-prefix' } }],
+  ['missing installed Studio', { installedStudio: false }],
+]) test('actual doctor retains independent failure: ' + name, async () => {
+  const result = await evaluate(doctor, { doctorMode: true, ...options });
   assert.equal(result.exit, 1);
 });
 test('actual complete checker accepts current frozen setup without granting production lock', async () => {

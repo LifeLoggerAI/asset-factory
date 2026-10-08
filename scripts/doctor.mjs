@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+import { validateFrozenLocalSetupSource } from './local-setup-frozen-contract.mjs';
 
 const checks = [];
 let failed = false;
@@ -58,6 +59,13 @@ function versionLabel(version) {
 const rootPkg = readJson('package.json');
 const studioPkg = readJson('assetfactory-studio/package.json');
 const setupLocal = readText('scripts/setup-local.mjs');
+let frozenSetup;
+let frozenSetupError;
+try {
+  frozenSetup = validateFrozenLocalSetupSource(setupLocal);
+} catch (error) {
+  frozenSetupError = error instanceof Error ? error.message : String(error);
+}
 const gitBranch = command('git rev-parse --abbrev-ref HEAD');
 const gitHead = command('git rev-parse --short HEAD');
 const originMain = command('git rev-parse --short origin/main');
@@ -79,10 +87,10 @@ check('studio typecheck script exists', Boolean(studioPkg.scripts?.typecheck), '
 check('launch readiness file exists', fs.existsSync('LAUNCH_READINESS.md'), 'Expected LAUNCH_READINESS.md at repo root.');
 check('fail-fast local setup helper exists', fs.existsSync('scripts/setup-local.mjs'), 'Expected scripts/setup-local.mjs. Recover from origin/main if missing.');
 check('fail-fast local setup uses Node 22', setupLocal.includes('Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'), 'Expected setup helper to require Node 22 before install.');
-check('fail-fast local setup uses the frozen workspace installer', setupLocal.includes("run('Install frozen workspace dependencies', process.execPath, ['scripts/install-locked-dependencies.mjs'])"), 'Expected setup helper to install only the reviewed frozen workspace graph.');
+check('fail-fast local setup requires frozen patched workspace authority', Boolean(frozenSetup), frozenSetupError ?? 'Parsed Node 22 setup must install the frozen workspace, verify the installed tooling and run doctor in order.');
 check('unit behavior test exists', fs.existsSync('scripts/test-asset-factory-units.mjs'), 'Expected targeted unit behavior test script.');
 check('remote smoke script exists', fs.existsSync('scripts/smoke-asset-factory-remote.mjs'), 'Expected remote smoke script.');
-check('studio node_modules installed', fs.existsSync('assetfactory-studio/node_modules'), 'Run npm --prefix assetfactory-studio install if missing.');
+check('studio node_modules installed', fs.existsSync('assetfactory-studio/node_modules'), 'Run node scripts/install-locked-dependencies.mjs if missing.');
 check('git branch detected', Boolean(gitBranch), 'Run from inside the asset-factory git checkout.');
 if (skipHeadMatch) {
   check('local HEAD matches origin/main', true, `Skipped by ASSET_FACTORY_DOCTOR_SKIP_HEAD_MATCH=true; HEAD=${gitHead || 'unknown'} origin/main=${originMain || 'unknown'}`);
