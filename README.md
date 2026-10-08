@@ -55,13 +55,7 @@ node --version
 node scripts/setup-local.mjs
 ```
 
-The fail-fast setup installs the package workspaces used by the current repo gates. Root dependency installation is skipped by default when root Firebase packages are missing because the current static validation path does not require them and the root lockfile is intentionally not committed.
-
-Install root dependencies only when intentionally working on root-level Firebase packages:
-
-```bash
-ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs
-```
+The fail-fast setup installs root dependencies and all four workspaces from the committed `pnpm-lock.yaml`, verifies the actual patched dependency sources and runs the repo doctor. It requires Node 22 and Corepack for the repository-pinned PNPM version.
 
 Manual setup, if you need to run each step yourself:
 
@@ -70,19 +64,21 @@ unset NPM_CONFIG_PREFIX
 nvm install 22
 nvm use 22
 node --version
-npm --prefix engine install
-npm --prefix functions install
-npm --prefix life-map-pipeline/functions install
-npm --prefix assetfactory-studio install
+node scripts/install-locked-dependencies.mjs
+node scripts/verify-factory-glob-tooling.mjs
 npm run doctor
 ```
 
-If `npm run doctor`, `npm run test:launch-readiness`, `npm --prefix assetfactory-studio test`, or `npm --prefix assetfactory-studio run typecheck` reports a missing script, your local checkout is stale or you are not in the repository root. Recover with:
+The engine uses this frozen workspace install. `engine/npm-shrinkwrap.json` is retained as superseded standalone bootstrap history. To check the separate committed LifeMap deployment lock, run `node scripts/install-locked-dependencies.mjs --deployment-functions`, then run the installed-source verifier again.
+
+If `npm run doctor`, `npm run test:launch-readiness`, `npm --prefix assetfactory-studio test`, or `npm --prefix assetfactory-studio run typecheck` reports a missing script, first check that you are in the intended repository root. Inspect the existing checkout, then use an unused directory for a separate clean worktree of the reviewed controller source. The 2026-10-08 source handoff uses the exact commit below; a newer handoff must supply its own reviewed commit and matching evidence.
 
 ```bash
-git fetch origin
-git checkout main
-git reset --hard origin/main
+git fetch origin repair/model-forge-current-main-20261007
+git status --short
+git show --no-patch --format=fuller f5e99b20cd30e4ed26629df12465fde3b5d3ee58
+git worktree add --detach ../asset-factory-reviewed f5e99b20cd30e4ed26629df12465fde3b5d3ee58
+cd ../asset-factory-reviewed
 unset NPM_CONFIG_PREFIX
 nvm install 22
 nvm use 22
@@ -323,8 +319,8 @@ Ensure project, service account, and env are configured before deploy.
 ## Troubleshooting
 - If npm reports `not compatible with the NPM_CONFIG_PREFIX environment variable`, run `unset NPM_CONFIG_PREFIX`.
 - If npm reports `Unsupported engine` for packages requiring Node `^20.19.0`, upgrade with `nvm install 22 && nvm use 22`.
-- If npm reports `Missing script`, run `npm run doctor` from the repository root and recover with `git fetch origin && git reset --hard origin/main` if your checkout is stale.
-- If root setup reports missing root dependencies, continue with `node scripts/setup-local.mjs` unless you are intentionally working on root-level Firebase packages; use `ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true node scripts/setup-local.mjs` only for that case.
+- If npm reports `Missing script`, run `npm run doctor` from the intended repository root and use the separate reviewed worktree procedure above if that source is unavailable in the current checkout.
+- If setup reports missing dependencies, run `node scripts/setup-local.mjs` from the repository root with Node 22; the frozen workspace install includes the root Firebase packages.
 - If engine tests fail due to stale `db.json`/`users.json`, restore defaults and rerun.
 - If Firebase build fails, verify Node version, Java 21, firebase-tools auth, and project selection.
 - If Studio E2E fails to boot, verify Node 22, dependencies, and no conflicting process on port 3000.
