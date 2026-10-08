@@ -40,17 +40,42 @@ test('actual Studio semantic digest ignores JSON formatting and preserves exact 
 const jsonHeaders = extra => ({ 'content-type': 'application/json', ...extra });
 const genericModel = 'synthetic/model';
 const artifactUrl = 'https://outputs.example.test/artifact';
+// Official Images API contract: GPT Image returns base64 itself and rejects
+// the retired response_format parameter. This remains a synthetic transport.
+test('actual OpenAI GPT Image request satisfies the current provider contract', async () => {
+  const c = config('openai', 'graphic');
+  globalThis.fetch = c.fixture.wrap(async (url, init) => {
+    if (init.method === 'POST') {
+      const request = JSON.parse(init.body);
+      if (Object.hasOwn(request, 'response_format')) return Response.json({ error: { message: 'Unsupported parameter: response_format' } }, { status: 400 });
+      assert.equal(request.output_format, 'png');
+    }
+    return c.transport(url, init);
+  });
+  const result = await c.run();
+  assert.equal(result.extension, 'png');
+  assert.equal(result.assetMimeType, 'image/png');
+  assert.equal(c.counts().posts, 1);
+  assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']);
+  assert.equal(c.fixture.observed[0].status, 'succeeded');
+  assert.equal(c.fixture.held, true);
+});
 function env(values = {}) {
   for (const key of Object.keys(process.env)) if (/^(ASSET_FACTORY_(MEDIA|VIDEO|GRAPHICS|AUDIO|OPENAI|FAL|REPLICATE|HIGGSFIELD)|OPENAI_API_KEY|ELEVENLABS_|STABILITY_API_KEY|REPLICATE_API_TOKEN|FAL_KEY|RUNWAY_API_KEY|HIGGSFIELD_API_KEY)/.test(key)) delete process.env[key];
   Object.assign(process.env, { ASSET_FACTORY_PROVIDER_TIMEOUT_MS: '5000', ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS: '5000', ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS: '1', ASSET_FACTORY_HIGGSFIELD_ARTIFACT_ORIGINS: 'https://outputs.example.test' }, values);
 }
-function config(provider, type) {
+function config(provider, type, explicitGraphicsModel) {
   const request = input(type); let endpoint, model, lane = type, body, headers, mime = 'image/png';
   env({ ASSET_FACTORY_MEDIA_PROVIDER: provider, ASSET_FACTORY_VIDEO_PROVIDER: provider });
   if (provider === 'openai') {
     process.env.OPENAI_API_KEY = 'SYNTHETIC-openai';
     if (type === 'audio') { process.env.ASSET_FACTORY_OPENAI_VOICE = 'SYNTHETIC-explicit-voice'; model = 'gpt-4o-mini-tts'; lane = 'speech'; endpoint = 'https://api.openai.com/v1/audio/speech'; body = { model, voice: process.env.ASSET_FACTORY_OPENAI_VOICE, input: request.prompt, response_format: 'wav' }; mime = 'audio/wav'; }
-    else { model = 'gpt-image-1'; endpoint = 'https://api.openai.com/v1/images/generations'; body = { model, prompt: request.prompt, size: '1024x1024', response_format: 'b64_json' }; }
+    else {
+      model = explicitGraphicsModel || 'gpt-image-1';
+      if (explicitGraphicsModel) process.env.ASSET_FACTORY_GRAPHICS_MODEL = explicitGraphicsModel;
+      endpoint = 'https://api.openai.com/v1/images/generations';
+      body = { model, prompt: request.prompt, size: '1024x1024', ...(model.startsWith('gpt-image-') || model === 'chatgpt-image-latest' ? { output_format: 'png' } : { response_format: 'b64_json' }) };
+    }
     headers = jsonHeaders({ authorization: 'Bearer SYNTHETIC-openai' });
   } else if (provider === 'elevenlabs') {
     process.env.ELEVENLABS_API_KEY = 'SYNTHETIC-elevenlabs'; process.env.ELEVENLABS_VOICE_ID = 'SYNTHETIC-explicit-voice'; model = 'eleven_multilingual_v2'; lane = 'speech'; endpoint = `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`; body = { text: request.prompt, model_id: model }; headers = jsonHeaders({ 'xi-api-key': 'SYNTHETIC-elevenlabs', accept: 'audio/mpeg' }); mime = 'audio/mpeg';
@@ -96,6 +121,29 @@ for (const [provider, types] of [['openai', ['graphic', 'audio']], ['elevenlabs'
     const c = config(provider, type); const result = await c.run(); assert.equal(result.assetBuffer.length, 3); assert.equal(c.counts().posts, 1); assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']); assert.equal(c.fixture.held, true); assert.equal(c.fixture.observed[0].status, 'succeeded'); assert.equal(c.fixture.observed[0].actual_usd_micros, undefined);
   });
 }
+for (const model of ['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-1.5', 'chatgpt-image-latest']) {
+  test(`actual explicitly selected ${model} retains its identity and requests PNG without legacy response_format`, async () => {
+    const c = config('openai', 'graphic', model);
+    const result = await c.run();
+    const request = JSON.parse(c.bytes);
+    assert.equal(request.model, model);
+    assert.equal(Object.hasOwn(request, 'response_format'), false);
+    assert.equal(request.output_format, 'png');
+    assert.equal(result.metadata.providerModel, model);
+    assert.equal(result.metadata.providerOutput, 'b64_json');
+    assert.equal(c.counts().posts, 1);
+    assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']);
+    assert.equal(c.fixture.held, true);
+  });
+}
+test('explicit non-GPT image configuration retains its preexisting request shape without a model substitution', async () => {
+  const c = config('openai', 'graphic', 'SYNTHETIC-legacy-image-model');
+  const result = await c.run();
+  assert.equal(JSON.parse(c.bytes).response_format, 'b64_json');
+  assert.equal(Object.hasOwn(JSON.parse(c.bytes), 'output_format'), false);
+  assert.equal(result.metadata.providerModel, 'SYNTHETIC-legacy-image-model');
+  assert.equal(c.counts().posts, 1);
+});
 test('actual Higgsfield caller byte cap rejects declared and streamed artifact excess before retaining output', async () => {
   for (const mode of ['declared', 'streamed']) {
     const c = config('higgsfield', 'graphic'), previous = process.env.ASSET_FACTORY_PROVIDER_MAX_BYTES; let cancelled = false;

@@ -204,10 +204,13 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
       ? `${input.size.width}x${input.size.height}`
       : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
     const model = env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-1';
+    const format = model.startsWith('gpt-image-') || model === 'chatgpt-image-latest'
+      ? { output_format: 'png' }
+      : { response_format: 'b64_json' };
     const payload = await postJson(
       'openai', model, 'graphic', 'https://api.openai.com/v1/images/generations',
       { authorization: `Bearer ${apiKey}` },
-      { model, prompt: input.prompt, size, response_format: 'b64_json' }
+      { model, prompt: input.prompt, size, ...format }
     );
     const data = Array.isArray(payload.data) ? payload.data[0] as JsonRecord | undefined : undefined;
     const b64 = stringValue(data?.b64_json);
