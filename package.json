@@ -29,7 +29,7 @@
     "test:support-smoke-readiness": "node scripts/test-support-smoke-readiness.mjs",
     "test:route-guards": "node scripts/check-asset-factory-route-guards.mjs",
     "test:implementation-audit-prompt": "node scripts/check-implementation-audit-prompt.mjs",
-    "test:completion-lock": "node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt",
+    "test:completion-lock": "node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt && node --experimental-vm-modules --test scripts/test-local-setup-frozen-contract.mjs",
     "check:release-evidence": "node scripts/check-release-evidence.mjs",
     "check:release-evidence:latest": "node scripts/check-latest-release-evidence.mjs",
     "check:deploy-workflow": "node scripts/check-deploy-workflow.mjs",
@@ -118,10 +118,25 @@
       "sharp@0.34.5": "0.35.5",
       "source-map-js@1.2.1": "1.2.2",
       "tmp@0.2.5": "0.2.7",
-      "websocket-driver@0.7.4": "0.7.5"
+      "websocket-driver@0.7.4": "0.7.5",
+      "findup-sync@5.0.0>micromatch": "-",
+      "@next/eslint-plugin-next@16.3.8>fast-glob": "-"
     },
     "patchedDependencies": {
-      "braces@3.0.3": "patches/braces-3.0.3-security.patch"
+      "findup-sync@5.0.0": "patches/findup-sync-5.0.0-glob.patch",
+      "@next/eslint-plugin-next@16.3.8": "patches/next-eslint-plugin-next-16.3.8-glob.patch"
+    },
+    "packageExtensions": {
+      "findup-sync@5.0.0": {
+        "dependencies": {
+          "picomatch": "2.3.2"
+        }
+      },
+      "@next/eslint-plugin-next@16.3.8": {
+        "dependencies": {
+          "glob": "13.0.6"
+        }
+      }
     }
   }
 }

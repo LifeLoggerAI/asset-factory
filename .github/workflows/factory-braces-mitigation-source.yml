@@ -1,4 +1,4 @@
-name: Factory Braces Installed Mitigation
+name: Factory Tooling Installed Compatibility
 
 on:
   pull_request:
@@ -8,6 +8,10 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'scripts/*factory-braces*'
+      - 'scripts/*factory-glob*'
+      - 'scripts/run-engine-unused-audit.mjs'
+      - 'scripts/setup-local.mjs'
+      - 'engine/package.json'
       - 'scripts/check-installed-reviewed-advisories.mjs'
       - '.github/workflows/factory-braces-mitigation-source.yml'
   workflow_dispatch:
@@ -42,16 +46,59 @@ jobs:
           node-version: '22'
       - name: Install frozen workspace dependencies with exact committed patch
         run: node scripts/install-locked-dependencies.mjs
-      - name: Verify actual installed consumer bodies and behavior
-        run: node scripts/verify-factory-braces-mitigation.mjs
-      - name: Test mitigation rejection and retained raw advisory gate
-        run: node --test scripts/test-factory-braces-mitigation.mjs scripts/test-installed-reviewed-advisories.mjs
+      - name: Verify actual installed consumer source, intact lint rules and complete absent ingress
+        run: node scripts/verify-factory-glob-tooling.mjs
+      - name: Install pinned upstream comparison tools outside the candidate
+        run: >-
+          npm install --prefix "$RUNNER_TEMP/factory-tooling-upstream" --ignore-scripts --no-audit --no-fund --save-exact
+          @next/eslint-plugin-next@16.3.8 fast-glob@3.3.1 micromatch@4.0.8 picomatch@2.3.2 findup-sync@5.0.0 depcheck@1.4.7
+      - name: Compare actual lint and unused-audit behavior with upstream
+        env:
+          URAI_GLOB_BASELINE_ROOT: ${{ runner.temp }}/factory-tooling-upstream
+        run: node --test scripts/test-factory-glob-tooling-compatibility.mjs scripts/test-installed-reviewed-advisories.mjs
+      - name: Run unchanged Studio lint, strict types and production build
+        run: |
+          npm --prefix assetfactory-studio run lint
+          npm --prefix assetfactory-studio run typecheck
+          npm --prefix assetfactory-studio run build
+      - name: Retain actual unused-dependency findings and original auditor exit status
+        run: |
+          set +e
+          node scripts/run-engine-unused-audit.mjs --json > artifacts/factory-unused-dependency-audit.json
+          audit_status=$?
+          set -e
+          echo "$audit_status" > artifacts/factory-unused-dependency-audit.exit-status
+          test "$audit_status" -eq 0 -o "$audit_status" -eq 255
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("artifacts/factory-unused-dependency-audit.json"));for(const k of ["dependencies","devDependencies"])if(!Array.isArray(r[k]))throw Error("Missing genuine audit findings");for(const k of ["missing","using","invalidFiles","invalidDirs"])if(!r[k]||typeof r[k]!=="object")throw Error("Missing genuine audit findings");'
+      - name: Download pinned full official reviewed advisory snapshot
+        run: |
+          git init .public-reviewed-advisories
+          git -C .public-reviewed-advisories remote add origin https://github.com/github/advisory-database.git
+          git -C .public-reviewed-advisories fetch --depth 1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject all actual installed high or critical advisories without exceptions
+        run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/installed-dependency-security.json
+      - name: Read current complete primary advisory snapshot without uploading the graph
+        run: |
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories fetch --depth 1 origin bd4903bcb0086eb4b511a155cd54179818bbefe3
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject current installed high or critical findings with the unchanged comparator
+        run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json
       - name: Verify tracked source remains unchanged
         run: git diff --exit-code
       - name: Retain exact installed evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: factory-braces-installed-mitigation-${{ env.ASSET_FACTORY_EXACT_HEAD }}
-          path: artifacts/factory-braces-installed-mitigation.json
+          name: factory-tooling-installed-compatibility-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          path: |
+            artifacts/factory-glob-installed-replacement.json
+            artifacts/installed-dependency-security.json
+            artifacts/current-installed-dependency-security.json
+            artifacts/factory-unused-dependency-audit.json
+            artifacts/factory-unused-dependency-audit.exit-status
           if-no-files-found: error
