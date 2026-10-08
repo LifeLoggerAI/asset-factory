@@ -157,8 +157,17 @@ def build_production_visual_gate(
         for entry in entries
         if entry.get("status") not in APPROVED_STATUSES
     ]
+    missing_assets = [
+        str(asset.get("path")) for asset in assets if asset.get("exists") is not True
+    ]
 
     reasons: List[str] = []
+    if not entries:
+        reasons.append("manifest contains no assets")
+    if not assets:
+        reasons.append("no retained output assets")
+    if missing_assets:
+        reasons.append(f"{len(missing_assets)} declared output(s) are missing")
     if mechanical_errors:
         reasons.append(f"{len(mechanical_errors)} mechanical validation error(s)")
     if non_provider_assets:
@@ -179,6 +188,7 @@ def build_production_visual_gate(
         "renderer_counts": dict(sorted(renderer_counts.items())),
         "non_provider_assets": non_provider_assets,
         "missing_render_metadata": missing_render_metadata,
+        "missing_assets": missing_assets,
         "semantic_duplicate_hash_groups": duplicate_groups,
         "unapproved_assets": unapproved_assets,
     }

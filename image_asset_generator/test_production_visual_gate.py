@@ -12,9 +12,43 @@ if str(MODULE_DIR) not in sys.path:
 
 import create_firebase_seed
 import run_pipeline
+import validate_manifest
 
 
 class ProductionVisualGateTests(unittest.TestCase):
+    def test_empty_manifest_rejected_by_actual_validator(self) -> None:
+        self.assertEqual(
+            validate_manifest.validate_manifest_entries([]),
+            ["manifest must contain at least one asset"],
+        )
+
+    def test_empty_manifest_and_outputs_have_no_production_authority(self) -> None:
+        gate = run_pipeline.build_production_visual_gate([], [], [])
+        self.assertEqual(gate["status"], "blocked")
+        self.assertFalse(gate["production_visual_authority"])
+        self.assertFalse(gate["promotion_allowed"])
+        self.assertIn("manifest contains no assets", gate["reasons"])
+        self.assertIn("no retained output assets", gate["reasons"])
+
+    def test_approved_manifest_without_outputs_has_no_production_authority(self) -> None:
+        gate = run_pipeline.build_production_visual_gate(
+            [{"name": "home", "status": "approved"}], [], []
+        )
+        self.assertEqual(gate["status"], "blocked")
+        self.assertFalse(gate["production_visual_authority"])
+        self.assertFalse(gate["promotion_allowed"])
+
+    def test_missing_output_blocks_without_relying_on_mechanical_errors(self) -> None:
+        gate = run_pipeline.build_production_visual_gate(
+            [{"name": "home", "status": "approved"}],
+            [{"name": "home", "path": "home.png", "exists": False}],
+            [],
+        )
+        self.assertEqual(gate["status"], "blocked")
+        self.assertFalse(gate["production_visual_authority"])
+        self.assertFalse(gate["promotion_allowed"])
+        self.assertEqual(gate["missing_assets"], ["home.png"])
+
     def test_semantic_duplicate_hashes_are_blocking(self) -> None:
         entries = [
             {"name": "home", "status": "approved"},
