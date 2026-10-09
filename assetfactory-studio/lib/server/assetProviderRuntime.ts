@@ -458,6 +458,10 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     if (current.id !== predictionId) throw new Error('Replicate status response differs from admitted task');
   }
 
+  if (stringValue(current.status) !== 'succeeded') {
+    throw new Error('Replicate prediction did not reach succeeded state');
+  }
+
   const outputUrl = firstUrl(current.output);
   if (!outputUrl) throw new Error('Replicate prediction did not return a downloadable output URL');
   const binary = await fetchBinary(outputUrl);
@@ -556,4 +560,5 @@ async function renderProvider(
   if (provider === 'higgsfield') return renderHiggsfield(input, definition);
   return null;
 }
+
 

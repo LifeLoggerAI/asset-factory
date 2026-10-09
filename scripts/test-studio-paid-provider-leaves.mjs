@@ -447,3 +447,23 @@ test('backward wall-clock during awaited observation cannot extend the monotonic
     assert.equal(c.counts().posts, 1); assert.equal(c.fixture.held, true);
   } finally { Date.now = originalNow; globalThis.performance = originalPerformance; }
 });
+
+for (const type of ['graphic', 'model3d', 'audio']) {
+  for (const status of ['starting', 'processing', 'failed', 'canceled', 'unknown', undefined]) {
+    test(`Replicate ${type} rejects ${status ?? 'missing'} state with output but no poll URL`, async () => {
+      const c = config('replicate', type); let posts = 0, gets = 0;
+      globalThis.fetch = c.fixture.wrap(async (_url, init = {}) => {
+        if (init.method === 'POST') {
+          posts++;
+          return Response.json({ id: 'SYNTHETIC-task', ...(status === undefined ? {} : { status }), output: artifactUrl });
+        }
+        gets++;
+        return new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'application/octet-stream' } });
+      });
+      await assert.rejects(c.run(), /Replicate prediction did not reach succeeded state/);
+      assert.equal(posts, 1); assert.equal(gets, 0);
+      assert.equal(c.fixture.held, true); assert.deepEqual(c.fixture.calls, ['preflight', 'reserve', 'record']);
+      assert.equal(c.fixture.observed[0].status, 'failed');
+    });
+  }
+}
