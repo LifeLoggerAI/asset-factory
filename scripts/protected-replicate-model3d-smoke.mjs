@@ -60,7 +60,7 @@ export async function runProtectedReplicateSmoke({ requestPath, outputPath, stat
     need(url.protocol === 'https:' && !url.username && !url.password && !url.hash && !isIP(host) && !host.startsWith('[') && host.includes('.') && !/(^|\.)(local(?:host)?|internal)$/.test(host), 'invalid artifact URL');
     check();
     const artifact = await retrieveArtifact(url.toString(), { hosts: spend.artifactHosts, maxBytes: 104_857_600, timeoutMs: spend.remainingMs(120_000), checkAdmission: check });
-    check(); const data = artifact.buffer; parseGlbContainer(data); check();
+    check(); const data = artifact.buffer; parseGlbContainer(data, { requireEmbeddedResources: true }); check();
     fs.writeFileSync(pending, data); check(); fs.renameSync(pending, outputPath); replaced = true; check();
     // Operational evidence retains the unknown/full charge hold; it is not settlement.
     fs.writeFileSync(statusPath, JSON.stringify({ ...payload, charges_reconciled: false, actual_spend_usd: null, protected_attempts: spend.records }) + '\n'); check();

@@ -21,9 +21,10 @@ need(r.sourceAuthority?.thirdPartyAuthorityResolved === true, 'third-party autho
 
 need(['3dgs','photogrammetry','nerf-derived','hybrid'].includes(r.reconstruction?.method), 'supported reconstruction method required')
 need(r.reconstruction?.providerSpendAuthorized === false, 'provider spend must remain hard-off')
-need(Boolean(r.reconstruction?.cameraSolveReceiptRef), 'camera solve receipt required')
-need(Boolean(r.reconstruction?.trainingReceiptRef), 'training receipt required')
-need(Boolean(r.reconstruction?.sourceVsReconstructionReceiptRef), 'source-vs-reconstruction receipt required')
+need(nonEmpty(r.reconstruction?.cameraSolveReceiptRef), 'camera solve receipt required')
+need(nonEmpty(r.reconstruction?.trainingReceiptRef), 'training receipt required')
+need(nonEmpty(r.reconstruction?.sourceVsReconstructionReceiptRef), 'source-vs-reconstruction receipt required')
+need(typeof r.reconstruction?.generatedFillUsed === 'boolean', 'generated fill use must be explicitly declared')
 if (r.reconstruction?.generatedFillUsed === true) {
   need(r.reconstruction?.generatedFillTruthClass === 'interpretive', 'generated fill must stay interpretive')
 }
@@ -33,6 +34,7 @@ need(r.artifacts?.runtime?.format === 'splat', 'first browser runtime format mus
 need(['glb','navmesh-json'].includes(r.artifacts?.collision?.format), 'independent collision proxy required')
 need(r.artifacts?.collision?.independentFromVisualSplat === true, 'collision proxy cannot be inferred from splat')
 for (const artifact of [r.artifacts?.archival, r.artifacts?.runtime, r.artifacts?.collision]) {
+  need(nonEmpty(artifact?.artifactId), 'artifact identifier required')
   need(sha(artifact?.sha256), 'artifact SHA-256 required')
   need(Number.isSafeInteger(artifact?.byteSize) && artifact.byteSize > 0, 'artifact byte size required')
 }
@@ -43,12 +45,18 @@ need(r.browserEvidence?.fallbackPassed === true, 'fallback proof required')
 need(r.browserEvidence?.revocationPassed === true, 'consent-revocation proof required')
 need(nonEmptyRefs(r.browserEvidence?.proofRefs), 'browser evidence proof refs required')
 need(head(r.sceneIntegration?.exactHead), 'exact Spatial head required')
+need(r.sceneIntegration?.spatialRepository === 'LifeLoggerAI/urai-spatial', 'adopted Spatial repository required')
 need(r.sceneIntegration?.replayBindingVerified === true, 'Replay binding proof required')
 need(r.sceneIntegration?.publicRouteMounted === false, 'captured reality promotion must remain private before separate public release authority')
 
-need(r.xrEvidence?.certified === false || r.xrEvidence?.physicalDeviceTested === true, 'XR certification requires physical-device evidence')
+need(typeof r.xrEvidence?.certified === 'boolean' && typeof r.xrEvidence?.physicalDeviceTested === 'boolean', 'XR certification and physical-device state must be explicitly declared')
+if (r.xrEvidence?.certified === true) {
+  need(r.xrEvidence?.physicalDeviceTested === true, 'XR certification requires physical-device evidence')
+  need(nonEmptyRefs(r.xrEvidence?.proofRefs), 'XR certification requires physical-device proof refs')
+}
 need(r.explicitApproval?.approved === true, 'explicit human review required')
-need(Boolean(r.explicitApproval?.reviewer), 'reviewer identity required')
+need(nonEmpty(r.explicitApproval?.reviewer), 'reviewer identity required')
+need(typeof r.explicitApproval?.reviewedAt === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(r.explicitApproval.reviewedAt) && Number.isFinite(Date.parse(r.explicitApproval.reviewedAt)), 'review timestamp required')
 need(r.governance?.publicReleaseAuthorized === false, 'this receipt cannot authorize public release')
 
 const expectedPromotion = failures.length === 0
@@ -59,4 +67,14 @@ if (failures.length) {
   console.error(JSON.stringify({ok:false,failures},null,2))
   process.exit(1)
 }
-console.log(JSON.stringify({ok:true,assetId:r.assetId,spatialExactHead:r.sceneIntegration.exactHead},null,2))
+console.log(JSON.stringify({
+  ok:true,
+  result:'receipt-contract-passed',
+  scope:'declared-fields-only',
+  assetId:r.assetId,
+  spatialExactHead:r.sceneIntegration.exactHead,
+  approvalAuthenticated:false,
+  artifactBytesVerified:false,
+  runtimeAcceptanceVerified:false,
+  promotionAuthorized:false
+},null,2))

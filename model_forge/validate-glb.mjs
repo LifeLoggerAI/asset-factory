@@ -14,7 +14,7 @@ function main() {
   if (!file) fail('Usage: node model_forge/validate-glb.mjs <file.glb> [maxTriangles]');
   const maxTriangles = Number(process.argv[3] ?? 2000000);
   const buffer = fs.readFileSync(file);
-  const { gltf } = parseGlb(buffer);
+  const { gltf } = parseGlb(buffer, { requireEmbeddedResources: true });
   const meshes = gltf.meshes?.length ?? 0;
   const nodes = gltf.nodes?.length ?? 0;
   const materials = gltf.materials?.length ?? 0;

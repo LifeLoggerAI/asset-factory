@@ -9,8 +9,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runProtectedReplicateSmoke } from './protected-replicate-model3d-smoke.mjs';
 const API = 'https://api.replicate.com/v1/predictions', artifact = 'https://outputs.example.test/model.glb';
-function glb() {
-  const content = Buffer.from('{"asset":{"version":"2.0"}}'), padded = Buffer.alloc(Math.ceil(content.length / 4) * 4, 32); content.copy(padded);
+function glb(document = { asset: { version: '2.0' } }) {
+  const content = Buffer.from(JSON.stringify(document)), padded = Buffer.alloc(Math.ceil(content.length / 4) * 4, 32); content.copy(padded);
   const header = Buffer.alloc(20); header.writeUInt32LE(0x46546c67, 0); header.writeUInt32LE(2, 4); header.writeUInt32LE(header.length + padded.length, 8); header.writeUInt32LE(padded.length, 12); header.writeUInt32LE(0x4e4f534a, 16); return Buffer.concat([header, padded]);
 }
 function fixture(options = {}) {
@@ -31,7 +31,7 @@ function fixture(options = {}) {
     assert.equal(url, artifact); assert.equal(init.method, 'GET');
     if (options.expireArtifact) expired = true;
     if (options.changeSource) source = 'b'.repeat(40);
-    return new Response(glb());
+    return new Response(options.artifactGlb ?? glb());
   };
   const spend = { artifactHosts: ['outputs.example.test'], records: [{ attempt_id: 'SYNTHETIC_ATTEMPT', reconciliation_required: true }], checkAdmission: check, remainingMs: value => { check(); return value; }, async submit(endpoint, init) { check(); return { payload: await (await fetchImpl(endpoint, { ...init, redirect: 'error' })).json() }; } };
   const retrieveArtifact = (url, settings) => retrievePublicArtifact(url, { ...settings, lookup: async () => [{ address: '1.1.1.1', family: 4 }], request: (target, options, callback) => {
@@ -64,6 +64,24 @@ for (const options of [{ expirePoll: true, poll: true }, { expireArtifact: true 
 test('a lost create response cannot trigger retry or cancellation of an unknown task', async () => {
   const t = fixture({ lostSubmit: true }); try { await assert.rejects(t.run(), /uncertain/); assert.equal(t.calls.length, 1); assert.equal(fs.existsSync(t.outputPath), false); } finally { t.restore(); }
 });
+for (const [kind, document] of [
+  ['geometry sidecar', { asset: { version: '2.0' }, buffers: [{ byteLength: 36, uri: 'missing.bin' }] }],
+  ['texture sidecar', { asset: { version: '2.0' }, images: [{ uri: 'missing.png' }] }],
+  ['texture without bytes', { asset: { version: '2.0' }, images: [{}] }],
+]) {
+  test(`actual protected smoke refuses ${kind} without persisting an incomplete GLB`, async () => {
+    const t=fixture({artifactGlb:glb(document)});
+    try {
+      await assert.rejects(t.run(),/embedded|image bufferView/i);
+      assert.equal(fs.existsSync(t.outputPath),false);
+      assert.equal(fs.existsSync(t.outputPath+'.pending'),false);
+      assert.equal(fs.existsSync(t.statusPath),false);
+      assert.equal(t.calls.filter(c=>c.url===API).length,1);
+      assert.equal(t.calls.filter(c=>c.init.method==='GET').length,1);
+      assert.equal(t.calls.at(-1).url,`${API}/SYNTHETIC_TASK/cancel`);
+    } finally {t.restore();}
+  });
+}
 test('the actual default client cannot turn a provider credential or manual marker into admission', async () => {
   const directory = fs.mkdtempSync(path.join(tmpdir(), 'urai-smoke-no-authority-')); try {
     const requestPath = path.join(directory, 'request.json'); fs.writeFileSync(requestPath, '{"input":{"prompt":"synthetic"}}'); let calls = 0;

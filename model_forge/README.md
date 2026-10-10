@@ -56,6 +56,8 @@ Forge also performs structural GLB validation immediately after provider downloa
 
 Structural validity does not equal visual acceptance.
 
+Forge, the standalone candidate validator and the protected Replicate smoke leaf retain one hashed GLB. Their candidate boundary requires buffer and image resources embedded in that file, in line with the existing decoded-asset policy. External sidecars, data URIs and images without a backed bufferView are rejected before candidate evidence or smoke output is recorded. The general container parser still supports external-resource GLBs when this candidate policy is not requested. This byte-custody check does not replace full decoding, art review or runtime/device acceptance.
+
 ## Blender cleanup and LODs
 
 ```bash

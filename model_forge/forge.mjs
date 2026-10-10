@@ -328,7 +328,7 @@ function firstHttpUrl(value) {
   return null;
 }
 
-function parseGlbCandidate(buffer) { return parseGlbContainer(buffer).gltf; }
+function parseGlbCandidate(buffer) { return parseGlbContainer(buffer, { requireEmbeddedResources: true }).gltf; }
 
 function structuralCandidateReport(buffer, maxTriangles) {
   const gltf = parseGlbCandidate(buffer);

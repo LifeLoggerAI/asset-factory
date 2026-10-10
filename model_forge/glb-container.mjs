@@ -1,5 +1,5 @@
 // Bounded GLB container and local buffer-range validation, not a glTF validator.
-export function parseGlbContainer(buffer) {
+export function parseGlbContainer(buffer, { requireEmbeddedResources = false } = {}) {
   const need = (ok, message) => { if (!ok) throw new Error(message); };
   const uint = (n) => Number.isSafeInteger(n) && n >= 0;
   need(buffer.length >= 20, 'GLB too small');
@@ -56,5 +56,16 @@ export function parseGlbContainer(buffer) {
       need((m.byteOffset ?? 0) + m.byteLength <= buffers[m.buffer].byteLength, 'Meshopt exceeds declared buffer');
     }
   });
+  if (requireEmbeddedResources) {
+    // Candidate custody stores and hashes one GLB. Sidecars are not retrieved,
+    // and data URIs are outside the existing embedded decoded-asset policy.
+    need(buffers.every((b) => b.uri === undefined), 'Candidate GLB requires embedded buffer resources');
+    const images = gltf.images ?? [];
+    need(Array.isArray(images), 'GLB images must be an array');
+    images.forEach((image) => {
+      need(image && image.uri === undefined, 'Candidate GLB requires embedded image resources');
+      need(uint(image.bufferView) && image.bufferView < views.length, 'Candidate GLB image bufferView lacks embedded bytes');
+    });
+  }
   return { version: 2, gltf };
 }

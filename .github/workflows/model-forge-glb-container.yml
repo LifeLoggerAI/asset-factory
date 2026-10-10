@@ -8,6 +8,8 @@ on:
       - 'model_forge/triangle-budget.mjs'
       - 'scripts/test-model-forge-glb-container.mjs'
       - 'scripts/test-model-forge-triangle-budget.mjs'
+      - 'model_forge/captured-reality/**'
+      - 'scripts/test-captured-reality-promotion.mjs'
       - '.github/workflows/model-forge-glb-container.yml'
 permissions:
   contents: read
@@ -23,5 +25,5 @@ jobs:
         with:
           node-version: '22'
       - run: node --check model_forge/forge.mjs
-      - run: node --test scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-triangle-budget.mjs
+      - run: node --test scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-triangle-budget.mjs scripts/test-captured-reality-promotion.mjs
       - run: git diff --exit-code

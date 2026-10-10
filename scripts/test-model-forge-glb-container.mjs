@@ -59,3 +59,35 @@ test('actual provider intake shares container rejection',()=>{
  assert.throws(()=>intake(pack(doc(),[]),100),/Missing GLB BIN/);
  assert.equal(intake(pack(doc()),100).trianglesEstimated,1);
 });
+
+const isolatedResources = [
+ ['external geometry', () => { const d=doc();d.buffers[0].uri='missing-mesh.bin';return pack(d,[]); }],
+ ['external texture', () => { const d=doc();d.images=[{uri:'missing-material.png'}];return pack(d); }],
+ ['data URI geometry outside the embedded-resource policy', () => { const d=doc();d.buffers[0].uri='data:application/octet-stream;base64,AAAA';return pack(d,[]); }],
+ ['data URI texture outside the embedded-resource policy', () => { const d=doc();d.images=[{uri:'data:image/png;base64,AAAA'}];return pack(d); }],
+ ['texture without resource bytes', () => { const d=doc();d.images=[{}];return pack(d); }],
+ ['texture with absent bufferView', () => { const d=doc();d.images=[{bufferView:1,mimeType:'image/png'}];return pack(d); }],
+];
+for (const [name,make] of isolatedResources) {
+ test(`embedded-resource candidate policy rejects ${name}`,()=>{
+  assert.throws(()=>parseGlbContainer(make(),{requireEmbeddedResources:true}),/embedded|image bufferView/i);
+ });
+ test(`actual Forge intake rejects ${name} before reporting a complete candidate`,()=>{
+  const source=readFileSync('model_forge/forge.mjs','utf8');
+  const start=source.indexOf('function parseGlbCandidate('),end=source.indexOf('async function downloadFile(',start);
+  const intake=new Function('parseGlbContainer','checkTriangleBudget','fail',source.slice(start,end)+'\nreturn structuralCandidateReport;')(parseGlbContainer,checkTriangleBudget,(m)=>{throw new Error(m)});
+  assert.throws(()=>intake(make(),100),/embedded|image bufferView/i);
+ });
+ test(`standalone candidate CLI rejects ${name}`,()=>{
+  const dir=mkdtempSync(path.join(tmpdir(),'urai-isolated-glb-'));
+  try {
+   const f=path.join(dir,'candidate.glb');writeFileSync(f,make());
+   const r=spawnSync(process.execPath,['model_forge/validate-glb.mjs',f],{encoding:'utf8'});
+   assert.equal(r.status,1,r.stdout);assert.match(r.stderr,/embedded|image bufferView/i);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+ });
+}
+test('embedded resources retain Meshopt placeholders and actual image bufferViews',()=>{
+ const d=mesh();d.images=[{bufferView:0,mimeType:'image/png'}];
+ assert.doesNotThrow(()=>parseGlbContainer(pack(d),{requireEmbeddedResources:true}));
+});
