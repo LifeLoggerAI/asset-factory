@@ -50,14 +50,17 @@ const checkOnly = args.includes('--check-only');
 const cwdIndex = args.indexOf('--cwd');
 const onlyIndex = args.indexOf('--only');
 const cwd = cwdIndex >= 0 ? args[cwdIndex + 1] : '.';
-const only = onlyIndex >= 0 ? args[onlyIndex + 1] : '';
+const onlyRaw = onlyIndex >= 0 ? args[onlyIndex + 1] : '';
+const deploymentTargets = onlyRaw ? onlyRaw.split(',').map((value) => value.trim()) : [];
+const only = deploymentTargets.join(',');
 
 if (cwdIndex >= 0 && !args[cwdIndex + 1]) fail('--cwd requires a relative directory.');
-if (onlyIndex >= 0 && !only) fail('--only requires Firebase deploy targets.');
+if (onlyIndex >= 0 && !onlyRaw) fail('--only requires Firebase deploy targets.');
+if (deploymentTargets.some((target) => !target)) fail('deployment requires a nonempty bounded target list.');
 
 const allowedTargets = new Set(['hosting','functions','firestore','storage']);
 if (only) {
-  for (const target of only.split(',').map((value) => value.trim()).filter(Boolean)) {
+  for (const target of deploymentTargets) {
     if (!allowedTargets.has(target)) fail(`unsupported Firebase deploy target: ${target}`);
   }
 }
@@ -76,9 +79,33 @@ const sourceConfigPath = path.join(resolvedCwd, 'firebase.json');
 if (!fs.existsSync(sourceConfigPath)) fail(`firebase.json is missing from deployment cwd ${resolvedCwd}`);
 
 const sourceConfig = JSON.parse(fs.readFileSync(sourceConfigPath, 'utf8'));
-if (only.split(',').includes('hosting')) {
+if (deploymentTargets.includes('hosting')) {
   if (!sourceConfig.hosting || Array.isArray(sourceConfig.hosting)) fail('expected a single Firebase Hosting configuration object.');
-  sourceConfig.hosting = { ...sourceConfig.hosting, site: hostingSite };
+  if (sourceConfig.hosting.target !== 'asset-factory-production') fail('Hosting must use the unbound asset-factory-production target before explicit site materialization.');
+  delete sourceConfig.hosting.target;
+  sourceConfig.hosting.site = hostingSite;
+}
+
+// --config lives outside the reviewed checkout. Firebase resolves local input
+// paths relative to that config, so retain the reviewed deployment cwd explicitly.
+for (const field of ['public', 'source']) {
+  if (typeof sourceConfig.hosting?.[field] === 'string') {
+    sourceConfig.hosting[field] = path.resolve(resolvedCwd, sourceConfig.hosting[field]);
+  }
+}
+const functionConfigs = Array.isArray(sourceConfig.functions)
+  ? sourceConfig.functions : sourceConfig.functions ? [sourceConfig.functions] : [];
+for (const config of functionConfigs) {
+  if (typeof config.source === 'string') config.source = path.resolve(resolvedCwd, config.source);
+}
+for (const [resource, fields] of [['firestore', ['rules', 'indexes']], ['storage', ['rules']]]) {
+  const configs = Array.isArray(sourceConfig[resource])
+    ? sourceConfig[resource] : sourceConfig[resource] ? [sourceConfig[resource]] : [];
+  for (const config of configs) {
+    for (const field of fields) {
+      if (typeof config[field] === 'string') config[field] = path.resolve(resolvedCwd, config[field]);
+    }
+  }
 }
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-asset-factory-firebase-'));
@@ -97,3 +124,4 @@ try {
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });
 }
+

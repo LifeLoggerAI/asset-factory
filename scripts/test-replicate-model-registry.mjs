@@ -1,3 +1,4 @@
+import { syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,11 +19,15 @@ const ts = await import(pathToFileURL(typescriptPath).href);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'replicate-registry-contract-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
+fs.mkdirSync(path.join(tmpDir, 'model_forge'), { recursive: true });
+fs.copyFileSync(path.join(root, 'model_forge', 'protected-artifact.mjs'), path.join(tmpDir, 'model_forge', 'protected-artifact.mjs'));
 
 function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
+  source = source.replace("import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';", `import { admittedArtifactHosts } from '../../../model_forge/protected-artifact.mjs';\nimport { syntheticArtifactRetrieve as retrievePublicArtifact } from '${pathToFileURL(path.join(root, 'scripts/lib/studio-spend-test-fixture.mjs')).href}';`);
   for (const [from, to] of patches) source = source.replace(from, to);
+  source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -39,11 +44,16 @@ function compileTsModule(relativePath, patches = []) {
   return outputPath;
 }
 
+fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? null; }\n');
+
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetProviderAdapters.ts', [[
   "import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';",
   "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;",
 ]]);
+const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
+fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   [
@@ -63,6 +73,8 @@ const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRunti
 
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
 const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+const protector = await import(pathToFileURL(protectedModulePath).href);
+const syntheticBuild = syntheticCleanBuild();
 
 const trackedEnv = [
   'ASSET_FACTORY_MEDIA_PROVIDER',
@@ -124,6 +136,8 @@ async function runCase({ request, typeName, expectedUrl, expectedBody, mimeType,
     throw new Error(`Unexpected fetch URL: ${urlString}`);
   };
 
+  const protectedFixture = syntheticStudioSpend(request, { endpoint: expectedUrl, provider: 'replicate', model: expectedModel, lane: expectedLane, body: JSON.stringify(expectedBody), headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
   const result = await renderWithConfiguredProvider(request, resolveAssetType(typeName));
   assert.equal(result.metadata.provider, 'replicate');
   assert.equal(result.metadata.providerModel, expectedModel);
@@ -140,7 +154,7 @@ async function testGraphicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions',
     expectedBody: { input: { prompt: 'symbolic moonlit orb', num_outputs: 1, aspect_ratio: '16:9', output_format: 'webp', output_quality: 80 } },
     mimeType: 'image/webp',
-    artifactUrl: 'https://cdn.example.com/graphic.webp',
+    artifactUrl: 'https://outputs.example.test/graphic.webp',
     expectedModel: 'black-forest-labs/flux-schnell',
     expectedLane: 'graphic',
   });
@@ -154,7 +168,7 @@ async function testModel3dLaneUsesPinnedVersionRoute() {
     expectedUrl: 'https://api.replicate.com/v1/predictions',
     expectedBody: { version, input: { prompt: 'glass memory shrine', enable_pbr: true, face_count: 40000, generate_type: 'Normal' } },
     mimeType: 'model/gltf-binary',
-    artifactUrl: 'https://cdn.example.com/model.glb',
+    artifactUrl: 'https://outputs.example.test/model.glb',
     expectedModel: `tencent/hunyuan-3d-3.1:${version}`,
     expectedLane: 'model3d',
   });
@@ -167,7 +181,7 @@ async function testMusicLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/google/lyria-2/predictions',
     expectedBody: { input: { prompt: 'slow atmospheric recovery theme', negative_prompt: 'vocals' } },
     mimeType: 'audio/wav',
-    artifactUrl: 'https://cdn.example.com/music.wav',
+    artifactUrl: 'https://outputs.example.test/music.wav',
     expectedModel: 'google/lyria-2',
     expectedLane: 'audio',
   });
@@ -180,7 +194,7 @@ async function testSpeechLane() {
     expectedUrl: 'https://api.replicate.com/v1/models/minimax/speech-02-hd/predictions',
     expectedBody: { input: { text: 'Welcome back, Adam.', voice_id: 'Friendly_Person', emotion: 'auto', language_boost: 'English', english_normalization: true } },
     mimeType: 'audio/mpeg',
-    artifactUrl: 'https://cdn.example.com/speech.mp3',
+    artifactUrl: 'https://outputs.example.test/speech.mp3',
     expectedModel: 'minimax/speech-02-hd',
     expectedLane: 'speech',
   });
@@ -215,5 +229,7 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   restoreEnv();
+  syntheticBuild.restore();
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
+

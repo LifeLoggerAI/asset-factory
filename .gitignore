@@ -53,3 +53,7 @@ Thumbs.db
 # Misc
 *.log
 *.tsbuildinfo
+
+# Python bytecode from source verification is never an execution artifact.
+__pycache__/
+*.py[cod]

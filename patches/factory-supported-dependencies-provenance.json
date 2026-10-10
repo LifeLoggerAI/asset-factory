@@ -1,0 +1,719 @@
+{
+  "schemaVersion": "urai-factory-supported-dependency-remediation-v1",
+  "baseSource": "a57092267e14e5fbd1781661e63df5378ecde8ab",
+  "securityGateWaived": false,
+  "originalMatcherUnchanged": true,
+  "consumers": [
+    {
+      "package": "firebase-functions-test",
+      "version": "3.4.1",
+      "upstreamTarball": "https://registry.npmjs.org/firebase-functions-test/-/firebase-functions-test-3.4.1.tgz",
+      "upstreamIntegrity": "sha512-qAq0oszrBGdf4bnCF6t4FoSgMsepeIXh0Pi/FhikSE6e+TvKKGpfrfUP/5pFjJZxFcLsweoau88KydCql4xSeg==",
+      "license": "MIT",
+      "patchPath": "patches/firebase-functions-test-3.4.1-supported-api.patch",
+      "patchSha256": "190a57ed1aca355f2c023372320062e77c0772dc936ce0cd945d4e14faa5c16e",
+      "replacementDependency": "ts-deepmerge",
+      "replacementVersion": "8.0.0",
+      "files": [
+        {
+          "path": "LICENSE",
+          "upstreamSha256": "34fede4330f64849a8dc7fc18a266a1f0e4ab98b95b19ef05ab9d66021ee2d61",
+          "installedSha256": "34fede4330f64849a8dc7fc18a266a1f0e4ab98b95b19ef05ab9d66021ee2d61"
+        },
+        {
+          "path": "lib/app.d.ts",
+          "upstreamSha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "installedSha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+        },
+        {
+          "path": "lib/app.js",
+          "upstreamSha256": "29f20fdc3f7a06811ec5778c0964f004043337365bb6e0835e8452d6304df723",
+          "installedSha256": "29f20fdc3f7a06811ec5778c0964f004043337365bb6e0835e8452d6304df723"
+        },
+        {
+          "path": "lib/cloudevent/generate.d.ts",
+          "upstreamSha256": "ed7788d307330bb3ea599c7b74b0633dcca166cf3266ac70fe44a9558523e921",
+          "installedSha256": "ed7788d307330bb3ea599c7b74b0633dcca166cf3266ac70fe44a9558523e921"
+        },
+        {
+          "path": "lib/cloudevent/generate.js",
+          "upstreamSha256": "fc9fffe229b2bf2b764b6c7ed0b6764ac478fd5e82e49b2d2bc0c58ccb60bc20",
+          "installedSha256": "58bccf9e33a63d7b933954ff45d824cee9cb6da3aa7ab34ddeba4f9fecd02d8a"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/alerts-on-alert-published.d.ts",
+          "upstreamSha256": "41994f3ef5225327c65c2c8dcec72ca83ce4bbb1d7de210b5d5aeace456ee98e",
+          "installedSha256": "41994f3ef5225327c65c2c8dcec72ca83ce4bbb1d7de210b5d5aeace456ee98e"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/alerts-on-alert-published.js",
+          "upstreamSha256": "d903234cb6b0a79da3ff71b5108b98e1c51222521eaeb117065037f8540602bd",
+          "installedSha256": "d903234cb6b0a79da3ff71b5108b98e1c51222521eaeb117065037f8540602bd"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/app-distribution-on-new-tester-ios-device-published.d.ts",
+          "upstreamSha256": "3700c0c529afe97ba7ba468611b483430a9c494d65ec3310910b535401e046c6",
+          "installedSha256": "3700c0c529afe97ba7ba468611b483430a9c494d65ec3310910b535401e046c6"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/app-distribution-on-new-tester-ios-device-published.js",
+          "upstreamSha256": "429bfcddab4ebc6f48539d7ac1cbddc936df916d52e646f48eb8d0f747248427",
+          "installedSha256": "429bfcddab4ebc6f48539d7ac1cbddc936df916d52e646f48eb8d0f747248427"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/billing-on-plan-automated-update-published.d.ts",
+          "upstreamSha256": "17e9e4a4374d8de52172cd563c044bf393e05a7660dc3ca8940d00edfecce0a1",
+          "installedSha256": "17e9e4a4374d8de52172cd563c044bf393e05a7660dc3ca8940d00edfecce0a1"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/billing-on-plan-automated-update-published.js",
+          "upstreamSha256": "75acb9af3f29b3bffb5130aca08ac7b787980d97b8dcbcf14110438585a56a48",
+          "installedSha256": "75acb9af3f29b3bffb5130aca08ac7b787980d97b8dcbcf14110438585a56a48"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/billing-on-plan-update-published.d.ts",
+          "upstreamSha256": "632f34b1cb1a18de7bb7aeeb91e6a9cd59d5db3e8adf3bc5b5f369f543e09f03",
+          "installedSha256": "632f34b1cb1a18de7bb7aeeb91e6a9cd59d5db3e8adf3bc5b5f369f543e09f03"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/billing-on-plan-update-published.js",
+          "upstreamSha256": "f2738399dd8e725c47bd510a16d48faafcf769fd96ea38c68a1b834b473794f7",
+          "installedSha256": "f2738399dd8e725c47bd510a16d48faafcf769fd96ea38c68a1b834b473794f7"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-anr-issue-published.d.ts",
+          "upstreamSha256": "c75481110c2bb9541b7013a9a97860f1b18ffa9857eef4bd5a10a29c20c99a19",
+          "installedSha256": "c75481110c2bb9541b7013a9a97860f1b18ffa9857eef4bd5a10a29c20c99a19"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-anr-issue-published.js",
+          "upstreamSha256": "46deca8669f7c5a7b66041b9ea5ec17effd5705a091fcd8fc2dcd4ad1c48b0ae",
+          "installedSha256": "46deca8669f7c5a7b66041b9ea5ec17effd5705a091fcd8fc2dcd4ad1c48b0ae"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-fatal-issue-published.d.ts",
+          "upstreamSha256": "ed3ce967ddcd1b0948192e2b2b47c53ccd02eec9691ffe3f642ec04dc1002686",
+          "installedSha256": "ed3ce967ddcd1b0948192e2b2b47c53ccd02eec9691ffe3f642ec04dc1002686"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-fatal-issue-published.js",
+          "upstreamSha256": "305245b0ff541f2e74e4f403fa615626bae4f0a347921955e1b54f87cdfa8d97",
+          "installedSha256": "305245b0ff541f2e74e4f403fa615626bae4f0a347921955e1b54f87cdfa8d97"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-nonfatal-issue-published.d.ts",
+          "upstreamSha256": "f2b43eba1790ddb2782889f3c27106a4027ca8310c3d393a8961b3ebb79f512f",
+          "installedSha256": "f2b43eba1790ddb2782889f3c27106a4027ca8310c3d393a8961b3ebb79f512f"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-new-nonfatal-issue-published.js",
+          "upstreamSha256": "d03c0a91dd6c9491a260813bbd7cf23c6017b2ab28a544f68fb5a1102a95fe25",
+          "installedSha256": "d03c0a91dd6c9491a260813bbd7cf23c6017b2ab28a544f68fb5a1102a95fe25"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-regression-alert-published.d.ts",
+          "upstreamSha256": "8ae5ad86a6068ba6889709f38a4a8c8a3056cd560085ce2abd21ee4b4910983e",
+          "installedSha256": "8ae5ad86a6068ba6889709f38a4a8c8a3056cd560085ce2abd21ee4b4910983e"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-regression-alert-published.js",
+          "upstreamSha256": "a0538e3b9d3a6fb5a1ab438ac9b9a0fa259fd36a5f31539d46decf5da2365479",
+          "installedSha256": "a0538e3b9d3a6fb5a1ab438ac9b9a0fa259fd36a5f31539d46decf5da2365479"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-stability-digest-published.d.ts",
+          "upstreamSha256": "5b425f6bc1dc05f90ca62c94d673169c5c49694053fabb61cd9c9fe9b6d14a8b",
+          "installedSha256": "5b425f6bc1dc05f90ca62c94d673169c5c49694053fabb61cd9c9fe9b6d14a8b"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-stability-digest-published.js",
+          "upstreamSha256": "8aa5928c995cc8c181d5bbf1a607e900569aaa31839c1f143cfab3253e5118a3",
+          "installedSha256": "8aa5928c995cc8c181d5bbf1a607e900569aaa31839c1f143cfab3253e5118a3"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-velocity-alert-published.d.ts",
+          "upstreamSha256": "fb27396f10ca354b4ef8f67f5499024f8f82aa5d0e446e40d79357261703a942",
+          "installedSha256": "fb27396f10ca354b4ef8f67f5499024f8f82aa5d0e446e40d79357261703a942"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/crashlytics-on-velocity-alert-published.js",
+          "upstreamSha256": "c9a7e94ceef2aa95325f9f553f323c9f9ccc1ac223a6757e0356a5478fdf6ab3",
+          "installedSha256": "c9a7e94ceef2aa95325f9f553f323c9f9ccc1ac223a6757e0356a5478fdf6ab3"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/performance-on-threshold-alert-published.d.ts",
+          "upstreamSha256": "a3de804ce0dacb1c9c5291261772c884f5cdc25a11de683973d7d0a6be3f1fcd",
+          "installedSha256": "a3de804ce0dacb1c9c5291261772c884f5cdc25a11de683973d7d0a6be3f1fcd"
+        },
+        {
+          "path": "lib/cloudevent/mocks/alerts/performance-on-threshold-alert-published.js",
+          "upstreamSha256": "d56bec79b6b239f8bd22240658501d9b0e44de121e727c3361453d7d5d614210",
+          "installedSha256": "d56bec79b6b239f8bd22240658501d9b0e44de121e727c3361453d7d5d614210"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-created.d.ts",
+          "upstreamSha256": "aa8aef841e6bdb530553a148e8141b533ebad8926370998dc452d5269e4cfbdc",
+          "installedSha256": "aa8aef841e6bdb530553a148e8141b533ebad8926370998dc452d5269e4cfbdc"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-created.js",
+          "upstreamSha256": "0e19da9be0e39f6604a10e1b5432d134216c7948ce8c1f7aec4574fc97184211",
+          "installedSha256": "0e19da9be0e39f6604a10e1b5432d134216c7948ce8c1f7aec4574fc97184211"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-deleted.d.ts",
+          "upstreamSha256": "b58c9519c345fd2b193a8ed2c29a4d30ad37ad76a26cb1598121889093dbea70",
+          "installedSha256": "b58c9519c345fd2b193a8ed2c29a4d30ad37ad76a26cb1598121889093dbea70"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-deleted.js",
+          "upstreamSha256": "2e54e5c554d977b602aa2f33564ceea82e3dd1084fbc6d95f30947b67e444f46",
+          "installedSha256": "2e54e5c554d977b602aa2f33564ceea82e3dd1084fbc6d95f30947b67e444f46"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-updated.d.ts",
+          "upstreamSha256": "f4d4c2551064f28ec5f3fbbec51718389fc96e0d863ce88de8735350fc0ce0d9",
+          "installedSha256": "f4d4c2551064f28ec5f3fbbec51718389fc96e0d863ce88de8735350fc0ce0d9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-updated.js",
+          "upstreamSha256": "aa93bff185683d6232bfe0acc8386dd989a240f1fe06a227deec89b11f095048",
+          "installedSha256": "aa93bff185683d6232bfe0acc8386dd989a240f1fe06a227deec89b11f095048"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-written.d.ts",
+          "upstreamSha256": "8b8cf6510fcb870ae5422bf7aaa5409ee495d3bacb790d144183821bc2d9f6f0",
+          "installedSha256": "8b8cf6510fcb870ae5422bf7aaa5409ee495d3bacb790d144183821bc2d9f6f0"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/database-on-value-written.js",
+          "upstreamSha256": "e5020fecde06887e51577f5488b799441e9a6ccbb04813c6070bed55a771be02",
+          "installedSha256": "e5020fecde06887e51577f5488b799441e9a6ccbb04813c6070bed55a771be02"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/helpers.d.ts",
+          "upstreamSha256": "c03dd3025381807be33cfd74e31d3845e6aa91213dddbdc9af39c08720de6b83",
+          "installedSha256": "c03dd3025381807be33cfd74e31d3845e6aa91213dddbdc9af39c08720de6b83"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/helpers.js",
+          "upstreamSha256": "8e0192f1e883981c8c9d8aa812b00a700100c2fe4439d4df00c235c264a52ead",
+          "installedSha256": "8e0192f1e883981c8c9d8aa812b00a700100c2fe4439d4df00c235c264a52ead"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/index.d.ts",
+          "upstreamSha256": "8369806c13f0a295a4fe88ecb9877b0b30ccc9fd46756ec88ab761339fc1c7b8",
+          "installedSha256": "8369806c13f0a295a4fe88ecb9877b0b30ccc9fd46756ec88ab761339fc1c7b8"
+        },
+        {
+          "path": "lib/cloudevent/mocks/database/index.js",
+          "upstreamSha256": "fe265b539d7bd24072cfafbe36a8498f42aaf76c6c0239c87fd1f16db171cd21",
+          "installedSha256": "fe265b539d7bd24072cfafbe36a8498f42aaf76c6c0239c87fd1f16db171cd21"
+        },
+        {
+          "path": "lib/cloudevent/mocks/eventarc/eventarc-on-custom-event-published.d.ts",
+          "upstreamSha256": "209f4ae490bea515dd14bd921b596604c6750d18f62a61cf784ba587119b52f6",
+          "installedSha256": "209f4ae490bea515dd14bd921b596604c6750d18f62a61cf784ba587119b52f6"
+        },
+        {
+          "path": "lib/cloudevent/mocks/eventarc/eventarc-on-custom-event-published.js",
+          "upstreamSha256": "c262d867237d9d4cd58c2333d9dd6081eb53ef994845858f7290a8a5e62ad526",
+          "installedSha256": "c262d867237d9d4cd58c2333d9dd6081eb53ef994845858f7290a8a5e62ad526"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-created-with-auth-context.d.ts",
+          "upstreamSha256": "edbc01c42155349e56946cf82054d36c92c82522b5d70dd6522da5ebcd0c28a2",
+          "installedSha256": "edbc01c42155349e56946cf82054d36c92c82522b5d70dd6522da5ebcd0c28a2"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-created-with-auth-context.js",
+          "upstreamSha256": "b21417f0813c684cabbc0e0d8e694e3f1284282d47e8935cbb63ac401d04856b",
+          "installedSha256": "b21417f0813c684cabbc0e0d8e694e3f1284282d47e8935cbb63ac401d04856b"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-created.d.ts",
+          "upstreamSha256": "bf3d5433d6ea4855a4651cdae6b33ab550f00befb5b3c5479f75191aed218161",
+          "installedSha256": "bf3d5433d6ea4855a4651cdae6b33ab550f00befb5b3c5479f75191aed218161"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-created.js",
+          "upstreamSha256": "f7d90a1e397d55460baf898b7e8d9afcf705e1123885ec8cfa4597cc575f20d7",
+          "installedSha256": "f7d90a1e397d55460baf898b7e8d9afcf705e1123885ec8cfa4597cc575f20d7"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-deleted-with-auth-context.d.ts",
+          "upstreamSha256": "bca18acb263375c4cb1db9d22b67761d88905e4d23ba7939597560ac328387b3",
+          "installedSha256": "bca18acb263375c4cb1db9d22b67761d88905e4d23ba7939597560ac328387b3"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-deleted-with-auth-context.js",
+          "upstreamSha256": "6bf500645b432096017f73c643daef3507ce671ad6cb8b7f99cfa29f1cec92b9",
+          "installedSha256": "6bf500645b432096017f73c643daef3507ce671ad6cb8b7f99cfa29f1cec92b9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-deleted.d.ts",
+          "upstreamSha256": "c55e55bc64508fe1d4d654291a176727ec4cbe30a0550698ea9910e62f91c527",
+          "installedSha256": "c55e55bc64508fe1d4d654291a176727ec4cbe30a0550698ea9910e62f91c527"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-deleted.js",
+          "upstreamSha256": "80521f98f076f32b8b679d753b445ddfdac05f5030a5c88f16fc5dc0c2435ac9",
+          "installedSha256": "80521f98f076f32b8b679d753b445ddfdac05f5030a5c88f16fc5dc0c2435ac9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-updated-with-auth-context.d.ts",
+          "upstreamSha256": "76e8252330d1546bb82df96cb70f62a075f3f61e718425fc12f99e7874e40201",
+          "installedSha256": "76e8252330d1546bb82df96cb70f62a075f3f61e718425fc12f99e7874e40201"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-updated-with-auth-context.js",
+          "upstreamSha256": "26909a0a22a80b7682f254472259a8222b88355d6f73c36054985132a7723dee",
+          "installedSha256": "26909a0a22a80b7682f254472259a8222b88355d6f73c36054985132a7723dee"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-updated.d.ts",
+          "upstreamSha256": "0063d155c4c078c2226d426a5e66fa4978519e4ebaf467e25537ff29f144d953",
+          "installedSha256": "0063d155c4c078c2226d426a5e66fa4978519e4ebaf467e25537ff29f144d953"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-updated.js",
+          "upstreamSha256": "76baf7a5d36288e71023442072cf1a4c431199c953a0aae4ec1d6380c8ffdacb",
+          "installedSha256": "76baf7a5d36288e71023442072cf1a4c431199c953a0aae4ec1d6380c8ffdacb"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-written-with-auth-context.d.ts",
+          "upstreamSha256": "7c42b6036e8321084cd4fb08a5aea1ba0327e5ca218d4e8ecd4955448f5edaae",
+          "installedSha256": "7c42b6036e8321084cd4fb08a5aea1ba0327e5ca218d4e8ecd4955448f5edaae"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-written-with-auth-context.js",
+          "upstreamSha256": "15b8e69126f66d70432c5fba75106422f3e5d30045a43e06ece4caf42e0bfc37",
+          "installedSha256": "15b8e69126f66d70432c5fba75106422f3e5d30045a43e06ece4caf42e0bfc37"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-written.d.ts",
+          "upstreamSha256": "89fc44016635408157bd2fa42c37bbcca8509f94f4884bfb285853334d4af0e5",
+          "installedSha256": "89fc44016635408157bd2fa42c37bbcca8509f94f4884bfb285853334d4af0e5"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/firestore-on-document-written.js",
+          "upstreamSha256": "c8cd9e9197f96631d10164986e670350f5bc5b49412ee8cebb63c71aef524ff2",
+          "installedSha256": "c8cd9e9197f96631d10164986e670350f5bc5b49412ee8cebb63c71aef524ff2"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/helpers.d.ts",
+          "upstreamSha256": "e4aee83736813069707d52ebbea0ec48b3b7fbe8fb1738bc44dbd4dfb669f96a",
+          "installedSha256": "e4aee83736813069707d52ebbea0ec48b3b7fbe8fb1738bc44dbd4dfb669f96a"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/helpers.js",
+          "upstreamSha256": "576964718058d555a06389d15d050d749c41175202a1052d65e034ab7e917ad9",
+          "installedSha256": "576964718058d555a06389d15d050d749c41175202a1052d65e034ab7e917ad9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/index.d.ts",
+          "upstreamSha256": "776043f3a01825f27e8871c21dcffa74899461e2507be675480595ff5f62a1f9",
+          "installedSha256": "776043f3a01825f27e8871c21dcffa74899461e2507be675480595ff5f62a1f9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/firestore/index.js",
+          "upstreamSha256": "907e8d8b406bece0a4d5013863ea40c0b9d5a742e17a8416ae0c60d2b8701968",
+          "installedSha256": "907e8d8b406bece0a4d5013863ea40c0b9d5a742e17a8416ae0c60d2b8701968"
+        },
+        {
+          "path": "lib/cloudevent/mocks/helpers.d.ts",
+          "upstreamSha256": "3aafce127612ddb65a917742401e405d7bc6a4bc1dbb29c381428732fad2f810",
+          "installedSha256": "3aafce127612ddb65a917742401e405d7bc6a4bc1dbb29c381428732fad2f810"
+        },
+        {
+          "path": "lib/cloudevent/mocks/helpers.js",
+          "upstreamSha256": "578e8ada1adde35b5a98391c034a69cc1267e54be6ef6dc92a38f35a2f8d8da1",
+          "installedSha256": "578e8ada1adde35b5a98391c034a69cc1267e54be6ef6dc92a38f35a2f8d8da1"
+        },
+        {
+          "path": "lib/cloudevent/mocks/partials.d.ts",
+          "upstreamSha256": "6814c5c79f6d247801f811d433386d2a51dd45500948d83b0e0ce6e6772197a9",
+          "installedSha256": "6814c5c79f6d247801f811d433386d2a51dd45500948d83b0e0ce6e6772197a9"
+        },
+        {
+          "path": "lib/cloudevent/mocks/partials.js",
+          "upstreamSha256": "fbf65312f55d9847bee6ea0f5dc9c6af37af96282c24eb17da293e54355dbbf8",
+          "installedSha256": "fbf65312f55d9847bee6ea0f5dc9c6af37af96282c24eb17da293e54355dbbf8"
+        },
+        {
+          "path": "lib/cloudevent/mocks/pubsub/pubsub-on-message-published.d.ts",
+          "upstreamSha256": "a8b27b9606e0eeb29b4b7fcbcb6335acbae395404858aacf631f61c9c191643f",
+          "installedSha256": "a8b27b9606e0eeb29b4b7fcbcb6335acbae395404858aacf631f61c9c191643f"
+        },
+        {
+          "path": "lib/cloudevent/mocks/pubsub/pubsub-on-message-published.js",
+          "upstreamSha256": "8a03f8c3007856ce168d83c9c60b3d77b22a09c4376be783325ead775ac846d1",
+          "installedSha256": "8a03f8c3007856ce168d83c9c60b3d77b22a09c4376be783325ead775ac846d1"
+        },
+        {
+          "path": "lib/cloudevent/mocks/remoteconfig/remote-config-on-config-updated.d.ts",
+          "upstreamSha256": "6d39e110e5d6680c3d6f73319bfe612c9e3fdfbe0510c65c877d34c715576f35",
+          "installedSha256": "6d39e110e5d6680c3d6f73319bfe612c9e3fdfbe0510c65c877d34c715576f35"
+        },
+        {
+          "path": "lib/cloudevent/mocks/remoteconfig/remote-config-on-config-updated.js",
+          "upstreamSha256": "86944ea6833adb6f56bbafb5bfc6bf34c722cde24a85f4790c180e72ad42d65c",
+          "installedSha256": "86944ea6833adb6f56bbafb5bfc6bf34c722cde24a85f4790c180e72ad42d65c"
+        },
+        {
+          "path": "lib/cloudevent/mocks/storage/index.d.ts",
+          "upstreamSha256": "50c3b73303c5233cc90ec44ba2c95275a86c51c126ae1909a66c5abcee2e3832",
+          "installedSha256": "50c3b73303c5233cc90ec44ba2c95275a86c51c126ae1909a66c5abcee2e3832"
+        },
+        {
+          "path": "lib/cloudevent/mocks/storage/index.js",
+          "upstreamSha256": "cb9d967b0a9eeabb3bb50a1a4cccb02a0e6524a8b68f3be4b7b12001b79cb8d5",
+          "installedSha256": "cb9d967b0a9eeabb3bb50a1a4cccb02a0e6524a8b68f3be4b7b12001b79cb8d5"
+        },
+        {
+          "path": "lib/cloudevent/mocks/storage/storage-data.d.ts",
+          "upstreamSha256": "f6f9b4710860b18b4ccb07cddbe3561dd6e478cd5db9a9d4fd381fd7c994118f",
+          "installedSha256": "f6f9b4710860b18b4ccb07cddbe3561dd6e478cd5db9a9d4fd381fd7c994118f"
+        },
+        {
+          "path": "lib/cloudevent/mocks/storage/storage-data.js",
+          "upstreamSha256": "0c36e29e5e46c2dbb08b53ea748dc16904b35a9880726c857422f7bea8f0bb1c",
+          "installedSha256": "0c36e29e5e46c2dbb08b53ea748dc16904b35a9880726c857422f7bea8f0bb1c"
+        },
+        {
+          "path": "lib/cloudevent/mocks/testlab/test-lab-on-test-matrix-completed.d.ts",
+          "upstreamSha256": "38aa80f398c8008001c257836faa124d41b395655d3bc5844d05cc1dcf2738a1",
+          "installedSha256": "38aa80f398c8008001c257836faa124d41b395655d3bc5844d05cc1dcf2738a1"
+        },
+        {
+          "path": "lib/cloudevent/mocks/testlab/test-lab-on-test-matrix-completed.js",
+          "upstreamSha256": "f1bd0e14d42415696a40877d0e9af84eba83f73f657ecbcbfcbff437944148fe",
+          "installedSha256": "f1bd0e14d42415696a40877d0e9af84eba83f73f657ecbcbfcbff437944148fe"
+        },
+        {
+          "path": "lib/cloudevent/types.d.ts",
+          "upstreamSha256": "3978bce5d1bba9a7ca1780337b52ee1522329780d82c3d401a389e1d6bc4a874",
+          "installedSha256": "3978bce5d1bba9a7ca1780337b52ee1522329780d82c3d401a389e1d6bc4a874"
+        },
+        {
+          "path": "lib/cloudevent/types.js",
+          "upstreamSha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230",
+          "installedSha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230"
+        },
+        {
+          "path": "lib/features.d.ts",
+          "upstreamSha256": "500f63a471b912fe65f298ffc14596f28d566ceca068d65bf483b242a64c7767",
+          "installedSha256": "500f63a471b912fe65f298ffc14596f28d566ceca068d65bf483b242a64c7767"
+        },
+        {
+          "path": "lib/features.js",
+          "upstreamSha256": "dab353f6b1a9858a6b458b9ca106b7c25807596c9a2fc9ad9dbfcfc0796dbd61",
+          "installedSha256": "dab353f6b1a9858a6b458b9ca106b7c25807596c9a2fc9ad9dbfcfc0796dbd61"
+        },
+        {
+          "path": "lib/index.d.ts",
+          "upstreamSha256": "102728e914eb4c0845022fc533febfe40c85b4c9ba2330dfe13c6b93c633932c",
+          "installedSha256": "102728e914eb4c0845022fc533febfe40c85b4c9ba2330dfe13c6b93c633932c"
+        },
+        {
+          "path": "lib/index.js",
+          "upstreamSha256": "339fe870f5198dc1184bf13ddb89574fd5ced5e8cecbfe30e45c1534d4004c91",
+          "installedSha256": "339fe870f5198dc1184bf13ddb89574fd5ced5e8cecbfe30e45c1534d4004c91"
+        },
+        {
+          "path": "lib/lifecycle.d.ts",
+          "upstreamSha256": "9bb129d2bf4e82e5119d96a5d53e6e0616ccee5a9adf40544b035d6dc2c19f29",
+          "installedSha256": "9bb129d2bf4e82e5119d96a5d53e6e0616ccee5a9adf40544b035d6dc2c19f29"
+        },
+        {
+          "path": "lib/lifecycle.js",
+          "upstreamSha256": "b24dd410b0f7ba7c0f5e73930b6a590d11894615e1eb7430abf728b8289ba086",
+          "installedSha256": "b24dd410b0f7ba7c0f5e73930b6a590d11894615e1eb7430abf728b8289ba086"
+        },
+        {
+          "path": "lib/main.d.ts",
+          "upstreamSha256": "efe3deb49427990fdeeed1937d49b72805bc9fbbd220104128b5dddae6132d23",
+          "installedSha256": "efe3deb49427990fdeeed1937d49b72805bc9fbbd220104128b5dddae6132d23"
+        },
+        {
+          "path": "lib/main.js",
+          "upstreamSha256": "181148db200a5b2bd9d3b1b0482aba44a6e150bde97d66cda145d6dd0dc18136",
+          "installedSha256": "181148db200a5b2bd9d3b1b0482aba44a6e150bde97d66cda145d6dd0dc18136"
+        },
+        {
+          "path": "lib/providers/analytics.d.ts",
+          "upstreamSha256": "1ad87e7031142844eea8d83a392861e675a98f2af1c201596dab5597d59ce886",
+          "installedSha256": "1ad87e7031142844eea8d83a392861e675a98f2af1c201596dab5597d59ce886"
+        },
+        {
+          "path": "lib/providers/analytics.js",
+          "upstreamSha256": "fc2bb08c1fc414d96d286821a8fb8cdd347b890659667c68fe4f28fd65ad66b6",
+          "installedSha256": "fc2bb08c1fc414d96d286821a8fb8cdd347b890659667c68fe4f28fd65ad66b6"
+        },
+        {
+          "path": "lib/providers/auth.d.ts",
+          "upstreamSha256": "13d42126e9ae0bd92b583f214d987a8af2fc152c0c10426064c00542fcb6ec36",
+          "installedSha256": "13d42126e9ae0bd92b583f214d987a8af2fc152c0c10426064c00542fcb6ec36"
+        },
+        {
+          "path": "lib/providers/auth.js",
+          "upstreamSha256": "455d40e3f8b1569d29afbd9cd240e001507c4ebcf00d483a44f06d3e415135e3",
+          "installedSha256": "455d40e3f8b1569d29afbd9cd240e001507c4ebcf00d483a44f06d3e415135e3"
+        },
+        {
+          "path": "lib/providers/database.d.ts",
+          "upstreamSha256": "e78c53b7d33499ebbb6cfadcf509b6c2ea702183d9f9050febfae8b6e5b23682",
+          "installedSha256": "e78c53b7d33499ebbb6cfadcf509b6c2ea702183d9f9050febfae8b6e5b23682"
+        },
+        {
+          "path": "lib/providers/database.js",
+          "upstreamSha256": "14f64e55c96b53ba5cc3136269429547d342b6975aee68a1d84454bb218e01aa",
+          "installedSha256": "14f64e55c96b53ba5cc3136269429547d342b6975aee68a1d84454bb218e01aa"
+        },
+        {
+          "path": "lib/providers/firestore.d.ts",
+          "upstreamSha256": "7a6150acdbf0b92dc738e54ca92a7afc93a4bbf1d81e05dd6ce092d50df9e85e",
+          "installedSha256": "7a6150acdbf0b92dc738e54ca92a7afc93a4bbf1d81e05dd6ce092d50df9e85e"
+        },
+        {
+          "path": "lib/providers/firestore.js",
+          "upstreamSha256": "1efdfc756e20b25619bbc550a2d24ed267fd86013329329a9954d0a4b71e7387",
+          "installedSha256": "1efdfc756e20b25619bbc550a2d24ed267fd86013329329a9954d0a4b71e7387"
+        },
+        {
+          "path": "lib/providers/pubsub.d.ts",
+          "upstreamSha256": "51142e16eeb5e8730280a93b28808b4b2a54d7c994510dfa9bb46713a2850bab",
+          "installedSha256": "51142e16eeb5e8730280a93b28808b4b2a54d7c994510dfa9bb46713a2850bab"
+        },
+        {
+          "path": "lib/providers/pubsub.js",
+          "upstreamSha256": "6dddd348c9f70fcc606426311fb4cb6814a4e858a817376bcc052b58584de805",
+          "installedSha256": "6dddd348c9f70fcc606426311fb4cb6814a4e858a817376bcc052b58584de805"
+        },
+        {
+          "path": "lib/providers/storage.d.ts",
+          "upstreamSha256": "58cc314d63a30679c7b50eaa7d72f693ed142dd9771e2d6ae218b3972271e335",
+          "installedSha256": "58cc314d63a30679c7b50eaa7d72f693ed142dd9771e2d6ae218b3972271e335"
+        },
+        {
+          "path": "lib/providers/storage.js",
+          "upstreamSha256": "e560ca01eef1b1e6573fff4a2f4a61cbecdc9728d807ca2c18bbaa8b6b42b8aa",
+          "installedSha256": "e560ca01eef1b1e6573fff4a2f4a61cbecdc9728d807ca2c18bbaa8b6b42b8aa"
+        },
+        {
+          "path": "lib/v1.d.ts",
+          "upstreamSha256": "522d719097ba583a0b35525f75ee15d995d4f7a3df28ee0f4d14585927c85cc1",
+          "installedSha256": "522d719097ba583a0b35525f75ee15d995d4f7a3df28ee0f4d14585927c85cc1"
+        },
+        {
+          "path": "lib/v1.js",
+          "upstreamSha256": "49dc0e80bff06abd48936ac6b5c4a6cbc321e603d7c6d0720c5ec0ea6cde623f",
+          "installedSha256": "49dc0e80bff06abd48936ac6b5c4a6cbc321e603d7c6d0720c5ec0ea6cde623f"
+        },
+        {
+          "path": "lib/v2.d.ts",
+          "upstreamSha256": "dacaa601e2240a3fecc37fe999ebf1907c67499be0a1a919c9d2d5acefdf029b",
+          "installedSha256": "dacaa601e2240a3fecc37fe999ebf1907c67499be0a1a919c9d2d5acefdf029b"
+        },
+        {
+          "path": "lib/v2.js",
+          "upstreamSha256": "1946d098e6cfa75d39a8862436eb9af783fa81cca55c0d9c0786a3c242d80380",
+          "installedSha256": "1946d098e6cfa75d39a8862436eb9af783fa81cca55c0d9c0786a3c242d80380"
+        },
+        {
+          "path": "package.json",
+          "upstreamSha256": "5ce1011b955a9c2065fc6490b77e15df706ba506053941b78e9a9f73d2426629",
+          "installedSha256": "1533fdfb24dc12879e1b9f373096056176c646be4a0e639d62eff3ec4aaf5bcf"
+        }
+      ]
+    },
+    {
+      "package": "js-yaml",
+      "version": "3.15.2",
+      "upstreamTarball": "https://registry.npmjs.org/js-yaml/-/js-yaml-3.15.2.tgz",
+      "upstreamIntegrity": "sha512-6EuL879VkRA+1Cz578mKMiKvjPNEuk6+r1JaFzoSWejZmtf7xWbIyw1e3KkxlkzTIt9Taw6JBhEppG7utc1P+w==",
+      "license": "MIT",
+      "patchPath": "patches/js-yaml-3.15.2-supported-api.patch",
+      "patchSha256": "45f27e6e5a9f7892148d479e51277ffa4451cc8f01bd4b83581c9a246c1341e8",
+      "replacementDependency": "argparse",
+      "replacementVersion": "2.0.1",
+      "files": [
+        {
+          "path": "LICENSE",
+          "upstreamSha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550",
+          "installedSha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550"
+        },
+        {
+          "path": "bin/js-yaml.js",
+          "upstreamSha256": "3d0c9cbce9363a08e5d932e6c843013059758e4bd426cd77d2e09a2a229a443f",
+          "installedSha256": "9c8a8e8320bbba581c49876237ab97ad9caeb77ff6accd1f686a18c390e4ae6a"
+        },
+        {
+          "path": "dist/js-yaml.js",
+          "upstreamSha256": "85a1fdcd7fa1e971550192012a5882a2d731eb45fd9135663fed715d646a693a",
+          "installedSha256": "85a1fdcd7fa1e971550192012a5882a2d731eb45fd9135663fed715d646a693a"
+        },
+        {
+          "path": "dist/js-yaml.min.js",
+          "upstreamSha256": "8734e8ae0a11debbf8242962bd95c1001832634ec620b1dfd842af70d036b700",
+          "installedSha256": "8734e8ae0a11debbf8242962bd95c1001832634ec620b1dfd842af70d036b700"
+        },
+        {
+          "path": "index.js",
+          "upstreamSha256": "328f40040ff58c04126a22b05c6f34448698552f1a96179be276655239145611",
+          "installedSha256": "328f40040ff58c04126a22b05c6f34448698552f1a96179be276655239145611"
+        },
+        {
+          "path": "lib/js-yaml/common.js",
+          "upstreamSha256": "9211491f8e0058a419a4664e36bb4ec6509655aabe6bd537eddf941fdf34e734",
+          "installedSha256": "9211491f8e0058a419a4664e36bb4ec6509655aabe6bd537eddf941fdf34e734"
+        },
+        {
+          "path": "lib/js-yaml/dumper.js",
+          "upstreamSha256": "48236ac36eff01e28894a2bf4cf345b59f17fe1f903f58377e225442d6748938",
+          "installedSha256": "48236ac36eff01e28894a2bf4cf345b59f17fe1f903f58377e225442d6748938"
+        },
+        {
+          "path": "lib/js-yaml/exception.js",
+          "upstreamSha256": "58d704471a3e353e35978c5575d2046d2f2418960ee8dcf3c0f2abc5e3474952",
+          "installedSha256": "58d704471a3e353e35978c5575d2046d2f2418960ee8dcf3c0f2abc5e3474952"
+        },
+        {
+          "path": "lib/js-yaml/loader.js",
+          "upstreamSha256": "8e4ed747ed7d61600bc638db7a815c6833752c7d51cd63d0ed3d7ba874e4f166",
+          "installedSha256": "8e4ed747ed7d61600bc638db7a815c6833752c7d51cd63d0ed3d7ba874e4f166"
+        },
+        {
+          "path": "lib/js-yaml/mark.js",
+          "upstreamSha256": "65882707f24b1f5694b2814c1c754f94806584ee7f960a16b4a51a1777e1b118",
+          "installedSha256": "65882707f24b1f5694b2814c1c754f94806584ee7f960a16b4a51a1777e1b118"
+        },
+        {
+          "path": "lib/js-yaml/schema/core.js",
+          "upstreamSha256": "c44f2568403e81374aa165234c4e2dff9f0f3cbd8454b9b4488928c77d812216",
+          "installedSha256": "c44f2568403e81374aa165234c4e2dff9f0f3cbd8454b9b4488928c77d812216"
+        },
+        {
+          "path": "lib/js-yaml/schema/default_full.js",
+          "upstreamSha256": "f99df7d01182f9c869a52c998f453c6e50e9a00829f475f323f717c5e559b485",
+          "installedSha256": "f99df7d01182f9c869a52c998f453c6e50e9a00829f475f323f717c5e559b485"
+        },
+        {
+          "path": "lib/js-yaml/schema/default_safe.js",
+          "upstreamSha256": "1d110bfe5e40d2a5db06ad9dea609d5323cc8ad143c5269d18e58e91c19cad09",
+          "installedSha256": "1d110bfe5e40d2a5db06ad9dea609d5323cc8ad143c5269d18e58e91c19cad09"
+        },
+        {
+          "path": "lib/js-yaml/schema/failsafe.js",
+          "upstreamSha256": "96d4b5b129b966f49d8028fc752a54cb9ca0c80cc4d076240766b946a2b329c5",
+          "installedSha256": "96d4b5b129b966f49d8028fc752a54cb9ca0c80cc4d076240766b946a2b329c5"
+        },
+        {
+          "path": "lib/js-yaml/schema/json.js",
+          "upstreamSha256": "03abe51bc21e44a0777929925f32db989e4d641c8882c3642e5582e2227940de",
+          "installedSha256": "03abe51bc21e44a0777929925f32db989e4d641c8882c3642e5582e2227940de"
+        },
+        {
+          "path": "lib/js-yaml/schema.js",
+          "upstreamSha256": "f10de605dadfff1c76162dba5992381c41079c20de0e515d5f9889baafa41da3",
+          "installedSha256": "f10de605dadfff1c76162dba5992381c41079c20de0e515d5f9889baafa41da3"
+        },
+        {
+          "path": "lib/js-yaml/type/binary.js",
+          "upstreamSha256": "a9a7bdabd6e9a43b2cb27156b18eb982eef935e671ac7cebdfd3fd00f078e26f",
+          "installedSha256": "a9a7bdabd6e9a43b2cb27156b18eb982eef935e671ac7cebdfd3fd00f078e26f"
+        },
+        {
+          "path": "lib/js-yaml/type/bool.js",
+          "upstreamSha256": "634b7821ceb0877b5320a17b3b0fc3fb60ac3092b86c9d069722f18e2421c1db",
+          "installedSha256": "634b7821ceb0877b5320a17b3b0fc3fb60ac3092b86c9d069722f18e2421c1db"
+        },
+        {
+          "path": "lib/js-yaml/type/float.js",
+          "upstreamSha256": "eebb611172aadb7278b6b2beb4a1c6d46472e9ea5755e220e741d1db6cb9f88e",
+          "installedSha256": "eebb611172aadb7278b6b2beb4a1c6d46472e9ea5755e220e741d1db6cb9f88e"
+        },
+        {
+          "path": "lib/js-yaml/type/int.js",
+          "upstreamSha256": "f336f4ed186efc30484fb5d070ea5c9323c5b575f68714a64c02f0d837b1fb6f",
+          "installedSha256": "f336f4ed186efc30484fb5d070ea5c9323c5b575f68714a64c02f0d837b1fb6f"
+        },
+        {
+          "path": "lib/js-yaml/type/js/function.js",
+          "upstreamSha256": "5762c9c0c335b8c636c173f7515ed1e3af4341ec6ed2402f18c9278884aa4c63",
+          "installedSha256": "5762c9c0c335b8c636c173f7515ed1e3af4341ec6ed2402f18c9278884aa4c63"
+        },
+        {
+          "path": "lib/js-yaml/type/js/regexp.js",
+          "upstreamSha256": "741a7c3b445dd7321d02a7a0c7e9420dd7a9dc8dd1d8caab7736681b9153baf3",
+          "installedSha256": "741a7c3b445dd7321d02a7a0c7e9420dd7a9dc8dd1d8caab7736681b9153baf3"
+        },
+        {
+          "path": "lib/js-yaml/type/js/undefined.js",
+          "upstreamSha256": "fdb9e46fe7e7db9710738109a83edcde0da389ac508529f58db88953d10d285d",
+          "installedSha256": "fdb9e46fe7e7db9710738109a83edcde0da389ac508529f58db88953d10d285d"
+        },
+        {
+          "path": "lib/js-yaml/type/map.js",
+          "upstreamSha256": "b9bf146012164a0a59ea8c5f6576052706d330a1e41ab8092e11a67d6b9ccf2c",
+          "installedSha256": "b9bf146012164a0a59ea8c5f6576052706d330a1e41ab8092e11a67d6b9ccf2c"
+        },
+        {
+          "path": "lib/js-yaml/type/merge.js",
+          "upstreamSha256": "bf34d9da7bb1158c5bdd8ae4474d11645c824440f68de79813c384cd77c4791b",
+          "installedSha256": "bf34d9da7bb1158c5bdd8ae4474d11645c824440f68de79813c384cd77c4791b"
+        },
+        {
+          "path": "lib/js-yaml/type/null.js",
+          "upstreamSha256": "0643ef7180d409225e33b2958e373d146c8c8fd5f7eaf970fb62c17a062a0d14",
+          "installedSha256": "0643ef7180d409225e33b2958e373d146c8c8fd5f7eaf970fb62c17a062a0d14"
+        },
+        {
+          "path": "lib/js-yaml/type/omap.js",
+          "upstreamSha256": "dee69fc4c703b5595cb96ba649d23f63648c59c75b2ec12a67a26335f29af482",
+          "installedSha256": "dee69fc4c703b5595cb96ba649d23f63648c59c75b2ec12a67a26335f29af482"
+        },
+        {
+          "path": "lib/js-yaml/type/pairs.js",
+          "upstreamSha256": "faebb6d8a9d1b0cd755f92113e49464711d87060f17d1e807695924866f89a4a",
+          "installedSha256": "faebb6d8a9d1b0cd755f92113e49464711d87060f17d1e807695924866f89a4a"
+        },
+        {
+          "path": "lib/js-yaml/type/seq.js",
+          "upstreamSha256": "f3d76a1db2a6772a51ac32059dcc18b6666ae9c5a60a649467b5853a2fbaf425",
+          "installedSha256": "f3d76a1db2a6772a51ac32059dcc18b6666ae9c5a60a649467b5853a2fbaf425"
+        },
+        {
+          "path": "lib/js-yaml/type/set.js",
+          "upstreamSha256": "60d13edc50b58b037a6ef561d2f751c601826e455c011acf48c830baa1412107",
+          "installedSha256": "60d13edc50b58b037a6ef561d2f751c601826e455c011acf48c830baa1412107"
+        },
+        {
+          "path": "lib/js-yaml/type/str.js",
+          "upstreamSha256": "41e56af5fad426839bfe41c9a3f489de6efec71447490124a69f8f4785c46ab9",
+          "installedSha256": "41e56af5fad426839bfe41c9a3f489de6efec71447490124a69f8f4785c46ab9"
+        },
+        {
+          "path": "lib/js-yaml/type/timestamp.js",
+          "upstreamSha256": "9e4f77c8d504a3a8319108343d6d6b2b6ed95ba6e96f4fe9b204208d04cfd691",
+          "installedSha256": "9e4f77c8d504a3a8319108343d6d6b2b6ed95ba6e96f4fe9b204208d04cfd691"
+        },
+        {
+          "path": "lib/js-yaml/type.js",
+          "upstreamSha256": "d5b6c6eea1f9f1e05425c44413e4dd192001b06914d8f978aa326e4754b37249",
+          "installedSha256": "d5b6c6eea1f9f1e05425c44413e4dd192001b06914d8f978aa326e4754b37249"
+        },
+        {
+          "path": "lib/js-yaml.js",
+          "upstreamSha256": "aff7372f6e772c25bd084d5299fd6996976e664eb60633e65b72d8b6f6994da8",
+          "installedSha256": "aff7372f6e772c25bd084d5299fd6996976e664eb60633e65b72d8b6f6994da8"
+        },
+        {
+          "path": "package.json",
+          "upstreamSha256": "c368f6b67cb364dfb35676b6f0c691d125f28fb12ecaf1c55f51b88ced351177",
+          "installedSha256": "0286dfff11f8ed585b622f2436a67102d9dc73bdbb5617348edf6f263e7f9d31"
+        }
+      ]
+    }
+  ]
+}

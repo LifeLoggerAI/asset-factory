@@ -5,9 +5,9 @@
   "main": "server.v1.js",
   "scripts": {
     "start": "node server.v1.js",
-    "harden": "npm audit fix --production",
-    "lock": "npm shrinkwrap",
-    "check-unused": "npx depcheck",
+    "harden": "node ../scripts/retired-npm-dependency-command.mjs engine:harden",
+    "lock": "node ../scripts/retired-npm-dependency-command.mjs engine:lock",
+    "check-unused": "node ../scripts/run-engine-unused-audit.mjs",
     "test": "node --test test/*.test.js"
   },
   "author": "URAI Restoration Team",
@@ -21,7 +21,7 @@
     "express-rate-limit": "^8.5.2",
     "fs-extra": "11.2.0",
     "stripe": "^20.3.1",
-    "uuid": "9.0.1"
+    "uuid": "11.1.1"
   },
   "devDependencies": {
     "depcheck": "1.4.7"

@@ -1,3 +1,4 @@
+import { paidStudioFetch, readStudioProvider, readStudioBytes, observeStudioProviderTask, replicateStudioStatusUrl, waitStudioProvider, withProtectedStudioSession } from './protectedProviderRequest';
 import type { GenerateRequest } from './assetFactoryValidation';
 import { downloadHiggsfieldArtifact, higgsfieldArtifactUrl, higgsfieldCredentialsConfigured, higgsfieldIdempotencyKey, runHiggsfieldGeneration } from './higgsfieldClient';
 
@@ -38,11 +39,11 @@ function publicUrl(value: unknown): string | null {
 }
 
 async function fetchJson(url: string, init?: RequestInit): Promise<JsonRecord> {
-  const response = await fetch(url, init);
-  const text = await response.text();
+  const response = await readStudioProvider(url, init);
+  const text = (await readStudioBytes(response, 2 * 1024 * 1024)).toString('utf8');
   let body: unknown = text;
   try { body = text ? JSON.parse(text) : {}; } catch {}
-  if (!response.ok) throw new Error(`Video provider request failed ${response.status}: ${text.slice(0, 1000)}`);
+  if (!response.ok) throw new Error(`Video provider request failed ${response.status}`);
   return (body && typeof body === 'object' ? body : {}) as JsonRecord;
 }
 
@@ -67,12 +68,12 @@ async function downloadVideo(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS));
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const maxBytes = numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES);
+    const response = await readStudioProvider(url, { signal: controller.signal }, { maxBytes });
     if (!response.ok) throw new Error(`Video artifact fetch failed ${response.status}`);
     const contentLength = Number(response.headers.get('content-length') ?? 0);
-    const maxBytes = numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_MAX_BYTES', DEFAULT_MAX_BYTES);
     if (contentLength > maxBytes) throw new Error(`Video artifact exceeds max bytes: ${contentLength}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readStudioBytes(response, maxBytes);
     if (buffer.byteLength > maxBytes) throw new Error(`Video artifact exceeds max bytes after download: ${buffer.byteLength}`);
     const mime = response.headers.get('content-type') ?? 'video/mp4';
     return { buffer, mime };
@@ -133,14 +134,18 @@ async function renderReplicate(input: GenerateRequest): Promise<VideoProviderRen
   const payload: JsonRecord = { input: replicateInput(input) };
   if (version) payload.version = version;
 
-  let prediction = await fetchJson(createUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
+  const submission = await paidStudioFetch('replicate', model, 'video', createUrl, { method: 'POST', headers, body: JSON.stringify(payload) });
+  if (!submission.ok) throw new Error(`Video provider request failed ${submission.status}`);
+  let prediction = JSON.parse((await readStudioBytes(submission, 2 * 1024 * 1024)).toString('utf8')) as JsonRecord;
+  observeStudioProviderTask(prediction.id);
+  const predictionId = prediction.id;
   const deadline = Date.now() + numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS);
   while (!['succeeded', 'failed', 'canceled'].includes(String(prediction.status ?? ''))) {
     if (Date.now() > deadline) throw new Error('Video provider polling timed out');
-    const getUrl = publicUrl((prediction.urls as JsonRecord | undefined)?.get);
-    if (!getUrl) throw new Error('Video provider response missing prediction polling URL');
-    await new Promise((resolve) => setTimeout(resolve, numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS', DEFAULT_POLL_MS)));
+    const getUrl = replicateStudioStatusUrl((prediction.urls as JsonRecord | undefined)?.get, predictionId);
+    await waitStudioProvider(numberEnv('ASSET_FACTORY_VIDEO_PROVIDER_POLL_MS', DEFAULT_POLL_MS));
     prediction = await fetchJson(getUrl, { headers: { authorization: `Bearer ${token}` } });
+    if (prediction.id !== predictionId) throw new Error('Replicate video status response differs from admitted task');
   }
   if (prediction.status !== 'succeeded') throw new Error(`Video provider prediction ${String(prediction.status)}: ${JSON.stringify(prediction.error ?? '')}`);
   const artifactUrl = firstArtifactUrl(prediction.output);
@@ -235,7 +240,8 @@ async function renderHiggsfield(input: GenerateRequest): Promise<VideoProviderRe
   const result = await runHiggsfieldGeneration(
     selected.endpoint,
     selected.payload,
-    higgsfieldIdempotencyKey(input.jobId, selected.lane, selected.endpoint)
+    higgsfieldIdempotencyKey(input.jobId, selected.lane, selected.endpoint),
+    input
   );
   const artifactUrl = higgsfieldArtifactUrl(result, 'video');
   const artifact = await downloadHiggsfieldArtifact(artifactUrl, {
@@ -265,11 +271,16 @@ async function renderConfiguredHttpProvider(input: GenerateRequest, provider: 'f
   if (!endpoint || !apiKey) throw new Error(`${provider} video runtime requires an approved endpoint and API key`);
   const safeEndpoint = publicUrl(endpoint);
   if (!safeEndpoint) throw new Error(`${provider} video endpoint must be a public HTTP(S) URL`);
-  const result = await fetchJson(safeEndpoint, {
+  const model = env(`ASSET_FACTORY_${provider.toUpperCase()}_VIDEO_MODEL`);
+  if (!model) throw new Error(`${provider} video runtime requires an approved exact model`);
+  const response = await paidStudioFetch(provider, model, 'video', safeEndpoint, {
     method: 'POST',
     headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ prompt: input.prompt, aspectRatio: input.aspectRatio || '9:16', ...videoMetadata(input) }),
+    body: JSON.stringify({ model, prompt: input.prompt, aspectRatio: input.aspectRatio || '9:16', ...videoMetadata(input) }),
   });
+  if (!response.ok) throw new Error(`Video provider request failed ${response.status}`);
+  const result = JSON.parse((await readStudioBytes(response, 2 * 1024 * 1024)).toString('utf8')) as JsonRecord;
+  observeStudioProviderTask(result.id);
   const artifactUrl = firstArtifactUrl(result.output ?? result.video ?? result.url);
   if (!artifactUrl) throw new Error(`${provider} video endpoint did not return an artifact URL`);
   const artifact = await downloadVideo(artifactUrl);
@@ -277,16 +288,18 @@ async function renderConfiguredHttpProvider(input: GenerateRequest, provider: 'f
     assetBuffer: artifact.buffer,
     assetMimeType: artifact.mime,
     extension: artifact.mime.includes('webm') ? 'webm' : 'mp4',
-    metadata: { provider, providerModel: result.model ?? null, providerJobId: result.id ?? null, video: videoMetadata(input) },
+    metadata: { provider, providerModel: model, providerJobId: result.id ?? null, video: videoMetadata(input) },
   };
 }
 
 export async function renderVideoWithConfiguredProvider(input: GenerateRequest): Promise<VideoProviderRenderResult | null> {
   const provider = env('ASSET_FACTORY_VIDEO_PROVIDER') || env('ASSET_FACTORY_MEDIA_PROVIDER') || 'local-proof';
   if (provider === 'local-proof') return null;
-  if (provider === 'replicate') return renderReplicate(input);
-  if (provider === 'fal') return renderConfiguredHttpProvider(input, 'fal');
-  if (provider === 'runway') return renderConfiguredHttpProvider(input, 'runway');
-  if (provider === 'higgsfield') return renderHiggsfield(input);
-  throw new Error(`Configured provider ${provider} does not support canonical video rendering`);
+  return withProtectedStudioSession(input, async () => {
+    if (provider === 'replicate') return renderReplicate(input);
+    if (provider === 'fal') return renderConfiguredHttpProvider(input, 'fal');
+    if (provider === 'runway') return renderConfiguredHttpProvider(input, 'runway');
+    if (provider === 'higgsfield') return renderHiggsfield(input);
+    throw new Error(`Configured provider ${provider} does not support canonical video rendering`);
+  });
 }

@@ -30,18 +30,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20.19.0'
-      - run: corepack enable
-      - name: Install dependencies
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            corepack prepare pnpm@9.15.9 --activate
-            pnpm install --frozen-lockfile
-          elif [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            echo "No package.json found; skipping install."
-          fi
+      - name: Install frozen workspace dependencies
+        run: node scripts/install-locked-dependencies.mjs
       - name: Verify
         run: node scripts/urai-production-verify.mjs

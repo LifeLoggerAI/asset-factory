@@ -124,7 +124,7 @@ def main() -> int:
                     failed_names.append(name)
 
     ledger = generator.paid_request_guard.snapshot()
-    if ledger["providerCallsExecuted"] > 10 or float(ledger["reservedEstimatedCostUsd"]) > 10.0:
+    if ledger["providerCallsReserved"] > 10 or float(ledger["reservedEstimatedCostUsd"]) > 10.0:
         raise SystemExit("retry exceeded bounded authorization")
 
     failed_names = sorted(set(failed_names))
@@ -145,8 +145,11 @@ def main() -> int:
         "failedNames": failed_names,
         "provider": "openai",
         "providerCallsExecutedThisRetry": ledger["providerCallsExecuted"],
+        "providerCallsReservedThisRetry": ledger["providerCallsReserved"],
+        "chargesReconciledThisRetry": ledger["chargesReconciled"],
+        "actualCostUsdThisRetry": ledger["actualCostUsd"],
         "reservedEstimatedCostUsdThisRetry": ledger["reservedEstimatedCostUsd"],
-        "providerCallsExecutedCumulativeV4": 44 + int(ledger["providerCallsExecuted"]),
+        "providerCallsExecutedCumulativeV4": 44 + int(ledger["providerCallsExecuted"]) if ledger["providerCallsExecuted"] is not None else None,
         "reservedEstimatedCostUsdCumulativeV4": f"{44.0 + float(ledger['reservedEstimatedCostUsd']):.2f}",
         "exactDuplicateGroups": exact_duplicates,
         "nearDuplicatePairs": near_duplicates,

@@ -1,3 +1,4 @@
+import { paidStudioFetch, readStudioProvider, readStudioBytes, observeStudioProviderTask, replicateStudioStatusUrl, studioMultipart, waitStudioProvider, withProtectedStudioSession } from './protectedProviderRequest';
 import type { GenerateRequest } from './assetFactoryValidation';
 import type { AssetTypeDefinition } from './assetTypeCatalog';
 import { configuredProviderName, type AssetProviderName } from './assetProviderAdapters';
@@ -91,45 +92,30 @@ function assertPublicProviderUrl(url: string) {
 }
 
 async function readProviderPayload(response: Response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text();
-
-  if (!response.ok) {
-    throw new Error(`Provider request failed ${response.status}: ${typeof payload === 'string' ? payload : JSON.stringify(payload)}`);
-  }
-
+  if (!response.ok) throw new Error(`Provider request failed ${response.status}`);
+  const text = (await readStudioBytes(response, numberFromEnv('ASSET_FACTORY_PROVIDER_JSON_MAX_BYTES', DEFAULT_PROVIDER_MAX_BYTES))).toString('utf8');
+  const payload: unknown = JSON.parse(text);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Provider response must be a JSON object');
   return payload as JsonRecord;
 }
 
-async function postJson(url: string, headers: Record<string, string>, body: JsonRecord) {
-  const response = await fetch(url, {
+async function postJson(provider: string, model: string, lane: string, url: string, headers: Record<string, string>, body: JsonRecord) {
+  const response = await paidStudioFetch(provider, model, lane, url, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...headers,
-    },
+    headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body),
     signal: providerAbortSignal(),
   });
-
   return readProviderPayload(response);
 }
 
 async function getJson(url: string, headers: Record<string, string>) {
-  const response = await fetch(assertPublicProviderUrl(url), {
-    method: 'GET',
-    headers,
-    signal: providerAbortSignal(),
-  });
-
-  return readProviderPayload(response);
+  return readProviderPayload(await readStudioProvider(assertPublicProviderUrl(url), { headers, signal: providerAbortSignal() }));
 }
 
 async function readBinaryWithLimit(response: Response, maxBytes: number) {
   if (!response.body) {
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = await readStudioBytes(response, providerMaxBytes());
     if (buffer.byteLength > maxBytes) {
       throw new Error(`Provider artifact exceeds max bytes after download: ${buffer.byteLength}`);
     }
@@ -162,12 +148,12 @@ async function readBinaryWithLimit(response: Response, maxBytes: number) {
 
 async function fetchBinary(url: string, headers: Record<string, string> = {}) {
   const safeUrl = assertPublicProviderUrl(url);
-  const response = await fetch(safeUrl, { headers, signal: providerAbortSignal() });
+  const maxBytes = providerMaxBytes();
+  const response = await readStudioProvider(safeUrl, { headers, signal: providerAbortSignal() }, { maxBytes });
   if (!response.ok) throw new Error(`Provider artifact fetch failed ${response.status}`);
 
   const contentLengthHeader = response.headers.get('content-length');
   const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
-  const maxBytes = providerMaxBytes();
   if (contentLength !== null && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new Error(`Provider artifact exceeds max bytes before download: ${contentLength}`);
   }
@@ -218,17 +204,23 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
       ? `${input.size.width}x${input.size.height}`
       : env('ASSET_FACTORY_GRAPHICS_SIZE') || '1024x1024';
     const model = env('ASSET_FACTORY_GRAPHICS_MODEL') || 'gpt-image-1';
+    const format = model.startsWith('gpt-image-') || model === 'chatgpt-image-latest'
+      ? { output_format: 'png' }
+      : { response_format: 'b64_json' };
     const payload = await postJson(
-      'https://api.openai.com/v1/images/generations',
+      'openai', model, 'graphic', 'https://api.openai.com/v1/images/generations',
       { authorization: `Bearer ${apiKey}` },
-      { model, prompt: input.prompt, size, response_format: 'b64_json' }
+      { model, prompt: input.prompt, size, ...format }
     );
     const data = Array.isArray(payload.data) ? payload.data[0] as JsonRecord | undefined : undefined;
     const b64 = stringValue(data?.b64_json);
     const url = stringValue(data?.url);
     if (b64) {
+      if (b64.length > Math.ceil(providerMaxBytes() / 3) * 4) throw new Error('OpenAI image exceeds approved artifact byte limit');
+      const assetBuffer = Buffer.from(b64, 'base64');
+      if (assetBuffer.byteLength > providerMaxBytes()) throw new Error('OpenAI image exceeds approved artifact byte limit');
       return {
-        assetBuffer: Buffer.from(b64, 'base64'),
+        assetBuffer,
         assetMimeType: 'image/png',
         extension: 'png',
         metadata: { provider: 'openai', providerModel: model, providerOutput: 'b64_json' },
@@ -248,8 +240,9 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 
   if (definition.canonicalType === 'audio') {
     const model = env('ASSET_FACTORY_AUDIO_MODEL') || 'gpt-4o-mini-tts';
-    const voice = env('ASSET_FACTORY_OPENAI_VOICE') || 'alloy';
-    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    const voice = env('ASSET_FACTORY_OPENAI_VOICE');
+    if (!voice) throw new Error('An explicitly approved OpenAI voice identity is required');
+    const response = await paidStudioFetch('openai', model, 'speech', 'https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
         authorization: `Bearer ${apiKey}`,
@@ -258,9 +251,9 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
       body: JSON.stringify({ model, voice, input: input.prompt, response_format: 'wav' }),
       signal: providerAbortSignal(),
     });
-    if (!response.ok) throw new Error(`OpenAI audio request failed ${response.status}: ${await response.text()}`);
+    if (!response.ok) throw new Error(`OpenAI audio request failed ${response.status}`);
     return {
-      assetBuffer: Buffer.from(await response.arrayBuffer()),
+      assetBuffer: await readStudioBytes(response, providerMaxBytes()),
       assetMimeType: response.headers.get('content-type') ?? 'audio/wav',
       extension: 'wav',
       metadata: { provider: 'openai', providerModel: model, voice },
@@ -273,9 +266,10 @@ async function renderOpenAi(input: GenerateRequest, definition: AssetTypeDefinit
 async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderResult | null> {
   const apiKey = env('ELEVENLABS_API_KEY');
   if (!apiKey) return null;
-  const voiceId = env('ELEVENLABS_VOICE_ID') || '21m00Tcm4TlvDq8ikWAM';
+  const voiceId = env('ELEVENLABS_VOICE_ID');
+  if (!voiceId || !/^[A-Za-z0-9_-]+$/.test(voiceId)) throw new Error('An explicitly approved ElevenLabs voice identity is required');
   const modelId = env('ASSET_FACTORY_AUDIO_MODEL') || 'eleven_multilingual_v2';
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+  const response = await paidStudioFetch('elevenlabs', modelId, 'speech', `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
       'xi-api-key': apiKey,
@@ -285,9 +279,9 @@ async function renderElevenLabs(input: GenerateRequest): Promise<ProviderRenderR
     body: JSON.stringify({ text: input.prompt, model_id: modelId }),
     signal: providerAbortSignal(),
   });
-  if (!response.ok) throw new Error(`ElevenLabs audio request failed ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`ElevenLabs audio request failed ${response.status}`);
   return {
-    assetBuffer: Buffer.from(await response.arrayBuffer()),
+    assetBuffer: await readStudioBytes(response, providerMaxBytes()),
     assetMimeType: response.headers.get('content-type') ?? 'audio/mpeg',
     extension: 'mp3',
     metadata: { provider: 'elevenlabs', providerModel: modelId, voiceId },
@@ -298,24 +292,21 @@ async function renderStability(input: GenerateRequest): Promise<ProviderRenderRe
   const apiKey = env('STABILITY_API_KEY');
   if (!apiKey) return null;
   const engine = env('ASSET_FACTORY_GRAPHICS_MODEL') || 'stable-image-core';
-  const response = await fetch(`https://api.stability.ai/v2beta/stable-image/generate/${engine}`, {
+  const multipart = studioMultipart({ prompt: input.prompt, output_format: env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png' });
+  const response = await paidStudioFetch('stability', engine, 'graphic', `https://api.stability.ai/v2beta/stable-image/generate/${engine}`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${apiKey}`,
       accept: 'image/*',
+      'content-type': multipart.contentType,
     },
-    body: (() => {
-      const form = new FormData();
-      form.set('prompt', input.prompt);
-      form.set('output_format', env('ASSET_FACTORY_GRAPHICS_FORMAT') || 'png');
-      return form;
-    })(),
+    body: multipart.body,
     signal: providerAbortSignal(),
   });
-  if (!response.ok) throw new Error(`Stability image request failed ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`Stability image request failed ${response.status}`);
   const mimeType = response.headers.get('content-type') ?? 'image/png';
   return {
-    assetBuffer: Buffer.from(await response.arrayBuffer()),
+    assetBuffer: await readStudioBytes(response, providerMaxBytes()),
     assetMimeType: mimeType,
     extension: extensionFromMime(mimeType, 'png'),
     metadata: { provider: 'stability', providerModel: engine },
@@ -447,13 +438,16 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
 
   const request = replicatePredictionRequest(selection, replicateInput(input, selection));
   const prediction = await postJson(
-    request.url,
+    'replicate', selection.model, selection.lane, request.url,
     { authorization: `Bearer ${apiKey}` },
     request.body
   );
 
+  observeStudioProviderTask(prediction.id);
   let current = prediction;
-  const getUrl = stringValue((prediction.urls as JsonRecord | undefined)?.get);
+  const predictionId = stringValue(prediction.id);
+  const rawGetUrl = stringValue((prediction.urls as JsonRecord | undefined)?.get);
+  const getUrl = rawGetUrl ? replicateStudioStatusUrl(rawGetUrl, predictionId) : '';
   const deadline = Date.now() + providerTimeoutMs();
   while (getUrl) {
     const status = stringValue(current.status);
@@ -462,8 +456,13 @@ async function renderReplicate(input: GenerateRequest, definition: AssetTypeDefi
     if (Date.now() >= deadline) {
       throw new Error(`Replicate prediction timed out after ${providerTimeoutMs()}ms`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await waitStudioProvider(1000);
     current = await getJson(getUrl, { authorization: `Bearer ${apiKey}` });
+    if (current.id !== predictionId) throw new Error('Replicate status response differs from admitted task');
+  }
+
+  if (stringValue(current.status) !== 'succeeded') {
+    throw new Error('Replicate prediction did not reach succeeded state');
   }
 
   const outputUrl = firstUrl(current.output);
@@ -488,7 +487,9 @@ async function renderHiggsfield(input: GenerateRequest, definition: AssetTypeDef
   const result = await runHiggsfieldGeneration(
     endpoint,
     { prompt: input.prompt },
-    higgsfieldIdempotencyKey(input.jobId, 'graphic', endpoint)
+    higgsfieldIdempotencyKey(input.jobId, 'graphic', endpoint),
+    input,
+    'graphic'
   );
   const artifactUrl = higgsfieldArtifactUrl(result, 'image');
   const artifact = await downloadHiggsfieldArtifact(artifactUrl, {
@@ -520,7 +521,7 @@ async function renderFal(input: GenerateRequest, definition: AssetTypeDefinition
   if (!apiKey || !model) return null;
 
   const payload = await postJson(
-    `https://fal.run/${model}`,
+    'fal', model, definition.canonicalType, `https://fal.run/${model}`,
     { authorization: `Key ${apiKey}` },
     { prompt: input.prompt }
   );
@@ -542,7 +543,7 @@ export async function renderWithConfiguredProvider(
   const provider = configuredProviderName();
   if (provider === 'local-proof') return null;
 
-  const result = await renderProvider(provider, input, definition);
+  const result = await withProtectedStudioSession(input, () => renderProvider(provider, input, definition));
   if (!result) {
     throw new Error(`Configured provider ${provider} cannot render ${definition.canonicalType} or is missing required env`);
   }
@@ -562,3 +563,5 @@ async function renderProvider(
   if (provider === 'higgsfield') return renderHiggsfield(input, definition);
   return null;
 }
+
+

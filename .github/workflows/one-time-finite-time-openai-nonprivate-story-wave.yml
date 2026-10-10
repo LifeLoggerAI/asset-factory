@@ -87,6 +87,11 @@ jobs:
       - name: Generate one certified nonprivate story shot
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          ASSET_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.ASSET_FORGE_SPEND_JOB_IDS_JSON }}
           FINITE_TIME_VIDEO_MODEL: sora-2
           FINITE_TIME_VIDEO_SIZE: 1280x720
           SHOT_NUMBER: ${{ matrix.shot }}
@@ -96,7 +101,7 @@ jobs:
           test -n "$OPENAI_API_KEY"
           root="$GITHUB_WORKSPACE/production-src"
           out="$GITHUB_WORKSPACE/artifacts/finite-time/nonprivate-story-wave/shot-${SHOT_NUMBER}"
-          python "$root/film_foundry/finite_time/generate-openai-production.py" \
+          python film_foundry/finite_time/generate-openai-production.py \
             --manifest "$root/film_foundry/finite_time/farm-to-lake.manifest.json" \
             --edit-plan "$root/film_foundry/finite_time/farm-to-lake.edit-plan.v2.json" \
             --authorization "$root/film_foundry/finite_time/openai-production-authorization.v2.json" \

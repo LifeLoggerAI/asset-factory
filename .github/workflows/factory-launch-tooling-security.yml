@@ -1,0 +1,70 @@
+name: Factory standalone launch tooling installed security
+on:
+  pull_request:
+    branches: [main, repair/model-forge-current-main-20261007]
+    paths:
+      - model_forge/launch-asset-preparation/v1/**
+      - scripts/check-installed-reviewed-advisories.mjs
+      - scripts/check-launch-asset-tooling-reviewed-advisories.mjs
+      - .github/workflows/factory-launch-tooling-security.yml
+permissions:
+  contents: read
+concurrency:
+  group: factory-launch-tooling-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  installed-standalone-proof:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      NODE_OPTIONS: --max-old-space-size=256
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Require immutable clean source
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Setup pinned supported Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.3'
+      - name: Install the actual standalone frozen graph without scripts or disclosure
+        working-directory: model_forge/launch-asset-preparation/v1
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Read both complete exact public primary advisory snapshots
+        run: |
+          git clone --quiet --depth=1 --filter=blob:none --no-checkout https://github.com/github/advisory-database.git "$RUNNER_TEMP/launch-tooling-advisories-historical"
+          git -C "$RUNNER_TEMP/launch-tooling-advisories-historical" fetch --quiet --depth=1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C "$RUNNER_TEMP/launch-tooling-advisories-historical" checkout --quiet --detach 161aa622af11e0b687366ff64cf068f7cca59a50
+          git clone --quiet --depth=1 --filter=blob:none --no-checkout https://github.com/github/advisory-database.git "$RUNNER_TEMP/launch-tooling-advisories-current"
+          git -C "$RUNNER_TEMP/launch-tooling-advisories-current" fetch --quiet --depth=1 origin 4a4d987c2a10120439be63a222087d94dd54f719
+          git -C "$RUNNER_TEMP/launch-tooling-advisories-current" checkout --quiet --detach 4a4d987c2a10120439be63a222087d94dd54f719
+      - name: Reject every actual installed advisory severity without exceptions
+        run: node scripts/check-launch-asset-tooling-reviewed-advisories.mjs "$RUNNER_TEMP/launch-tooling-advisories-historical" "$RUNNER_TEMP/launch-tooling-advisories-current" artifacts/launch-asset-tooling-installed-security.json
+      - name: Run the unchanged actual standalone preparation contracts
+        working-directory: model_forge/launch-asset-preparation/v1
+        run: npm test
+      - name: Run the unchanged decoded and container policy contracts
+        run: node --test model_forge/launch-asset-preparation/v1/test-decoded-asset.mjs scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-triangle-budget.mjs
+      - name: Refuse source and lock drift
+        run: git diff --exit-code HEAD
+      - name: Retain scoped native nonsecret evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-launch-tooling-installed-security-${{ github.event.pull_request.head.sha }}-${{ matrix.os }}
+          path: |
+            artifacts/launch-asset-tooling-installed-security.json
+            model_forge/launch-asset-preparation/v1/package.json
+            model_forge/launch-asset-preparation/v1/package-lock.json
+          if-no-files-found: error
+          retention-days: 14
