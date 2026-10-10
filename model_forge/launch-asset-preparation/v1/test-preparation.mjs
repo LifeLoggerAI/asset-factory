@@ -66,3 +66,50 @@ test('CLI binds missing model budget to pinned Spatial policy and refuses malfor
     assert.deepEqual(await fs.readdir(path.join(rejected,'models')),[]);
   } finally {await fs.rm(temp,{recursive:true,force:true});}
 });
+
+for(const modelCount of [1,21]) test(`CLI verifies preserved source hashes and reports ${modelCount} actual models without claiming 22 review copies`,async()=>{
+  const temp=await fs.mkdtemp(path.join(os.tmpdir(),'urai-asset-preservation-'));
+  const source=path.join(temp,'source'),out=path.join(temp,'candidate');await fs.mkdir(source);
+  const bytes=await fixture(),sha256=crypto.createHash('sha256').update(bytes).digest('hex');
+  const matrix=path.join(temp,'matrix.json'),records=[];
+  const recipe=fileURLToPath(new URL('./prepare-launch-assets.mjs',import.meta.url));
+  try {
+    for(let i=0;i<modelCount;i++){
+      const id='model-'+i,pathName=id+'.glb';await fs.writeFile(path.join(source,pathName),bytes);
+      records.push({id,path:pathName,sha256,sourceSha:'fixture',measured:{format:'glb'},budgets:{}});
+    }
+    records.push({id:'not-a-model',measured:{format:'json'}});
+    await fs.writeFile(matrix,JSON.stringify({assetMatrix:records}));
+    execFileSync(process.execPath,[recipe,source,matrix,out],{stdio:'pipe'});
+    const summary=JSON.parse(await fs.readFile(path.join(out,'model-receipts.json'),'utf8'));
+    assert.equal(summary.matrixAssetCount,modelCount+1);assert.equal(summary.preparedModelCount,modelCount);assert.equal(summary.sourceInputsVerifiedUnchanged,modelCount);assert.equal(summary.receipts.length,modelCount);assert.equal(summary.admitted,0);
+    assert.equal(summary.reviewCopiesPreservation,'NOT_VERIFIED_BY_THIS_RECIPE');
+    for(const row of summary.receipts){
+      assert.equal(row.matrixAssetCount,modelCount+1);assert.equal(row.preparedModelCount,modelCount);
+      assert.equal(Object.hasOwn(row,'sourceAnd22LosslessReviewCopiesPreserved'),false);
+      assert.deepEqual(row.sourceInputPreservation,{verified:true,sha256Before:sha256,sha256After:sha256});
+      assert.equal(row.reviewCopiesPreservation,'NOT_VERIFIED_BY_THIS_RECIPE');
+      assert.equal(row.classification,'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED');
+      assert.equal(crypto.createHash('sha256').update(await fs.readFile(path.join(source,row.sourcePath))).digest('hex'),sha256);
+      assert.deepEqual(JSON.parse(await fs.readFile(path.join(out,'receipts',row.id+'.json'),'utf8')),row);
+    }
+  } finally {await fs.rm(temp,{recursive:true,force:true});}
+});
+
+test('CLI rejects a source changed after its initial hash instead of publishing a preservation receipt',async()=>{
+  const temp=await fs.mkdtemp(path.join(os.tmpdir(),'urai-asset-source-change-'));
+  const source=path.join(temp,'source'),out=path.join(temp,'candidate');await fs.mkdir(source);
+  const bytes=await fixture(),sha256=crypto.createHash('sha256').update(bytes).digest('hex'),sourceFile=path.join(source,'test.glb');
+  const matrix=path.join(temp,'matrix.json'),preload=path.join(temp,'concurrent-source-change.mjs');
+  const recipe=fileURLToPath(new URL('./prepare-launch-assets.mjs',import.meta.url));
+  try {
+    await fs.writeFile(sourceFile,bytes);
+    await fs.writeFile(matrix,JSON.stringify({assetMatrix:[{id:'test',path:'test.glb',sha256,sourceSha:'fixture',measured:{format:'glb'},budgets:{}}]}));
+    // Deterministically model a concurrent edit before the second real filesystem read.
+    await fs.writeFile(preload,`import fs from 'node:fs/promises';\nimport path from 'node:path';\nconst read=fs.readFile.bind(fs),target=${JSON.stringify(sourceFile)};let reads=0;\nfs.readFile=async function(file,...args){if(typeof file==='string'&&path.resolve(file)===target&&++reads===2)await fs.writeFile(target,'concurrent changed source');return read(file,...args);};\n`);
+    assert.throws(()=>execFileSync(process.execPath,['--import',preload,recipe,source,matrix,out],{stdio:'pipe'}),error=>error.status===1&&/Source changed during preparation test/.test(error.stderr.toString()));
+    assert.deepEqual(await fs.readdir(path.join(out,'receipts')),[]);
+    await assert.rejects(fs.readFile(path.join(out,'model-receipts.json')),error=>error.code==='ENOENT');
+    assert.equal(await fs.readFile(sourceFile,'utf8'),'concurrent changed source');
+  } finally {await fs.rm(temp,{recursive:true,force:true});}
+});

@@ -111,16 +111,19 @@ if(process.argv[1]===fileURLToPath(import.meta.url)) {
   const matrix=JSON.parse(await fs.readFile(matrixPath,'utf8')).assetMatrix;
   await fs.mkdir(path.join(outputDir,'models'),{recursive:true});await fs.mkdir(path.join(outputDir,'receipts'),{recursive:true});
   const receipts=[];
-  for(const asset of matrix.filter(a=>a.measured.format==='glb')) {
+  const models=matrix.filter(a=>a.measured.format==='glb');
+  for(const asset of models) {
     assert.ok(!path.isAbsolute(asset.path)&&!asset.path.split(/[\\/]/).includes('..'),'Source paths must stay inside the source tree');
     const source=await fs.readFile(path.join(sourceRoot,asset.path));assert.equal(sha(source),asset.sha256,`Source mismatch ${asset.id}`);
     const prepared=await prepareModel(source);
     const byteBudget=evaluateModelByteBudget(prepared.bytes.length,asset.budgets.maxBytes);
     const outputPath=`models/${asset.id}.meshopt.glb`;await fs.writeFile(path.join(outputDir,outputPath),prepared.bytes);
     await fs.writeFile(path.join(outputDir,outputPath+'.gz'),zlib.gzipSync(prepared.bytes,{level:9,mtime:0}));
-    const receipt={id:asset.id,sourceRepository:asset.sourceRepository,sourceSha:asset.sourceSha,sourcePath:asset.path,outputPath,classification:'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED',...prepared.receipt,sourceBoundsMeters:asset.budgets.actualBoundsMeters,targetBoundsMeters:asset.budgets.targetBoundsMeters,boundsPass:asset.budgets.boundsPass,sourceTriangleCount:asset.budgets.actualTriangles,byteBudgetPass:byteBudget.byteBudgetPass,byteBudget,sourceAnd22LosslessReviewCopiesPreserved:true};
+    const sourceSha256After=sha(await fs.readFile(path.join(sourceRoot,asset.path)));
+    assert.equal(sourceSha256After,asset.sha256,`Source changed during preparation ${asset.id}`);
+    const receipt={id:asset.id,sourceRepository:asset.sourceRepository,sourceSha:asset.sourceSha,sourcePath:asset.path,outputPath,classification:'MACHINE_PREPARED_CANDIDATE_NOT_ADMITTED',...prepared.receipt,sourceBoundsMeters:asset.budgets.actualBoundsMeters,targetBoundsMeters:asset.budgets.targetBoundsMeters,boundsPass:asset.budgets.boundsPass,sourceTriangleCount:asset.budgets.actualTriangles,byteBudgetPass:byteBudget.byteBudgetPass,byteBudget,sourceInputPreservation:{verified:true,sha256Before:sha(source),sha256After:sourceSha256After},matrixAssetCount:matrix.length,preparedModelCount:models.length,reviewCopiesPreservation:'NOT_VERIFIED_BY_THIS_RECIPE'};
     await fs.writeFile(path.join(outputDir,'receipts',asset.id+'.json'),JSON.stringify(receipt,null,2)+'\n');receipts.push(receipt);
     process.stdout.write(JSON.stringify({id:asset.id,bytes:prepared.bytes.length,warnings:receipt.decodedKhronos.numWarnings,cleared:receipt.zeroWeightJointsCleared})+'\n');
   }
-  await fs.writeFile(path.join(outputDir,'model-receipts.json'),JSON.stringify({sourceSha:matrix[0].sourceSha,toolchain:{core:'4.5.1',extensions:'4.5.1',meshoptimizer:'1.3.0',validator:validator.version()},admitted:0,receipts},null,2)+'\n');
+  await fs.writeFile(path.join(outputDir,'model-receipts.json'),JSON.stringify({sourceSha:matrix[0].sourceSha,toolchain:{core:'4.5.1',extensions:'4.5.1',meshoptimizer:'1.3.0',validator:validator.version()},admitted:0,matrixAssetCount:matrix.length,preparedModelCount:receipts.length,sourceInputsVerifiedUnchanged:receipts.length,reviewCopiesPreservation:'NOT_VERIFIED_BY_THIS_RECIPE',receipts},null,2)+'\n');
 }
