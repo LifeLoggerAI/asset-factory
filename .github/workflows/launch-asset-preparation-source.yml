@@ -20,6 +20,14 @@ jobs:
       - name: Install pinned public tooling without graph disclosure
         working-directory: model_forge/launch-asset-preparation/v1
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Require actual FFmpeg media conversion tooling
+        run: |
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version
+          ffprobe -version
       - name: Test deterministic encoding and failure boundaries
         working-directory: model_forge/launch-asset-preparation/v1
         run: npm test

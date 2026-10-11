@@ -51,5 +51,10 @@ Vorbis conversion is lossy; it preserves duration, rate and channels, fixes only
 the Ogg container serial and standard page CRC for reproducibility, and needs
 listening/loop review. Neither format conversion admits the content.
 
+Media conversions consume the hash-verified source byte snapshot, including
+both FFmpeg encodes, and rehash the original source before writing a preservation
+receipt. A concurrent source change blocks that receipt. Converted candidates
+written before the detected change remain unadmitted.
+
 These recipes do not claim zero warnings, zero vulnerabilities, art approval,
 runtime admission or production readiness.

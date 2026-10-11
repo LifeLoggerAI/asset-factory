@@ -38,8 +38,10 @@ for(const asset of matrix.filter(a=>['svg','audio','json'].includes(a.measured.f
     Object.assign(receipt,{outputPath,outputBytes:encoded.length,outputSha256:sha(encoded),rgbaPixelSha256:sha(pixels.data),decodedPixelHashExact:true,repeatedByteHashExact:true,pixels:pixels.info,toolchain:sharp.versions});
   } else if(asset.measured.format==='audio') {
     const outputPath=`audio/${asset.id}.ogg`;await fs.mkdir(path.join(outputDir,'audio'),{recursive:true});const file=path.join(outputDir,outputPath),repeat=file+'.repeat';
-    const args=['-hide_banner','-loglevel','error','-y','-fflags','+bitexact','-i',sourcePath,'-map_metadata','-1','-map_chapters','-1','-c:a','libvorbis','-q:a','5','-flags:a','+bitexact','-f','ogg'];
-    execFileSync('ffmpeg',[...args,file]);execFileSync('ffmpeg',[...args,repeat]);const serial=Buffer.from(asset.sha256,'hex').readUInt32LE(0);
+    // Both encodes consume the already hash-verified bytes. Reopening the
+    // source path here could encode a concurrent edit under the original hash.
+    const args=['-hide_banner','-loglevel','error','-y','-fflags','+bitexact','-i','pipe:0','-map_metadata','-1','-map_chapters','-1','-c:a','libvorbis','-q:a','5','-flags:a','+bitexact','-f','ogg'];
+    execFileSync('ffmpeg',[...args,file],{input:source});execFileSync('ffmpeg',[...args,repeat],{input:source});const serial=Buffer.from(asset.sha256,'hex').readUInt32LE(0);
     const encoded=canonicalOgg(await fs.readFile(file),serial),repeated=canonicalOgg(await fs.readFile(repeat),serial);assert.equal(sha(encoded),sha(repeated));await fs.writeFile(file,encoded);await fs.rm(repeat);
     const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-show_streams','-of','json',file],{encoding:'utf8'}));
     assert.equal(Number(probe.format.duration),asset.measured.durationSeconds);assert.equal(Number(probe.streams[0].sample_rate),asset.measured.sampleRate);assert.equal(Number(probe.streams[0].channels),asset.measured.channels);
@@ -48,6 +50,9 @@ for(const asset of matrix.filter(a=>['svg','audio','json'].includes(a.measured.f
   } else {
     const outputPath=`descriptors/${asset.id}.json`;await fs.mkdir(path.join(outputDir,'descriptors'),{recursive:true});await fs.writeFile(path.join(outputDir,outputPath),source);Object.assign(receipt,{outputPath,outputBytes:source.length,outputSha256:sha(source),formatAlreadySatisfied:true,sourceBytesExact:true});
   }
+  const sourceSha256After=sha(await fs.readFile(sourcePath));
+  assert.equal(sourceSha256After,asset.sha256,`Source changed during conversion ${asset.id}`);
+  receipt.sourceInputPreservation={verified:true,sha256Before:sha(source),sha256After:sourceSha256After};
   receipt.maxBytes=asset.budgets.maxBytes;receipt.byteBudgetPass=asset.budgets.maxBytes==null?'UNSET_UNMEASURED':receipt.outputBytes<=asset.budgets.maxBytes;
   await fs.writeFile(path.join(outputDir,'receipts',asset.id+'.json'),JSON.stringify(receipt,null,2)+'\n');
   console.log(asset.id,receipt.outputBytes,receipt.outputSha256);

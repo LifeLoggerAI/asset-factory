@@ -50,6 +50,19 @@ jobs:
           git -C "$RUNNER_TEMP/launch-tooling-advisories-current" checkout --quiet --detach 4a4d987c2a10120439be63a222087d94dd54f719
       - name: Reject every actual installed advisory severity without exceptions
         run: node scripts/check-launch-asset-tooling-reviewed-advisories.mjs "$RUNNER_TEMP/launch-tooling-advisories-historical" "$RUNNER_TEMP/launch-tooling-advisories-current" artifacts/launch-asset-tooling-installed-security.json
+      - name: Require actual FFmpeg media conversion tooling
+        shell: bash
+        run: |
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            if [ "${{ runner.os }}" = "macOS" ]; then
+              brew install ffmpeg
+            else
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends ffmpeg
+            fi
+          fi
+          ffmpeg -version
+          ffprobe -version
       - name: Run the unchanged actual standalone preparation contracts
         working-directory: model_forge/launch-asset-preparation/v1
         run: npm test
