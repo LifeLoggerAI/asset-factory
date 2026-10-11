@@ -22,12 +22,18 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Require actual FFmpeg media conversion tooling
         run: |
-          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+          media_tooling_ready() {
+            command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null &&
+              ffmpeg -hide_banner -encoders 2>/dev/null | awk '$2 == "libvorbis" { found = 1 } END { exit !found }'
+          }
+          if ! media_tooling_ready; then
             sudo apt-get update
             sudo apt-get install -y --no-install-recommends ffmpeg
           fi
+          media_tooling_ready
           ffmpeg -version
           ffprobe -version
+          ffmpeg -hide_banner -h encoder=libvorbis
       - name: Test deterministic encoding and failure boundaries
         working-directory: model_forge/launch-asset-preparation/v1
         run: npm test

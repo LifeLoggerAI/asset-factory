@@ -53,16 +53,25 @@ jobs:
       - name: Require actual FFmpeg media conversion tooling
         shell: bash
         run: |
-          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+          media_tooling_ready() {
+            command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null &&
+              ffmpeg -hide_banner -encoders 2>/dev/null | awk '$2 == "libvorbis" { found = 1 } END { exit !found }'
+          }
+          if ! media_tooling_ready; then
             if [ "${{ runner.os }}" = "macOS" ]; then
-              brew install ffmpeg
+              brew install ffmpeg-full
+              ffmpeg_full_bin="$(brew --prefix ffmpeg-full)/bin"
+              echo "$ffmpeg_full_bin" >> "$GITHUB_PATH"
+              export PATH="$ffmpeg_full_bin:$PATH"
             else
               sudo apt-get update
               sudo apt-get install -y --no-install-recommends ffmpeg
             fi
           fi
+          media_tooling_ready
           ffmpeg -version
           ffprobe -version
+          ffmpeg -hide_banner -h encoder=libvorbis
       - name: Run the unchanged actual standalone preparation contracts
         working-directory: model_forge/launch-asset-preparation/v1
         run: npm test
