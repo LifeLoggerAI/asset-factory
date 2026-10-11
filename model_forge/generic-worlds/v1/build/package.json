@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "name": "urai-generic-world-review-tools",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Isolated offline render/conformance tools; no runtime dependency changes",
+  "dependencies": {"three":"0.180.0","gltf-validator":"2.0.0-dev.3.10"},
+  "engines":{"node":">=20"}
+}

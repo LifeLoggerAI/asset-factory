@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urai://contracts/ecosystem-schema-v2",
+  "title": "URAI Ecosystem Shared Compatibility Schema V2",
+  "description": "Current cross-repository compatibility contract. Supersedes conflicting V1 copies without making the legacy UrAi repository an active authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["users","memories","emotionalFields","lifeMapNodes","generatedAssets","spatialScenes","jobs","contentPacks","b2bAccounts","xrSceneObjects"],
+  "properties": {
+    "users": { "type":"array","items":{"$ref":"#/$defs/user"} },
+    "memories": { "type":"array","items":{"$ref":"#/$defs/memory"} },
+    "emotionalFields": { "type":"array","items":{"$ref":"#/$defs/emotionalField"} },
+    "lifeMapNodes": { "type":"array","items":{"$ref":"#/$defs/lifeMapNode"} },
+    "generatedAssets": { "type":"array","items":{"$ref":"#/$defs/generatedAsset"} },
+    "spatialScenes": { "type":"array","items":{"$ref":"#/$defs/spatialScene"} },
+    "jobs": { "type":"array","items":{"$ref":"#/$defs/job"} },
+    "contentPacks": { "type":"array","items":{"$ref":"#/$defs/contentPack"} },
+    "b2bAccounts": { "type":"array","items":{"$ref":"#/$defs/b2bAccount"} },
+    "xrSceneObjects": { "type":"array","items":{"$ref":"#/$defs/xrSceneObject"} }
+  },
+  "$defs": {
+    "id": { "type":"string","minLength":1 },
+    "isoTime": { "type":"string","format":"date-time" },
+    "lifecycleStatus": { "type":"string","enum":["draft","review","approved","published","archived","blocked"] },
+    "visibility": { "type":"string","enum":["public","private","tiered","licensed","internal"] },
+    "integrationTarget": { "type":"string","enum":["home","jobs","b2bportal","asset-factory","analytics","communications","privacy","studio","spatial","admin","marketing","investors","foundation","licensing"] },
+    "provenance": {
+      "type":"object","additionalProperties":false,"required":["source","createdAt"],
+      "properties":{
+        "source":{"type":"string","minLength":1},
+        "createdAt":{"$ref":"#/$defs/isoTime"},
+        "updatedAt":{"$ref":"#/$defs/isoTime"},
+        "createdBy":{"type":"string"},
+        "license":{"type":"string"},
+        "rightsStatus":{"type":"string"}
+      }
+    },
+    "governance": {
+      "type":"object",
+      "properties":{
+        "lifecycleStatus":{"$ref":"#/$defs/lifecycleStatus"},
+        "visibility":{"$ref":"#/$defs/visibility"},
+        "integrationTargets":{"type":"array","items":{"$ref":"#/$defs/integrationTarget"},"uniqueItems":true},
+        "provenance":{"$ref":"#/$defs/provenance"},
+        "failsafeStatus":{"type":"string","enum":["not_required","pending","passed","blocked"]}
+      }
+    },
+    "user": {
+      "allOf":[
+        {"type":"object","required":["id","handle","tier","createdAt"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"handle":{"type":"string"},"tier":{"type":"string","enum":["demo","v1","tier2","admin","b2b"]},"createdAt":{"$ref":"#/$defs/isoTime"}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "memory": {
+      "allOf":[
+        {"type":"object","required":["id","userId","summary","createdAt"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"userId":{"$ref":"#/$defs/id"},"summary":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"createdAt":{"$ref":"#/$defs/isoTime"}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "emotionalField": {
+      "allOf":[
+        {"type":"object","required":["id","memoryId","valence","intensity"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"memoryId":{"$ref":"#/$defs/id"},"valence":{"type":"number","minimum":-1,"maximum":1},"intensity":{"type":"number","minimum":0,"maximum":1},"signals":{"type":"array","items":{"type":"string"}}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "lifeMapNode": {
+      "allOf":[
+        {"type":"object","required":["id","memoryId","position","nodeType"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"memoryId":{"$ref":"#/$defs/id"},"nodeType":{"type":"string","enum":["star","cluster","anchor","replay"]},
+          "position":{"type":"object","required":["x","y","z"],"properties":{"x":{"type":"number"},"y":{"type":"number"},"z":{"type":"number"}}}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "generatedAsset": {
+      "allOf":[
+        {"type":"object","required":["id","assetType","format","uri","status"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"assetType":{"type":"string"},"format":{"type":"string","enum":["png","svg","webp","glb","gltf","json","wav","mp3"]},"uri":{"type":"string"},"status":{"type":"string","enum":["generated","validated","approved","published","failed","withdrawn"]}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "spatialScene": {
+      "allOf":[
+        {"type":"object","required":["id","sceneKey","version","assetIds"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"sceneKey":{"type":"string"},"version":{"type":"string"},"assetIds":{"type":"array","items":{"$ref":"#/$defs/id"}}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "job": {
+      "allOf":[
+        {"type":"object","required":["id","jobType","status","createdAt"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"jobType":{"type":"string"},"status":{"type":"string","enum":["PENDING","LEASED","RUNNING","SUCCESS","FAILED","DEAD","CANCELLED"]},"createdAt":{"$ref":"#/$defs/isoTime"},"resultAssetIds":{"type":"array","items":{"$ref":"#/$defs/id"}}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "contentPack": {
+      "allOf":[
+        {"type":"object","required":["id","slug","version","assetIds"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"slug":{"type":"string","pattern":"^[a-z0-9]+(?:-[a-z0-9]+)*$"},"version":{"type":"string","minLength":1},"assetIds":{"type":"array","items":{"$ref":"#/$defs/id"},"uniqueItems":true},"xrCompatible":{"type":"boolean"},"entitlementKey":{"type":"string"}
+        }},
+        {"type":"object","required":["lifecycleStatus","visibility","integrationTargets","provenance"],"properties":{
+          "lifecycleStatus":{"$ref":"#/$defs/lifecycleStatus"},"visibility":{"$ref":"#/$defs/visibility"},"integrationTargets":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/integrationTarget"},"uniqueItems":true},"provenance":{"$ref":"#/$defs/provenance"},"failsafeStatus":{"type":"string","enum":["not_required","pending","passed","blocked"]}
+        }}
+      ]
+    },
+    "b2bAccount": {
+      "allOf":[
+        {"type":"object","required":["id","name","status","createdAt"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"name":{"type":"string"},"status":{"type":"string","enum":["lead","active","paused","closed"]},"createdAt":{"$ref":"#/$defs/isoTime"}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    },
+    "xrSceneObject": {
+      "allOf":[
+        {"type":"object","required":["id","sceneId","objectType","transform"],"properties":{
+          "id":{"$ref":"#/$defs/id"},"sceneId":{"$ref":"#/$defs/id"},"objectType":{"type":"string","enum":["mesh","anchor","portal","light","audio"]},"assetId":{"$ref":"#/$defs/id"},
+          "transform":{"type":"object","required":["position","rotation","scale"],"properties":{
+            "position":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3},
+            "rotation":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3},
+            "scale":{"type":"array","items":{"type":"number"},"minItems":3,"maxItems":3}
+          }}
+        }},
+        {"$ref":"#/$defs/governance"}
+      ]
+    }
+  }
+}

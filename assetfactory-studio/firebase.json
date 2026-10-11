@@ -5,7 +5,8 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ]
+    ],
+    "target": "asset-factory-production"
   },
   "apphosting": {
     "backend": {

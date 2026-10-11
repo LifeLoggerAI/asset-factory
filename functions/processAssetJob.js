@@ -1,3 +1,7 @@
+// Preserved simulated-output prototype; its legacy asset and usage writes are
+// superseded by the canonical Studio job/runtime and protected spend gateway.
+throw new Error('Superseded Asset Factory simulator: use the canonical Studio runtime and protected spend gateway');
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");

@@ -1,3 +1,4 @@
+import { syntheticCleanBuild, syntheticStudioSpend } from './lib/studio-spend-test-fixture.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,11 +20,15 @@ const ts = await import(pathToFileURL(typescriptPath).href);
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-factory-units-'));
 const compiledDir = path.join(tmpDir, 'compiled');
 fs.mkdirSync(path.join(compiledDir, 'lib', 'server'), { recursive: true });
+fs.mkdirSync(path.join(tmpDir, 'model_forge'), { recursive: true });
+fs.copyFileSync(path.join(root, 'model_forge', 'protected-artifact.mjs'), path.join(tmpDir, 'model_forge', 'protected-artifact.mjs'));
 
 function compileTsModule(relativePath, patches = []) {
   const sourcePath = path.join(studioRoot, relativePath);
   let source = fs.readFileSync(sourcePath, 'utf8');
+  source = source.replace("import { admittedArtifactHosts, retrievePublicArtifact } from '../../../model_forge/protected-artifact.mjs';", `import { admittedArtifactHosts } from '../../../model_forge/protected-artifact.mjs';\nimport { syntheticArtifactRetrieve as retrievePublicArtifact } from '${pathToFileURL(path.join(root, 'scripts/lib/studio-spend-test-fixture.mjs')).href}';`);
   for (const [from, to] of patches) source = source.replace(from, to);
+  source = source.replace(/from ['"](\.\/[^'"]+)['"]/g, (match, target) => target.endsWith('.mjs') ? match : `from '${target}.mjs'`);
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ES2022,
@@ -40,13 +45,16 @@ function compileTsModule(relativePath, patches = []) {
   return outputPath;
 }
 
-fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
+fs.writeFileSync(path.join(compiledDir, 'lib', 'server', 'firebaseAdmin.mjs'), 'export function getAdminDb() { return globalThis.__ASSET_FACTORY_TEST_ISSUER_DB__ ?? globalThis.__ASSET_FACTORY_TEST_DB__ ?? null; }\n');
 
 const stripeModulePath = compileTsModule('lib/server/stripeEntitlements.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const queueModulePath = compileTsModule('lib/server/assetQueueOps.ts', [["import { getAdminDb } from './firebaseAdmin';", "import { getAdminDb } from './firebaseAdmin.mjs';"]]);
 const catalogModulePath = compileTsModule('lib/server/assetTypeCatalog.ts');
 compileTsModule('lib/server/assetFactoryValidation.ts', [["import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog';", "import { isSupportedAssetType, supportedAssetTypeNames } from './assetTypeCatalog.mjs';"]]);
 compileTsModule('lib/server/assetProviderAdapters.ts', [["import type { AssetRendererInput, AssetRendererResult, CanonicalAssetType } from './assetFactoryTypes';", "type CanonicalAssetType = 'graphic' | 'model3d' | 'audio' | 'bundle'; type AssetRendererInput = Record<string, unknown>; type AssetRendererResult = Record<string, unknown>;"]]);
+const syntheticArtifactModule = path.join(compiledDir, 'synthetic-protected-artifact.mjs');
+fs.writeFileSync(syntheticArtifactModule, `export { admittedArtifactHosts } from ${JSON.stringify(pathToFileURL(path.join(root, 'model_forge/protected-artifact.mjs')).href)};\nexport { syntheticArtifactRetrieve as retrievePublicArtifact } from ${JSON.stringify(pathToFileURL(path.join(scriptDir, 'lib/studio-spend-test-fixture.mjs')).href)};\n`);
+const protectedModulePath = compileTsModule('lib/server/protectedProviderRequest.ts', [["from '../../../model_forge/protected-artifact.mjs';", `from '${pathToFileURL(syntheticArtifactModule).href}';`]]);
 compileTsModule('lib/server/higgsfieldClient.ts');
 const providerRuntimeModulePath = compileTsModule('lib/server/assetProviderRuntime.ts', [
   ["import type { GenerateRequest } from './assetFactoryValidation';", "type GenerateRequest = { jobId: string; tenantId?: string; prompt: string; type: string; size?: { width?: number; height?: number }; metadata?: Record<string, unknown> };"] ,
@@ -59,6 +67,8 @@ const { buildStripeEntitlement } = await import(pathToFileURL(stripeModulePath).
 const { requeueAssetQueueJob } = await import(pathToFileURL(queueModulePath).href);
 const { resolveAssetType } = await import(pathToFileURL(catalogModulePath).href);
 const { renderWithConfiguredProvider } = await import(pathToFileURL(providerRuntimeModulePath).href);
+const protector = await import(pathToFileURL(protectedModulePath).href);
+const syntheticBuild = syntheticCleanBuild();
 
 function testStripeEntitlementFromCheckoutSession() {
   const entitlement = buildStripeEntitlement({
@@ -312,19 +322,19 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
     calls.push({ url: String(url), method: options.method ?? 'GET' });
     if (String(url) === 'https://api.replicate.com/v1/predictions') {
       assert.equal(options.method, 'POST');
-      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-1' } }), {
+      return new Response(JSON.stringify({ id: 'pred-1', status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-1' } }), {
         status: 201,
         headers: { 'content-type': 'application/json' },
       });
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-1') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://cdn.example.com/out.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-1', status: 'succeeded', output: 'https://outputs.example.test/out.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/out.png') {
+    if (String(url) === 'https://outputs.example.test/out.png') {
       assert.equal(options.method ?? 'GET', 'GET');
       return new Response(new Uint8Array([137, 80, 78, 71]), {
         status: 200,
@@ -333,6 +343,10 @@ async function testReplicateProviderPollsStatusWithGetAndFetchesPublicArtifact()
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
+
+  const protectedInput = { jobId: 'provider-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' };
+  const protectedFixture = syntheticStudioSpend(protectedInput, { endpoint: 'https://api.replicate.com/v1/predictions', provider: 'replicate', model: 'owner/model-version', lane: 'graphic', body: JSON.stringify({ version: 'owner/model-version', input: { prompt: protectedInput.prompt } }), headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
 
   try {
     const result = await renderWithConfiguredProvider(
@@ -364,7 +378,7 @@ async function testProviderArtifactRejectsPrivateUrls() {
 
   globalThis.fetch = async (url, options = {}) => {
     if (String(url) === 'https://api.replicate.com/v1/predictions') {
-      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-2' } }), {
+      return new Response(JSON.stringify({ id: 'pred-2', status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-2' } }), {
         status: 201,
         headers: { 'content-type': 'application/json' },
       });
@@ -378,6 +392,10 @@ async function testProviderArtifactRejectsPrivateUrls() {
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
+
+  const protectedInput = { jobId: 'private-url-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' };
+  const protectedFixture = syntheticStudioSpend(protectedInput, { endpoint: 'https://api.replicate.com/v1/predictions', provider: 'replicate', model: 'owner/model-version', lane: 'graphic', body: JSON.stringify({ version: 'owner/model-version', input: { prompt: protectedInput.prompt } }), headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
 
   try {
     await assert.rejects(
@@ -409,19 +427,19 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
 
   globalThis.fetch = async (url, options = {}) => {
     if (String(url) === 'https://api.replicate.com/v1/predictions') {
-      return new Response(JSON.stringify({ status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-3' } }), {
+      return new Response(JSON.stringify({ id: 'pred-3', status: 'starting', urls: { get: 'https://api.replicate.com/v1/predictions/pred-3' } }), {
         status: 201,
         headers: { 'content-type': 'application/json' },
       });
     }
     if (String(url) === 'https://api.replicate.com/v1/predictions/pred-3') {
       assert.equal(options.method, 'GET');
-      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://cdn.example.com/chunked.png' }), {
+      return new Response(JSON.stringify({ id: 'pred-3', status: 'succeeded', output: 'https://outputs.example.test/chunked.png' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/chunked.png') {
+    if (String(url) === 'https://outputs.example.test/chunked.png') {
       return new Response(new Uint8Array([1, 2, 3, 4]), {
         status: 200,
         headers: { 'content-type': 'image/png' },
@@ -430,13 +448,17 @@ async function testProviderArtifactRejectsChunkedOverLimitDownload() {
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
 
+  const protectedInput = { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' };
+  const protectedFixture = syntheticStudioSpend(protectedInput, { endpoint: 'https://api.replicate.com/v1/predictions', provider: 'replicate', model: 'owner/model-version', lane: 'graphic', body: JSON.stringify({ version: 'owner/model-version', input: { prompt: protectedInput.prompt } }), headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
+
   try {
     await assert.rejects(
       () => renderWithConfiguredProvider(
         { jobId: 'chunked-limit-test', tenantId: 'tenant-a', prompt: 'moonlit orb artifact', type: 'graphic' },
         resolveAssetType('graphic')
       ),
-      /exceeds max bytes during download|exceeds max bytes after download/
+      /artifact stream exceeds byte ceiling/
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -463,14 +485,14 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
     calls.push({ url: String(url), method: options.method ?? 'GET' });
     if (String(url) === 'https://fal.run/fal-ai/flux/schnell') {
       assert.equal(options.method, 'POST');
-      assert.equal(options.headers.authorization, 'Key test-fal-key');
+      assert.equal(new Headers(options.headers).get('authorization'), 'Key test-fal-key');
       assert.deepEqual(JSON.parse(options.body), { prompt: 'governed fal smoke' });
-      return new Response(JSON.stringify({ images: [{ url: 'https://cdn.example.com/fal.webp' }] }), {
+      return new Response(JSON.stringify({ images: [{ url: 'https://outputs.example.test/fal.webp' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
     }
-    if (String(url) === 'https://cdn.example.com/fal.webp') {
+    if (String(url) === 'https://outputs.example.test/fal.webp') {
       return new Response(new Uint8Array([82, 73, 70, 70]), {
         status: 200,
         headers: { 'content-type': 'image/webp', 'content-length': '4' },
@@ -478,6 +500,10 @@ async function testFalProviderUsesPinnedModelAndKeyAuth() {
     }
     throw new Error(`Unexpected fetch URL: ${url}`);
   };
+
+  const protectedInput = { jobId: 'fal-provider-test', tenantId: 'tenant-a', prompt: 'governed fal smoke', type: 'graphic' };
+  const protectedFixture = syntheticStudioSpend(protectedInput, { endpoint: 'https://fal.run/fal-ai/flux/schnell', provider: 'fal', model: 'fal-ai/flux/schnell', lane: 'graphic', body: JSON.stringify({ prompt: protectedInput.prompt }), headers: { authorization: 'Key test-fal-key', 'content-type': 'application/json' } }, protector);
+  globalThis.fetch = protectedFixture.wrap(globalThis.fetch);
 
   try {
     const result = await renderWithConfiguredProvider(
@@ -511,6 +537,8 @@ try {
   await testFalProviderUsesPinnedModelAndKeyAuth();
   console.log('PASS Asset Factory targeted unit behavior tests');
 } finally {
+  syntheticBuild.restore();
   delete globalThis.__ASSET_FACTORY_TEST_DB__;
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
+

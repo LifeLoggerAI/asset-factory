@@ -1,0 +1,31 @@
+name: Generic World Kit Static QA
+on:
+  pull_request:
+    paths: ['model_forge/generic-worlds/**', '.github/workflows/generic-world-kits.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: generic-world-kits-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  static-world-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source identity
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
+      - name: Install isolated offline validators
+        run: |
+          python3 -m pip install numpy==2.3.5 Pillow==12.3.0
+      - name: Rejection and regression tests
+        run: python3 -m unittest discover -s model_forge/generic-worlds/v1/qa -p 'test_*.py'
+      - name: Repository receipt consistency
+        run: python3 model_forge/generic-worlds/v1/qa/check_repository.py
+      - name: State binary evidence boundary
+        run: echo "Candidate GLBs and previews are in the exact-hash staging archive. This CI run tests rejection logic and repository metadata; it does not assert binary, visual, runtime or device acceptance."

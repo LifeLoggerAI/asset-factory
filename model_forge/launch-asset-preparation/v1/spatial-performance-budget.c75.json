@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "budgetId": "urai-spatial-public-beta-v1",
+  "owner": "URAI Labs",
+  "target": "ordinary mid-range mobile hardware",
+  "budgets": {
+    "firstContentfulPaintMs": 1800,
+    "largestContentfulPaintMs": 2800,
+    "interactiveMs": 3500,
+    "firstSpatialFrameMs": 3200,
+    "mainThreadBlockingMs": 350,
+    "initialJavaScriptBytesGzip": 420000,
+    "initialAssetBytes": 2500000,
+    "largestSingleTextureBytes": 2097152,
+    "largestSingleModelBytes": 3145728,
+    "mobileParticleCount": 180,
+    "desktopParticleCount": 520,
+    "mobilePixelRatioMax": 1.35,
+    "desktopPixelRatioMax": 1.75,
+    "lowMemoryPixelRatioMax": 1.0,
+    "mobileShadowMapSize": 512,
+    "desktopShadowMapSize": 1024,
+    "maxContinuousPostprocessingPassesMobile": 1,
+    "maxContinuousPostprocessingPassesDesktop": 2
+  },
+  "qualityTiers": {
+    "low": {
+      "pixelRatioMax": 1,
+      "particleCount": 120,
+      "shadows": false,
+      "postprocessing": false,
+      "antialias": false,
+      "preloadSecondaryWorlds": false
+    },
+    "medium": {
+      "pixelRatioMax": 1.35,
+      "particleCount": 180,
+      "shadows": true,
+      "postprocessing": false,
+      "antialias": true,
+      "preloadSecondaryWorlds": false
+    },
+    "high": {
+      "pixelRatioMax": 1.75,
+      "particleCount": 520,
+      "shadows": true,
+      "postprocessing": true,
+      "antialias": true,
+      "preloadSecondaryWorlds": true
+    }
+  },
+  "requiredBehaviors": [
+    "pause-rendering-when-document-hidden",
+    "respect-reduced-motion",
+    "lazy-load-secondary-worlds",
+    "preload-only-first-visible-environment",
+    "fallback-without-blank-screen",
+    "cap-particles-by-quality-tier",
+    "avoid-layout-shift-during-canvas-mount",
+    "record-first-spatial-frame"
+  ]
+}

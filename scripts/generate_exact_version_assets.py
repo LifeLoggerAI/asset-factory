@@ -178,32 +178,13 @@ def load_entries(version: str, authorized_names: list[str]) -> tuple[list[dict[s
 
 
 def provider_render(entry: dict[str, Any], size: int, feedback: str | None):
-    alpha = bool(entry.get("alpha"))
-    model = (
-        os.environ.get("ASSET_RENDERER_ALPHA_MODEL", "").strip() if alpha else ""
-    ) or os.environ.get("ASSET_RENDERER_MODEL", "").strip() or (
-        "gpt-image-1.5" if alpha else "gpt-image-2"
-    )
-    width, height = provider_renderer.target_dimensions(entry, size)
-    reservation = paid_request_guard.reserve(
-        provider="openai",
-        model=model,
-        asset=str(entry["name"]),
-        request_size=f"{width}x{height}",
-    )
-    attempt_id = str(reservation["attemptId"])
     try:
         result = provider_renderer.render_with_provider(entry, size, feedback=feedback)
-        request_id = result.metadata.get("provider_request_id")
-        paid_request_guard.record(
-            attempt_id,
-            status="succeeded",
-            request_id=str(request_id) if request_id else None,
-        )
-        return result, reservation, None
-    except Exception as error:
-        paid_request_guard.record(attempt_id, status="failed", error=str(error))
-        return None, reservation, error
+        return result, {"attemptId": result.metadata["budget_attempt_id"]}, None
+    except paid_request_guard.PaidRequestGuardError:
+        raise  # Missing/changed trusted authority cannot open a quality retry.
+    except provider_renderer.ProviderExecutionFailed as error:
+        return None, error.reservation, error
 
 
 def write_provider_source(
@@ -457,6 +438,9 @@ def main() -> int:
             "provider": "openai",
             "endpoint": auth["endpoint"],
             "providerCallsExecuted": ledger["providerCallsExecuted"],
+            "providerCallsReserved": ledger["providerCallsReserved"],
+            "chargesReconciled": ledger["chargesReconciled"],
+            "actualCostUsd": ledger["actualCostUsd"],
             "reservedEstimatedCostUsd": ledger["reservedEstimatedCostUsd"],
             "maxProviderCalls": expected_calls,
             "maxCostUsd": str(version_spec["maxCostUsd"]),

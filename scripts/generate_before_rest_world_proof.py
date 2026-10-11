@@ -115,25 +115,8 @@ def make_entry(shot: dict[str, Any], model: str) -> dict[str, Any]:
 
 def render_one(shot: dict[str, Any], model: str, long_edge: int):
     entry = make_entry(shot, model)
-    width, height = provider_renderer.target_dimensions(entry, long_edge)
-    reservation = paid_request_guard.reserve(
-        provider="openai",
-        model=model,
-        asset=shot["name"],
-        request_size=f"{width}x{height}",
-    )
-    attempt_id = str(reservation["attemptId"])
-    try:
-        result = provider_renderer.render_with_provider(entry, long_edge)
-        paid_request_guard.record(
-            attempt_id,
-            status="succeeded",
-            request_id=str(result.metadata.get("provider_request_id") or "") or None,
-        )
-        return result, reservation
-    except Exception as exc:
-        paid_request_guard.record(attempt_id, status="failed", error=str(exc))
-        raise
+    result = provider_renderer.render_with_provider(entry, long_edge)
+    return result, {"attemptId": result.metadata["budget_attempt_id"]}
 
 
 def write_contact_sheet(rows: list[dict[str, Any]], output: Path) -> None:
@@ -226,6 +209,8 @@ def main() -> None:
         "failed": EXPECTED_SHOTS - len(results),
         "providerCallsExecuted": budget.get("providerCallsExecuted"),
         "reservedEstimatedCostUsd": budget.get("reservedEstimatedCostUsd"),
+        "chargesReconciled": budget.get("chargesReconciled"),
+        "actualCostUsd": budget.get("actualCostUsd"),
         "maximumAuthorizedCostUsd": "10.00",
         "promotionAuthorized": False,
         "deploymentAuthorized": False,

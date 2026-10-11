@@ -1,0 +1,27 @@
+name: Decoded asset numerical policy contract
+on:
+  pull_request:
+    paths:
+      - 'model_forge/launch-asset-preparation/v1/validate-decoded-asset.mjs'
+      - 'model_forge/launch-asset-preparation/v1/test-decoded-asset.mjs'
+      - 'model_forge/launch-asset-preparation/v1/package*.json'
+      - 'model_forge/glb-container.mjs'
+      - '.github/workflows/decoded-asset-budget-contract.yml'
+permissions:
+  contents: read
+jobs:
+  decoded-asset-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: git diff --exit-code
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: model_forge/launch-asset-preparation/v1
+      - run: node --test model_forge/launch-asset-preparation/v1/test-decoded-asset.mjs scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-triangle-budget.mjs
+      - run: git diff --exit-code

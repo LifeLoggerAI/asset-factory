@@ -92,11 +92,9 @@ nvm install 22
 nvm use 22
 node --version
 java -version
-npm install
-npm --prefix engine install
-npm --prefix functions install
-npm --prefix life-map-pipeline/functions install
-npm --prefix assetfactory-studio install
+node scripts/install-locked-dependencies.mjs
+node scripts/install-locked-dependencies.mjs --deployment-functions
+node scripts/verify-factory-glob-tooling.mjs
 npm run doctor
 npm run verify:local
 npm run test:launch-readiness
@@ -107,6 +105,8 @@ npm --prefix assetfactory-studio run e2e
 npm test
 npm run build
 ```
+
+The frozen workspace installer includes root packages and the engine; the second installer checks the separate committed LifeMap deployment lock. The retained historical engine shrinkwrap does not certify either current graph. Complete official advisory scans and the existing release acceptance gates are still required.
 
 ## Exact staging verification command
 

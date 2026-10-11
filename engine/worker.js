@@ -1,3 +1,6 @@
+// Preserved unbound GCS prototype. engine/server.v1.js uses engine-worker.js
+// for explicit local proof; cloud assets use the canonical Studio runtime.
+throw new Error('Superseded Asset Factory cloud worker: use the canonical Studio runtime or explicit local proof worker');
 
 import { db } from '../assetfactory-studio/lib/firebase';
 import { hashFile, combineHashes } from '../assetfactory-studio/lib/hashing';

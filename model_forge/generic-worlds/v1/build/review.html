@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UrAi Generic World Candidate Review</title>
+<style>html,body{margin:0;background:#cbc8ba;width:100%;height:100%;overflow:hidden}canvas{width:100%;height:100%;display:block}</style>
+<script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/addons/":"/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(window.innerWidth,window.innerHeight);renderer.setPixelRatio(1);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+const pmrem=new THREE.PMREMGenerator(renderer);const env=new RoomEnvironment();
+const environment=pmrem.fromScene(env,.04).texture;env.dispose();pmrem.dispose();
+const loader=new GLTFLoader();let current;
+function dispose(scene){if(!scene)return;scene.traverse(o=>{if(o.isMesh){o.geometry.dispose();for(const m of (Array.isArray(o.material)?o.material:[o.material])){for(const v of Object.values(m)){if(v&&v.isTexture){v.dispose();if(v.image?.close)v.image.close();}}m.dispose();}}});}
+window.renderScene=async({url,camera:shot,id,profile})=>{
+  dispose(current);renderer.info.reset();const scene=new THREE.Scene();current=scene;
+  scene.background=new THREE.Color('#ccd4d3');scene.environment=environment;scene.environmentIntensity=.45;
+  const gltf=await loader.loadAsync(url);scene.add(gltf.scene);
+  gltf.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}if(shot.cutaway&&['ceiling','front-wall','doors'].includes(o.name))o.visible=false;});
+  const hemi=new THREE.HemisphereLight('#d8e8ec','#918467',1.10);scene.add(hemi);
+  const sun=new THREE.DirectionalLight('#fff0d8',2.85);sun.position.set(-3,7,-5);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-16;sun.shadow.camera.right=16;sun.shadow.camera.top=16;sun.shadow.camera.bottom=-16;sun.shadow.camera.near=.1;sun.shadow.camera.far=40;sun.shadow.bias=-.0004;sun.shadow.normalBias=.02;scene.add(sun);
+  const fill=new THREE.DirectionalLight('#e8eef1',1.05);fill.position.set(4,3,7);scene.add(fill);
+  const camera=new THREE.PerspectiveCamera(shot.fov||64,innerWidth/innerHeight,.035,150);camera.position.fromArray(shot.position);camera.lookAt(new THREE.Vector3().fromArray(shot.target));camera.updateMatrixWorld();
+  const samples=[];for(let i=0;i<7;i++){const t=performance.now();renderer.render(scene,camera);renderer.getContext().finish();samples.push(performance.now()-t);await new Promise(r=>requestAnimationFrame(r));}
+  const ctx=renderer.getContext(),debug=ctx.getExtension('WEBGL_debug_renderer_info');
+  const measured=samples.slice(2).sort((a,b)=>a-b);
+  return {id,profile,renderer:debug?ctx.getParameter(debug.UNMASKED_RENDERER_WEBGL):null,width:innerWidth,height:innerHeight,sceneTriangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,meanFrameTimeMs:measured.reduce((a,b)=>a+b,0)/measured.length,p95FrameTimeMs:measured.at(-1),sampleCount:measured.length,scope:'standalone candidate in software WebGL review harness; not UrAi runtime or device benchmark',cutaway:!!shot.cutaway};
+};
+window.ready=true;
+</script></html>

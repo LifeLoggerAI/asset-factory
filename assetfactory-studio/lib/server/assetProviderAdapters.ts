@@ -22,7 +22,7 @@ const providerEnv: Record<Exclude<AssetProviderName, 'local-proof'>, string[]> =
 };
 
 function missingEnv(required: string[]) {
-  return required.filter((key) => !process.env[key]);
+  return required.filter((key) => !process.env[key]?.trim());
 }
 
 export function configuredProviderName(): AssetProviderName {

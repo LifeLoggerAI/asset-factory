@@ -1,0 +1,17 @@
+{
+  "contract": "urai://contracts/ecosystem-schema-v2",
+  "state": "draft-sync-only",
+  "authorityRepository": "LifeLoggerAI/urai-content",
+  "authorityPath": "docs/contracts/URAI_ECOSYSTEM_SCHEMA_V2.json",
+  "authorityBlobSha": "88525d5edb80ded5c44861602398f5548b4d1b44",
+  "authorityOriginCandidatePr": 84,
+  "authorityObservedConvergenceOwnerPr": 96,
+  "authorityObservedHead": "9f6c6135362a911d84628606480e9c3e0c7a8f5a",
+  "consumerRuntimeAuthority": "LifeLoggerAI/urai-spatial",
+  "consumerConvergenceOwnerPr": 1636,
+  "runtimeAdmission": false,
+  "providerCallsAuthorized": false,
+  "dataRetentionAuthorized": false,
+  "assetProductionAdmission": false,
+  "rule": "Compatibility source only; each domain retains its runtime privacy/security/consent/release authority. A valid schema record is not consent, retention authority, accepted asset, provider runtime readiness, spending approval or release approval."
+}

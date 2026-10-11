@@ -69,19 +69,19 @@ jobs:
           npm --version
 
       - name: Install root dependencies
-        run: npm install
+        run: node scripts/install-locked-dependencies.mjs
 
       - name: Install engine dependencies
-        run: npm --prefix engine install
+        run: node scripts/install-locked-dependencies.mjs
 
       - name: Install functions dependencies
-        run: npm --prefix functions install
+        run: node scripts/install-locked-dependencies.mjs
 
       - name: Install LifeMap dependencies
-        run: npm --prefix life-map-pipeline/functions install
+        run: node scripts/install-locked-dependencies.mjs --deployment-functions
 
       - name: Install Studio dependencies
-        run: npm --prefix assetfactory-studio install
+        run: node scripts/install-locked-dependencies.mjs
 
       - name: Doctor gate
         run: npm run doctor

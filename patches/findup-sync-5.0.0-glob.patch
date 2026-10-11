@@ -1,0 +1,35 @@
+diff --git a/index.js b/index.js
+--- a/index.js
++++ b/index.js
+@@ -9,7 +9,7 @@
+ var isGlob = require('is-glob');
+ var resolveDir = require('resolve-dir');
+ var detect = require('detect-file');
+-var mm = require('micromatch');
++var mm = require('picomatch');
+ 
+ /**
+  * @param  {String|Array} `pattern` Glob pattern or file path(s) to match against.
+@@ -59,7 +59,7 @@
+ }
+ 
+ function matchFile(cwd, pattern, opts) {
+-  var isMatch = mm.matcher(pattern, opts);
++  var isMatch = mm(pattern, opts);
+   var files = tryReaddirSync(cwd);
+   var len = files.length;
+   var idx = -1;
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -27,8 +27,8 @@
+   "dependencies": {
+     "detect-file": "^1.0.0",
+     "is-glob": "^4.0.3",
+-    "micromatch": "^4.0.4",
+-    "resolve-dir": "^1.0.1"
++    "resolve-dir": "^1.0.1",
++    "picomatch": "2.3.2"
+   },
+   "devDependencies": {
+     "eslint": "^7.21.0",

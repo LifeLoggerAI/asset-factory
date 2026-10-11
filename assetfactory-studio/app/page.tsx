@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AppShell, Button } from '../components/layout/DesignSystem';
 
 type AssetType = 'graphic' | 'model3d' | 'audio' | 'bundle';
+type TenantScope = { tenantId: string };
 
 type StudioJob = {
   jobId: string;
@@ -95,49 +96,74 @@ export default function StudioPage() {
   const [busy, setBusy] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const tenantScope = useRef<TenantScope>({ tenantId: '' });
+  const refreshSequence = useRef(0);
+
+  const isCurrentScope = useCallback((scope: TenantScope) => tenantScope.current === scope, []);
+
+  function changeTenant(value: string) {
+    const tenant = value.trim();
+    if (tenant !== tenantScope.current.tenantId) {
+      // Invalidate before React renders so already pending responses cannot restore old data.
+      tenantScope.current = { tenantId: tenant };
+      refreshSequence.current += 1;
+      setJobs([]);
+      setAssets({});
+      setPrompt('');
+      setError('');
+      setBusy(false);
+      setIsRefreshing(false);
+      setStatus('Tenant changed. Submitted jobs can still finish in their original tenant.');
+    }
+    setTenantId(value);
+  }
+
+  useEffect(() => () => {
+    tenantScope.current = { tenantId: tenantScope.current.tenantId };
+    refreshSequence.current += 1;
+  }, []);
 
   const selectedType = useMemo(
     () => assetTypes.find((type) => type.value === assetType) ?? assetTypes[0],
     [assetType]
   );
 
-  const requestHeaders = useMemo(
-    () => ({
-      'x-tenant-id': tenantId.trim(),
-    }),
-    [tenantId]
-  );
-
-  const refreshJobs = useCallback(async () => {
+  const refreshJobs = useCallback(async (scope: TenantScope, sequence: number) => {
     const response = await fetch(JOB_API_ENDPOINT, {
       cache: 'no-store',
-      headers: requestHeaders,
+      headers: { 'x-tenant-id': scope.tenantId },
     });
 
+    if (!isCurrentScope(scope) || sequence !== refreshSequence.current) return;
     if (!response.ok) throw new Error('Failed to fetch jobs.');
 
     const data = await response.json();
+    if (!isCurrentScope(scope) || sequence !== refreshSequence.current) return;
     setJobs(Array.isArray(data) ? data : []);
-  }, [requestHeaders]);
+  }, [isCurrentScope]);
 
-  const refreshAssets = useCallback(async () => {
+  const refreshAssets = useCallback(async (scope: TenantScope, sequence: number) => {
     const response = await fetch(ASSETS_API_ENDPOINT, {
       cache: 'no-store',
-      headers: requestHeaders,
+      headers: { 'x-tenant-id': scope.tenantId },
     });
 
+    if (!isCurrentScope(scope) || sequence !== refreshSequence.current) return;
     if (!response.ok) return;
 
     const data = await response.json();
+    if (!isCurrentScope(scope) || sequence !== refreshSequence.current) return;
     if (!Array.isArray(data)) return;
 
     setAssets(
       Object.fromEntries(data.map((asset: StudioAsset) => [asset.jobId, asset]))
     );
-  }, [requestHeaders]);
+  }, [isCurrentScope]);
 
-  const refreshAll = useCallback(async () => {
-    if (!tenantId.trim()) {
+  const refreshAll = useCallback(async (scope: TenantScope = tenantScope.current) => {
+    if (!isCurrentScope(scope)) return;
+    const sequence = ++refreshSequence.current;
+    if (!scope.tenantId) {
       setJobs([]);
       setAssets({});
       return;
@@ -146,22 +172,25 @@ export default function StudioPage() {
     setIsRefreshing(true);
 
     try {
-      await Promise.all([refreshJobs(), refreshAssets()]);
+      await Promise.all([refreshJobs(scope, sequence), refreshAssets(scope, sequence)]);
     } catch (refreshError) {
-      setError(refreshError instanceof Error ? refreshError.message : 'Unable to refresh jobs.');
+      if (isCurrentScope(scope) && sequence === refreshSequence.current) {
+        setError(refreshError instanceof Error ? refreshError.message : 'Unable to refresh jobs.');
+      }
     } finally {
-      setIsRefreshing(false);
+      if (isCurrentScope(scope) && sequence === refreshSequence.current) setIsRefreshing(false);
     }
-  }, [refreshAssets, refreshJobs, tenantId]);
+  }, [isCurrentScope, refreshAssets, refreshJobs]);
 
   useEffect(() => {
     void refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll, tenantId]);
 
   async function createJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const scope = tenantScope.current;
 
-    if (!tenantId.trim()) {
+    if (!scope.tenantId) {
       setStatus('Enter a tenant ID before generating.');
       return;
     }
@@ -177,7 +206,7 @@ export default function StudioPage() {
 
     try {
       const jobId = `studio-${assetType}-${uuidv4()}`;
-      const tenant = tenantId.trim();
+      const tenant = scope.tenantId;
 
       const body = {
         jobId,
@@ -204,7 +233,9 @@ export default function StudioPage() {
         body: JSON.stringify(body),
       });
 
+      if (!isCurrentScope(scope)) return;
       const result = await response.json();
+      if (!isCurrentScope(scope)) return;
       if (!response.ok) throw new Error(result.error || 'Job submission failed.');
 
       setStatus(
@@ -213,16 +244,19 @@ export default function StudioPage() {
         } unit(s).`
       );
 
-      await refreshAll();
+      await refreshAll(scope);
     } catch (createError) {
+      if (!isCurrentScope(scope)) return;
       setError(createError instanceof Error ? createError.message : 'Unable to create job.');
       setStatus('Job creation failed.');
     } finally {
-      setBusy(false);
+      if (isCurrentScope(scope)) setBusy(false);
     }
   }
 
   async function materializeJob(jobId: string) {
+    const scope = tenantScope.current;
+    if (!scope.tenantId) return;
     setBusy(true);
     setError('');
     setStatus(`Materializing ${jobId}...`);
@@ -230,23 +264,28 @@ export default function StudioPage() {
     try {
       const response = await fetch(MATERIALIZE_ENDPOINT(jobId), {
         method: 'POST',
-        headers: requestHeaders,
+        headers: { 'x-tenant-id': scope.tenantId },
       });
 
+      if (!isCurrentScope(scope)) return;
       const result = await response.json();
+      if (!isCurrentScope(scope)) return;
       if (!response.ok) throw new Error(result.error || 'Materialization failed.');
 
       setStatus(`Materialized ${jobId} as ${result.asset?.fileName ?? 'asset'}.`);
-      await refreshAll();
+      await refreshAll(scope);
     } catch (materializeError) {
+      if (!isCurrentScope(scope)) return;
       setError(materializeError instanceof Error ? materializeError.message : 'Unable to materialize job.');
       setStatus('Materialization failed.');
     } finally {
-      setBusy(false);
+      if (isCurrentScope(scope)) setBusy(false);
     }
   }
 
   async function publishJob(jobId: string) {
+    const scope = tenantScope.current;
+    if (!scope.tenantId) return;
     setBusy(true);
     setError('');
     setStatus(`Publishing ${jobId}...`);
@@ -254,19 +293,22 @@ export default function StudioPage() {
     try {
       const response = await fetch(PUBLISH_ENDPOINT(jobId), {
         method: 'POST',
-        headers: requestHeaders,
+        headers: { 'x-tenant-id': scope.tenantId },
       });
 
+      if (!isCurrentScope(scope)) return;
       const result = await response.json();
+      if (!isCurrentScope(scope)) return;
       if (!response.ok) throw new Error(result.error || 'Publish failed.');
 
       setStatus(`Published ${jobId}.`);
-      await refreshAll();
+      await refreshAll(scope);
     } catch (publishError) {
+      if (!isCurrentScope(scope)) return;
       setError(publishError instanceof Error ? publishError.message : 'Unable to publish asset.');
       setStatus('Publish failed.');
     } finally {
-      setBusy(false);
+      if (isCurrentScope(scope)) setBusy(false);
     }
   }
 
@@ -291,7 +333,7 @@ export default function StudioPage() {
             <input
               id="tenantId"
               value={tenantId}
-              onChange={(event) => setTenantId(event.target.value)}
+              onChange={(event) => changeTenant(event.target.value)}
               style={inputStyle}
               placeholder="Enter tenant ID"
             />

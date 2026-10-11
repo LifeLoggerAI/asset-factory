@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "urai-factory-braces-local-mitigation-v1",
+  "advisoryId": "GHSA-vfj7-8cjw-p6xm",
+  "upstreamPackage": "braces",
+  "upstreamVersion": "3.0.3",
+  "upstreamTarballSha256": "1cd18e862c8640b4568b1425a7df4ee030ff201d45b2da8f9f222d2987494ffc",
+  "upstreamIntegrity": "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==",
+  "adoptedGuardSource": {
+    "repository": "LifeLoggerAI/urai-investors",
+    "sha": "1ecff671d6fd2eb095828e5ab47a4bf7726aeb33",
+    "files": [
+      {
+        "path": "vendor/braces/lib/constants.js",
+        "sha256": "73566e7bb7d8aeeb074dd0f85e33032dfa0364ba0e912410a4b5d331d6fc18ce"
+      },
+      {
+        "path": "vendor/braces/lib/parse.js",
+        "sha256": "6a1d82e278b860ef0ab2f232ca2e9b92e0c4dc2a64357791cab2911d42d6998e"
+      },
+      {
+        "path": "vendor/braces/lib/compile.js",
+        "sha256": "000c629d0405569649b37e5655006cec637293057f2b99a9747b38187f622b41"
+      },
+      {
+        "path": "vendor/braces/lib/expand.js",
+        "sha256": "d88a47f4229729636e3cfe547f83e1282abf173112b0bf9561993d0d2b6557c9"
+      },
+      {
+        "path": "vendor/braces/lib/stringify.js",
+        "sha256": "93409933b6c9acd0fa821ee34d97759818a1d1278638ef8c97a9e0df2acd18a7"
+      }
+    ]
+  },
+  "patchPath": "patches/braces-3.0.3-security.patch",
+  "patchSha256": "8907759497846f9ddc258eac12cf80882b80d3019fa7ad13c9952e764e7a59bf",
+  "maximumDepth": 128,
+  "upstreamPatchedVersion": null,
+  "status": "LOCAL_MITIGATION_REQUIRES_EXACT_INSTALLED_BEHAVIOR_AND_REVIEW_RAW_UPSTREAM_GATE_RETAINED",
+  "files": [
+    {
+      "path": "lib/constants.js",
+      "upstreamSha256": "c18ac5adb57308f1ce42a28552da3a31f5d83709743ebd9a636336813a744d4b",
+      "patchedSha256": "73566e7bb7d8aeeb074dd0f85e33032dfa0364ba0e912410a4b5d331d6fc18ce"
+    },
+    {
+      "path": "lib/parse.js",
+      "upstreamSha256": "e572166565f15fa6ad9865ae49d678218e32aabfd1b3720f6d0d43d39800d310",
+      "patchedSha256": "6a1d82e278b860ef0ab2f232ca2e9b92e0c4dc2a64357791cab2911d42d6998e"
+    },
+    {
+      "path": "lib/compile.js",
+      "upstreamSha256": "dc98f22eee3d511785d92a00758d5f0d48efed5f5813bdecc2de430c529b5c9f",
+      "patchedSha256": "000c629d0405569649b37e5655006cec637293057f2b99a9747b38187f622b41"
+    },
+    {
+      "path": "lib/expand.js",
+      "upstreamSha256": "41ccc196ebfa7b7781a634e721eb744e4e7bcb54cba427a7e3d6806a1b9e58f7",
+      "patchedSha256": "d88a47f4229729636e3cfe547f83e1282abf173112b0bf9561993d0d2b6557c9"
+    },
+    {
+      "path": "lib/stringify.js",
+      "upstreamSha256": "379f22d77bfa1478341ccd49c5e4267464aabcbba03558bab332aac23fc6f23a",
+      "patchedSha256": "93409933b6c9acd0fa821ee34d97759818a1d1278638ef8c97a9e0df2acd18a7"
+    }
+  ],
+  "adoptedPatchSource": {
+    "repository": "LifeLoggerAI/urai-studio",
+    "sha": "5d2cfdf3dcae738e0ebde50ab70e85f1d02c2e36",
+    "path": "patches/braces-3.0.3-security.patch",
+    "blob": "674c7b942da7177fd1baa66359cd08b40cedc2a5"
+  }
+}

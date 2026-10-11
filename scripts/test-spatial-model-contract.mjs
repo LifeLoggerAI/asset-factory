@@ -61,7 +61,7 @@ assert.equal(defaults.worldRole, 'unspecified');
 assert.equal(defaults.releaseVersion, 'unassigned');
 assert.equal(defaults.productionReady, false);
 
-const verified = normalizeSpatialModelContract({
+const declared = normalizeSpatialModelContract({
   worldRole: 'environment',
   releaseVersion: 'v3',
   lodTriangleBudgets: { high: 120000, medium: 60000, low: 15000 },
@@ -71,8 +71,11 @@ const verified = normalizeSpatialModelContract({
   proofState: 'device-verified',
   promotionState: 'promoted',
 });
-assert.equal(validateSpatialModelContract(verified), null);
-assert.equal(verified.productionReady, true);
+assert.equal(validateSpatialModelContract(declared), null);
+assert.equal(declared.proofState, 'device-verified');
+assert.equal(declared.promotionState, 'promoted');
+assert.equal(declared.verificationScope, 'caller-declared-fields-only');
+assert.equal(declared.productionReady, false);
 
 const validationSource = fs.readFileSync(path.join(studioRoot, 'lib/server/assetFactoryValidation.ts'), 'utf8');
 const rendererSource = fs.readFileSync(path.join(studioRoot, 'lib/server/assetRenderer.ts'), 'utf8');
@@ -82,4 +85,4 @@ assert.match(rendererSource, /normalizeSpatialModelContract/);
 assert.match(rendererSource, /spatialModelContract/);
 assert.match(rendererSource, /providerBacked: true/);
 
-console.log('PASS spatial model production contract');
+console.log('PASS spatial model declared-field contract');

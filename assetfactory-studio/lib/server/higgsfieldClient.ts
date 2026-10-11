@@ -1,3 +1,5 @@
+import type { GenerateRequest } from './assetFactoryValidation';
+import { paidStudioFetch, readStudioProvider, readStudioBytes, observeStudioProviderTask, waitStudioProvider, withProtectedStudioSession } from './protectedProviderRequest';
 import { createHash } from 'node:crypto';
 
 type JsonRecord = Record<string, unknown>;
@@ -81,7 +83,7 @@ function authHeader() {
 }
 
 async function readJson(response: Response): Promise<JsonRecord> {
-  const text = await response.text();
+  const text = (await readStudioBytes(response, 2 * 1024 * 1024)).toString('utf8');
   let body: unknown = {};
   try {
     body = text ? JSON.parse(text) : {};
@@ -111,8 +113,11 @@ export function higgsfieldIdempotencyKey(jobId: string, lane: string, endpointId
 export async function runHiggsfieldGeneration(
   endpointId: string,
   input: JsonRecord,
-  idempotencyKey: string
+  idempotencyKey: string,
+  sourceInput?: GenerateRequest,
+  lane: 'graphic' | 'video' = 'video'
 ): Promise<HiggsfieldCompletedRequest> {
+  return withProtectedStudioSession(sourceInput, async () => {
   const endpoint = safeEndpointId(endpointId);
   const timeoutMs = numberEnv(
     'ASSET_FACTORY_HIGGSFIELD_TIMEOUT_MS',
@@ -127,7 +132,7 @@ export async function runHiggsfieldGeneration(
     'content-type': 'application/json',
     'Idempotency-Key': idempotencyKey,
   };
-  const submit = await fetch(`${HIGGSFIELD_BASE_URL}/${endpoint}`, {
+  const submit = await paidStudioFetch('higgsfield', endpoint, lane, `${HIGGSFIELD_BASE_URL}/${endpoint}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(input),
@@ -137,6 +142,7 @@ export async function runHiggsfieldGeneration(
   let current = await readJson(submit);
   const requestId = String(current.request_id ?? '').trim();
   if (!requestId) throw new Error('Higgsfield response did not include request_id');
+  observeStudioProviderTask(requestId);
 
   let status = String(current.status ?? '').trim();
   if (status === 'completed') return current as HiggsfieldCompletedRequest;
@@ -147,17 +153,19 @@ export async function runHiggsfieldGeneration(
   const statusUrl = assertHiggsfieldApiUrl(
     current.status_url ?? `${HIGGSFIELD_BASE_URL}/requests/${encodeURIComponent(requestId)}/status`
   );
+  if (statusUrl !== `${HIGGSFIELD_BASE_URL}/requests/${encodeURIComponent(requestId)}/status`) throw new Error('Higgsfield status URL differs from admitted request');
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
-    const response = await fetch(statusUrl, {
+    await waitStudioProvider(pollMs);
+    const response = await readStudioProvider(statusUrl, {
       method: 'GET',
       headers: { authorization: headers.authorization },
       redirect: 'error',
       signal: AbortSignal.timeout(Math.min(120_000, Math.max(1_000, deadline - Date.now()))),
     });
     current = await readJson(response);
+    if (current.request_id !== requestId) throw new Error('Higgsfield status response differs from admitted request');
     status = String(current.status ?? '').trim();
     if (status === 'completed') return current as HiggsfieldCompletedRequest;
     if (terminalFailure(status)) {
@@ -169,6 +177,7 @@ export async function runHiggsfieldGeneration(
   }
 
   throw new Error(`Higgsfield generation timed out after ${timeoutMs}ms`);
+  });
 }
 
 export function higgsfieldArtifactUrl(result: JsonRecord, kind: 'image' | 'video') {
@@ -197,7 +206,7 @@ export async function downloadHiggsfieldArtifact(
   if (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0 || !Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) throw new Error('Invalid Higgsfield artifact budget');
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(options.timeoutMs)]);
-  const response = await fetch(safeUrl, { signal, redirect: 'error' });
+  const response = await readStudioProvider(safeUrl, { signal, redirect: 'error' }, { maxBytes: options.maxBytes });
   if (!response.ok) throw new Error(`Higgsfield artifact fetch failed ${response.status}`);
 
   const contentLength = Number(response.headers.get('content-length') ?? 0);
@@ -231,3 +240,4 @@ export async function downloadHiggsfieldArtifact(
     mimeType: response.headers.get('content-type') ?? 'application/octet-stream',
   };
 }
+

@@ -1,0 +1,49 @@
+name: Studio paid provider leaf source checks
+
+on:
+  pull_request:
+    paths:
+      - assetfactory-studio/lib/server/protectedProviderRequest.ts
+      - assetfactory-studio/lib/server/firebaseAdmin.ts
+      - assetfactory-studio/lib/server/assetProviderRuntime.ts
+      - assetfactory-studio/lib/server/assetVideoProviderRuntime.ts
+      - assetfactory-studio/lib/server/higgsfieldClient.ts
+      - model_forge/protected-artifact.mjs
+      - model_forge/protected-artifact.d.mts
+      - scripts/test-protected-artifact.mjs
+      - scripts/lib/studio-spend-test-fixture.mjs
+      - scripts/test-studio-paid-provider-leaves.mjs
+      - .github/workflows/studio-paid-provider-leaves.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-paid-provider-leaves-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  synthetic-source:
+    name: Exact-source synthetic paid leaf checks
+    runs-on: macos-latest
+    timeout-minutes: 10
+    env:
+      FACTORY_STUDIO_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate without persistent credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.FACTORY_STUDIO_EXACT_HEAD }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean candidate
+        run: |
+          test "$(git rev-parse HEAD)" = "$FACTORY_STUDIO_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Use Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Test actual TypeScript leaves with synthetic transport
+        run: node --experimental-vm-modules --test scripts/test-protected-artifact.mjs scripts/test-studio-paid-provider-leaves.mjs

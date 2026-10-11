@@ -22,7 +22,7 @@ function providedAssetFactoryKey(req: NextRequest) {
 export function requireConfiguredAssetFactoryApiKey(req: NextRequest) {
   const configuredKey = process.env.ASSET_FACTORY_API_KEY;
 
-  if (!configuredKey) {
+  if (!configuredKey?.trim()) {
     return NextResponse.json(
       {
         error: 'ASSET_FACTORY_API_KEY is required for this endpoint.',

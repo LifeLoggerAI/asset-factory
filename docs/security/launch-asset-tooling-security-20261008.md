@@ -1,0 +1,9 @@
+# Standalone launch-asset tooling installed security
+
+The supported `model_forge/launch-asset-preparation/v1` NPM toolchain is installed separately by the existing preparation and decoded-policy workflows. Its package lock currently declares 38 package rows, including optional platform binaries. That declaration is not an installed-security result. Root plus four PNPM-workspace scans do not certify this independent graph.
+
+The additive `Factory standalone launch tooling installed security` workflow installs this exact lock with `npm ci --ignore-scripts --no-audit --no-fund` on Linux and macOS using Node 22.23.3. It resolves the actual standalone manifests through the existing `installedGraph` implementation and uses the unchanged original advisory comparator with semver from this installed graph. It verifies both exact complete official reviewed corpora before matching every record. Any graph problem or finding at any severity blocks the job; no finding is waived, filtered or rewritten. Nothing is sent to npm or an advisory service for scanning.
+
+Scoped native evidence records exact source/tree, platform/runtime, manifest/lock/comparator hashes, every actual graph row and raw primary findings. Evidence remains in the existing repository's native artifact custody. The unchanged standalone preparation, decoded-asset and container contracts must also pass, and tracked source/locks must remain intact. All existing preparation workflows, workspace/deployment security assertions and the sole #421 release controller are preserved.
+
+Both supported platforms must earn their own exact-head native proof. No workspace, predecessor, lock-only, bundled-source or unexecuted check transfers acceptance. This assessment provides no accepted asset, provider/signing authority, legal rights, human independent approval, paid execution, deployment or production certification. Future private/provider/media/device and release gates remain applicable.

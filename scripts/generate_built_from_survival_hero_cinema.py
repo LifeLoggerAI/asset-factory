@@ -11,6 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'image_asset_generator'))
+import cinema_provider
+
 API = "https://api.openai.com/v1"
 EXPECTED_PROGRAM_REPOSITORY = "LifeLoggerAI/urai-studio"
 EXPECTED_PROGRAM_SHA = "802f909ecad2bd000e4c8011a14bc3340fe88950"
@@ -41,37 +46,15 @@ def curl_json(args: list[str]) -> dict[str, Any]:
 
 
 def create_video(api_key: str, model: str, size: str, seconds: str, prompt: str) -> dict[str, Any]:
-    return curl_json([
-        f"{API}/videos",
-        "-H", f"Authorization: Bearer {api_key}",
-        "-F", f"model={model}",
-        "-F", f"size={size}",
-        "-F", f"seconds={seconds}",
-        "-F", f"prompt={prompt}",
-    ])
+    return cinema_provider.create_video(api_key, str(model), str(size), str(seconds), str(prompt))
 
 
 def wait_video(api_key: str, video_id: str, timeout_seconds: int = 3600) -> dict[str, Any]:
-    started = time.monotonic()
-    while True:
-        data = curl_json([f"{API}/videos/{video_id}", "-H", f"Authorization: Bearer {api_key}"])
-        status = str(data.get("status") or "")
-        print(json.dumps({"video": video_id, "status": status, "progress": data.get("progress")}), flush=True)
-        if status == "completed":
-            return data
-        if status in {"failed", "cancelled"}:
-            raise RuntimeError(f"video {video_id} ended with status {status}: {data}")
-        if time.monotonic() - started > timeout_seconds:
-            raise TimeoutError(f"video {video_id} timed out")
-        time.sleep(20)
+    return cinema_provider.wait_video(api_key, video_id, timeout_seconds)
 
 
 def download_video(api_key: str, video_id: str, output: Path) -> None:
-    run([
-        "curl", "--fail-with-body", "--location", "--silent", "--show-error",
-        f"{API}/videos/{video_id}/content", "-H", f"Authorization: Bearer {api_key}",
-        "--output", str(output),
-    ], capture=False)
+    return cinema_provider.download_video(api_key, video_id, output)
 
 
 def ffprobe(path: Path) -> dict[str, Any]:
@@ -144,6 +127,7 @@ def main() -> None:
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     authorization = json.loads(authorization_path.read_text(encoding="utf-8"))
+    cinema_provider.bind_sources(manifest, authorization)
     shots = validate(manifest, authorization, manifest_path)
 
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -162,6 +146,8 @@ def main() -> None:
         "authorizationSha256": sha256(authorization_path),
         "providerCallsAuthorized": MAX_CALLS,
         "providerCallsExecuted": 0,
+        "chargesReconciled": False,
+        "actualSpendUsd": None,
         "maximumReservedCostUsd": MAX_RESERVED_SPEND_USD,
         "automaticRetryAuthorized": False,
         "remixAuthorized": False,
@@ -187,7 +173,10 @@ def main() -> None:
                 "shotId": shot["id"], "name": shot["name"], "classification": shot["classification"],
                 "targetEditorialDurationSeconds": shot["targetEditorialDurationSeconds"],
                 "sourceClipSecondsRequested": manifest["secondsPerSourceClip"],
-                "videoId": video_id, "status": completed.get("status"),
+                "videoId": video_id,
+                "budgetAttemptId": completed["budget_attempt_id"],
+                "budgetJobId": completed["budget_job_id"],
+                "chargesReconciled": False, "status": completed.get("status"),
                 "model": completed.get("model", manifest["videoModel"]),
                 "sizeRequested": manifest["videoSize"], "path": output_path.as_posix(),
                 "sha256": sha256(output_path), "bytes": output_path.stat().st_size, "probe": ffprobe(output_path)

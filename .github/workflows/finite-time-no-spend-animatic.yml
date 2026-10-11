@@ -2,9 +2,12 @@ name: FINITE TIME No-Spend Animatic
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, repair/model-forge-current-main-20261007]
     paths:
       - 'film_foundry/finite_time/**'
+      - 'scripts/test-finite-time-storyboard-contract.mjs'
+      - 'scripts/test-finite-time-media-contract.mjs'
+      - 'scripts/test-finite-time-final-authorization.mjs'
       - 'docs/finite-time/**'
       - 'package.json'
       - '.github/workflows/finite-time-no-spend-animatic.yml'
@@ -12,6 +15,9 @@ on:
     branches: [main]
     paths:
       - 'film_foundry/finite_time/**'
+      - 'scripts/test-finite-time-storyboard-contract.mjs'
+      - 'scripts/test-finite-time-media-contract.mjs'
+      - 'scripts/test-finite-time-final-authorization.mjs'
       - 'docs/finite-time/**'
       - 'package.json'
       - '.github/workflows/finite-time-no-spend-animatic.yml'
@@ -79,6 +85,14 @@ jobs:
           test -z "${ELEVENLABS_API_KEY:-}"
           test -z "${RUNWAY_API_KEY:-}"
 
+      - name: Verify actual storyboard drawing and validator contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/test-finite-time-storyboard-contract.mjs | tee finite-time-storyboard-contract.log
+          node --test scripts/test-finite-time-media-contract.mjs | tee finite-time-media-contract.log
+          node --test scripts/test-finite-time-final-authorization.mjs | tee finite-time-final-authorization-contract.log
+
       - name: Generate audited v1 and storyboard v2
         shell: bash
         run: |
@@ -125,6 +139,9 @@ jobs:
           final_rendering_authorized=false
           EOF
             cp finite-time-animatic.log "$target/"
+            cp finite-time-storyboard-contract.log "$target/"
+            cp finite-time-media-contract.log "$target/"
+            cp finite-time-final-authorization-contract.log "$target/"
           done
           cp finite-time-v1-duration.txt film_foundry/finite_time/dist/farm-to-lake/
           cp finite-time-v2-duration.txt film_foundry/finite_time/dist/farm-to-lake-storyboard-v2/
