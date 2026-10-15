@@ -14,7 +14,8 @@ export function verifyHomeRetainedSourceIdentity(manifestPath, evidencePath, rec
   check(receipt.schemaVersion === 'urai-runway-existing-task-retention-receipt-v1', 'receipt schema')
   check([manifest, evidence, receipt].every(item => item.worldId === 'URAI-IW-001-QUIET-RESET' && item.autobiographical === false), 'world/truth authority')
   check(manifest.truthClass === 'interpretive' && evidence.truthClass === 'INTERPRETIVE' && receipt.truthClass === 'interpretive', 'interpretive truth class')
-  check(manifest.provider === 'runway' && receipt.provider === 'runway', 'provider')
+  check([manifest, evidence, receipt].every(item => item.provider === 'runway'), 'provider source lineage')
+  check(evidence.generationCallsExecuted === 0 && evidence.providerMutationPerformed === false && evidence.providerCreditsUsed === 0, 'historical zero-spend provenance')
   check(receipt.operation === 'GET_EXISTING_TASK_OUTPUT_ONLY' && receipt.generationCallsExecuted === 0 && receipt.providerMutationPerformed === false && receipt.outputUrlsRetained === false, 'read-only retention')
   const indexed = [manifest.items, evidence.items, receipt.items].map(items => {
     check(Array.isArray(items) && items.length === 12, 'twelve items required')
@@ -32,7 +33,9 @@ export function verifyHomeRetainedSourceIdentity(manifestPath, evidencePath, rec
     const media = isSurvey ? 'video' : 'image'
     const extension = isSurvey ? 'mp4' : 'png'
     check(task.expectedMedia === media && record.expectedMedia === media && record.role === task.role, id + ' media/role')
-    check(task.taskId === record.taskId && record.taskStatus === 'SUCCEEDED', id + ' task identity')
+    check(typeof expected.taskId === 'string' && task.taskId === expected.taskId && record.taskId === expected.taskId, id + ' canonical historical task identity')
+    check(expected.fileName === id + '.' + extension, id + ' canonical historical filename')
+    check(record.taskStatus === 'SUCCEEDED', id + ' completed task status')
     check(Array.isArray(record.outputs) && record.outputs.length === 1, id + ' output count')
     const output = record.outputs[0]
     check(output.filename === id + '-01.' + extension, id + ' filename')

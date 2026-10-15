@@ -18,11 +18,11 @@ function fixture(t) {
     fs.writeFileSync(path.join(root,filename),bytes)
     const sha256=crypto.createHash('sha256').update(bytes).digest('hex')
     taskItems.push({ id, taskId, role, expectedMedia:type })
-    evidenceItems.push({id, bytes:bytes.length, sha256, width:1280, height:720})
+    evidenceItems.push({id, taskId, fileName:id+'.'+(survey?'mp4':'png'), bytes:bytes.length, sha256, width:1280, height:720})
     receiptItems.push({id, taskId, role, expectedMedia:type, taskStatus:'SUCCEEDED',outputs:[{filename,bytes:bytes.length,sha256,contentType:survey?'video/mp4':'image/png'}]})
   }
   const manifest={schemaVersion:'urai-runway-existing-task-retention-v1',worldId:'URAI-IW-001-QUIET-RESET',autobiographical:false,truthClass:'interpretive',provider:'runway',items:taskItems}
-  const evidence={schemaVersion:'urai-home-materialized-sfm-evidence-v1',worldId:manifest.worldId,autobiographical:false,truthClass:'INTERPRETIVE',items:evidenceItems}
+  const evidence={schemaVersion:'urai-home-materialized-sfm-evidence-v1',worldId:manifest.worldId,autobiographical:false,truthClass:'INTERPRETIVE',provider:'runway',generationCallsExecuted:0,providerMutationPerformed:false,providerCreditsUsed:0,items:evidenceItems}
   const receipt={schemaVersion:'urai-runway-existing-task-retention-receipt-v1',worldId:manifest.worldId,autobiographical:false,truthClass:'interpretive',provider:'runway',operation:'GET_EXISTING_TASK_OUTPUT_ONLY',generationCallsExecuted:0,providerMutationPerformed:false,outputUrlsRetained:false,items:receiptItems}
   const files=['tasks.json','sfm.json','receipt.json'].map(f=>path.join(root,f))
   const flush=()=>[manifest,evidence,receipt].forEach((data,i)=>fs.writeFileSync(files[i],JSON.stringify(data)))
@@ -36,3 +36,30 @@ test('reject mismatch with immutable prior SHA',t=>{const x=fixture(t);x.evidenc
 test('reject symlink source bytes',t=>{const x=fixture(t);const f=path.join(x.root,'S01_PUSH-01.mp4');fs.renameSync(f,f+'.bak');fs.symlinkSync(f+'.bak',f);assert.throws(x.run,/regular file/)})
 test('reject fabricated autobiography',t=>{const x=fixture(t);x.receipt.autobiographical=true;x.flush();assert.throws(x.run,/world\/truth/)})
 test('reject provider mutation and URL retention',t=>{const x=fixture(t);x.receipt.outputUrlsRetained=true;x.flush();assert.throws(x.run,/read-only/)})
+
+test('reject coordinated manifest and receipt task rewrite against historical SfM identity',t=>{
+  const x=fixture(t);
+  x.manifest.items[0].taskId='substituted-task';
+  x.receipt.items[0].taskId='substituted-task';
+  x.flush();
+  assert.throws(x.run,/canonical historical task identity/);
+});
+test('reject historical file identity drift even when retained bytes are unchanged',t=>{
+  const x=fixture(t);
+  x.evidence.items[0].fileName='another-source.png';
+  x.flush();
+  assert.throws(x.run,/canonical historical filename/);
+});
+test('reject prior provider mutations and spending disguised as read-only retention',t=>{
+  for (const mutation of [
+    {providerMutationPerformed:true},
+    {generationCallsExecuted:1},
+    {providerCreditsUsed:1},
+    {provider:'another-provider'}
+  ]) {
+    const x=fixture(t);
+    Object.assign(x.evidence,mutation);
+    x.flush();
+    assert.throws(x.run,/historical zero-spend provenance|provider source lineage/);
+  }
+});
