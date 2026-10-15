@@ -1,0 +1,31 @@
+name: Home Historical Source Identity Gate
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/verify-home-retained-source-identity.mjs'
+      - 'scripts/test-home-retained-source-identity.mjs'
+      - '.github/workflows/home-historical-source-identity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact source
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run no-network identity and fail-closed tests
+        run: node --test scripts/test-home-retained-source-identity.mjs

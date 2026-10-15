@@ -172,11 +172,44 @@ jobs:
           console.log('PASS existing Runway Home outputs retained with hashes; zero generation calls')
           NODE
 
+      - name: Verify retained original source against immutable SfM evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-home-retained-source-identity.mjs \
+            model_forge/evidence/home-runway-world001-tasks-20261004.json \
+            model_forge/evidence/home-materialized-sfm-20261006.json \
+            "$RUNNER_TEMP/home-runway-world001/retention-receipt.json" \
+            "$RUNNER_TEMP/home-runway-world001" \
+            > "$RUNNER_TEMP/home-runway-world001/source-identity.json"
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(r.identityStatus!=="PASS"||r.files?.length!==12||r.gaussianTrained!==false||r.productionArtAccepted!==false)process.exit(1)' \
+            "$RUNNER_TEMP/home-runway-world001/source-identity.json"
+
+      - name: Validate original survey video decode and collect temporal samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/home-runway-world001/source-identity.json"
+          bash scripts/validate-home-runway-surveys.sh \
+            "$RUNNER_TEMP/home-runway-world001" \
+            "$RUNNER_TEMP/home-runway-world001-survey-review"
+          test "$(jq -r '.structuralMediaValidation' "$RUNNER_TEMP/home-runway-world001-survey-review/media-validation.json")" = "passed"
+          test "$(jq -r '.literalVisualAcceptance' "$RUNNER_TEMP/home-runway-world001-survey-review/media-validation.json")" = "false"
+
       - name: Upload private retained Home evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: home-runway-world001-retained-${{ github.sha }}-${{ github.run_id }}
           path: ${{ runner.temp }}/home-runway-world001/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload private source-versus-survey visual QC
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: home-runway-world001-survey-qc-${{ github.sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/home-runway-world001-survey-review/
           if-no-files-found: error
           retention-days: 30
           compression-level: 6
