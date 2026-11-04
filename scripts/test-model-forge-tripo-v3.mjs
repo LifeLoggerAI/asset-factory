@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -59,7 +61,7 @@ test('retained compatible H model is honored without silently selecting another 
   const f = fixture({ model: 'v3.0-20250812' }); await f.run({ generation: { seed: null } });
   const body = JSON.parse(f.paid[0].init.body); assert.equal(body.model, 'v3.0-20250812'); assert.equal('model_seed' in body, false);
 });
-for (const model of ['v2.5-20250123', 'unknown-v3']) test(`unadmitted Tripo model cannot dispatch a paid leaf: ${JSON.stringify(model)}`, async () => {
+for (const model of ['v2.5-20250123', 'v1.0-20250506', 'unknown-v3']) test(`unadmitted Tripo model cannot dispatch a paid leaf: ${JSON.stringify(model)}`, async () => {
   const f = fixture({ model }); await assert.rejects(f.run(), /not admitted/); assert.equal(f.paid.length, 0); assert.equal(f.reads.length, 0);
 });
 for (const overrides of [
@@ -122,6 +124,66 @@ test('V3 protected origin is canonical and old V2 origin cannot reuse protected 
   await assert.rejects(client.submit('https://openapi.tripo3d.ai/v3/generation/text-to-model', init, 'v3.1-20260211'), /protected exact request job missing/); assert.equal(gatewayCalls, 0);
 });
 const tripoCheck = providerChecks.find(row => row.provider === 'tripo');
+for (const model of [undefined, '', 'v3.1-20260211', 'v3.0-20250812']) test(`preflight reports only the actual admitted Tripo model: ${JSON.stringify(model)}`, async () => {
+  let reads = 0;
+  const receipt = await providerPreflight({ env: { TRIPO_API_KEY: 'SYNTHETIC-NOT-A-CREDENTIAL', ...(model === undefined ? {} : { URAI_TRIPO_MODEL: model }) }, readJson: async () => { reads++; } });
+  const row = receipt.providers.find(item => item.provider === 'tripo');
+  assert.equal(row.model, model || 'v3.1-20260211'); assert.equal(row.status, 'configured-not-queried'); assert.equal(reads, 0);
+  const f = fixture({ model }); await f.run(); assert.equal(f.paid[0].model, row.model);
+});
+for (const model of ['v2.5-20250123', 'v1.0-20250506', 'unknown-v3', 'SYNTHETIC-PRIVATE-OVERRIDE']) test(`invalid Tripo model fails preflight without balance reads or raw override disclosure: ${JSON.stringify(model)}`, async () => {
+  for (const live of [false, true]) for (const configured of [false, true]) {
+    let reads = 0;
+    const receipt = await providerPreflight({ live, env: { URAI_TRIPO_MODEL: model, ...(configured ? { TRIPO_API_KEY: 'SYNTHETIC-NOT-A-CREDENTIAL' } : {}) }, readJson: async () => { reads++; throw Error('must not query'); } });
+    const row = receipt.providers.find(item => item.provider === 'tripo');
+    assert.equal(row.status, 'preflight-failed'); assert.equal(row.balanceChecked, false); assert.equal(row.model, null); assert.equal(reads, 0);
+    assert.equal(JSON.stringify(receipt).includes(model), false);
+    assert.equal(receipt.provider_call_authorized, false); assert.equal(receipt.execution_performed, false); assert.equal(receipt.protected_account_binding_verified, false);
+  }
+});
+test('actual preflight CLI rejects an invalid model offline and preserves its non-authorizing receipt', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'urai-tripo-preflight-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('../model_forge/provider-preflight.mjs', import.meta.url))], {
+    cwd: directory, encoding: 'utf8', timeout: 10000,
+    env: { PATH: process.env.PATH, URAI_TRIPO_MODEL: 'SYNTHETIC-PRIVATE-OVERRIDE' },
+  });
+  assert.ifError(result.error); assert.equal(result.status, 1);
+  const receipt = JSON.parse(fs.readFileSync(path.join(directory, 'model-forge-provider-preflight.json'), 'utf8'));
+  assert.equal(receipt.providers.find(row => row.provider === 'tripo').status, 'preflight-failed');
+  assert.equal(receipt.provider_call_authorized, false); assert.equal(receipt.live, false);
+  assert.equal((result.stdout + result.stderr + JSON.stringify(receipt)).includes('SYNTHETIC-PRIVATE-OVERRIDE'), false);
+});
+test('actual Home readiness artifact retains admitted model and explicit non-authority without credentials', async () => {
+  const workflow = fs.readFileSync(new URL('../.github/workflows/replicate-bounded-model3d-smoke.yml', import.meta.url), 'utf8');
+  const filter = workflow.match(/jq '([^']+)' model-forge-provider-preflight\.json/);
+  assert.ok(filter, 'missing actual Home readiness artifact filter');
+  const receipt = await providerPreflight({ env: { TRIPO_API_KEY: 'SYNTHETIC-NOT-A-CREDENTIAL' } });
+  receipt.providers.find(row => row.provider === 'tripo').privateDiagnostic = 'SYNTHETIC-PRIVATE-DIAGNOSTIC';
+  const result = spawnSync('jq', [filter[1]], { input: JSON.stringify(receipt), encoding: 'utf8', timeout: 10000 });
+  assert.ifError(result.error); assert.equal(result.status, 0, result.stderr);
+  const artifact = JSON.parse(result.stdout);
+  for (const field of ['provider_call_authorized', 'execution_performed', 'protected_account_binding_verified']) assert.equal(artifact[field], false);
+  assert.equal(artifact.providers.find(row => row.provider === 'tripo').model, 'v3.1-20260211');
+  assert.equal(artifact.providers.some(row => row.provider === 'replicate'), false);
+  assert.equal(result.stdout.includes('SYNTHETIC-PRIVATE'), false); assert.equal(result.stdout.includes('SYNTHETIC-NOT-A-CREDENTIAL'), false);
+});
+test('actual Home consumer accepts the protected dry-run contract and rejects claimed execution authority', () => {
+  const workflow = fs.readFileSync(new URL('../.github/workflows/replicate-bounded-model3d-smoke.yml', import.meta.url), 'utf8');
+  const filter = workflow.match(/jq -e '([^']+)' "\$RUNNER_TEMP\/home-challenger-plan\.json"/);
+  assert.ok(filter, 'missing actual Home plan contract');
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const plan = spawnSync(process.execPath, ['model_forge/forge.mjs', '--spec', 'model_forge/specs/home-architectural-sanctuary.json', '--providers', 'replicate', '--dry-run'], {
+    cwd: root, env: { PATH: process.env.PATH, URAI_MODEL_FORGE_SPEND_AUTHORIZED: '1' }, encoding: 'utf8', timeout: 10000,
+  });
+  assert.ifError(plan.error); assert.equal(plan.status, 0, plan.stderr);
+  const receipt = JSON.parse(plan.stdout);
+  const check = value => spawnSync('jq', ['-e', filter[1]], { input: JSON.stringify(value), encoding: 'utf8', timeout: 10000 });
+  const accepted = check(receipt); assert.ifError(accepted.error); assert.equal(accepted.status, 0, accepted.stderr);
+  for (const field of ['spendAuthorized', 'provider_call_authorized', 'execution_performed']) {
+    const rejected = check({ ...receipt, [field]: true }); assert.ifError(rejected.error); assert.equal(rejected.status, 1, field);
+  }
+});
 test('V3 account metadata requires balance and frozen credits without promoting metadata to authority', async () => {
   assert.equal(tripoCheck.url, 'https://openapi.tripo3d.ai/v3/account/balance');
   assert.deepEqual(tripoCheck.read({ code: 0, data: { balance: 100.25, frozen: 3.5 } }), { balance: 100.25, frozen: 3.5 });

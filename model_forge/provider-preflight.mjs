@@ -73,6 +73,16 @@ export async function providerPreflight({ live = false, env = process.env, readJ
   for (const check of providerChecks) {
     const configured = Boolean(env[check.env]);
     const row = { provider: check.provider, requiredEnv: check.env, configured, balanceChecked: false };
+    if (check.provider === 'tripo') {
+      const model = env.URAI_TRIPO_MODEL || 'v3.1-20260211';
+      // Match the existing generation schema; never echo an untrusted override.
+      if (!['v3.1-20260211', 'v3.0-20250812'].includes(model)) {
+        Object.assign(row, { model: null, status: 'preflight-failed', error: 'Tripo model is not admitted by the current V3 generation schema' });
+        receipt.providers.push(row);
+        continue;
+      }
+      row.model = model;
+    }
     if (live && configured && check.url) {
       try { Object.assign(row, check.read(await readJson(check.url, env[check.env])), { balanceChecked: true, status: 'reachable' }); }
       catch (error) {
@@ -93,5 +103,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const receipt = await providerPreflight({ live });
   fs.writeFileSync('model-forge-provider-preflight.json', `${JSON.stringify(receipt, null, 2)}\n`);
   console.log(JSON.stringify(receipt, null, 2));
-  if (live && receipt.providers.some(row => row.configured && row.status === 'preflight-failed')) process.exitCode = 1;
+  if (receipt.providers.some(row => row.status === 'preflight-failed')) process.exitCode = 1;
 }

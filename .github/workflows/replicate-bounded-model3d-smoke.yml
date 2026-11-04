@@ -274,11 +274,15 @@ jobs:
           jq '{
             schemaVersion,
             live,
+            provider_call_authorized,
+            execution_performed,
+            protected_account_binding_verified,
             providers: [.providers[] | select(.provider == "meshy" or .provider == "tripo" or .provider == "rodin") | {
               provider,
               configured,
               balanceChecked,
               status,
+              model: (.model // null),
               balance: (.balance // null),
               frozen: (.frozen // null),
               note: (.note // null)
@@ -371,7 +375,7 @@ jobs:
             --spec model_forge/specs/home-architectural-sanctuary.json \
             --providers replicate \
             --dry-run > "$RUNNER_TEMP/home-challenger-plan.json"
-          jq -e '.dryRun == true and .spendAuthorized == true and .assetId == "home-entry-chamber-v1" and (.providers | length) == 1 and .providers[0].provider == "replicate" and .generationPolicy.maxProviderAttempts == 1' "$RUNNER_TEMP/home-challenger-plan.json"
+          jq -e '.dryRun == true and .spendRequested == true and .spendAuthorized == false and .provider_call_authorized == false and .execution_performed == false and .assetId == "home-entry-chamber-v1" and (.providers | length) == 1 and .providers[0].provider == "replicate" and .generationPolicy.maxProviderAttempts == 1' "$RUNNER_TEMP/home-challenger-plan.json"
 
       - name: Refuse any previously started Home attempt
         env:
