@@ -3,7 +3,16 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 
 const API_SERVER_URL = 'http://localhost:8080';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-default-super-secret-key-that-is-long-and-secure';
+// Legacy V4 test is opt-in, local-only, and must never mint test JWTs with a public default.
+if (process.env.ASSET_FACTORY_ENABLE_LEGACY_E2E !== 'true') {
+  throw new Error('Legacy V4 E2E is disabled by default; explicit local test opt-in required.');
+}
+const JWT_SECRET = process.env.JWT_SECRET?.trim();
+if (!JWT_SECRET || JWT_SECRET.length < 32 ||
+    JWT_SECRET === 'your-default-super-secret-key-that-is-long-and-secure' ||
+    JWT_SECRET === 'change-me-local-only') {
+  throw new Error('Legacy V4 E2E needs a private, explicitly configured JWT_SECRET.');
+}
 
 // A mock tenant ID for testing purposes
 const MOCK_TENANT_ID = 'tenant-123';
@@ -46,7 +55,8 @@ async function runTest() {
     if (transactionInMempool) {
       console.log('[E2E Test] ✅ SUCCESS: Transaction found in validator mempool.');
     } else {
-      console.log('[E2E Test] ❌ FAILURE: Transaction not found in validator mempool.');
+      console.error('[E2E Test] ❌ FAILURE: Transaction not found in validator mempool.');
+      process.exitCode = 1;
     }
 
     console.log('\n--- E2E TEST COMPLETE ---');
@@ -58,6 +68,7 @@ async function runTest() {
 
   } catch (error) {
     console.error('[E2E Test] ❌ Test failed:', error.response ? error.response.data : error.message);
+    process.exitCode = 1;
   }
 }
 
