@@ -1,3 +1,8 @@
+// Frozen V1 prototype: deny production/staging and avoid tracked test credentials.
+// The legacy engine is not the canonical authenticated Asset Factory API.
+const { admitLegacyV1, requireLegacyOwner, ownsLegacyJob } = require('./legacy-v1-access');
+const legacyLocalFiles = admitLegacyV1(process.env, __dirname);
+
 const express = require("express");
 const { fork } = require("child_process");
 const fs = require("fs").promises;
@@ -7,8 +12,8 @@ const { v4: uuidv4 } = require("uuid");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const DB_PATH = path.join(__dirname, "db.json");
-const USERS_PATH = path.join(__dirname, "users.json");
+const DB_PATH = legacyLocalFiles.dbPath;
+const USERS_PATH = legacyLocalFiles.usersPath;
 
 app.use(express.json());
 
@@ -20,7 +25,7 @@ const apiKeyAuth = async (req, res, next) => {
 
   const usersData = await fs.readFile(USERS_PATH, "utf8");
   const users = JSON.parse(usersData);
-  const user = users.find((u) => u.apiKey === apiKey);
+  const user = users.find((u) => u.apiKey === apiKey && typeof u.id === 'string' && !!u.id.trim());
 
   if (!user) {
     return res.status(403).json({ error: "Invalid API key" });
@@ -52,8 +57,10 @@ app.post("/v1/jobs", apiKeyAuth, checkJobQuota, async (req, res) => {
     return res.status(400).json({ error: "prompt and format are required" });
   }
 
+  const ownerUserId = requireLegacyOwner(req.user);
   const jobId = uuidv4();
   const job = {
+    ownerUserId,
     id: jobId,
     status: "queued",
     prompt,
@@ -82,7 +89,8 @@ app.get("/v1/jobs/:jobId", apiKeyAuth, async (req, res) => {
   const { jobId } = req.params;
   const dbData = await fs.readFile(DB_PATH, "utf8");
   const db = JSON.parse(dbData);
-  const job = db.jobs.find((j) => j.id === jobId);
+  // Legacy records without an owner cannot grant access. Return 404 for foreign jobs.
+  const job = db.jobs.find((j) => j.id === jobId && ownsLegacyJob(j, req.user));
 
   if (!job) {
     return res.status(404).json({ error: "Job not found" });
@@ -91,6 +99,6 @@ app.get("/v1/jobs/:jobId", apiKeyAuth, async (req, res) => {
   res.json(job);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`Asset-Factory V1 server listening on port ${PORT}`);
 });
