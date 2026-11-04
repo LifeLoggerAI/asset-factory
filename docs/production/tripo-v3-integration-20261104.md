@@ -92,13 +92,34 @@ The test command was:
 node --test scripts/test-protected-artifact.mjs scripts/test-model-forge-spend-client.mjs scripts/test-model-forge-spend-leaves.mjs scripts/test-model-forge-tripo-v3.mjs scripts/test-model-forge-response-boundary.mjs scripts/test-model-forge-execution-outcomes.mjs scripts/test-model-forge-glb-container.mjs scripts/test-protected-workflow-spend-leaves.mjs
 ```
 
+## Published readback and native blocker
+
+The five-path correction was admitted through existing owner #421 with a fresh,
+non-force expected-head lease at
+`ed2aeca1e16dcae4c2d8b254602a0ca5a76fa3ab`, tree
+`79fe80997f71eaa0a8cc5df879f291b9efa5b303`, sole parent
+`74445b5d99478f1288604243596d00d6d238b64c`. All 1,721 nonselected predecessor
+source blobs and modes were verified unchanged. The actual PR head readback
+matched; main remained `a49f611ade29a1754787701ab4bf915c85c0cdc6`. A separate
+checkout of that committed source passed all **376/376** cases on local Node
+`v24.22.1` with credentials removed, zero failures or skips.
+
+Fresh native [run 41792607935 / job 126449246409](https://github.com/LifeLoggerAI/asset-factory/actions/runs/41792607935/job/126449246409)
+is FAILED at that exact source, with runner ID 0 and no steps executed. The public
+GitHub job annotation states: "The job was not started because your account is
+locked due to a billing issue." This is a verified native execution blocker,
+not a passed native test or an observed source-test failure. No paid compute was
+initiated to work around it. A documentation-only follow-up records this result;
+it does not change any of the tested executable files.
+
 ## Remaining external requirements
 
 1. Read the real protected environment and executable deployment's effective
    model configuration through authenticated owner access. Inspect only model
    selections and credential-presence/binding metadata, without exposing keys.
-2. Earn fresh native Node 22 evidence on the corrected exact candidate and obtain
-   the existing independent release review/admission before moving #421 to main.
+2. Resolve the GitHub account billing lock through the account owner, earn fresh
+   native Node 22 evidence on the corrected exact candidate, and obtain the
+   existing independent release review/admission before moving #421 to main.
    The main-bound readiness job remains V2 until that admission occurs.
 3. Before any paid Tripo request, bind the admitted immutable source and V3
    endpoint/request bytes to authentic account/credential, current price, rights
