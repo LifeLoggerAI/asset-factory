@@ -1,15 +1,20 @@
-
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getSubscriptionStatus, getCurrentUsage } from './billing';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-default-super-secret-key-that-is-long-and-secure';
 
 const TIER_LIMITS = {
     free: 10,
     pro: 100,
     enterprise: Infinity,
 };
+
+function configuredLegacyJwtSecret(): string {
+    const secret = process.env.JWT_SECRET?.trim();
+    if (!secret || secret.length < 32 || secret === 'your-default-super-secret-key-that-is-long-and-secure' || secret === 'change-me-local-only') {
+        throw new Error('Legacy JWT verification is disabled: a secure JWT_SECRET is required.');
+    }
+    return secret;
+}
 
 export async function authenticateAndAuthorize(req: NextRequest) {
     const authHeader = req.headers.get('Authorization');
@@ -23,9 +28,8 @@ export async function authenticateAndAuthorize(req: NextRequest) {
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { tenantId: string };
-
-        if (!decoded.tenantId) {
+        const decoded = jwt.verify(token, configuredLegacyJwtSecret(), { algorithms: ['HS256'] });
+        if (typeof decoded !== 'object' || decoded === null || typeof decoded.tenantId !== 'string' || !decoded.tenantId.trim()) {
             throw new Error('Forbidden: Token is missing tenant information.');
         }
 
@@ -41,9 +45,8 @@ export async function authenticateAndAuthorize(req: NextRequest) {
             throw new Error('429: Usage limit exceeded.');
         }
 
-        console.log(`[Auth] JWT validated. Request authorized for tenant: ${decoded.tenantId}`);
+        console.log('[Auth] Legacy JWT validated for configured tenant.');
         return { tenantId: decoded.tenantId, subscription };
-
     } catch (error) {
         if (error instanceof jwt.TokenExpiredError) {
             throw new Error('Unauthorized: Token has expired.');

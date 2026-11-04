@@ -1,3 +1,11 @@
+// Preserved legacy V4 prototype: never expose this old token surface in any
+// production or staging runtime. Its old issuer has been retired.
+// Fail BEFORE loading dependencies, Firebase adapters or network listeners.
+if (process.env.ASSET_FACTORY_ENABLE_LEGACY_V4_SERVER !== 'true' ||
+    !['development', 'test'].includes(process.env.NODE_ENV)) {
+    throw new Error('Legacy V4 API is disabled by default; explicit local test opt-in required.');
+}
+
 
 require('dotenv').config();
 const express = require('express');
@@ -24,7 +32,12 @@ async function initializeApiServerIdentity() {
 }
 
 // IMPORTANT: This secret MUST match the one used in the token-issuing service.
-const JWT_SECRET = process.env.JWT_SECRET || 'your-default-super-secret-key-that-is-long-and-secure';
+const JWT_SECRET = process.env.JWT_SECRET?.trim();
+if (!JWT_SECRET || JWT_SECRET.length < 32 ||
+    JWT_SECRET === 'your-default-super-secret-key-that-is-long-and-secure' ||
+    JWT_SECRET === 'change-me-local-only') {
+    throw new Error('Legacy API startup denied: a secure JWT_SECRET must be configured.');
+}
 
 // --- RATE LIMITING (SOC2 Compliance) ---
 const apiLimiter = rateLimit({
@@ -48,11 +61,11 @@ async function authenticateAndAuthorize(req, res, next) {
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const { tenantId } = decoded;
-        if (!tenantId) {
+        const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+        if (!decoded || typeof decoded !== 'object' || typeof decoded.tenantId !== 'string' || !decoded.tenantId.trim()) {
             return res.status(403).json({ error: 'Forbidden: Token is missing tenant information.' });
         }
+        const { tenantId } = decoded;
         req.tenantId = tenantId;
         console.log(`[Auth] JWT validated. Request authorized for tenant: ${tenantId}`);
         next();
@@ -114,9 +127,10 @@ app.post('/v4/jobs', authenticateAndAuthorize, async (req, res) => {
 
 
 // --- SERVER START ---
+const LEGACY_V4_BIND_HOST = '127.0.0.1';
 async function startServer() {
     await initializeApiServerIdentity();
-    app.listen(PORT, () => {
+    app.listen(PORT, LEGACY_V4_BIND_HOST, () => {
         console.log(`✅ Asset Factory V4 Server (Decentralized) running on port ${PORT}`);
         console.log(`⛓️  Submitting transactions to validator network at: ${VALIDATOR_URL}`);
     });
