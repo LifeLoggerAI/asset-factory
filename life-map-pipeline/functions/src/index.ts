@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { AssetFactoryQueueItem, AssetFactoryRequest, LifeMap, LifeMapEvent, EnrichedEvent, LifeMapChapter, SystemStatusRecord } from './lifemap.types';
 import { deterministicHash } from './hash';

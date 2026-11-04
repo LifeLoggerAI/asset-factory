@@ -34,42 +34,14 @@ def render_asset(
             entry, size, offline_renderer, feedback=feedback
         )
 
-    width, height = provider_renderer.target_dimensions(entry, size)
-    reservation = paid_request_guard.reserve(
-        provider=provider_renderer.provider_name(),
-        model=os.environ.get("ASSET_RENDERER_MODEL") or None,
-        asset=str(entry.get("name", "unknown")),
-        request_size=f"{width}x{height}",
-    )
-    reservation_id = str(reservation["attemptId"])
-    previous_attempts = os.environ.get("ASSET_RENDERER_MAX_ATTEMPTS")
-    os.environ["ASSET_RENDERER_MAX_ATTEMPTS"] = "1"
     try:
-        result = provider_renderer.render_with_provider(
-            entry, size, feedback=feedback
-        )
-        request_id = result.metadata.get("provider_request_id")
-        paid_request_guard.record(
-            reservation_id,
-            status="succeeded",
-            request_id=str(request_id) if request_id else None,
-        )
-        metadata = dict(result.metadata)
-        metadata["budget_attempt_id"] = reservation_id
-        return RenderResult(
-            result.image, result.renderer, result.attempt, metadata
-        )
-    except Exception as exc:
-        paid_request_guard.record(
-            reservation_id, status="failed", error=str(exc)
-        )
+        return provider_renderer.render_with_provider(entry, size, feedback=feedback)
+    except paid_request_guard.PaidRequestGuardError:
+        raise
+    except provider_renderer.ProviderExecutionFailed:
         if mode == "provider" or provider_required:
             raise
-        return provider_renderer.render_asset(
-            entry, size, offline_renderer, feedback=feedback
-        )
-    finally:
-        if previous_attempts is None:
-            os.environ.pop("ASSET_RENDERER_MAX_ATTEMPTS", None)
-        else:
-            os.environ["ASSET_RENDERER_MAX_ATTEMPTS"] = previous_attempts
+        # An offline fallback cannot call render_asset again: that would resubmit.
+        width, height = provider_renderer.target_dimensions(entry, size)
+        image = provider_renderer._normalize_image(offline_renderer(entry, max(width, height)), width, height, bool(entry.get("alpha")))
+        return RenderResult(image, "offline-fallback", 1, {"target_width": width, "target_height": height, "charges_reconciled": False})

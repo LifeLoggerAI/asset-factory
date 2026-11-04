@@ -1,0 +1,91 @@
+# Historical remediation: docs/security/factory-firebase-sdk-node-forge-remediation-20261007.md
+name: Factory Firebase SDK lock refresh proof
+on:
+  pull_request:
+    branches: [main, repair/model-forge-current-main-20261007]
+    paths:
+      - package.json
+      - functions/**
+      - life-map-pipeline/functions/package.json
+      - life-map-pipeline/functions/src/**
+      - pnpm-lock.yaml
+      - life-map-pipeline/functions/package-lock.json
+      - patches/**
+      - scripts/*factory-dependency*
+      - scripts/*factory-all-severity*
+      - scripts/check-current-factory-reviewed-advisories.mjs
+      - .github/workflows/factory-firebase-sdk-lock-refresh.yml
+permissions:
+  contents: read
+concurrency:
+  group: factory-firebase-sdk-lock-refresh-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  refresh-and-prove:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      EXACT_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact donor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXACT_SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact immutable source
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXACT_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.3'
+      - name: Install the exact frozen workspace and deployment graphs without scripts
+        run: |
+          node scripts/install-locked-dependencies.mjs
+          node scripts/install-locked-dependencies.mjs --deployment-functions
+      - name: Reject node-forge in both governed lock graphs
+        run: |
+          if grep -n "node-forge" pnpm-lock.yaml life-map-pipeline/functions/package-lock.json; then
+            echo "node-forge remains in a governed lock graph" >&2
+            exit 1
+          fi
+      - name: Verify full actual installed safe-tooling source and graph
+        run: node scripts/verify-factory-glob-tooling.mjs
+      - name: Build and test the unchanged Firebase packages
+        run: |
+          npm --prefix life-map-pipeline/functions run build
+          npm --prefix life-map-pipeline/functions test
+          npm --prefix functions test
+      - name: Read complete historical official reviewed advisory source
+        run: |
+          git init .public-reviewed-advisories
+          git -C .public-reviewed-advisories remote add origin https://github.com/github/advisory-database.git
+          git -C .public-reviewed-advisories fetch --depth 1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject every installed historical HIGH or CRITICAL without exceptions
+        run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-remediation-security.json
+      - name: Read complete current official reviewed advisory source
+        run: |
+          git -C .public-reviewed-advisories fetch --depth 1 origin ccd4868bd8cfbed178f5ada1194b4fe30674c25b
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject every installed current HIGH or CRITICAL without exceptions
+        run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/firebase-sdk-current-security.json
+      - name: Require closure of every installed advisory severity without exceptions
+        run: node scripts/check-factory-all-severity.mjs artifacts/firebase-sdk-remediation-security.json artifacts/firebase-sdk-current-security.json
+      - name: Refuse source or lock drift during proof
+        run: git diff --exit-code
+      - name: Retain exact frozen lock and installed source/security receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factory-firebase-sdk-locks-${{ env.EXACT_SOURCE_SHA }}
+          retention-days: 14
+          path: |
+            pnpm-lock.yaml
+            life-map-pipeline/functions/package-lock.json
+            artifacts/factory-glob-installed-replacement.json
+            artifacts/firebase-sdk-remediation-security.json
+            artifacts/firebase-sdk-current-security.json

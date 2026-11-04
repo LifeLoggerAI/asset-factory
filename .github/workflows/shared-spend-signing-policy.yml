@@ -1,0 +1,63 @@
+name: Shared Spend Signing Policy Source
+
+on:
+  pull_request:
+    paths:
+      - assetfactory-studio/lib/server/productionSpend.ts
+      - assetfactory-studio/app/api/worker/production-spend/route.ts
+      - scripts/test-production-spend-gateway.mjs
+      - scripts/test-shared-spend-concurrency.mjs
+      - docs/production/shared-spend-signing-policy.md
+      - .github/workflows/shared-spend-signing-policy.yml
+  push:
+    branches: [repair/shared-spend-signing-policy-20261007-holdings]
+    paths:
+      - assetfactory-studio/lib/server/productionSpend.ts
+      - assetfactory-studio/app/api/worker/production-spend/route.ts
+      - scripts/test-production-spend-gateway.mjs
+      - scripts/test-shared-spend-concurrency.mjs
+      - docs/production/shared-spend-signing-policy.md
+      - .github/workflows/shared-spend-signing-policy.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-spend-signers-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  URAI_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  synthetic-signing-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.URAI_SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact clean source
+        run: |
+          test "$(git rev-parse HEAD)" = "$URAI_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.23.3"
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12.14"
+      - name: Install pinned compiler without provider credentials
+        run: npm install --prefix "$RUNNER_TEMP/spend-compiler" --ignore-scripts --no-audit --no-fund typescript@5.9.3 @types/node@22.20.0
+      - name: Strict gateway types
+        run: node "$RUNNER_TEMP/spend-compiler/node_modules/typescript/bin/tsc" --strict --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --types node --typeRoots "$RUNNER_TEMP/spend-compiler/node_modules/@types" assetfactory-studio/lib/server/productionSpend.ts
+      - name: Actual signing isolation, recovery, race and retained consumers
+        run: node --experimental-strip-types --experimental-vm-modules --test scripts/test-shared-spend-concurrency.mjs scripts/test-production-spend-gateway.mjs scripts/test-model-forge-spend-client.mjs scripts/test-studio-paid-provider-leaves.mjs scripts/test-protected-artifact.mjs
+      - name: Final tracked source parity
+        run: git diff --exit-code HEAD

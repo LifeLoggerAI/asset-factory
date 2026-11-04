@@ -91,6 +91,9 @@ export function normalizeSpatialModelContract(value: unknown) {
     platformTargets,
     proofState,
     promotionState,
-    productionReady: proofState === 'device-verified' && promotionState === 'promoted',
+    // Generation input describes requested/declared state. It cannot attest
+    // that these new bytes passed device tests or governed consumer admission.
+    verificationScope: 'caller-declared-fields-only',
+    productionReady: false,
   };
 }

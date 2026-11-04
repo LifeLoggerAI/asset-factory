@@ -48,17 +48,20 @@ jobs:
       - name: Generate retry
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          ASSET_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.ASSET_FORGE_SPEND_JOB_IDS_JSON }}
           CATEGORY: ${{ matrix.category }}
           PROMPT: ${{ matrix.prompt }}
         shell: bash
         run: |
           set -euo pipefail
           root="artifacts/finite-time/representative-retry-v2/$CATEGORY"; mkdir -p "$root"
-          curl --fail-with-body -sS https://api.openai.com/v1/videos -H "Authorization: Bearer $OPENAI_API_KEY" -F model=sora-2 -F size=1280x720 -F seconds=8 -F "prompt=$PROMPT" > "$root/create.json"
-          id=$(jq -r '.id // empty' "$root/create.json"); test -n "$id"
-          for i in $(seq 1 90); do curl --fail-with-body -sS "https://api.openai.com/v1/videos/$id" -H "Authorization: Bearer $OPENAI_API_KEY" > "$root/status.json"; s=$(jq -r '.status // empty' "$root/status.json"); [ "$s" = completed ] && break; [ "$s" = failed ] && break; sleep 10; done
-          test "$s" = completed
-          curl --fail-with-body -sS "https://api.openai.com/v1/videos/$id/content" -H "Authorization: Bearer $OPENAI_API_KEY" -o "$root/$CATEGORY.mp4"
+          python scripts/run_protected_cinema.py \
+            --authorization "$AUTHORIZATION_MARKER" --model sora-2 --size 1280x720 --seconds 8 \
+            --prompt "$PROMPT" --output-root "$root" --output-name "$CATEGORY.mp4"
           test -s "$root/$CATEGORY.mp4"; sha256sum "$root/$CATEGORY.mp4" > "$root/SHA256SUMS.txt"
       - name: Upload evidence
         if: always()

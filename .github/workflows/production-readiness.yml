@@ -67,25 +67,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: |
             life-map-pipeline/functions/package-lock.json
 
       - name: Install root dependencies
-        run: npm install
-
-      - name: Install engine dependencies
-        run: npm --prefix engine install
-
-      - name: Install legacy functions dependencies
-        run: npm --prefix functions install
-
-      - name: Install deploy functions dependencies
-        run: npm --prefix life-map-pipeline/functions install
-
-      - name: Install Studio dependencies
-        run: npm --prefix assetfactory-studio install
+        run: node scripts/install-locked-dependencies.mjs
 
       - name: Doctor
         env:
@@ -101,13 +89,67 @@ jobs:
       - name: Launch readiness
         run: npm run test:launch-readiness --if-present
 
-      - name: Non-blocking dependency audit
-        run: npm run audit:all
+  dependency-security:
+    name: Installed dependency security
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact clean candidate identity
+        run: |
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install frozen workspace dependencies
+        run: node scripts/install-locked-dependencies.mjs
+      - name: Install frozen deployment Functions dependencies
+        run: node scripts/install-locked-dependencies.mjs --deployment-functions
+      - name: Test local advisory rejection and installed graph resolution
+        run: node --test scripts/test-installed-reviewed-advisories.mjs
+      - name: Verify actual supported dependency sources and genuinely absent vulnerable ingress
+        run: node scripts/verify-factory-glob-tooling.mjs
+      - name: Download pinned public reviewed advisory data without uploading dependency metadata
+        run: |
+          git init .public-reviewed-advisories
+          git -C .public-reviewed-advisories remote add origin https://github.com/github/advisory-database.git
+          git -C .public-reviewed-advisories fetch --depth 1 origin 161aa622af11e0b687366ff64cf068f7cca59a50
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject installed high or critical advisories
+        run: node scripts/check-installed-reviewed-advisories.mjs .public-reviewed-advisories artifacts/installed-dependency-security.json
+      - name: Read current complete primary advisory snapshot without uploading the graph
+        run: |
+          git -C .public-reviewed-advisories sparse-checkout init --cone
+          git -C .public-reviewed-advisories sparse-checkout set advisories/github-reviewed
+          git -C .public-reviewed-advisories fetch --depth 1 origin ccd4868bd8cfbed178f5ada1194b4fe30674c25b
+          git -C .public-reviewed-advisories checkout --detach FETCH_HEAD
+      - name: Reject current installed high or critical findings with the unchanged comparator
+        run: node scripts/check-current-factory-reviewed-advisories.mjs .public-reviewed-advisories artifacts/current-installed-dependency-security.json
+      - name: Require closure of every installed advisory severity without exceptions
+        run: node scripts/check-factory-all-severity.mjs artifacts/installed-dependency-security.json artifacts/current-installed-dependency-security.json
+      - name: Retain actual installed graph and unresolved security findings
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: installed-dependency-security-${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          path: |
+            artifacts/installed-dependency-security.json
+            artifacts/current-installed-dependency-security.json
+            artifacts/factory-glob-installed-replacement.json
+          if-no-files-found: warn
 
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    needs: verify
+    needs: [verify, dependency-security]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&
@@ -162,8 +204,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
-          npm --prefix life-map-pipeline/functions install
+          node scripts/install-locked-dependencies.mjs
+          node scripts/install-locked-dependencies.mjs --deployment-functions
 
       - name: Build
         run: npm run build

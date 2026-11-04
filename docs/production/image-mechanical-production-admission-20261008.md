@@ -1,0 +1,11 @@
+# Image mechanical proof and production admission
+
+The current image proof exports local metadata and a self-describing ZIP. It makes no Firebase writes or provider calls by itself. An offline PASS covers mechanical manifest/output/package integrity. Provider renderer labels, manifest statuses, matching sidecars and structurally valid files can establish only a mechanical candidate.
+
+The gate now reports `candidate_status` / `candidate_eligible` separately from actual production admission. `production_visual_authority`, `promotion_allowed`, seed `productionEligible` and `productionGateEligible` remain false. Seed `usagePolicy` is always `diagnostic-only-do-not-promote`. A fabricated in-process eligible/approved/reconciled dictionary cannot change those controls. Positive candidate evidence is retained through `productionCandidateEligible`; missing actual output bytes cannot qualify a record even as a candidate.
+
+The current pipeline has no authenticated production-admission input. It must not infer legal rights, final charge reconciliation, independent artistic acceptance, runtime/device acceptance, or frozen-release approval from unsigned metadata. Production-required execution therefore fails closed until a legitimate admission integration verifies the exact output hashes and current manifest with the canonical protected charge/release authority. This change creates no signer, ledger or competing release controller.
+
+Existing protected paid execution, signed source/input/account/model/pricing bindings, reservation/deadline/uncertainty controls and independent signer policy are unchanged. The native workflow verifies the offline mechanical path, parsed production-negative result and current ZIP metadata; these proofs do not promote any asset. No expensive generation, paid reservation, cloud write or production import is authorized by these tests.
+
+Exact baseline: donor e042b0 native37713663469/job113105109722 passed its nine gate tests and47 offline outputs but failed the new assertion because macOS lacked `rg`. Compatible successor77dbab uses the already installed Python runtime and exact parsed JSON checks. This bounded child retains that correction and preserves every preceding frozen install, launch, Studio, rules, build and E2E step. Current combined-head native proof must earn its own result.

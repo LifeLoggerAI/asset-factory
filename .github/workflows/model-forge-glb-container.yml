@@ -1,0 +1,29 @@
+name: Model Forge GLB container contract
+on:
+  pull_request:
+    paths:
+      - 'model_forge/glb-container.mjs'
+      - 'model_forge/validate-glb.mjs'
+      - 'model_forge/forge.mjs'
+      - 'model_forge/triangle-budget.mjs'
+      - 'scripts/test-model-forge-glb-container.mjs'
+      - 'scripts/test-model-forge-triangle-budget.mjs'
+      - 'model_forge/captured-reality/**'
+      - 'scripts/test-captured-reality-promotion.mjs'
+      - '.github/workflows/model-forge-glb-container.yml'
+permissions:
+  contents: read
+jobs:
+  container-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check model_forge/forge.mjs
+      - run: node --test scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-triangle-budget.mjs scripts/test-captured-reality-promotion.mjs
+      - run: git diff --exit-code

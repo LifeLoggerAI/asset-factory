@@ -46,6 +46,8 @@ def validate_manifest_entries(manifest: Any) -> List[str]:
 
     if not isinstance(manifest, list):
         return ["manifest root must be a list"]
+    if not manifest:
+        return ["manifest must contain at least one asset"]
 
     seen_names: set[str] = set()
     seen_paths: set[str] = set()

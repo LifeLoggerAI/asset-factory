@@ -82,6 +82,11 @@ jobs:
         if: env.EXECUTION_MODE == 'fresh'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          ASSET_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.ASSET_FORGE_SPEND_JOB_IDS_JSON }}
         run: |
           set -euo pipefail
           test -n "$OPENAI_API_KEY"
@@ -94,6 +99,11 @@ jobs:
         if: env.EXECUTION_MODE == 'resume'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          URAI_SOURCE_SHA: ${{ github.sha }}
+          ASSET_FORGE_SPEND_GATEWAY_URL: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_URL }}
+          ASSET_FORGE_SPEND_GATEWAY_ORIGIN: ${{ vars.ASSET_FORGE_SPEND_GATEWAY_ORIGIN }}
+          ASSET_FORGE_SPEND_WORKER_TOKEN: ${{ secrets.ASSET_FORGE_SPEND_WORKER_TOKEN }}
+          ASSET_FORGE_SPEND_JOB_IDS_JSON: ${{ vars.ASSET_FORGE_SPEND_JOB_IDS_JSON }}
         run: |
           set -euo pipefail
           test -n "$OPENAI_API_KEY"

@@ -1,0 +1,66 @@
+name: Asset Factory Web Deployment Config
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - firebase.json
+      - .firebaserc
+      - assetfactory-studio/firebase.json
+      - assetfactory-studio/next.config.mjs
+      - assetfactory-studio/app/robots.ts
+      - scripts/run-dedicated-firebase-deploy.mjs
+      - scripts/asset-factory-production-authority.mjs
+      - scripts/test-dedicated-firebase-config.mjs
+      - .github/workflows/asset-factory-web-deploy-config.yml
+  push:
+    branches: [main]
+    paths:
+      - firebase.json
+      - .firebaserc
+      - assetfactory-studio/firebase.json
+      - assetfactory-studio/next.config.mjs
+      - assetfactory-studio/app/robots.ts
+      - scripts/run-dedicated-firebase-deploy.mjs
+      - scripts/asset-factory-production-authority.mjs
+      - scripts/test-dedicated-firebase-config.mjs
+      - .github/workflows/asset-factory-web-deploy-config.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ASSET_FACTORY_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  web-deploy-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact source without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.ASSET_FACTORY_EXACT_HEAD }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify exact clean checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ASSET_FACTORY_EXACT_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Validate source authority without cloud credentials
+        run: node scripts/asset-factory-production-authority.mjs check
+      - name: Exercise actual wrapper with synthetic CLI only
+        run: node --test scripts/test-dedicated-firebase-config.mjs
+      - name: Preserve retained production target rejections
+        run: node scripts/test-production-target-boundary.mjs
+      - name: Check web configuration syntax
+        run: node --check assetfactory-studio/next.config.mjs
+      - name: Verify final clean checkout
+        run: test -z "$(git status --porcelain --untracked-files=all)"

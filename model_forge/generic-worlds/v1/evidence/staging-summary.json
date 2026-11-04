@@ -1,0 +1,58 @@
+{
+  "archive": {
+    "bytes": 278133223,
+    "fileName": "UrAi_Generic_World_Library_1.0.2.zip",
+    "inventoryFiles": 657,
+    "rootManifestSha256": "afb1acf4317a99ad0458c306784699ca2bbd2c6b6dcbb58ef0d404aa2d3cb306",
+    "sha256": "468bd4fe6c59b9cdae6cb02cdb8d8237d4ce8110324061954297572880f1a8f8",
+    "sourceCodeIncluded": false
+  },
+  "assetComplete": false,
+  "blocked": [
+    "AAA production art rework and literal human visual judgment",
+    "Provider credentials and explicit bounded spend authority",
+    "Runtime navigation/occlusion/LOD/controller integration proof",
+    "Physical desktop/mobile/XR performance and comfort testing",
+    "Independent reviewer and governed promotion"
+  ],
+  "contents": {
+    "batch1PartialWorlds": 12,
+    "batch2PartialWorlds": 3,
+    "currentGlbs": 96,
+    "currentPreviews": 90,
+    "eraSpecifications": 9,
+    "reusableKits": 12,
+    "sourceWorldSpecifications": 29,
+    "uniqueProviderJobs": 136
+  },
+  "currentVersion": "1.0.2",
+  "evidenceSha256": {},
+  "independentlyApproved": false,
+  "paidCreditsSpent": 0,
+  "productionDeployed": false,
+  "providerCalls": 0,
+  "publicExportScope": "Original authored source code plus compact non-personal summary only. Full per-asset receipts/manifests remain in private staged archive; not exported to public Git.",
+  "runtimeIntegrated": false,
+  "schemaVersion": "urai-staged-generic-world-package-v1",
+  "sourceSha256": {
+    "build/build.py": "2e69271c4d935b9b679b51e04de7ba04a73b13592911691cf8fb15d1b389591a",
+    "build/bundle.py": "140a80819ccd6629ca01cc731043511599da53cae132e8ec90cbca9e8b78d7b7",
+    "build/khronos.mjs": "9aaaad5f765c7a353c0456921111b411f2cf1878143302ce1f9da33bd41d6d07",
+    "build/package-lock.json": "5d17012848ad49743b58eb1901f5b2881d82e9df5be52e3b932b05548287f429",
+    "build/package.json": "2ba5eab475202a2ef0325e61fbe6fdd149d99cef15e88823bbf2d5fda63d1e22",
+    "build/render.mjs": "572315804a9507b727ef135e55b58a9fc57a0d7eada0e2ce7a6d89fd3feef5fe",
+    "build/review.html": "01a50601055c2988af3ed68c3119ca500259c3d9bf90b6683a4a8a8677b7acce",
+    "qa/run_all.py": "ca8d056489a3475b1c84ef821c71a7852a772d48c4ee3364c897ba351a50e25f",
+    "qa/run_tests.py": "19214786a585e7afa1f869f5010bd76f890b8a63328509bbfd3ab87bf7aab268",
+    "qa/test_staging.py": "14c008283ad86c88d84786e78d90217d8e7279800ac7f61c4fa22c8b68d51a5a",
+    "qa/test_validation.py": "ad98b69dccbbc7d21b6ffb060b9a5e24f3e58650188e6597bf1cf397d11afcfc",
+    "qa/validate.py": "1b6e1cd2914aab9646c609d15338c26faba0c0dfb6b318577a7e77b6bc6c49d6",
+    "qa/validate_package.py": "bf39bca215eedcf01e8d4e0022300a2e175e5fb8de41b611a31a4c0718ee1633",
+    "qa/verify_staging.py": "8e311f15a56445ab8581898a97b7b9a6735b8ac0fc8c6364ac7239f7ba0be56e"
+  },
+  "status": "NEEDS_REWORK",
+  "storageRole": "Quarantined original candidate bytes. Existing Model Forge promotion and resolver are unchanged. Binary archive is available separately; GitHub preserves code, metadata and receipts.",
+  "truthClassification": "GENERIC",
+  "visualAccepted": false,
+  "xrCertified": false
+}

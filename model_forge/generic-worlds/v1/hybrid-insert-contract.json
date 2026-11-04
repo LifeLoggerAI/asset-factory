@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "urai-generic-hybrid-insert-contract-v1",
+  "status": "SPECIFIED",
+  "shellTruth": "GENERIC",
+  "allowedInsertTruthStates": ["GENERIC", "INTERPRETIVE", "RECORDED SOURCE TRUTH", "SPATIALLY RECONSTRUCTABLE", "UNKNOWN"],
+  "truthInheritance": "Per-element source truth remains independent; a recorded insert never upgrades the generic shell",
+  "targetCoordinates": {"units":"meters", "handedness":"right", "up":"+Y", "front":"+Z", "cameraForward":"-Z"},
+  "requiredSourceEvidence": ["source artifact SHA-256", "source units/axes", "authorized source owner", "consent and revocation receipt", "capture/generation provenance", "license restrictions", "source bounds"],
+  "requiredAlignmentEvidence": ["source-to-world 4x4 transform", "matched source/world anchor pairs", "metric residual measurements", "bounds in target coordinates", "floor/doorway agreement", "uncertainty and unaligned areas"],
+  "normalization": {"negativeOrNonuniformScale":"REJECT_UNTIL_BAKED_AND_REVIEWED", "defaultTransform":{"translation":[0,0,0],"quaternion":[0,0,0,1],"scale":[1,1,1]}, "pivot":"floor-center or explicit source anchor"},
+  "runtimeWorkRequired": ["cleanup and occlusion proxy", "collision and nav bake", "safe teleport and exit continuity", "LOD bounds", "light/exposure blend", "depth sorting and seam review", "memory and frame budget", "source revocation fallback", "actual consumer import", "literal visual review"],
+  "formatCandidates": ["GLB", "governed splat format", "photogrammetry GLB", "NeRF/splat hybrid with separately governed runtime adapter"],
+  "implementedSourceInsert": false,
+  "runtimeIntegrated": false,
+  "physicalDeviceTested": false
+}

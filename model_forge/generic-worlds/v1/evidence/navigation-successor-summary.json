@@ -1,0 +1,88 @@
+{
+  "allWalkAcceptanceAllowed": false,
+  "archive": {
+    "bytes": 125958711,
+    "fileName": "UrAi_Generic_World_Navigation_Rework_1.0.3.zip",
+    "findings": [],
+    "independentApproval": false,
+    "inventorySha256": "41b72e9b62680b1f0cfba2a3a964fc66c9188f69af7fcca9b533a389dd7c54bb",
+    "passed": true,
+    "runtimeIntegrated": false,
+    "schemaVersion": "urai-navigation-rework-archive-fixity-v1",
+    "sha256": "8e994553b1244a09d2445ee8524b3aa35f575b9ab104d54f6d61368029d59ac1",
+    "verifiedInventoryFiles": 408,
+    "visualAccepted": false
+  },
+  "baselineEvidence": "Independently regenerated exact preserved source; prior private archive materialization was HTTP403 and was not reverified",
+  "humanG8Reviewed": false,
+  "independentlyApproved": false,
+  "measured": {
+    "actualDirectionalReviewImages": 60,
+    "actualSuccessorGlbs": 60,
+    "disconnectedCells": 346,
+    "disconnectedWorlds": 6,
+    "independentStructuralWorldPasses": 15,
+    "khronosErrors": 0,
+    "khronosWarnings": 0,
+    "landingDiskAndDeclaredCylinderChecks": 75,
+    "reachableTeleportTargets": 45,
+    "rejectionTests": 100,
+    "standaloneGlbImports": 45,
+    "standaloneLodSelectionAndSwitchBackRenders": 75,
+    "testFailures": 0,
+    "unsupportedPredecessorLandingDisks": 6,
+    "unsupportedSuccessorLandingDisks": 0,
+    "worlds": 15
+  },
+  "newSourceSha256": {
+    "build/audit_consumer.mjs": "defe232214ea3b84518e84c34c26081326ef002191ba3ac668e2129d682e43a4",
+    "build/build_navigation_successor.py": "cf545e3e119e1fced160c24b19460fcf3187f434345c33238448a8eda4095942",
+    "qa/navigation_safety.py": "d65c1d4dc693b6d2dc3ea302f595cf936c7e6ba0434119341efc4b9260bb20e3",
+    "qa/test_navigation_safety.py": "0b70a53740297aae4cc4011cfa9f1fb0c3e31d8f5a79016f219dfbbb85b8d9de"
+  },
+  "paidCreditsSpent": 0,
+  "productionDeployed": false,
+  "providerCalls": 0,
+  "publicScope": "Original additive tools, tests, focused instructions and compact non-personal summary only; full package bytes and per-asset metadata stay outside public Git",
+  "receiptSha256": {
+    "assistedVisualRework": "84b7117c23bb1507d9f47aefa6ad05a624db62c0c96591e48e681114c8a1325e",
+    "khronosIndex": "19c4cf9c7085a71ef56b6d40442284f67f85d94e4c5b471b44a2c103dabcfdf4",
+    "navigationComparison": "609062f856589f8dd548f536cb7ee92e937c78160455439dca62bcf324e3caff",
+    "sourceTests": "514663f8368a5010b67250660bab24c0c84fa6c5cf86f9adf3a590ed1f15f612",
+    "standaloneConsumer": "30cc4bdeadde452d89da0a7a272ab1eedb41c513d3cb466da5381b2655164ba8",
+    "staticStructural": "13fc6e3f698e5288da2b048ab096b9910299dda1bd3a15854efac64629927fe2"
+  },
+  "remainingBlockers": [
+    "Production art rework and human G8 judgment",
+    "Canonical forward-role and existing family-ID binding selection",
+    "Disconnected sectors, complete scene headroom, runtime nav/controller and real UrAi imports",
+    "Physical desktop/mobile/XR performance and comfort",
+    "Provider credentials and bounded spend authority",
+    "Governed promotion and independent review"
+  ],
+  "runtimeIntegrated": false,
+  "schemaVersion": "urai-generic-navigation-successor-summary-v1",
+  "sourceAuthority": {
+    "assetFactoryPr": 420,
+    "assetFactorySha": "eba0c4ee7f60ef6e52d7d22a4cb885b926dc6c03",
+    "jobsPr": 153,
+    "jobsSha": "800ea1bae5b85a470e657626bb11d4124a2646d4",
+    "studioPr": 154,
+    "studioSha": "da11465dcaf77f07e8d65ed8d473e55681b16c7e"
+  },
+  "status": "NEEDS_REWORK",
+  "toolchain": {
+    "physicalDeviceEvidence": false,
+    "supplementalBrowserVersion": "153.0.8010.0",
+    "threeVersion": "0.180.0"
+  },
+  "truthClassification": "GENERIC",
+  "unchangedFromRegeneratedBaseline": {
+    "geometryAndMaterialsChanged": false,
+    "lightingAndCameraFilesChanged": false,
+    "renderAndCollisionGlbs": 60
+  },
+  "version": "1.0.3",
+  "visualAccepted": false,
+  "xrCertified": false
+}

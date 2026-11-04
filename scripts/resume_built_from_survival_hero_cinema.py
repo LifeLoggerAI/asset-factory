@@ -5,6 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'image_asset_generator'))
+import cinema_provider
+
 API='https://api.openai.com/v1'
 EXPECTED_PROGRAM_REPOSITORY='LifeLoggerAI/urai-studio'
 EXPECTED_PROGRAM_SHA='802f909ecad2bd000e4c8011a14bc3340fe88950'
@@ -44,23 +49,12 @@ def poll_existing(api_key:str, video_id:str, timeout_seconds=3600):
         if time.monotonic()-started>timeout_seconds: raise TimeoutError(f'existing video {video_id} timed out; replacement generation is not authorized')
         time.sleep(20)
 def create_video_once(api_key,model,size,seconds,prompt):
-    return curl_json([f'{API}/videos','-H',f'Authorization: Bearer {api_key}','-F',f'model={model}','-F',f'size={size}','-F',f'seconds={seconds}','-F',f'prompt={prompt}'])
+    return cinema_provider.create_video(api_key, str(model), str(size), str(seconds), str(prompt))
 def wait_new(api_key,video_id,timeout_seconds=3600):
-    started=time.monotonic(); transient=0
-    while True:
-        try:
-            data=curl_json([f'{API}/videos/{video_id}','-H',f'Authorization: Bearer {api_key}']); transient=0
-        except subprocess.CalledProcessError as exc:
-            transient+=1
-            if transient>6: raise RuntimeError(f'new video status poll failed after bounded transport retries: {video_id}') from exc
-            time.sleep(min(10*transient,30)); continue
-        status=str(data.get('status') or '')
-        print(json.dumps({'video':video_id,'status':status,'progress':data.get('progress')}),flush=True)
-        if status=='completed': return data
-        if status in {'failed','cancelled'}: raise RuntimeError(f'video {video_id} ended with status {status}; generation retry is not authorized')
-        if time.monotonic()-started>timeout_seconds: raise TimeoutError(f'video {video_id} timed out; generation retry is not authorized')
-        time.sleep(20)
+    return cinema_provider.wait_video(api_key, video_id, timeout_seconds)
 def download_video(api_key,video_id,output):
+    if cinema_provider.has_video(video_id):
+        return cinema_provider.download_video(api_key, video_id, output)
     run(['curl','--fail-with-body','--location','--silent','--show-error','--retry','4','--retry-delay','5','--retry-all-errors',f'{API}/videos/{video_id}/content','-H',f'Authorization: Bearer {api_key}','--output',str(output)],capture=False)
 def ffprobe(path):
     return json.loads(run(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=width,height,r_frame_rate,duration','-show_entries','format=duration,size','-of','json',str(path)]).stdout)
@@ -68,7 +62,7 @@ def make_reel(clips,output):
     concat=output.with_suffix('.txt'); concat.write_text(''.join(f"file '{p.resolve().as_posix()}'\n" for p in clips),encoding='utf-8')
     run(['ffmpeg','-y','-f','concat','-safe','0','-i',str(concat),'-c','copy',str(output)],capture=False)
 def clip_entry(shot,video_id,completed,path,manifest,recovered):
-    return {'shotId':shot['id'],'name':shot['name'],'classification':shot['classification'],'targetEditorialDurationSeconds':shot['targetEditorialDurationSeconds'],'sourceClipSecondsRequested':manifest['secondsPerSourceClip'],'videoId':video_id,'status':completed.get('status','completed'),'model':completed.get('model',manifest['videoModel']),'sizeRequested':manifest['videoSize'],'path':path.as_posix(),'sha256':sha256(path),'bytes':path.stat().st_size,'probe':ffprobe(path),'recoveredExistingProviderJob':recovered}
+    return {'shotId':shot['id'],'name':shot['name'],'classification':shot['classification'],'targetEditorialDurationSeconds':shot['targetEditorialDurationSeconds'],'sourceClipSecondsRequested':manifest['secondsPerSourceClip'],'videoId':video_id,'budgetAttemptId':completed.get('budget_attempt_id'),'budgetJobId':completed.get('budget_job_id'),'chargesReconciled':False,'status':completed.get('status','completed'),'model':completed.get('model',manifest['videoModel']),'sizeRequested':manifest['videoSize'],'path':path.as_posix(),'sha256':sha256(path),'bytes':path.stat().st_size,'probe':ffprobe(path),'recoveredExistingProviderJob':recovered}
 def validate(manifest,auth,manifest_path):
     assert manifest['programAuthorityRepository']==EXPECTED_PROGRAM_REPOSITORY
     assert manifest['programAuthoritySha']==EXPECTED_PROGRAM_SHA
@@ -83,9 +77,10 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--manifest',required=True); ap.add_argument('--authorization',required=True); ap.add_argument('--prior-root',required=True); ap.add_argument('--output-root',required=True); args=ap.parse_args()
     mp,apath,prior,out=map(Path,[args.manifest,args.authorization,args.prior_root,args.output_root]); clips=out/'clips'; clips.mkdir(parents=True,exist_ok=True)
     manifest=json.loads(mp.read_text()); auth=json.loads(apath.read_text()); shots=validate(manifest,auth,mp)
+    cinema_provider.bind_sources(manifest, auth)
     key=os.environ.get('OPENAI_API_KEY','').strip()
     if not key: raise RuntimeError('OPENAI_API_KEY missing')
-    receipt={'schemaVersion':'1.1.0','projectId':manifest['projectId'],'programAuthorityRepository':EXPECTED_PROGRAM_REPOSITORY,'programAuthoritySha':EXPECTED_PROGRAM_SHA,'mode':'resume-existing-generation','startedAt':now(),'manifestPath':mp.as_posix(),'manifestSha256':sha256(mp),'authorizationPath':apath.as_posix(),'authorizationSha256':sha256(apath),'priorRunId':EXPECTED_PRIOR_RUN,'priorArtifactId':EXPECTED_PRIOR_ARTIFACT,'providerCallsAuthorized':MAX_LIFETIME_CREATE_CALLS,'providerCreateCallsPreviouslyExecuted':PRIOR_CREATE_CALLS,'providerCreateCallsExecutedThisRun':0,'providerCreateCallsLifetime':PRIOR_CREATE_CALLS,'maximumNewProviderCalls':MAX_NEW_CREATE_CALLS,'maximumReservedCostUsd':MAX_RESERVED_SPEND_USD,'automaticRetryAuthorized':False,'generationRetryAuthorized':False,'statusPollingTransportRetryAuthorized':True,'remixAuthorized':False,'publicReleaseAuthorized':False,'privateReviewAuthorized':True,'editorialPromotionAuthorized':False,'generatedImageryIsRecreation':True,'clips':[],'status':'running'}
+    receipt={'schemaVersion':'1.1.0','projectId':manifest['projectId'],'programAuthorityRepository':EXPECTED_PROGRAM_REPOSITORY,'programAuthoritySha':EXPECTED_PROGRAM_SHA,'mode':'resume-existing-generation','startedAt':now(),'manifestPath':mp.as_posix(),'manifestSha256':sha256(mp),'authorizationPath':apath.as_posix(),'authorizationSha256':sha256(apath),'priorRunId':EXPECTED_PRIOR_RUN,'priorArtifactId':EXPECTED_PRIOR_ARTIFACT,'providerCallsAuthorized':MAX_LIFETIME_CREATE_CALLS,'providerCreateCallsPreviouslyExecuted':PRIOR_CREATE_CALLS,'providerCreateCallsExecutedThisRun':0,'chargesReconciled':False,'actualSpendUsd':None,'providerCreateCallsLifetime':PRIOR_CREATE_CALLS,'maximumNewProviderCalls':MAX_NEW_CREATE_CALLS,'maximumReservedCostUsd':MAX_RESERVED_SPEND_USD,'automaticRetryAuthorized':False,'generationRetryAuthorized':False,'statusPollingTransportRetryAuthorized':True,'remixAuthorized':False,'publicReleaseAuthorized':False,'privateReviewAuthorized':True,'editorialPromotionAuthorized':False,'generatedImageryIsRecreation':True,'clips':[],'status':'running'}
     rp=out/'hero-cinema-receipt.json'; paths=[]
     try:
         gen01_src=prior/'clips'/'GEN-01.mp4'

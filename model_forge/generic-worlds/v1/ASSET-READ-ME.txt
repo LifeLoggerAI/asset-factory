@@ -1,0 +1,14 @@
+UrAi Generic World Library candidate archive 1.0.2
+
+All content is GENERIC and is not a remembered real place.
+15 partial scene candidates, 12 modular kit candidates, three design LOD profiles, 96 current GLBs, and 90 current previews. Current geometry passed static QA and official glTF conformance. All 15 scenes NEEDS_REWORK for visual quality. No asset-complete, independent, runtime, release or XR approval.
+
+Version 1.0.0 is retained rejected history. Version 1.0.1 is retained incomplete development. Use explicit 1.0.2 selection for current machine evidence.
+
+Units meters; right-handed, Y-up; authored asset front +Z and camera forward -Z. Existing canonical Studio lane says -Z forward; choose and receipt an explicit adapter before integration. Source mappings are additive metadata, not a new resolver.
+
+Collision is conservative geometry. Navigation is sampled flat polygons, not a tested engine navmesh or accessible/XR controller. No physical-device performance measured. Mobile and XR previews use software WebGL.
+
+Original authored geometry/materials. Preserve Apache-2.0 license and notices. Source brief rights and any future provider rights require separate evidence. No third-party assets, personal media, likenesses or branded logos were inserted.
+
+Existing Asset Factory Model Forge owns promotion, rights validation, approval and runtime resolution. This archive is quarantined candidate storage only. Code and detailed source/queue contracts are preserved in GitHub draft lanes, not duplicated here.

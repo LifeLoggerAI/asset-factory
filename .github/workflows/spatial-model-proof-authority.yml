@@ -1,0 +1,24 @@
+name: Spatial model declared-proof authority
+on:
+  pull_request:
+    paths:
+      - 'assetfactory-studio/lib/server/assetSpatialContract*.ts'
+      - 'assetfactory-studio/lib/server/assetRenderer.ts'
+      - 'assetfactory-studio/lib/server/assetTypeCatalog.ts'
+      - 'scripts/test-spatial-model-proof-authority.mjs'
+      - '.github/workflows/spatial-model-proof-authority.yml'
+permissions:
+  contents: read
+jobs:
+  declared-proof-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: node --test scripts/test-spatial-model-proof-authority.mjs
+      - run: git diff --exit-code

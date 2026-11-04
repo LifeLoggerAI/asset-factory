@@ -3,7 +3,15 @@ import * as cloud from './cloudAssetFactoryStore';
 import * as local from './localAssetFactoryStore';
 
 export function shouldUseCloudAssetBackend() {
-  return process.env.ASSET_FACTORY_FORCE_LOCAL !== 'true' && isFirebaseAdminAvailable();
+  const forcedLocal = process.env.ASSET_FACTORY_FORCE_LOCAL === 'true';
+  if (process.env.NODE_ENV === 'production' && forcedLocal) {
+    throw new Error('Production Asset Factory requires durable Firebase persistence');
+  }
+  const available = !forcedLocal && isFirebaseAdminAvailable();
+  if (process.env.NODE_ENV === 'production' && !available) {
+    throw new Error('Production Asset Factory Firebase authority is unavailable; local fallback is denied');
+  }
+  return available;
 }
 
 export function activeAssetBackend() {

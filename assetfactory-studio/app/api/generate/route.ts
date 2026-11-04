@@ -20,15 +20,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const jobs = await readJobs();
+  try {
+    const jobs = await readJobs();
+    const currentAuth = authorizeAssetRequest(req, auth.tenantId);
+    if (!currentAuth.ok) {
+      return NextResponse.json({ error: currentAuth.error }, { status: currentAuth.status });
+    }
+    if (currentAuth.tenantId !== auth.tenantId || currentAuth.userId !== auth.userId ||
+        currentAuth.mode !== auth.mode) {
+      return NextResponse.json({ error: 'Request authorization changed' }, { status: 403 });
+    }
 
-  if (auth.tenantId) {
-    return NextResponse.json(
-      (jobs as Record<string, unknown>[]).filter((job) => job.tenantId === auth.tenantId)
-    );
+    if (currentAuth.tenantId) {
+      return NextResponse.json(
+        (jobs as Record<string, unknown>[]).filter((job) => job.tenantId === currentAuth.tenantId)
+      );
+    }
+    return NextResponse.json(jobs);
+  } catch {
+    return NextResponse.json({ error: 'Unable to read asset jobs.' }, { status: 500 });
   }
-
-  return NextResponse.json(jobs);
 }
 
 export async function POST(req: NextRequest) {
@@ -45,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const request = body as GenerateRequest;
 
-    const auth = authorizeAssetRequest(req, request.tenantId ?? 'default');
+    const auth = authorizeAssetRequest(req, request.tenantId ?? 'default', 'creator');
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -65,6 +76,17 @@ export async function POST(req: NextRequest) {
 
     if (!quota.ok) {
       return NextResponse.json({ error: quota.error, quota }, { status: 402 });
+    }
+
+    // Quota is asynchronous: expiration, verifier rotation or request identity
+    // must not leave stale authorization in front of private job persistence.
+    const currentAuth = authorizeAssetRequest(req, tenantId, 'creator');
+    if (!currentAuth.ok) {
+      return NextResponse.json({ error: currentAuth.error }, { status: currentAuth.status });
+    }
+    if (currentAuth.tenantId !== auth.tenantId || currentAuth.userId !== auth.userId ||
+        currentAuth.mode !== auth.mode) {
+      return NextResponse.json({ error: 'Request authorization changed' }, { status: 403 });
     }
 
     const definition = resolveAssetType(request.type);
@@ -104,9 +126,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 202 }
     );
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'internal error';
-
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Unable to create asset job.' }, { status: 500 });
   }
 }

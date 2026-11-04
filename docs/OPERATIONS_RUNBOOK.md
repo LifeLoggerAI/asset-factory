@@ -147,11 +147,9 @@ Observability:
 ## Local release validation
 
 ```bash
-npm install
-npm --prefix engine install
-npm --prefix functions install
-npm --prefix life-map-pipeline/functions install
-npm --prefix assetfactory-studio install
+node scripts/install-locked-dependencies.mjs
+node scripts/install-locked-dependencies.mjs --deployment-functions
+node scripts/verify-factory-glob-tooling.mjs
 npm run doctor
 npm run verify:local
 npm run test:launch-readiness
@@ -162,6 +160,8 @@ npm --prefix assetfactory-studio run e2e
 npm test
 npm run build
 ```
+
+These commands use the committed frozen workspace and LifeMap deployment locks and verify the actual patched installed sources. The engine's former standalone shrinkwrap is retained as bootstrap history; current engine validation uses the workspace graph. Complete official advisory scans and release acceptance remain separate required gates.
 
 ## Operator queue visibility
 

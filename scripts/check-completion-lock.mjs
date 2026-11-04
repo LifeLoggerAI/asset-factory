@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { validateFrozenLocalSetupSource } from './local-setup-frozen-contract.mjs';
 
 const root = process.cwd();
 const requiredFiles = [
@@ -97,11 +98,6 @@ const requiredPhrases = [
   ['latest release evidence checker delegates', latestReleaseEvidenceChecker, 'scripts/check-release-evidence.mjs'],
   ['local setup requires node 22', setupLocal, 'Node ${requiredMajor}.x is required for full local setup and Studio dependency parity'],
   ['local setup rejects npm prefix', setupLocal, 'NPM_CONFIG_PREFIX must be unset before setup'],
-  ['local setup opt-in root deps flag', setupLocal, 'ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS'],
-  ['local setup skips root install by default', setupLocal, 'Skipping root npm install by default because current repo gates do not require root dependencies.'],
-  ['local setup explains opt-in root install', setupLocal, 'To install them intentionally, rerun with ASSET_FACTORY_SETUP_INSTALL_ROOT_DEPS=true.'],
-  ['local setup avoids root lockfile generation', setupLocal, 'npm run lockfile:refresh-root'],
-  ['local setup root install package-lock false', setupLocal, "'--package-lock=false'"],
   ['local setup runs doctor', setupLocal, 'Run repo doctor']
 ];
 
@@ -112,8 +108,16 @@ if (phraseFailures.length > 0) {
   process.exit(1);
 }
 
+try {
+  validateFrozenLocalSetupSource(setupLocal);
+} catch (error) {
+  console.error('FAIL completion lock: frozen local setup authority rejected');
+  console.error(error.message);
+  process.exit(1);
+}
+
 const requiredScripts = [
-  ['test:completion-lock', 'node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt'],
+  ['test:completion-lock', 'node scripts/check-completion-lock.mjs && npm run test:implementation-audit-prompt && node --experimental-vm-modules --test scripts/test-local-setup-frozen-contract.mjs'],
   ['check:release-evidence', 'node scripts/check-release-evidence.mjs'],
   ['check:release-evidence:latest', 'node scripts/check-latest-release-evidence.mjs']
 ];

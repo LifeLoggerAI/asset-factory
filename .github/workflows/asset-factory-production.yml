@@ -60,7 +60,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: node ../scripts/install-locked-dependencies.mjs
 
       - name: Validate production assets
         run: |
