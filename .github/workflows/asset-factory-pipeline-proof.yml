@@ -69,6 +69,9 @@ jobs:
           cache: pip
           cache-dependency-path: image_asset_generator/requirements.txt
 
+      - name: Enforce Wave 13 modeled Home source checks
+        run: python scripts/founder-home-wave12/check_wave13_public_source.py
+
       - name: Install studio dependencies
         working-directory: assetfactory-studio
         run: node ../scripts/install-locked-dependencies.mjs
