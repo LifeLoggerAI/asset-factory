@@ -54,10 +54,10 @@ async function authenticateAndAuthorize(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-        const { tenantId } = decoded;
-        if (typeof tenantId !== 'string' || !tenantId.trim()) {
+        if (!decoded || typeof decoded !== 'object' || typeof decoded.tenantId !== 'string' || !decoded.tenantId.trim()) {
             return res.status(403).json({ error: 'Forbidden: Token is missing tenant information.' });
         }
+        const { tenantId } = decoded;
         req.tenantId = tenantId;
         console.log(`[Auth] JWT validated. Request authorized for tenant: ${tenantId}`);
         next();
