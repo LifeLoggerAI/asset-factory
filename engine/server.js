@@ -1,3 +1,11 @@
+// Preserved legacy V4 prototype: never expose this old token surface in any
+// production or staging runtime. Its old issuer has been retired.
+// Fail BEFORE loading dependencies, Firebase adapters or network listeners.
+if (process.env.ASSET_FACTORY_ENABLE_LEGACY_V4_SERVER !== 'true' ||
+    !['development', 'test'].includes(process.env.NODE_ENV)) {
+    throw new Error('Legacy V4 API is disabled by default; explicit local test opt-in required.');
+}
+
 
 require('dotenv').config();
 const express = require('express');
@@ -119,9 +127,10 @@ app.post('/v4/jobs', authenticateAndAuthorize, async (req, res) => {
 
 
 // --- SERVER START ---
+const LEGACY_V4_BIND_HOST = '127.0.0.1';
 async function startServer() {
     await initializeApiServerIdentity();
-    app.listen(PORT, () => {
+    app.listen(PORT, LEGACY_V4_BIND_HOST, () => {
         console.log(`✅ Asset Factory V4 Server (Decentralized) running on port ${PORT}`);
         console.log(`⛓️  Submitting transactions to validator network at: ${VALIDATOR_URL}`);
     });
