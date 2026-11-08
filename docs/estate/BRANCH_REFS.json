@@ -1,0 +1,2391 @@
+{
+ "schema_version": "one-urai-asset-factory-branch-head-metadata-r1",
+ "evidence_date_local": "2026-11-07",
+ "repo": "LifeLoggerAI/asset-factory",
+ "page_size": 100,
+ "branch_count": 476,
+ "unique_head_commits": 462,
+ "coverage": "all GitHub REST list-branches pages returned up to first short page; contents/history of each branch NOT audited",
+ "branches": [
+  {
+   "name": "activate-canonical-forge",
+   "commit_sha": "1775d254026437e6d6cf12bb1a69be8602860349",
+   "protected": false
+  },
+  {
+   "name": "admin-queue-requeue",
+   "commit_sha": "cc823d637b4ebcbf7bba5f878f8885e1d961b1f8",
+   "protected": false
+  },
+  {
+   "name": "agent/apphosting-diagnostic-preservation",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/apphosting-diagnostics",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/apphosting-diagnostics-20260816",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/asset-factory-boundary-and-build-repair-20260801",
+   "commit_sha": "ef3c738de02fed4fd2ef17dd2e1eb1df446edaf1",
+   "protected": false
+  },
+  {
+   "name": "agent/asset-factory-wif-prod-pool",
+   "commit_sha": "cfb31dd1d6603192097d985c01504f0967390cf8",
+   "protected": false
+  },
+  {
+   "name": "agent/direct-wif-probe",
+   "commit_sha": "3fa9373a11c630afc937e60c354e0cdd4828ed6b",
+   "protected": false
+  },
+  {
+   "name": "agent/fix-apphosting-backend-lookup",
+   "commit_sha": "90904cecb372b78c0babc0057dccb5143a52af7c",
+   "protected": false
+  },
+  {
+   "name": "agent/fix-apphosting-cli-current",
+   "commit_sha": "18a2a27f09d99657b6c68970579daf6c55414e72",
+   "protected": false
+  },
+  {
+   "name": "agent/full-multimodal-asset-completion",
+   "commit_sha": "95553c7f5ffbdaaaddbf9c61e0f5d0a5732b108f",
+   "protected": false
+  },
+  {
+   "name": "agent/governed-continuous-asset-engine",
+   "commit_sha": "32d05d84d24df5f9c3cabe6d87eda6bf820b4d2a",
+   "protected": false
+  },
+  {
+   "name": "agent/harden-wif-and-paid-smoke",
+   "commit_sha": "08342419ad140e6f0ab4165aae643ff7a98df380",
+   "protected": false
+  },
+  {
+   "name": "agent/parallel-founder-digital-human-20260926",
+   "commit_sha": "32e3bf2315542771acb868b815bb97562d3bcaff",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-backend-diagnostics",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics-v2",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics-v3",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics-v4",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics-v5",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/preserve-apphosting-diagnostics-v6",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "agent/replicate-model-registry",
+   "commit_sha": "5350ef65214a56e77348f32c70cee1f573236ee7",
+   "protected": false
+  },
+  {
+   "name": "agent/replicate-registry-contract-tests",
+   "commit_sha": "0003d0880ccf814a41dc061eeb96f04039b7666c",
+   "protected": false
+  },
+  {
+   "name": "agent/v4-canonical-geometry-recertification",
+   "commit_sha": "3684bd660a92e015b970b0201fc7e61c3d6c4bc7",
+   "protected": false
+  },
+  {
+   "name": "agent/v4-canonical-recertification-current",
+   "commit_sha": "d46ad726eb9ff52736827e9eb38e4e4e5ff509a7",
+   "protected": false
+  },
+  {
+   "name": "agent/video-animation-execution-lane",
+   "commit_sha": "5892ab6f2d6404ddd76d5a361ed62b720ef3b3f2",
+   "protected": false
+  },
+  {
+   "name": "asset/generic-world-kits-v1-20261007",
+   "commit_sha": "eba0c4ee7f60ef6e52d7d22a4cb885b926dc6c03",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/observable-v1-run-discovery-20260711",
+   "commit_sha": "288e18da520efa2349f4b962729d26e2a99aae86",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-aaa-marker-trigger-20260711",
+   "commit_sha": "8f48e2a76d6b4fe033eb433b742f9e5fb154f5b9",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-aaa-spatial-pack-20260711",
+   "commit_sha": "9e741488e35efe19ece42b052239c542b63a277d",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-post-generation-review-gates",
+   "commit_sha": "28d4258bdbb21dcf2a489cf389ce7eda9454e7f2",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-proof-chain-hardening-20260711",
+   "commit_sha": "1d59126732866905cba7d2c731a371b2aab720fe",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-run-discovery-20260711",
+   "commit_sha": "5b96ba16717825e81c035254b111a6868373e3f5",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-safe-resume-2-20260711",
+   "commit_sha": "fa4989fb4978604c6c25339bef3a53db1f7e44ad",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-safe-resume-20260711",
+   "commit_sha": "491885485123ecf8f0a96612d2240c64321634e1",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-safe-resume-discovery-observer",
+   "commit_sha": "810b68b9eac5ac577ab0db603eae6fc8a4c2b294",
+   "protected": false
+  },
+  {
+   "name": "asset-factory/v1-spatial-guard-fixes-20260711",
+   "commit_sha": "23d9c7219094df307b5e82c2220aadc6eb6505bb",
+   "protected": false
+  },
+  {
+   "name": "asset-infra-followup",
+   "commit_sha": "bdab098b20539469448f6879a05946e59329690a",
+   "protected": false
+  },
+  {
+   "name": "asset-infra-sync",
+   "commit_sha": "8366d45b5fb828e6bdae62a0cdf866cf20ff7889",
+   "protected": false
+  },
+  {
+   "name": "assets/generic-world-admission-safety-20261007",
+   "commit_sha": "3e632587645af027c0f886ff31e34c8dab9bac24",
+   "protected": false
+  },
+  {
+   "name": "assets/generic-world-connected-navigation-20261007",
+   "commit_sha": "c85a4628c5a8b0713a353ed197af1d46717aedb7",
+   "protected": false
+  },
+  {
+   "name": "assets/generic-world-outdoor-polish-20261007",
+   "commit_sha": "f1674578eaf1d657e7c97d26fd94eba55d34e8dd",
+   "protected": false
+  },
+  {
+   "name": "audit/evidence-status-release-gate-2026-05-22",
+   "commit_sha": "720922794e1eeb30198b095ce53668c8a76ad3e2",
+   "protected": false
+  },
+  {
+   "name": "audit/genesis-asset-factory-forensic-r1-20261107",
+   "commit_sha": "966eca1ba4dc8e1fa4187502e692f5b71f6d5ff7",
+   "protected": false
+  },
+  {
+   "name": "audit/production-provider-hardening",
+   "commit_sha": "1ce03da62b832e1c536463da3ae4f3c478a00d8e",
+   "protected": false
+  },
+  {
+   "name": "audit/rebind-spatial-1601-e8c76190-20261005",
+   "commit_sha": "c4fc0df01bab95dc50e91efd8f64fe8759f481ed",
+   "protected": false
+  },
+  {
+   "name": "audit/rebind-spatial-1601-ff0ac982-20261005",
+   "commit_sha": "ef7515f42ace978e245de5c80e166a2b2f1d75f1",
+   "protected": false
+  },
+  {
+   "name": "audit/update-evidence-status-inspected-sha-2026-05-22",
+   "commit_sha": "fe1916665b5c336d3b52c1a589f7343cc7aba222",
+   "protected": false
+  },
+  {
+   "name": "audit/v1-v5-manifest-recovery-20260703",
+   "commit_sha": "beb56bd8814290512a67e1438f5ac6cc037efde1",
+   "protected": false
+  },
+  {
+   "name": "audit/v3-v5-live-reconciliation-20260729",
+   "commit_sha": "8d9b815628bd59d9a6ae2046f1068931a773fd78",
+   "protected": false
+  },
+  {
+   "name": "audit/2026-05-17-system-audit",
+   "commit_sha": "4c2a2729ec2d116586112df9f1be28e995385308",
+   "protected": false
+  },
+  {
+   "name": "authority/ad00d9-source-20261006",
+   "commit_sha": "ce87eeb97363f117b53fc794b503992ffd3fb14a",
+   "protected": false
+  },
+  {
+   "name": "authority/atmosphere-spatial-successor-20261006",
+   "commit_sha": "7570f692e28f548f7ef01c7002bd78d286b3f505",
+   "protected": false
+  },
+  {
+   "name": "authority/c75-visual-successor-20261007",
+   "commit_sha": "b9e894393e766a0802d3b26a17d2e35e6bcb9727",
+   "protected": false
+  },
+  {
+   "name": "authority/consent-successor-20261006",
+   "commit_sha": "c2ed9bd94764b5c12fa7eb384cc4070a4af034df",
+   "protected": false
+  },
+  {
+   "name": "authority/measured-receipt-spatial-20261006",
+   "commit_sha": "9341dccfd228dc504f678dfd3147986fd0775010",
+   "protected": false
+  },
+  {
+   "name": "authority/spatial-c3901a-successor-20261006",
+   "commit_sha": "48a2a75ef777e5b586b23d5b58e51b9c2a46afa4",
+   "protected": false
+  },
+  {
+   "name": "authority/spatial-e6c4c3-successor-20261006",
+   "commit_sha": "d76152bc8d444f454f500a1400ef883f82c8acd4",
+   "protected": false
+  },
+  {
+   "name": "authority/spatial-f8f667-successor-20261006",
+   "commit_sha": "371a950f477ec769207ecb39cc4ab658475d6086",
+   "protected": false
+  },
+  {
+   "name": "automation-safety-hardening",
+   "commit_sha": "5a46e8752841a9b186d29e32ba16dc813e87cb46",
+   "protected": false
+  },
+  {
+   "name": "canon/upstream-authority-20260924",
+   "commit_sha": "254fe8309e58adca3dce702a3770789530a28b63",
+   "protected": false
+  },
+  {
+   "name": "canonical-v1-receipt-clean",
+   "commit_sha": "7318cc22d35e97fba2ac1ffbf4654ed92751016e",
+   "protected": false
+  },
+  {
+   "name": "canonical-version-contract",
+   "commit_sha": "a193385bf64cc3d3fd74c809f3a03da81d0b9a8e",
+   "protected": false
+  },
+  {
+   "name": "canonical-version-contract-v2",
+   "commit_sha": "2202237ae8759f75d78b410d506b45fd7b4e6e93",
+   "protected": false
+  },
+  {
+   "name": "capabilities-manifest-2",
+   "commit_sha": "afb95b68252d23d4d603d8e00eba755de8529709",
+   "protected": false
+  },
+  {
+   "name": "cert/finite-time-main-exact-head-20260911",
+   "commit_sha": "8eff4436405e5b67a8a636c0474f8378f750f015",
+   "protected": false
+  },
+  {
+   "name": "certify/v1-recovery-artifact-20260729",
+   "commit_sha": "6f8d9cd2fd5afb1f44c0773bbb8acba99886105f",
+   "protected": false
+  },
+  {
+   "name": "chatgpt/asset-factory-foundation-pass-1",
+   "commit_sha": "dc36327414cb2e600308871a716e8373f462e229",
+   "protected": false
+  },
+  {
+   "name": "chatgpt/urai-product-polish-20260812",
+   "commit_sha": "8800633b38f4e1e5324e4589430789a66234fac6",
+   "protected": false
+  },
+  {
+   "name": "checklist-sync",
+   "commit_sha": "f8f5520d01c0eb26e567fc91e827b491be42958f",
+   "protected": false
+  },
+  {
+   "name": "chore/openai-api-smoke-20260925",
+   "commit_sha": "4d811856c0526372c26f617349fcd117519993ff",
+   "protected": false
+  },
+  {
+   "name": "ci-baseline-repair",
+   "commit_sha": "6b44f21cdfe999ec70d04ed91a3cfe526fee5139",
+   "protected": false
+  },
+  {
+   "name": "ci-dispatch-emulator-checks",
+   "commit_sha": "b84afc09af55426fff17a9ff2575d1691d9cff64",
+   "protected": false
+  },
+  {
+   "name": "ci-java21-emulator",
+   "commit_sha": "aee586bdbe59dea5038f05793fbf87e9702527ed",
+   "protected": false
+  },
+  {
+   "name": "codex/asset-factory-completion-lock",
+   "commit_sha": "5f43d0e5d224de674cdcf497a2633769d847d277",
+   "protected": false
+  },
+  {
+   "name": "codex/asset-factory-convergence-automation",
+   "commit_sha": "256003504fdb64625dbb9e03c751e2b6a8803718",
+   "protected": false
+  },
+  {
+   "name": "codex/asset-readiness-closeout",
+   "commit_sha": "dddefee0ac4d78345945c814adfe12c569b10699",
+   "protected": false
+  },
+  {
+   "name": "codex/audit-and-prepare-asset-factory-for-production",
+   "commit_sha": "41ff100c80c50964907ba8730d1e07886087bcef",
+   "protected": false
+  },
+  {
+   "name": "codex/audit-and-prepare-asset-factory-for-production-buobyy",
+   "commit_sha": "9eff23293cc08ed61d00f1e327c9b75f8e4ec501",
+   "protected": false
+  },
+  {
+   "name": "codex/audit-and-prepare-asset-factory-for-production-imw8e4",
+   "commit_sha": "ca352dae3707ffafa19bad13d55106bcc77028ca",
+   "protected": false
+  },
+  {
+   "name": "codex/complete-asset-factory-system-implementation",
+   "commit_sha": "48d419cd4026bd69434ad090d7bfb19cd3f4c614",
+   "protected": false
+  },
+  {
+   "name": "codex/complete-asset-factory-system-implementation-0urmpn",
+   "commit_sha": "8a35731a4b69b65f23ec0e1b92aa928f23ef5014",
+   "protected": false
+  },
+  {
+   "name": "codex/complete-asset-factory-system-implementation-ezikwn",
+   "commit_sha": "7cbb481637ec9a65dcf6dd48278d042d61821c1a",
+   "protected": false
+  },
+  {
+   "name": "codex/complete-asset-factory-system-implementation-ocauo1",
+   "commit_sha": "a255495e7af71d6b5486bb23053c5cc039008af0",
+   "protected": false
+  },
+  {
+   "name": "codex/ecosystem-integration-hardening",
+   "commit_sha": "9dcedc734ab9072be097c7ef0b6b75f61cba05c2",
+   "protected": false
+  },
+  {
+   "name": "codex/home-runway-retention-canonical-byte-fence-20261014",
+   "commit_sha": "74445b5d99478f1288604243596d00d6d238b64c",
+   "protected": false
+  },
+  {
+   "name": "codex/home-source-hash-admission-20261014",
+   "commit_sha": "58415c08d48bbb5129099deca10bf8c41077288b",
+   "protected": false
+  },
+  {
+   "name": "codex/spatial-241-meshopt-review-20261010",
+   "commit_sha": "8c389de415f71e29a546859dee4a40c1d994656f",
+   "protected": false
+  },
+  {
+   "name": "codex-urai-spatial-worker-v1",
+   "commit_sha": "c0ac5fb974c2fa697a667fe1cc56a84643e16d09",
+   "protected": false
+  },
+  {
+   "name": "cold-vault-2026-08-16",
+   "commit_sha": "40bad45b2cec511b2fecfcc6798e28ba0ee20f96",
+   "protected": false
+  },
+  {
+   "name": "completion/setup-local-alias-20261003",
+   "commit_sha": "553e57d767465e67b3d19baf8c862033f133d9c2",
+   "protected": false
+  },
+  {
+   "name": "completion/synthetic-firewall-binding-20261003",
+   "commit_sha": "09ba71cb3f82f530d5e63958fe2a4f4b34619ee2",
+   "protected": false
+  },
+  {
+   "name": "completion-check-sync",
+   "commit_sha": "1f9c3d840d6884cce127fdc5166f337eea9546ca",
+   "protected": false
+  },
+  {
+   "name": "control/paid-env-readiness-receipt-20260713",
+   "commit_sha": "31c89176882865023e4b70793a07c847cc9e95eb",
+   "protected": false
+  },
+  {
+   "name": "converge/asset-factory-production-multimodal-20260925",
+   "commit_sha": "26743a3cbcfeb4c63b066930aa9e48a6dc2a4c39",
+   "protected": false
+  },
+  {
+   "name": "converge/asset-factory-terminal-adc-realism-20260914",
+   "commit_sha": "b50f462b89cf9df53cc00c239da74a89792cd890",
+   "protected": false
+  },
+  {
+   "name": "converge/asset-factory-terminal-design-security-20260922",
+   "commit_sha": "a5871fa4c32de2967e5f8df8d794957098526333",
+   "protected": false
+  },
+  {
+   "name": "converge/asset-spatial-1598-ff6f-current-main-20261005",
+   "commit_sha": "5ff393daf4c83e36ab577a454f3623fcf820ff34",
+   "protected": false
+  },
+  {
+   "name": "converge/content-ecosystem-schema-v1-20260923",
+   "commit_sha": "e2bd1335e78b5544cad37a2b9d310cdff564a912",
+   "protected": false
+  },
+  {
+   "name": "converge/custom-domain-readback-on-current-main-20261004",
+   "commit_sha": "67f165c215262a583cb399202ad74725d16d6350",
+   "protected": false
+  },
+  {
+   "name": "converge/family-source-evidence-20261001",
+   "commit_sha": "4e82a9edf8fa790a1de7eb4962b20497516ae445",
+   "protected": false
+  },
+  {
+   "name": "converge/higgsfield-security-on-current-main-20261004",
+   "commit_sha": "c6fdc21a22287e9d8d1bc5c832e83fc1f989b887",
+   "protected": false
+  },
+  {
+   "name": "converge/home-aaa-gap-20261001",
+   "commit_sha": "446cb11a2386ad1248809c525697542b3562d5ce",
+   "protected": false
+  },
+  {
+   "name": "converge/home-hybrid-authority-spatial1596-20261005",
+   "commit_sha": "e89b3d2c302ed175be25b77c2d49360ad089a6da",
+   "protected": false
+  },
+  {
+   "name": "converge/life-model-terminal-20261003",
+   "commit_sha": "034fcedf3533ff5a08a2d324b3181ecf7204d665",
+   "protected": false
+  },
+  {
+   "name": "converge/model-forge-on-terminal-278-20260922",
+   "commit_sha": "a5a9451b6ba19ba860a3c6b84c680296b4016ca2",
+   "protected": false
+  },
+  {
+   "name": "converge/multimodal-provider-broker-20260925",
+   "commit_sha": "cec6ec27e86e08d030273df1d86e0fe9414342ce",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial1598-head-782a5a0-20261005",
+   "commit_sha": "5af1467f594ec74f297a52fd2df45dd2466cda28",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1462-review-authority-20260929",
+   "commit_sha": "661852a199c85228120bd7765109eb5766e10408",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-099470-home-authority",
+   "commit_sha": "a7071e994c3cdcca511bb3d77d7696db238627bf",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-authority-after-370-20261005",
+   "commit_sha": "c5ac57798301d40da00525061a37eb7817db7dbc",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-ff6f3df-home-authority-restack",
+   "commit_sha": "28e65b559d31f14104780a9ffc75b726232d700e",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-ff6f3df-home-authority-restack-r2",
+   "commit_sha": "79d6d7791a7a24d69b733f4e33d09ff619dd2c70",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-ff6f3df-post-wif-hardening",
+   "commit_sha": "82e8953d70b53b3cdb43f6741678b8a629cb9f38",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-home-authority-final-20261005",
+   "commit_sha": "e91cd991c67b1f666c9bab5d7a8ef2f2d580d480",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-1598-home-authority-r2-20261005",
+   "commit_sha": "b4b6e67dbead34bcc47fbf7939508a06d055554a",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-pr1598-current-head-rebind-20261005",
+   "commit_sha": "8082dd1ada2e9d230d65cd3c620fa697f88a5d87",
+   "protected": false
+  },
+  {
+   "name": "converge/spatial-pr1598-gold-master-authority-20261005",
+   "commit_sha": "7ffccaf221b6cc214f36fbaeec8e6177444ba8fa",
+   "protected": false
+  },
+  {
+   "name": "cost-control-guard-20260706",
+   "commit_sha": "6687228e637a12676909d9403f34534acbae0c25",
+   "protected": false
+  },
+  {
+   "name": "cover-presets-api-route",
+   "commit_sha": "2b22133a5e4df67e93b208544e4ef0c8b99a6720",
+   "protected": false
+  },
+  {
+   "name": "deploy-workflow-diagnostics",
+   "commit_sha": "bddaa900eadd34e5c8be7f12bb692413761cee45",
+   "protected": false
+  },
+  {
+   "name": "deployment-verification-sync",
+   "commit_sha": "d351f33516f24aaf8641cf78a2f7672b12e8cc8d",
+   "protected": false
+  },
+  {
+   "name": "design/asset-factory-forensic-lab-reconcile-20260921",
+   "commit_sha": "5670a2381089ccac90134d7c613f6bae95f1c707",
+   "protected": false
+  },
+  {
+   "name": "design/asset-factory-forensic-lab-restack-20260922",
+   "commit_sha": "ecc5e732fd5b6b4ebd46c7d206fee2a49ebe14d7",
+   "protected": false
+  },
+  {
+   "name": "diagnose-pipeline-proof",
+   "commit_sha": "c2fc04da5342517bd8019e2f82f0b446658524d1",
+   "protected": false
+  },
+  {
+   "name": "doc-sync",
+   "commit_sha": "11527e29fe51ea90e423e7c1c8ad254b0f3b193a",
+   "protected": false
+  },
+  {
+   "name": "docs/atlas-model-forge-historical-authority-20261007",
+   "commit_sha": "80f626d986baa4767110b66ebceb904a43ca1b94",
+   "protected": false
+  },
+  {
+   "name": "docs/genesis-estate-handoff-20261106",
+   "commit_sha": "a244e8f06cffcf34db323d50c148a129e8300cf0",
+   "protected": false
+  },
+  {
+   "name": "docs/hybrid-home-gold-master-authority-20261001",
+   "commit_sha": "b93e5dc8915c13611544c1aa3a43c801f49f0622",
+   "protected": false
+  },
+  {
+   "name": "docs/waiting-room-no-spend-canon-20260715",
+   "commit_sha": "0aed8d97348bfb80957c0f29f4c0bd54e1e2a32b",
+   "protected": false
+  },
+  {
+   "name": "docs-asset-evidence",
+   "commit_sha": "8eedf29e8befd7e7727e3bba853f40d5a056a5ab",
+   "protected": false
+  },
+  {
+   "name": "doctor-runtime-sync",
+   "commit_sha": "838eac02e660cdc479fdd8866df0edda13bdfb5a",
+   "protected": false
+  },
+  {
+   "name": "durable-queue-leases",
+   "commit_sha": "3115ac7645e48be305c55a6fad3bf5b98f1411c8",
+   "protected": false
+  },
+  {
+   "name": "durable-queue-leases-rebased",
+   "commit_sha": "6b8f15ca478f9d2d23ad37f678de616e0de3c205",
+   "protected": false
+  },
+  {
+   "name": "evidence/home-gaussian-execution-plan-20261006",
+   "commit_sha": "cac4c686bb73e42d0c24f406e7039243016f445f",
+   "protected": false
+  },
+  {
+   "name": "evidence/home-materialized-sfm-20261006",
+   "commit_sha": "4b507d11a55df1081e2b2b50f9258437f0c34bfd",
+   "protected": false
+  },
+  {
+   "name": "evidence-template-sync",
+   "commit_sha": "957af671c49fc50e9627457ebbf3d37fdfa1395c",
+   "protected": false
+  },
+  {
+   "name": "execute/certified-images-v2-v5-20260730",
+   "commit_sha": "4895d2cb9826ed12efe278869ee437c3e7802e03",
+   "protected": false
+  },
+  {
+   "name": "execution/home-runway-retention-20261004",
+   "commit_sha": "e246f5e6c82d0ce2baebff1cd5c03824bddf7676",
+   "protected": false
+  },
+  {
+   "name": "execution/home-runway-retention-proof-20261004",
+   "commit_sha": "a6cb47fd4e0e3db333597c82c27ce09c40b68f4f",
+   "protected": false
+  },
+  {
+   "name": "execution/home-runway-secretmanager-20261004",
+   "commit_sha": "691cbb20de94d9f86310346fddf7d8e1c89376b1",
+   "protected": false
+  },
+  {
+   "name": "execution/home-survey-media-validation-20261004",
+   "commit_sha": "10c959ba89fb0822fd4f8500facfde08123017d4",
+   "protected": false
+  },
+  {
+   "name": "expand-system-contract-routes",
+   "commit_sha": "dbf3301b0a539d520e2f793b94bf35f0b69a77d7",
+   "protected": false
+  },
+  {
+   "name": "feat/before-rest-world-cinematic-motion-20260801",
+   "commit_sha": "62c1cf2cff1a59010f36c60505c23898a1d96cf5",
+   "protected": false
+  },
+  {
+   "name": "feat/fal-provider-runtime-20260925",
+   "commit_sha": "6dcc3d957819adfba2e6bf6bef7b81401650b539",
+   "protected": false
+  },
+  {
+   "name": "feat/finite-time-film-foundry-20260721",
+   "commit_sha": "bb0667cb14fc052d6777b95773480ebc0f8f2d51",
+   "protected": false
+  },
+  {
+   "name": "feat/urai-model-forge-bakeoff-20260919",
+   "commit_sha": "12bd3dbf19dd9deadc97938fd9b2a7504ef2d58f",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-20260925",
+   "commit_sha": "4239f364bd71191a1258e0ddf2a1777dcdd58415",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-current-provider-20260925",
+   "commit_sha": "24c24b9887523a7993df0b1f1848b30721ade5dd",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-current-provider-r2-20260925",
+   "commit_sha": "7e1f8e4c8068edd0d6394d730a556c83cff405de",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-current-provider-v2-20260925",
+   "commit_sha": "69615cb8331586057669f13bbf03b7e3c454267a",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-r2-20260925",
+   "commit_sha": "e3e7c041e73b580b5ba1b94b84d4e37ff2f9d3de",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-r3-20260925",
+   "commit_sha": "49f09a9db10d964be5a63be8f878318bacedc10c",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-r4-20260925",
+   "commit_sha": "398f12eab2f32d381ef15edc7cfe00e1ce7e1d25",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-r5-20260925",
+   "commit_sha": "d5f1f15b754ef0ab8d1ad8e4e7c74ceba22b72b1",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-r6-20260925",
+   "commit_sha": "749b0d1a17a4d803092699dc0b53c7af05c6a486",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-restack-20260925",
+   "commit_sha": "64677810ef9a203e6f320ba43df0b4e3afc699c1",
+   "protected": false
+  },
+  {
+   "name": "feature/captured-reality-governance-restack-current-20260925",
+   "commit_sha": "b071a4cbd0aab02ea2fd65222c9cf5e2a97f6ca0",
+   "protected": false
+  },
+  {
+   "name": "feature/multimodel-intelligence-router-20260925",
+   "commit_sha": "699bfe4d99a943fbeff534005934abecf78567fd",
+   "protected": false
+  },
+  {
+   "name": "feature/waiting-room-video-factory",
+   "commit_sha": "3bb6a7d140551013f3ec8bef7ed1988f5b6cd6d8",
+   "protected": false
+  },
+  {
+   "name": "film/before-rest-world-full-master-t1-20260801",
+   "commit_sha": "0e0cbda2d08ec35bb3a8e4dc36af7561ecea987d",
+   "protected": false
+  },
+  {
+   "name": "film/before-rest-world-proof-20260731",
+   "commit_sha": "4d34cff7418dc4e54c4cf737fec5836d34b401b4",
+   "protected": false
+  },
+  {
+   "name": "film/before-rest-world-repair-20260731",
+   "commit_sha": "bb773c7e9cd517f54ddedc84124767e5344484ca",
+   "protected": false
+  },
+  {
+   "name": "film001-provider-readiness",
+   "commit_sha": "7a0138f7e3d7dd662aa5ec873e1f9df53ed31599",
+   "protected": false
+  },
+  {
+   "name": "film-001-built-from-survival-hero-cinema-20260829",
+   "commit_sha": "45fb9599694cacef245517e4df5d7f55f557818d",
+   "protected": false
+  },
+  {
+   "name": "film-001-hero-cinema-resume-20260829",
+   "commit_sha": "5e64a3ca98bfdbec69f1a5ea35fa243ac2369f7c",
+   "protected": false
+  },
+  {
+   "name": "finite-time/nonprivate-wave-v2-20260912",
+   "commit_sha": "6ba998168edf7c60dcdbbd091783e1d92b67cade",
+   "protected": false
+  },
+  {
+   "name": "finite-time-qc-20260913",
+   "commit_sha": "2e278a9b5fd7c1a7dcea7c910d715e55c98c40ba",
+   "protected": false
+  },
+  {
+   "name": "fix/actions-scheduler-probe-20260715",
+   "commit_sha": "9d95aa0f5a7999522dc8c909e4d53cc4a760c61c",
+   "protected": false
+  },
+  {
+   "name": "fix/apphosting-backend-discovery-20260925",
+   "commit_sha": "1409c5a6889eea4c4664413e4a13031b8bcde599",
+   "protected": false
+  },
+  {
+   "name": "fix/apphosting-backend-resolution-20260925",
+   "commit_sha": "4ea5ecaf43efcbcab8dafeb05cb2dce6690761be",
+   "protected": false
+  },
+  {
+   "name": "fix/apphosting-backend-url-20260925",
+   "commit_sha": "5e3291d11ca29084e89aa3048384b020ab4c7a4d",
+   "protected": false
+  },
+  {
+   "name": "fix/apphosting-get-cli-20260925",
+   "commit_sha": "9fb61ee5acb95da8d453f72be6eb253fca786d3c",
+   "protected": false
+  },
+  {
+   "name": "fix/apphosting-sanitized-inventory-20261005",
+   "commit_sha": "a0943bdf1fedbdd09a79fc990479d4d90400dab6",
+   "protected": false
+  },
+  {
+   "name": "fix/auth-expired-jwt-static-guard",
+   "commit_sha": "2e3406e3909d7c1cfbfbb5dbcdb53b0b3f69dd15",
+   "protected": false
+  },
+  {
+   "name": "fix/canonical-version-and-cost-gates-20260706",
+   "commit_sha": "5a1dd49a9dc802c70eb090b1fc86549eda8c1d99",
+   "protected": false
+  },
+  {
+   "name": "fix/canonical-version-contract-20260706",
+   "commit_sha": "66d04a594bb8020887153f4ca697e91a67dee598",
+   "protected": false
+  },
+  {
+   "name": "fix/canonical-version-cost-plan-20260706",
+   "commit_sha": "4927f332c034128798b1f54b9bbd8697af38a6b9",
+   "protected": false
+  },
+  {
+   "name": "fix/canonical-version-cost-plan-clean-20260706",
+   "commit_sha": "bb6e0c852914ff5e14160eb0cb08001b2debecaa",
+   "protected": false
+  },
+  {
+   "name": "fix/canonical-version-cost-plan-rebased",
+   "commit_sha": "ec7f6161ecde47b07a19b6b9b5e1227fa0132333",
+   "protected": false
+  },
+  {
+   "name": "fix/converge-home-retention-hardening-20261004",
+   "commit_sha": "9c0919922123c343f46d896a22fe4aa229e1440b",
+   "protected": false
+  },
+  {
+   "name": "fix/custom-domain-api-proxy",
+   "commit_sha": "489191fc3c58d824a3bb68a4fdd6102eecd1e61e",
+   "protected": false
+  },
+  {
+   "name": "fix/custom-domain-readback-classify-403-20261004",
+   "commit_sha": "ee9442f9929876a9b30c7bac7ceec0622969c8f8",
+   "protected": false
+  },
+  {
+   "name": "fix/custom-domain-smoke-script-name-20261004",
+   "commit_sha": "e1d539698db523bd0a475a87468409ea0db29eff",
+   "protected": false
+  },
+  {
+   "name": "fix/dedicated-custom-domain-authority-20261003",
+   "commit_sha": "28ae2bc7da6c68b209f28755e61019a68926cf3b",
+   "protected": false
+  },
+  {
+   "name": "fix/dedicated-runtime-verifier-contract-20261005",
+   "commit_sha": "5a6ba4e3028496b361c55015d3a560762107e4b1",
+   "protected": false
+  },
+  {
+   "name": "fix/fal-apphosting-location-20260925",
+   "commit_sha": "11261d5aac2f149c17dbba3b252b1f55f647c084",
+   "protected": false
+  },
+  {
+   "name": "fix/final-converge-341-342-20261004",
+   "commit_sha": "10c959ba89fb0822fd4f8500facfde08123017d4",
+   "protected": false
+  },
+  {
+   "name": "fix/final-v1-avatar-pipeline-v2",
+   "commit_sha": "7f883b81f80e3cbb98f6afaedf7fc3f5b5993107",
+   "protected": false
+  },
+  {
+   "name": "fix/final-v1-avatars",
+   "commit_sha": "3fa07df16266ed0b6cc22e1c593a268525419684",
+   "protected": false
+  },
+  {
+   "name": "fix/finite-time-no-spend-ci-20260811",
+   "commit_sha": "4397b7d1f6183e501c9530e6bcc2f848c76a2c70",
+   "protected": false
+  },
+  {
+   "name": "fix/firebase-runtime",
+   "commit_sha": "2ba20f0338c151ca8bb1d6a428d59eaa735a8315",
+   "protected": false
+  },
+  {
+   "name": "fix/higgsfield-artifact-boundary-20260930",
+   "commit_sha": "9ad1dbeaa5992c1474a0135f978365beadbae57e",
+   "protected": false
+  },
+  {
+   "name": "fix/home-retention-authorized-wif-20261004",
+   "commit_sha": "3977aaf07881a468384daad935ec062400abde99",
+   "protected": false
+  },
+  {
+   "name": "fix/home-retention-canonical-secret-read-20261004",
+   "commit_sha": "71c423d7365fec32bf8108f352ef137f2df31c8e",
+   "protected": false
+  },
+  {
+   "name": "fix/home-runway-wif-retention-20261004",
+   "commit_sha": "a6cb47fd4e0e3db333597c82c27ce09c40b68f4f",
+   "protected": false
+  },
+  {
+   "name": "fix/hostile-runway-retention-hardening-20261004",
+   "commit_sha": "e01265d4e3a25718ac76190b2f77b0074e8f728f",
+   "protected": false
+  },
+  {
+   "name": "fix/main-home-retention-hotfix-20261004",
+   "commit_sha": "43ec881d6f11613b2daaa7abd3f8801984c05735",
+   "protected": false
+  },
+  {
+   "name": "fix/next-config-mjs-api-proxy",
+   "commit_sha": "d1b9293bceebc1343b596f9dc6c8229df93e2320",
+   "protected": false
+  },
+  {
+   "name": "fix/pipeline-proof-diagnostics-20260704",
+   "commit_sha": "3391fe115a87b871daeb547d831cd6f6a75a81a2",
+   "protected": false
+  },
+  {
+   "name": "fix/postmerge-dedicated-authority-p1-20261005",
+   "commit_sha": "c1a5c0d391ecd4f0decd4d6776bc440f46eca9c9",
+   "protected": false
+  },
+  {
+   "name": "fix/postmerge-dedicated-authority-p1-restack2-20261005",
+   "commit_sha": "5f54d6205b54eadf7f1276e82129ba9c7c267a38",
+   "protected": false
+  },
+  {
+   "name": "fix/postmerge-dedicated-authority-p1-restack-20261005",
+   "commit_sha": "9d347f5bc52286f181a41cffb0e6c56db056bf5c",
+   "protected": false
+  },
+  {
+   "name": "fix/preserve-home-survey-media-20261004-0586",
+   "commit_sha": "170399f2f917c81e5d1a26939e013fd7cc7ebe1e",
+   "protected": false
+  },
+  {
+   "name": "fix/production-copy-20260704",
+   "commit_sha": "228c23fc7ffa307a3cf7c5af849dcfa0622e6689",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-cost-controls-20260704",
+   "commit_sha": "fc76471ab09b6277493b68e4c6defa1884979f69",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-readback-report-receipt-20261005",
+   "commit_sha": "bd83ced750a4c9ee98027de258a33b868449ca20",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-readback-report-restack-20261005",
+   "commit_sha": "d0c3fdf06b57ff252bd62fc6872e8c9fe00ae1ed",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-report-failsafe-restack-20261005",
+   "commit_sha": "4f047a663b9d2725b02339021a82244c54a4686a",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-stream-cancel-cleanup",
+   "commit_sha": "6ff2902e0445d3e5c501a7f16acff25affb59eff",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-stream-reader-cancel",
+   "commit_sha": "10e516808c8ab645c6d20d38b7015e225f112cfb",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-streaming-download-limit",
+   "commit_sha": "8033dc03dae91f35e1a5a9a11bb533de77b85d91",
+   "protected": false
+  },
+  {
+   "name": "fix/provider-workflow-repair-20260925",
+   "commit_sha": "638162af1e51746c07f45d74d9b81653dbb313a1",
+   "protected": false
+  },
+  {
+   "name": "fix/public-estate-terminal-20261005",
+   "commit_sha": "76577bf291fad25122d348adedca0215fb9fde9c",
+   "protected": false
+  },
+  {
+   "name": "fix/release-readiness-head-ref",
+   "commit_sha": "7e6702de256f35438029b34e88b5b1878f5fcf99",
+   "protected": false
+  },
+  {
+   "name": "fix/remove-shared-runtime-authority-20261005",
+   "commit_sha": "5e16149271971aff8768ee9ad7b9728dcab610f7",
+   "protected": false
+  },
+  {
+   "name": "fix/remove-shared-runtime-authority-restack-20261005",
+   "commit_sha": "0633c733712b55c004fb84eda237b530e0db0d22",
+   "protected": false
+  },
+  {
+   "name": "fix/runway-retention-secret-iam-20261004",
+   "commit_sha": "2baf6e3adb4151bd4594b9cedf0290349dd414e4",
+   "protected": false
+  },
+  {
+   "name": "fix/runway-secret-access-diagnostic-20261004",
+   "commit_sha": "7eaec2ecb124ba347c9bf2f52e031d32483f523f",
+   "protected": false
+  },
+  {
+   "name": "fix/runway-secret-direct-resource-grant-20261004",
+   "commit_sha": "7702109d2d6b9ba091509ed235204040e7f0da6b",
+   "protected": false
+  },
+  {
+   "name": "fix/runway-secret-iam-authority-hardening-20261004",
+   "commit_sha": "f3369ee869dd75344cbfbbef9a5645d55f4a2810",
+   "protected": false
+  },
+  {
+   "name": "fix/runway-secret-iam-via-authorized-wif-20261004",
+   "commit_sha": "5a17196eb0e367b277f27fea3c44a112b9b9498e",
+   "protected": false
+  },
+  {
+   "name": "fix/service-account-deploy-auth-20260706",
+   "commit_sha": "31bdd1b8f42b09f212d49ad980f837604e59f469",
+   "protected": false
+  },
+  {
+   "name": "fix/studio-turbopack-root",
+   "commit_sha": "4a552feab5540c70994ef8106c6c29d5b4870224",
+   "protected": false
+  },
+  {
+   "name": "fix/studio-turbopack-root-esm",
+   "commit_sha": "ec965e453de99b7ea7b18cbfbe83e5a7f2616893",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-alpha-aware-recovery-20260729",
+   "commit_sha": "72a0201d5f7b74391b261f72d1248c9a95f281b2",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-artifact-download-shim-20260711",
+   "commit_sha": "4324bcdd452e4b20c334a467c43fac7a27596cd2",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-artifact-media-type-20260711",
+   "commit_sha": "e9292304cb4ea13c104c90bed1a01359e9881251",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-dropin-certifier-current",
+   "commit_sha": "36153cede2cd9b0dd75b31175829ab5debdffda5",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-lossless-webp-exact-20260729",
+   "commit_sha": "8c9d265dfc2617a1c24033cd6781095fa6dfd5f5",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-marker-dispatch-recovery-20260714",
+   "commit_sha": "ba64f6fe7ac5c177a8f44da5f56e77d6a84535da",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-mobile-deep-space-contract-20260715",
+   "commit_sha": "d9264e54dbbd05b8ee1a4f54d9ee41839c0ce54c",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-safe-resume-receipt-20260711",
+   "commit_sha": "c36887a5756fa18d3fc65fd05f36368888ad1939",
+   "protected": false
+  },
+  {
+   "name": "fix/v1-webp-exact-recertification-20260729",
+   "commit_sha": "c61b1271935197838fef4a7c0621454b4b5cdfa0",
+   "protected": false
+  },
+  {
+   "name": "fix/v2-forge-request-trigger-20260704",
+   "commit_sha": "950f0c30ff2ab63799dc7595a65de59f6393a794",
+   "protected": false
+  },
+  {
+   "name": "fix/v4-dimension-contract-20260731",
+   "commit_sha": "eff4c018a17bf8e32c21b1cdd3fbcb40b1525b91",
+   "protected": false
+  },
+  {
+   "name": "fix-asset-factory-ci-root-installs",
+   "commit_sha": "fff86977f275cf01a4bb5a68a4ad07116fa53d11",
+   "protected": false
+  },
+  {
+   "name": "fix-canonical-version-contract",
+   "commit_sha": "3f18ae827f46fd4fb17e046e6fe4cc6ed8b79993",
+   "protected": false
+  },
+  {
+   "name": "fix-generated-asset-bodyinit",
+   "commit_sha": "6fb53bd987076ae6c67e5ba358ca96babf5ccb49",
+   "protected": false
+  },
+  {
+   "name": "fix-local-validation-errors",
+   "commit_sha": "8ea88bf79456a44649b642928fab1719c92843f1",
+   "protected": false
+  },
+  {
+   "name": "forensic/v200-reconcile-asset-factory-lock",
+   "commit_sha": "3aa89ddc2d27aeaa2213e7723ddbcb89376c5ce8",
+   "protected": false
+  },
+  {
+   "name": "forensic/v200-reconcile-asset-factory-lock-v2",
+   "commit_sha": "ea865731f78912189b520a535f051f38e41f3ffc",
+   "protected": false
+  },
+  {
+   "name": "forge/v2-living-states",
+   "commit_sha": "95dda011b16a8a2cabaab5fa8170cc34613b60a3",
+   "protected": false
+  },
+  {
+   "name": "governance/one-shot-home-replicate-20261001",
+   "commit_sha": "1b2449e65ffcf8a6e4d9eee7800aa04b88e98e93",
+   "protected": false
+  },
+  {
+   "name": "governance/rebind-spatial-45d76033-20261006",
+   "commit_sha": "8926019f54df5898f8dc1cea70ed5ac893beb4d3",
+   "protected": false
+  },
+  {
+   "name": "governance/rebind-spatial-68e01b-20261006",
+   "commit_sha": "c605da818bcb8d95453ee78ca3eedaf716fc6250",
+   "protected": false
+  },
+  {
+   "name": "governance/rebind-spatial-93d802a2-20261006",
+   "commit_sha": "de95387938c79607d3f5d8563a8b55bc5ec64cdc",
+   "protected": false
+  },
+  {
+   "name": "governance/rebind-spatial-df088c53-20261006",
+   "commit_sha": "ac69ebcee76daa9362be228ab68a4f5c260a1fab",
+   "protected": false
+  },
+  {
+   "name": "governance/retire-spatial-1600-mark-1601-unadmitted-20261005",
+   "commit_sha": "c3b506e831c8a0191698a37ab6340d8c471eaa3f",
+   "protected": false
+  },
+  {
+   "name": "governance/spatial-66773b-working-reference-20261006",
+   "commit_sha": "043f35d6c228a49e26fc9f9d41b4932d4a7b1b5d",
+   "protected": false
+  },
+  {
+   "name": "governance/spatial-785694-working-reference-20261006",
+   "commit_sha": "0ec94572e4c62b9522287c17a1fd3495993729e6",
+   "protected": false
+  },
+  {
+   "name": "harden-asset-file-validation",
+   "commit_sha": "978ea9f7912323b7a7787108072c123a3763afbb",
+   "protected": false
+  },
+  {
+   "name": "harden-materialize-publish-routes",
+   "commit_sha": "ed8a387125284e8f7f931aedc14b7a9a3fb88c7b",
+   "protected": false
+  },
+  {
+   "name": "hardening/asset-factory-production-authority-20260924",
+   "commit_sha": "a727e0515aff6e4bdebee0740916952a4f76858f",
+   "protected": false
+  },
+  {
+   "name": "hardening/auth-env-readiness",
+   "commit_sha": "3c16c73986b0138509cd51506fd4902878340197",
+   "protected": false
+  },
+  {
+   "name": "hardening/dedicated-production-authority-20261005",
+   "commit_sha": "c3eeb1a8eb7c2c480c9b5f8763ceb7faa1cc44eb",
+   "protected": false
+  },
+  {
+   "name": "hardening/dedicated-target-doc-convergence-20261005",
+   "commit_sha": "e1c9dbfb5e7f8001ba2d429486045d85c190d4aa",
+   "protected": false
+  },
+  {
+   "name": "hardening/functions-audit-fixes",
+   "commit_sha": "4e293cc69b6de5d3bc60b3e515f33d522d805b71",
+   "protected": false
+  },
+  {
+   "name": "hardening/jwt-algorithm-guardrails",
+   "commit_sha": "52fe8c43818077b4cfaecdb091ac2f6b4cbfcab8",
+   "protected": false
+  },
+  {
+   "name": "hardening/jwt-hs256-confusion-guard",
+   "commit_sha": "7f9710934ea7855c1ba134242f2c172d3c00d0fe",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-asset-factory-auth-artifact-actions-20261005",
+   "commit_sha": "080258d61a484d7ccb6e873ee8dd056e978cb72d",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-core-github-actions-20261005",
+   "commit_sha": "9b90121f08a06ecea0a98a60db2cebab45d6677c",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-firebase-cli-20261005",
+   "commit_sha": "6612f1aec8026ec2be210b4c8361f6f12ee3e736",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-python-script-actions-20261005",
+   "commit_sha": "d67257e6bbf2c8c863701615004bebb9d698fe5e",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-replicate-smoke-auth-20261005",
+   "commit_sha": "82751e4d60652878c9e49968a3a8eb07accc2670",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-replicate-smoke-auth-r2-20261005",
+   "commit_sha": "51f22ebbff6f5a5ef0adcc8e3d08a9035710b6a3",
+   "protected": false
+  },
+  {
+   "name": "hardening/pin-secret-grant-wif-auth-20261005",
+   "commit_sha": "475160d1a05a31dc0be1d0c0e4146186b54b2ad9",
+   "protected": false
+  },
+  {
+   "name": "hardening/production-jwt-verification",
+   "commit_sha": "b10c2ec95141ccce53c62ed8d56dff84b4c48250",
+   "protected": false
+  },
+  {
+   "name": "hardening/provider-dedicated-target-vars-20261005",
+   "commit_sha": "4740246d188dd6506589c81749448100f6b1bfa2",
+   "protected": false
+  },
+  {
+   "name": "health-compat",
+   "commit_sha": "e955d926197aeb4be89194f238ce4b6466698b81",
+   "protected": false
+  },
+  {
+   "name": "hs256-production-readiness-lock",
+   "commit_sha": "73ede259ace50e9c49c20487d832a52144ad7a31",
+   "protected": false
+  },
+  {
+   "name": "hygiene/remove-generated-provider-residue-20260911",
+   "commit_sha": "a00bb81af2d2f49145d02165db8749b4db07db98",
+   "protected": false
+  },
+  {
+   "name": "implement-stripe-webhook-verification",
+   "commit_sha": "43dc557ba70731c55fd978b5120c97cb0f13bc87",
+   "protected": false
+  },
+  {
+   "name": "integrate/higgsfield-governed-video-20260930",
+   "commit_sha": "0c0145046a42df407a7f902525d2a2cb6c4008bc",
+   "protected": false
+  },
+  {
+   "name": "integrate/model-forge-terminal-restack-20260930",
+   "commit_sha": "0da4a45e53792fd19dcf29644753e028ea69c72e",
+   "protected": false
+  },
+  {
+   "name": "integration/life-movie-asset-contract-20261002",
+   "commit_sha": "a8e01e56c8d9d75896f74c2ea63cf90387d7672c",
+   "protected": false
+  },
+  {
+   "name": "integration/one-urai-factory-421-493-r626",
+   "commit_sha": "09fb062643cbad7cd0576fb85bb05d2db97d7d49",
+   "protected": false
+  },
+  {
+   "name": "launch-readiness-hardening",
+   "commit_sha": "d170a78cf645039450bbf8b4e48888580087e05b",
+   "protected": false
+  },
+  {
+   "name": "life-model-contract-v1-20261002",
+   "commit_sha": "fd43247ab8b98ca69db46e5900bd3f5fcab2b231",
+   "protected": false
+  },
+  {
+   "name": "main",
+   "commit_sha": "a49f611ade29a1754787701ab4bf915c85c0cdc6",
+   "protected": false
+  },
+  {
+   "name": "manifest-lifecycle-readiness",
+   "commit_sha": "f710ea3a6e920817022555d008cbb305fc560ab4",
+   "protected": false
+  },
+  {
+   "name": "manifest-readiness-assertions",
+   "commit_sha": "bccabc0631efb12578e1a58779906ccb3788861e",
+   "protected": false
+  },
+  {
+   "name": "manifest-smoke-readiness",
+   "commit_sha": "71de109f74e915e31dd80fbbcb9ece33c6e3f125",
+   "protected": false
+  },
+  {
+   "name": "merged-main-preflight-receipt-20260713",
+   "commit_sha": "ea0aef215b90b206567ef0a02df5fa6480e06bc0",
+   "protected": false
+  },
+  {
+   "name": "openapi-admin-worker-contract",
+   "commit_sha": "6493123943ed01db89280da2495085c76dc06362",
+   "protected": false
+  },
+  {
+   "name": "operator-launch-runbook",
+   "commit_sha": "e6308745f89c7dce9eebda845ac7c3b82a78b219",
+   "protected": false
+  },
+  {
+   "name": "operator-launch-runbook-rebased",
+   "commit_sha": "6434ae0d08b55183fe53c5a150bf16e3d3f0a0d2",
+   "protected": false
+  },
+  {
+   "name": "operator-queue-smoke",
+   "commit_sha": "7b000aeb59ba049acceeb8c80a2a541b7dbfa629",
+   "protected": false
+  },
+  {
+   "name": "operator-queue-ui",
+   "commit_sha": "86d6169c9a5f4cab21f92a9a357ca54bd0c415d0",
+   "protected": false
+  },
+  {
+   "name": "operator-queue-ui-v2",
+   "commit_sha": "2875046e1b509d0408060c3f99dd23060ff896ba",
+   "protected": false
+  },
+  {
+   "name": "ops/diagnose-v1-provider-preflight-20260715",
+   "commit_sha": "7b945415b1c1b8b1233b77af9d97beefc9dc1f11",
+   "protected": false
+  },
+  {
+   "name": "ops/dispatch-v2-v3-provider-forges-20260704",
+   "commit_sha": "3566ade479126d20c04ba9e3646d972c1d66612e",
+   "protected": false
+  },
+  {
+   "name": "ops/dispatch-v3-forge-20260704",
+   "commit_sha": "e628e5ffee511d068f10f052a4e60d4644fe019f",
+   "protected": false
+  },
+  {
+   "name": "ops/grant-replicate-apphosting-secret-20260810",
+   "commit_sha": "41317678384998d234ca986d04dc9331711d4bf8",
+   "protected": false
+  },
+  {
+   "name": "ops/inspect-v1-recovery-20260715",
+   "commit_sha": "5a260fb62a08a2b5028589b714f7a886e8c9293f",
+   "protected": false
+  },
+  {
+   "name": "ops/readback-assetfactory-custom-domain-20261005",
+   "commit_sha": "c1b4178ac4b06225d908a913304a8f1f1015f4c4",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-bearer-auth-20260810",
+   "commit_sha": "0576a038a8fdb37c45c2f2f213b20482fb892c5f",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-bounded-model3d-smoke-20260810",
+   "commit_sha": "408e84d1a81960739b27fd6f90eaf1f094cd4508",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-model3d-readiness-20260810",
+   "commit_sha": "5f7f8be6c69d2f6f69ccb1e959a0984225535036",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-secret-wiring-20260810",
+   "commit_sha": "0b1ea345c4a54f74f7be697c427fc7036bbae3ef",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-wif-auth-20260810",
+   "commit_sha": "0d95ccc820073599ead44edf8f65f6f9f922b7b8",
+   "protected": false
+  },
+  {
+   "name": "ops/replicate-wif-bootstrap-runbook-20260811",
+   "commit_sha": "522221d8832707f4f8272479fe7da2049c0c2645",
+   "protected": false
+  },
+  {
+   "name": "ops/report-replicate-apphosting-verification-20260810",
+   "commit_sha": "f1a745736e123c5a877fe8f73dffe3e29460f0ea",
+   "protected": false
+  },
+  {
+   "name": "ops/trigger-replicate-verification-20260810",
+   "commit_sha": "8e167bfcca27f2058121965605deffcbe2336e48",
+   "protected": false
+  },
+  {
+   "name": "ops/verify-replicate-apphosting-runtime-20260810",
+   "commit_sha": "baa63794a60250ecfcdd3b6f8b36e6e501441d4a",
+   "protected": false
+  },
+  {
+   "name": "ops-auth-runbook-sync",
+   "commit_sha": "19f0abc777cd90f5d313e45feecc7996eefff8f0",
+   "protected": false
+  },
+  {
+   "name": "ops-runbook-gap-sync",
+   "commit_sha": "1faf1d33408ab4ac1e30591f2603acbd2342a99c",
+   "protected": false
+  },
+  {
+   "name": "pin-node-20-19",
+   "commit_sha": "4a9ea2e594d6667556a88e1e3a1807de14954242",
+   "protected": false
+  },
+  {
+   "name": "preflight/home-aaa-provider-readiness-20261001",
+   "commit_sha": "a0a5ab8b6de4155673a16535c73840f29d59437e",
+   "protected": false
+  },
+  {
+   "name": "preflight/home-provider-readiness-trusted-20261001",
+   "commit_sha": "1e15dcfcdfe67c988f9d80cc29419271fc5648a1",
+   "protected": false
+  },
+  {
+   "name": "preflight-checks-2",
+   "commit_sha": "4905d31d40f4638c7b76418ec3fa03237d2c33c8",
+   "protected": false
+  },
+  {
+   "name": "privacy/protected-tenant-deletion-20261003",
+   "commit_sha": "200f27f876807f32a438a96cd474dd82e80aaa9c",
+   "protected": false
+  },
+  {
+   "name": "privacy-safety-hs256-support-lock",
+   "commit_sha": "c121bb619629f5dad1094bc8435bd77a4a99fe3f",
+   "protected": false
+  },
+  {
+   "name": "privacy-sync",
+   "commit_sha": "f3a835c74915146fcbb7df077b3f30b2f0ef36af",
+   "protected": false
+  },
+  {
+   "name": "prod-asset-infra-wiring",
+   "commit_sha": "cd2b90c804792fdbad3e6d74015825bbd83f7275",
+   "protected": false
+  },
+  {
+   "name": "production/finite-time-hard-personal-realism-20260913",
+   "commit_sha": "699ad734c3eb05207b73b6abf0f610be476e5f3c",
+   "protected": false
+  },
+  {
+   "name": "production/finite-time-nonprivate-story-wave-20260912",
+   "commit_sha": "96d45ed8c26c18be623dbb5dc5948c7258ec8953",
+   "protected": false
+  },
+  {
+   "name": "production/finite-time-openai-gold-master-20260912",
+   "commit_sha": "32041da2e66d553ce8e2aa696bb125cc25261ac5",
+   "protected": false
+  },
+  {
+   "name": "production-finalization-asset-factory",
+   "commit_sha": "aaeea124e6682b26f0855425f04e74848a2c39a7",
+   "protected": false
+  },
+  {
+   "name": "production-hardening-asset-factory",
+   "commit_sha": "e3df194737951c2605cc6d951237557d60d8036e",
+   "protected": false
+  },
+  {
+   "name": "production-lock/evidence-closure-20260705",
+   "commit_sha": "0c62e0734d89b4c217bc88a79b6016801e6244da",
+   "protected": false
+  },
+  {
+   "name": "production-validator-fix",
+   "commit_sha": "ac1bc1c4832e4b93c184e4aa90d4ae971183c6e2",
+   "protected": false
+  },
+  {
+   "name": "program/v1-v5-multimodal-ledger-20260730",
+   "commit_sha": "55ebc7c107c780c75a3a6dbac7e6f3b34d8692da",
+   "protected": false
+  },
+  {
+   "name": "program/v2-v5-manifest-certification-20260729",
+   "commit_sha": "c03f58ced78daf4a17a303dc0835c260092f26c0",
+   "protected": false
+  },
+  {
+   "name": "program/v2-v5-manifest-certification-current-20260729",
+   "commit_sha": "5c2abaf71224ecbbbd199c84a97257610306a33b",
+   "protected": false
+  },
+  {
+   "name": "protect-cron-integrity-route",
+   "commit_sha": "45a3e3fae862b7bfd2cbbc841c4fb022f5c3e05e",
+   "protected": false
+  },
+  {
+   "name": "queue-emulator-coverage",
+   "commit_sha": "359b00635c4950dea17da8b0c00a80dcbaa01a76",
+   "protected": false
+  },
+  {
+   "name": "queue-operator-visibility",
+   "commit_sha": "2fed28a717ccce00af6967b5332f64f93b113ea2",
+   "protected": false
+  },
+  {
+   "name": "queue-requeue-emulator-smoke",
+   "commit_sha": "8c07f30ce7ff99892210cf005b4b5743952e5011",
+   "protected": false
+  },
+  {
+   "name": "readiness-sync",
+   "commit_sha": "86b3dac4b775128747a9d6b6b836a236f421fe26",
+   "protected": false
+  },
+  {
+   "name": "readme-sync",
+   "commit_sha": "1397950a51df6a93373ff79b82402c5a808b164e",
+   "protected": false
+  },
+  {
+   "name": "rebind/spatial-1600-model-authority-20261005",
+   "commit_sha": "0f9c08791cd206d1775d82131819385f944d2a66",
+   "protected": false
+  },
+  {
+   "name": "rebind/spatial-1601-87d28edd",
+   "commit_sha": "84168f73c332aed0d52391c0de180468c2fec260",
+   "protected": false
+  },
+  {
+   "name": "rebind/spatial-1601-885b0ac",
+   "commit_sha": "9c5bce0f71028c751ff44fa1e976474ce2fed60a",
+   "protected": false
+  },
+  {
+   "name": "reconcile/main-into-ws-e-172-20260711",
+   "commit_sha": "0dbd294ae6ade2cb0732416b25e2d7eb8e91c1cc",
+   "protected": false
+  },
+  {
+   "name": "recovery/v1-certify-artifact-8742902079-20260729",
+   "commit_sha": "bf38934513f0ae609aaeea7451c3fb49c4a2cf7d",
+   "protected": false
+  },
+  {
+   "name": "recovery/v1-receptionist-only-20260729",
+   "commit_sha": "193613001ae13672b6334f7c4efd4b672817b8cb",
+   "protected": false
+  },
+  {
+   "name": "redact-public-system-diagnostics",
+   "commit_sha": "7812341bd735a64907feaad92599fb578ac884e1",
+   "protected": false
+  },
+  {
+   "name": "release-evidence-validator",
+   "commit_sha": "2e327688bc1815c709c1901de5791035a818b9e5",
+   "protected": false
+  },
+  {
+   "name": "release-note-tool",
+   "commit_sha": "e6885bf5659c17cc0d0e1c4c1929c3daec4ae974",
+   "protected": false
+  },
+  {
+   "name": "repair/apphosting-backend-discovery-20261001",
+   "commit_sha": "b6aac6f19fea0fd9e44b0d964211912d0f6526ee",
+   "protected": false
+  },
+  {
+   "name": "repair/asset-schema-warning-normalization-20261007",
+   "commit_sha": "557c995eb1dfe2ea62130827cad388c8e2c02261",
+   "protected": false
+  },
+  {
+   "name": "repair/asset-truth-zero-spend-20260903",
+   "commit_sha": "8f47945eebc4547515e203f1dc787ecb0c0e9064",
+   "protected": false
+  },
+  {
+   "name": "repair/canonical-spend-duplicate-artifact-fences-20261007-root",
+   "commit_sha": "1d2439e7de4125ac1d4597050d8de7249a3102bf",
+   "protected": false
+  },
+  {
+   "name": "repair/cloud-storage-integrity-20261007-holdings",
+   "commit_sha": "4ba911921a02e062b332feef347cd30df54ae7d1",
+   "protected": false
+  },
+  {
+   "name": "repair/decoded-indexed-bounds-successor-20261007",
+   "commit_sha": "8c8f7cc2da25eb949bc269ebf653f50a8e2e071c",
+   "protected": false
+  },
+  {
+   "name": "repair/decoded-static-asset-budgets-20261007",
+   "commit_sha": "d14c5a147dde480d9e190be347c30fb3a2300d54",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-frozen-install-guide-20261008",
+   "commit_sha": "b48859e92ab474afa67c60bb4ce9c1e547e1fb62",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-launch-tooling-security-20261008",
+   "commit_sha": "b7f146dce7ecc48d25002334bada7c5d3ec97bf3",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-legacy-engine-ingress-20261008",
+   "commit_sha": "eb2cf35600d194f2b059f5d60f4c5fd070f49a1f",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-native-caller-resolution-20261008",
+   "commit_sha": "f5e99b20cd30e4ed26629df12465fde3b5d3ee58",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-next-compat-20261008",
+   "commit_sha": "2ad79c845d74c3ef5088682a3968286b472f0708",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-retired-npm-aliases-20261008",
+   "commit_sha": "060ac0a219a483ac97f741b7198e728aa2605d7a",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-security-20261007-2328",
+   "commit_sha": "d2b0beda9df8653c2d20614c8e07e52bdf6c4f1d",
+   "protected": false
+  },
+  {
+   "name": "repair/exec-factory-validator-ingress-20261008",
+   "commit_sha": "32cbe12f419ff79b0c380c9c61bb36c68339a170",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-48px-targets-20261008",
+   "commit_sha": "a9f5c6013fb662a1627a1950fb5b2807aef22d14",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-alternate-route-tenant-fences-20261008",
+   "commit_sha": "7e7123206395f4549077d4cb274fd512a520831d",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-braces-installed-mitigation-20261007-root",
+   "commit_sha": "03dcd624dffcf9dc782be6972d94185372588bf7",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-caller-import-resolution-20261008",
+   "commit_sha": "8b64e6045f16e15e879891ab6fbc68705a67bab0",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-current-advisories-20261008",
+   "commit_sha": "a57092267e14e5fbd1781661e63df5378ecde8ab",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-embedded-assets-captured-receipts-20261010",
+   "commit_sha": "e54d3d4e2b97922135a6b6015e5e616f9a7fd12f",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-firebase-admin13-node-forge-20261007",
+   "commit_sha": "f93f95d95bca15d849736401793a8b711cc44ee8",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-launch-handler-locked-ci-20261008",
+   "commit_sha": "4e97fa2d47df8c6f8217d407e74764e6ffdb0040",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-manifest-runtime-authority-20261008",
+   "commit_sha": "37bb35279b0a557876d741699221e32cd79fb231",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-media-decode-authorization-20261008",
+   "commit_sha": "b655d528ccb83d4fd4e409cb9078d7772790333f",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-normalized-scene-bounds-20261007",
+   "commit_sha": "3a405a6ccd3c31b8dc29e28684244edf4911b3e5",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-openai-image-contract-20261008",
+   "commit_sha": "355cd0d95a6068a4bd77512c2d90adcb7a6320d0",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-production-auth-source-20261008",
+   "commit_sha": "c71b50213f98237ad5b7eeb31defc6712c2f3f6a",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-provider-config-truth-20261007",
+   "commit_sha": "5c73231d2c1f558d6b2ba935faaf6506dd717a40",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-replicate-terminal-output-20261009",
+   "commit_sha": "3150f924fa81c17c0ec10711c1a9ad65f41b4e16",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-root-fixture-filesystem-20261008",
+   "commit_sha": "23ef3b9d46e487f7f678a50c416380a462eafd30",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-safe-tooling-current-20261007",
+   "commit_sha": "f236030aab380791dd71e9ff4a450c70b089cc2b",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-schema-compatibility-source-20261008",
+   "commit_sha": "cdfd3ea747e6e4f8a4f1750be5fadc9d85f02d52",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-sdk-owner-proof-20261008",
+   "commit_sha": "84923bbc6ee05d3be23f99eb8dedd67ecf004860",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-spatial-declared-proof-20261007",
+   "commit_sha": "60d51044e1ce52e1fc378d62c74a4d6bc813d45d",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-storyboard-scene-contract-20261008",
+   "commit_sha": "adc08425084343baf9de3af61bbb8ceab7510c86",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-studio-tenant-scope-20261008",
+   "commit_sha": "b3158c10f72eab58546835d04202cd5f1dd53ae0",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-tooling-frozen-setup-convergence-20261008",
+   "commit_sha": "189a0d05d2b3bae0257490b49f84d3b42629bd6d",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-tooling-platform-proof-20261008",
+   "commit_sha": "ad1d99d4224a99054e47a62aa76ada46567c4be7",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-visual-proof-contract-20261008",
+   "commit_sha": "77dbab26b2110c3f19b2fcb63a2d6d186a0a9cb1",
+   "protected": false
+  },
+  {
+   "name": "repair/factory-web-deployment-boundary-20261007",
+   "commit_sha": "7f0befef17c037dbca63b05a3ff64a6d232608a9",
+   "protected": false
+  },
+  {
+   "name": "repair/film001-resume-authority-test-20260901",
+   "commit_sha": "1e3f661ae875bebf38be13ec69c48c3edbd58b00",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-current-authority-fixture-20260912",
+   "commit_sha": "34a700ff0d32634bbb8c40b41f3e8c0b81859be9",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-main-first-parent-authority-20260912",
+   "commit_sha": "495b6531e7ae15304da45d3a18757b98f3fba132",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-nonprivate-main-authority-proof-20260912",
+   "commit_sha": "4ba2c64aaf3bb9e82f94196465573d0f49218b95",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-semantic-canary-20260912",
+   "commit_sha": "39d72f031f6bf874729957f1e79af5bb55629b25",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-semantic-continuation-20260912",
+   "commit_sha": "f7bf964a105278920a5fe35704c9952808aa372b",
+   "protected": false
+  },
+  {
+   "name": "repair/finite-time-v2-board-coverage-20260911",
+   "commit_sha": "2f61af8442b4b20e8b0e4638ca4119a17969c6d4",
+   "protected": false
+  },
+  {
+   "name": "repair/floor-only-envelope-successors-20261007",
+   "commit_sha": "dd63a5c8de731cd18e2937089fe00493b61d9b7f",
+   "protected": false
+  },
+  {
+   "name": "repair/founder-moveai-response-types-20260926",
+   "commit_sha": "54898ac4ccce050a8b4a0a063fa0fa046c0caff0",
+   "protected": false
+  },
+  {
+   "name": "repair/home-challenger-secret-read-20261001",
+   "commit_sha": "fd20994f210d6ef46e105f3d74eb80dd0a66aabe",
+   "protected": false
+  },
+  {
+   "name": "repair/home-replacement-one-shot-20261001",
+   "commit_sha": "5bef7b11d1cb76dceee025789d33538c1acc9d65",
+   "protected": false
+  },
+  {
+   "name": "repair/image-final-observation-authority-20261007-root",
+   "commit_sha": "0aba8dab70166bf50a07c07f74528ae4aeaf7a9b",
+   "protected": false
+  },
+  {
+   "name": "repair/image-mechanical-authority-20261008",
+   "commit_sha": "172908076c6bd99bf541aa61f84e82213992869c",
+   "protected": false
+  },
+  {
+   "name": "repair/image-spend-typed-firestore-20261007",
+   "commit_sha": "434f56442409f696db4107d819221b2dc6cefb25",
+   "protected": false
+  },
+  {
+   "name": "repair/launch-asset-preparation-20261007",
+   "commit_sha": "6047a432be7543108cbd8b725cb79533d1549f6e",
+   "protected": false
+  },
+  {
+   "name": "repair/launch-model-policy-ceilings-20261007",
+   "commit_sha": "4bbe32bb7320c6d5b0987dec2f50ebe0c06d3cb3",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-absolute-expiry-20261007-root",
+   "commit_sha": "7351e4db173d26bf1f7649086f84958fe98530c1",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-bounded-metadata-20261008",
+   "commit_sha": "a69facc258a56aac6328f9c24a29948c9eb23ffa",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-contract-20260926",
+   "commit_sha": "93c398f771a5443237edbc1b0ec7a07c1dde08ed",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-current-main-20261007",
+   "commit_sha": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-current-owner-expiry-20261007-root",
+   "commit_sha": "985a3a659a12a9ebb37fab672fefd210432f14e9",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-glb-container-20261007",
+   "commit_sha": "a0bc132f7548d37af24efdd572407471972706d2",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-protected-execution-20261007-holdings",
+   "commit_sha": "3006d0a81ade903cf0eec7c4a4eff6a609fd2e17",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-protected-spend-20261007",
+   "commit_sha": "b838e87fa9bda99b9ec97e0fe597821344dc231b",
+   "protected": false
+  },
+  {
+   "name": "repair/model-forge-spend-geometry-restack-20261007-root",
+   "commit_sha": "56d0301829d04e2bf937ec4be0d4fc80c9508ec1",
+   "protected": false
+  },
+  {
+   "name": "repair/parallel-move-upload-authority-20260926",
+   "commit_sha": "54898ac4ccce050a8b4a0a063fa0fa046c0caff0",
+   "protected": false
+  },
+  {
+   "name": "repair/protected-image-spend-executor-20261007",
+   "commit_sha": "5ea84e4185472bf098198e6440cfd1a0c0d05171",
+   "protected": false
+  },
+  {
+   "name": "repair/protected-production-spend-20261007",
+   "commit_sha": "4cd02812b2c9c7ebcb88d5ab37a57676ac41cdd0",
+   "protected": false
+  },
+  {
+   "name": "repair/protected-spend-absolute-expiry-20261007-root",
+   "commit_sha": "acea7eaf1ccec8ce34bff99ebb8eb527a7b67098",
+   "protected": false
+  },
+  {
+   "name": "repair/protected-spend-bounded-ingress-20261007-root",
+   "commit_sha": "bf018a7a93daecd95e4795db3bbb6e332320d6cb",
+   "protected": false
+  },
+  {
+   "name": "repair/protected-spend-scoped-workers-20261007",
+   "commit_sha": "047c8429626300c9896bc8c4b739b5902575ad38",
+   "protected": false
+  },
+  {
+   "name": "repair/provider-receipt-authority-20260927",
+   "commit_sha": "dd96fa42a0bb669cf9e5320b520a5b656588add2",
+   "protected": false
+  },
+  {
+   "name": "repair/replicate-failure-diagnostics-20261001",
+   "commit_sha": "6c54d7a3e56ba7608e11238edcbdb65ab95e35d8",
+   "protected": false
+  },
+  {
+   "name": "repair/shared-artifact-address-policy-20261007-holdings",
+   "commit_sha": "31acdc0321c2aaa37457c7786e3525e04a896946",
+   "protected": false
+  },
+  {
+   "name": "repair/shared-spend-concurrency-20261007-holdings",
+   "commit_sha": "95edf6ba2c87fe89db84926055627a0c37ae346b",
+   "protected": false
+  },
+  {
+   "name": "repair/shared-spend-signing-policy-20261007-holdings",
+   "commit_sha": "570c146390a4b3ea17dca152c5b4e28c80076f8e",
+   "protected": false
+  },
+  {
+   "name": "repair/storage-emulator-boundary-current-20261007-holdings",
+   "commit_sha": "bd9292de301de794ffa0b6e0318facd580ea3cb3",
+   "protected": false
+  },
+  {
+   "name": "repair/storage-operation-deadline-current-20261008-holdings",
+   "commit_sha": "03acbec32e5ee6bb0664d7e82931ff2beb18a820",
+   "protected": false
+  },
+  {
+   "name": "repair/studio-issuer-expiry-f87-20261007",
+   "commit_sha": "16b057be200b28ee38a42ede1cfc05b582821b26",
+   "protected": false
+  },
+  {
+   "name": "repair/studio-next-security-20261007",
+   "commit_sha": "4a4f5d873391804815de8e0dff17eb1a46e5eb2e",
+   "protected": false
+  },
+  {
+   "name": "repair/studio-paid-provider-leaves-20261007",
+   "commit_sha": "a352507042ae2702ae0a65d890bcc354bd9a219a",
+   "protected": false
+  },
+  {
+   "name": "repair/tripo-v3-protected-adapter-20261008",
+   "commit_sha": "2114e86d547b5c8c419e4aa3e63efaf58a20cd1d",
+   "protected": false
+  },
+  {
+   "name": "repair/trusted-home-challenger-wif-20261001",
+   "commit_sha": "0fc3a928f16f3c45df0e1e442446acad241c0829",
+   "protected": false
+  },
+  {
+   "name": "repair/v1-handoff-reproduce-20260730",
+   "commit_sha": "35ff4ae39c5f7a8af0a5f648b986f6c84fa8b740",
+   "protected": false
+  },
+  {
+   "name": "repair/v2-certified-gaps-20260730",
+   "commit_sha": "4969fec25f33254aadfd03af6a82179c340e5744",
+   "protected": false
+  },
+  {
+   "name": "repo-doctor-checks",
+   "commit_sha": "dd02d144e9cee7005887a700dff3656c0e98b2c6",
+   "protected": false
+  },
+  {
+   "name": "require-asset-record-for-downloads",
+   "commit_sha": "78ba162ddb82632770e0a9b10cb74356c73013f8",
+   "protected": false
+  },
+  {
+   "name": "restack/model-forge-on-hardened-273-20260921",
+   "commit_sha": "934c142d9b455ed2573534299d49b32a4df8f9ad",
+   "protected": false
+  },
+  {
+   "name": "safety/reject-shared-geturai-project-20260930",
+   "commit_sha": "2681c64909eb1b54f1d942abe1e1a9561fb020f1",
+   "protected": false
+  },
+  {
+   "name": "safety/remove-consumer-hosting-target-20260930",
+   "commit_sha": "6b3afca43c7fd4bf9f91f9ce6b950850af89f340",
+   "protected": false
+  },
+  {
+   "name": "scope-dashboard-api-by-tenant",
+   "commit_sha": "2c1eaf454b5a357d65cf39bad677e3653003f96c",
+   "protected": false
+  },
+  {
+   "name": "scope-usage-api-by-tenant",
+   "commit_sha": "1a0f382b098abf8f7fd6eef0ff6026d56f47fda8",
+   "protected": false
+  },
+  {
+   "name": "security/adc-only-chaos-test-2026-08-11",
+   "commit_sha": "aef5add784f88af80895676498167b26f5ebb18b",
+   "protected": false
+  },
+  {
+   "name": "security/adc-only-current-main-20260912",
+   "commit_sha": "0c4b7499e5fc0840e804bc3862a1621dc34e73dc",
+   "protected": false
+  },
+  {
+   "name": "security/align-wif-deploy-docs-20260905",
+   "commit_sha": "2584c9cd08caa46997a5d27b87b89676bef1a2e2",
+   "protected": false
+  },
+  {
+   "name": "security/fix-artifact-redirect-token-leak-20260711",
+   "commit_sha": "526b88201e4220b662b721a0c2b4317e33d06658",
+   "protected": false
+  },
+  {
+   "name": "security/internal-noindex-shell-20260903",
+   "commit_sha": "ef88c4f6ff7730903d7b6b24b12bf20628bf6138",
+   "protected": false
+  },
+  {
+   "name": "security/one-urai-legacy-token-fail-closed-20261104",
+   "commit_sha": "3105353064d389373b9c792894c78e0e1171158a",
+   "protected": false
+  },
+  {
+   "name": "security/post-240-credential-lifetime-20260811",
+   "commit_sha": "bc64115331e3f7f98178cd4729072146778d6c9f",
+   "protected": false
+  },
+  {
+   "name": "security/quarantine-provider-workflows-2026-08-11",
+   "commit_sha": "dbdb64878220d16410b0168241e76e3e28b71c40",
+   "protected": false
+  },
+  {
+   "name": "security/v1-resume-v3-safe-rebase-20260711",
+   "commit_sha": "3197414d3e1e0571243a811de56a9cd9fd6c2cbd",
+   "protected": false
+  },
+  {
+   "name": "security/wif-adc-scope-followup-20260811",
+   "commit_sha": "e87e8402d3736aea11551d7e53ef22268a0d7c9c",
+   "protected": false
+  },
+  {
+   "name": "security/wif-only-firebase-deploy-2026-08-11",
+   "commit_sha": "6f98b4f5f4c85923e5909bf0ac0b4ba14e8f2ade",
+   "protected": false
+  },
+  {
+   "name": "source/ac5a14-reference-20261006",
+   "commit_sha": "bbebe098993e5c7a584b01ddf018226cda05a360",
+   "protected": false
+  },
+  {
+   "name": "source/b983d0-reference-20261006",
+   "commit_sha": "b3526166ed22af33104af970b8106c67a58e07b2",
+   "protected": false
+  },
+  {
+   "name": "source/d78ed8-reference-20261006",
+   "commit_sha": "d959da025a29462bf25b3ba868fd62d1198e7ec5",
+   "protected": false
+  },
+  {
+   "name": "source/3fe12f-atlas-clearance-20261007",
+   "commit_sha": "bb5de6497f52b4f30d1e0a73627c1fdbb2c22848",
+   "protected": false
+  },
+  {
+   "name": "source/7c1311-focus-targets-20261007",
+   "commit_sha": "e1f9075a3b80a57659769305b379c83534a527e4",
+   "protected": false
+  },
+  {
+   "name": "source/740a66-mobile-focus-20261006",
+   "commit_sha": "de2b80f79dd0466f5b96eac46ed6c95a45801f60",
+   "protected": false
+  },
+  {
+   "name": "spatial-model-contract",
+   "commit_sha": "5101bfaab867960a3604d64b9d14bf8161e4d610",
+   "protected": false
+  },
+  {
+   "name": "static-readiness-sync",
+   "commit_sha": "fe40435e8396315e05712559801cba3a776b8e39",
+   "protected": false
+  },
+  {
+   "name": "status-sync",
+   "commit_sha": "dd26d20353a0544b0fb0de23b9114b39449fa4ab",
+   "protected": false
+  },
+  {
+   "name": "stripe-entitlement-persistence",
+   "commit_sha": "23046f38988d855dc89a29ce063242758491f31b",
+   "protected": false
+  },
+  {
+   "name": "studio-runtime-deploy",
+   "commit_sha": "e88ec444530e6dc3fa8c076d4b8c6e4c6e087a05",
+   "protected": false
+  },
+  {
+   "name": "support-account-workflows",
+   "commit_sha": "2372a463fd122167ecabb840c72ac58d9a5138c6",
+   "protected": false
+  },
+  {
+   "name": "support-workflow-remote-smoke",
+   "commit_sha": "cb466653d1fa9fd4e47878d77b359fe44d75112c",
+   "protected": false
+  },
+  {
+   "name": "tier-one-lock-audit",
+   "commit_sha": "4df43d006aa6180b6e8cec337f111ed1de4bd531",
+   "protected": false
+  },
+  {
+   "name": "two-token-smoke-workflow",
+   "commit_sha": "af78d90a97ca1c58ee1360abe4d7df7ed2f695ac",
+   "protected": false
+  },
+  {
+   "name": "type-stripe-verification-result",
+   "commit_sha": "29b12dba49431655f64cc9164d778d2037088293",
+   "protected": false
+  },
+  {
+   "name": "unit-behavior-tests",
+   "commit_sha": "924bfa970a9eb50fa363a9a02bfca010cecc36fc",
+   "protected": false
+  },
+  {
+   "name": "update-fields",
+   "commit_sha": "e6885bf5659c17cc0d0e1c4c1929c3daec4ae974",
+   "protected": false
+  },
+  {
+   "name": "update-production-audit-after-hardening",
+   "commit_sha": "7adad89a3a1a6f389381c5fd74ad185e72bbe933",
+   "protected": false
+  },
+  {
+   "name": "v2-dispatcher-cleanup",
+   "commit_sha": "e678c3231f95fc85d510611d84468ce31479129e",
+   "protected": false
+  },
+  {
+   "name": "v2-forge-scope-fix",
+   "commit_sha": "1395c7a0ac935323e1460ffa44064e0b6b7c5e35",
+   "protected": false
+  },
+  {
+   "name": "v200/life-movie-provenance-hardening-20261003",
+   "commit_sha": "0d0354c3faf234e98129cf0bd6d9b0a792eb4458",
+   "protected": false
+  },
+  {
+   "name": "wire-multimodal-asset-types",
+   "commit_sha": "a8293512d12e19430fc0e7a12a0cd4114d7c1f4d",
+   "protected": false
+  },
+  {
+   "name": "ws-e/cleanup-one-time-paid-v1-20260711",
+   "commit_sha": "7ad8b303be3a1f623dde6227a83d330c6c1249af",
+   "protected": false
+  },
+  {
+   "name": "ws-e/disable-consumed-v1-marker-20260711-reconciled",
+   "commit_sha": "845e659924c6048845ea6c4aebfbb702543f5c42",
+   "protected": false
+  },
+  {
+   "name": "ws-e/disable-consumed-v1-marker-20260711",
+   "commit_sha": "79f86a0d2f86a050f28212e82dabd4716509bb74",
+   "protected": false
+  },
+  {
+   "name": "ws-e/execute-one-paid-v1-issue-160-20260711",
+   "commit_sha": "86ee7d91a0215df46857519a4ce21ccb8707c10b",
+   "protected": false
+  },
+  {
+   "name": "ws-e/manual-paid-smoke-after-forge-20260711",
+   "commit_sha": "1ec49f88426a23246f22ef0ef72ed3af51646034",
+   "protected": false
+  },
+  {
+   "name": "ws-e/manual-paid-smoke-current-main-20260711",
+   "commit_sha": "7e05b082402af1f771f8ab775c04f24d4836ee6c",
+   "protected": false
+  },
+  {
+   "name": "ws-e/multimodal-control-plane-clean-20260711",
+   "commit_sha": "dd875e65cd7ea8e220f4e0b98d6a37f377f04c46",
+   "protected": false
+  },
+  {
+   "name": "ws-e/pin-paid-forge-actions-20260711",
+   "commit_sha": "f37d4000522629d84012c1f54ffff9d920d2f7d7",
+   "protected": false
+  },
+  {
+   "name": "ws-e/supply-chain-disable-auto-paid-smoke-20260711",
+   "commit_sha": "e5a7c204c13b54d9d6dfdc26695f48baed576896",
+   "protected": false
+  }
+ ]
+}
