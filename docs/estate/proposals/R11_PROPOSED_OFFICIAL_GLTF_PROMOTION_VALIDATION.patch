@@ -1,0 +1,72 @@
+--- a/.github/workflows/governed-asset-promotion.yml
++++ b/.github/workflows/governed-asset-promotion.yml
+@@ -10,6 +10,7 @@
+       - 'operations/assets/production-receipts/**'
+       - 'urai-tier1/public/assets/urai/generated/**'
+       - 'scripts/verify-governed-asset-promotion.mjs'
++      - 'scripts/audit-launch-critical-artifact.mjs'
+       - '.github/workflows/governed-asset-promotion.yml'
+   workflow_dispatch:
+     inputs:
+@@ -94,3 +95,61 @@
+         env:
+           URAI_ASSET_PROMOTION_DECISION: ${{ inputs.decision_path }}
+         run: node scripts/verify-governed-asset-promotion.mjs
++      - name: Validate promoted model GLBs with official validator and real decoder
++        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
++        env:
++          GATE_EVENT: ${{ github.event_name }}
++          BASE_SHA: ${{ github.event.pull_request.base.sha }}
++          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
++          DISPATCH_DECISION: ${{ inputs.decision_path }}
++        shell: bash
++        run: |
++          set -euo pipefail
++          if [[ "$GATE_EVENT" == 'pull_request' ]]; then
++            mapfile -t decision_files < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" | grep -E '^operations/assets/(promotion-decisions|promotion-rehearsal)/.*\.json$' || true)
++          elif [[ "$GATE_EVENT" == 'workflow_dispatch' ]]; then
++            decision_files=("$DISPATCH_DECISION")
++          else
++            echo 'Unsupported event for model promotion validation.' >&2
++            exit 1
++          fi
++          temporary_dir="$(mktemp -d)"
++          trap 'rm -rf "$temporary_dir"' EXIT
++          index=0
++          for decision_file in "${decision_files[@]}"; do
++            if [[ ! -f "$decision_file" || -L "$decision_file" ]]; then
++              echo 'Promotion decision missing or symbolic link.' >&2
++              exit 1
++            fi
++            attributes="$(node - "$decision_file" <<'NODE'
++          const fs = require('node:fs')
++          const path = require('node:path')
++          const decision = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
++          const manifest = JSON.parse(fs.readFileSync('operations/assets/launch-critical-assets.json', 'utf8'))
++          const asset = manifest.assets.find(item => item.id === decision.assetId)
++          if (!asset || (decision.mode !== 'promotion' && decision.mode !== 'rehearsal')) process.exit(1)
++          if (decision.mode === 'promotion' && decision.canonicalPath !== asset.fixedPath) process.exit(1)
++          const safe = p => typeof p === 'string' && /^[A-Za-z0-9_./-]+$/.test(p) && !p.startsWith('/') && !p.split('/').includes('..') && path.posix.normalize(p) === p
++          if (!safe(asset.fixedPath)) process.exit(1)
++          process.stdout.write([decision.mode, asset.kind, asset.fixedPath].join('\t'))
++          NODE
++          )"
++            IFS=$'\t' read -r mode kind model_path <<< "$attributes"
++            if [[ "$mode" != 'promotion' ]]; then
++              continue
++            fi
++            if [[ "$kind" != 'model' ]]; then
++              continue
++            fi
++            if [[ "$model_path" != urai-tier1/public/assets/urai/generated/models/*.glb || ! -f "$model_path" || -L "$model_path" ]]; then
++              echo 'Promoted model is not a regular canonical GLB.' >&2
++              exit 1
++            fi
++            # A hash-matched receipt is not validation: run spec validation, decode and re-validate.
++            npx --yes @gltf-transform/cli@4.2.1 validate "$model_path"
++            npx --yes @gltf-transform/cli@4.2.1 copy "$model_path" "$temporary_dir/decoded-$index.glb"
++            test -s "$temporary_dir/decoded-$index.glb"
++            npx --yes @gltf-transform/cli@4.2.1 validate "$temporary_dir/decoded-$index.glb"
++            index=$((index + 1))
++          done
++          test -z "$(git status --porcelain)"
