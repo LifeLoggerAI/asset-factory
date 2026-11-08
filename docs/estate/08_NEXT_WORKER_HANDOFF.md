@@ -1,0 +1,19 @@
+# Asset Factory — next Chalk continuation (R1, 2026-11-07)
+
+**Repo:** `LifeLoggerAI/asset-factory`; audited source `main a49f611ade29a1754787701ab4bf915c85c0cdc6`, owner `e7d23952bcaa21209ff2d964c81c533f905863ca`, security `3105353064d389373b9c792894c78e0e1171158a`, composite `09fb062643cbad7cd0576fb85bb05d2db97d7d49`, docs starter `a244e8f06cffcf34db323d50c148a129e8300cf0`. R1 docs branch `audit/genesis-asset-factory-forensic-r1-20261107`. Re-fetch all heads because concurrent workers continue.
+
+**Starting point:** `docs/estate/00_START_HERE.md`, `MANIFEST.json`, `BRANCH_REFS.json`, `01_COMPLETE_INVENTORY.md`, `05_VERIFICATION_AND_EVIDENCE.md`, `06_GAPS_CONFLICTS_AND_BLOCKERS.md`, `10_PROVENANCE_AND_LICENSE_MATRIX.md`; master private Labs `docs/estate/WORKER_PROTOCOL.md`, Factory issue #63, owner #421, security #493, composite #494. Do not merge incompatible branches or change default production source.
+
+**Highest-value next executions:**
+1. Inspect all **476 branch trees** and reachable commit history, tags, releases, LFS and historical/unreachable material with positive access coverage; compare blob SHA deduplicated union and list inaccessible objects explicitly. Current R1 indexes branches but only five full Git trees.
+2. Materialize/read original Git blobs without leaking secrets; record actual byte lengths and SHA-256 separately from Git SHA-1, structural media validation, MIME and 0-byte files. The R1 `MANIFEST.json` has `sha256:null` for every file because no blanket raw reads occurred.
+3. Find authorized immutable `UrAi_Generic_World_Library_1.0.2.zip` and, if permitted, verify its 278,133,223 bytes / SHA-256 `468bd4fe6c59b9cdae6cb02cdb8d8237d4ce8110324061954297572880f1a8f8`; do not use generated/archive metadata as a substitute for actual ZIP.
+4. Review existing Meshy support thread and task inventory **read-only** for completed assets at risk from 3-day provider output retention; no new job/spend, no secret disclosure or illegal access. Check actual individual task expiry; Premium support date Nov 25 is distinct. Preserve already-saved 26 files without duplicate downloads; compare exact per-binary hashes to Spatial when authorized.
+5. Reconcile current Spatial 24 GLBs and 249 key nonzero WebPs against canonical image catalog, license/rights/owner/private source and runtime import declarations. Cross-check 213 canonical images plus noncanonical assets, true visual/device proof, physical XR LOD/metrics.
+6. Reproduce no-cost tests at **exact frozen candidate**: `node --test scripts/test-model-forge-tripo-v3.mjs scripts/test-model-forge-glb-container.mjs scripts/test-model-forge-response-boundary.mjs scripts/test-model-forge-execution-outcomes.mjs`, launch asset test suites, generic world QA (archived bytes required for geometry), Studio build/isolated multitenant tests. No passing claims until actually run; current original Actions runs show runner 0 / zero steps.
+7. Review provider rights and commercial licenses against input media, generated derivatives and public release, including third-party Poly Haven/CC0, Tripo/Meshy/Runway, AI image/video, audio, avatars, human likeness and consent.
+8. Carry exact-source positive auth/privacy/Studio/Storytime/Jobs/Replay/Spatial output and deletion path into dedicated authenticated staging; require independent literal and physical-device acceptance before any production GO.
+
+**Safe boundaries:** read-only discovery default, documentation-only review PR. Never initiate billable graphics/video/model generation, protected download, GPU reconstruction, live deployment, IAM/Stripe changes or production consent issuance without separate authorization. This worker ran **no paid operation, no cloud compute, and no new test suite**.
+
+**Classification:** existing software/assets: REAL; source coverage: meaningful and source-pinned; raw all-byte and whole-history evidence: INCOMPLETE; external binary custody: PARTIAL; live release: HOLD.
