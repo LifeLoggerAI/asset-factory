@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r7-original-tests-stale-promotion-and-receipt-parity-v1",
+  "observedDate": "2026-11-07 America/Chicago",
+  "auditPR": 496,
+  "auditHeadBeforeR7": "c1b6740a0f0fc856b24848f1c6557663da45e75c",
+  "ownerPR": 421,
+  "ownerSourceHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "spatialRepo": "LifeLoggerAI/urai-spatial",
+  "spatialCommit": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "scope": "read-only pinned Git source and original local Node test files; no provider, production or release mutations",
+  "verifiedOriginalNodeTests": {
+    "script": "scripts/test-model-forge-glb-container.mjs",
+    "gitBlobSha1": "36a5f688115bbae7af8fc2be7b69e28c72f3dfdc",
+    "sourceModules": [
+      {
+        "path": "model_forge/glb-container.mjs",
+        "gitBlobSha1": "0c01290d89730fec92e5af4c0a350e4d4807cfd2"
+      },
+      {
+        "path": "model_forge/triangle-budget.mjs",
+        "gitBlobSha1": "0f3b1383f8420b36181f71d9071ffc6eb811a38b"
+      },
+      {
+        "path": "model_forge/validate-glb.mjs",
+        "gitBlobSha1": "a91538dc260d237870a7dbc0159dafd7f7be27cd"
+      }
+    ],
+    "forgeIntakeTestDependency": "exact contiguous Forge structuralCandidateReport/parseGlbCandidate excerpt; full Forge module not executed",
+    "nodeVersion": "v22.16.0",
+    "testCount": 54,
+    "passed": 54,
+    "failed": 0,
+    "runner": "node --test scripts/test-model-forge-glb-container.mjs",
+    "originalScriptRawGitHashVerified": true,
+    "originalSourceModuleRawGitHashesVerified": true,
+    "isWholeRepositoryTestSuite": false
+  },
+  "additionalLocalPolicyProbes": {
+    "authoredByAuditor": true,
+    "count": 27,
+    "passed": 27,
+    "failed": 0,
+    "includesSavedGlbs": 26,
+    "retainedSavedGlbsAllowedByCurrentForgeRequiredExtensionWhitelist": 26,
+    "unknownRequiredExtensionStandaloneCliAccepts": true,
+    "unknownRequiredExtensionForgeIntakeRejects": true,
+    "sourceRequiredExtensionAllowlistFromForge": true,
+    "privateLibraryModelNamesAndPathsNotPublished": true
+  },
+  "productionHistoryVsCurrent": {
+    "assetId": "home-entry-chamber-v1",
+    "currentGitPath": "urai-tier1/public/assets/urai/generated/models/home-entry-chamber-v1.glb",
+    "currentGitTreeBlobSha1": "a691730494b3fc8374a3794ce3330d713c61326d",
+    "currentGitTreeBytes": 1786808,
+    "currentGeneratedReceiptSha256": "73f2a49ed2cfd6cd7ae9baed7b3908d53e0cac75b9f36ff1b8be9654e3d3e2f2",
+    "currentGeneratedReceiptReleaseState": "candidate-not-production-ready",
+    "currentLaunchRegistryReleaseState": "pending-final-review",
+    "currentRehearsalMode": "rehearsal",
+    "currentRehearsalPromote": false,
+    "currentRehearsalHumanReviewApproved": false,
+    "currentRehearsalVisualProofVerified": false,
+    "currentRawGLBNotRead": true,
+    "previousDecisionPath": "operations/assets/promotion-decisions/home-entry-chamber-v1.json",
+    "previousDecisionGitBlobSha1": "56c63b7e0f79b944d3eba36b5424a9adbb4872bf",
+    "previousDecisionMode": "promotion",
+    "previousDecisionPromote": true,
+    "previousDecisionApprovedAt": "2026-08-01T01:56:00-05:00",
+    "previousApprovedReceiptPath": "operations/assets/production-receipts/home-entry-chamber-v1.json",
+    "previousApprovedReceiptGitBlobSha1": "bccd862d664aedd7b2f3d2894469ffd69f2808d8",
+    "previousApprovedBytes": 184160,
+    "previousApprovedSha256": "b7bdced5a721598a9dfe592ee19da04d754d5b8b1d48b23cc44403a89b1ee529",
+    "oldDecisionCannotCertifyCurrentBinary": true,
+    "onlyOnePromotionDecisionFoundInDirectory": true,
+    "promotionDecisionsDirectoryCount": 1,
+    "productionReceiptsDirectoryCount": 3,
+    "otherProductionReceiptsAreSensoryAndAudio": true
+  },
+  "compressionReceiptMismatch": {
+    "source": "current generated-receipts files and R3 independently raw-read and SHA256-verified GLBs",
+    "modelCount": 7,
+    "allReceiptsReportCompressionStatus": "meshopt",
+    "noneOfSevenBinariesContainRequiredMeshoptOrDracoGeometryExtensions": true,
+    "receiptHashesMatchRaw": 7,
+    "models": [
+      {
+        "modelId": "portal-ring-master-v1",
+        "filename": "portal-ring-master-v1.glb",
+        "gitBlobSha1": "da549c52e173bc2d30410374aedb5d50c7153db8",
+        "bytes": 242072,
+        "computedSha256": "5b751cc6e7caa9667d48e4860e76a7b39f6cf84a60afb252497a19f323bb19c5",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 6,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "ground-world-terrain-v1",
+        "filename": "ground-world-terrain-v1.glb",
+        "gitBlobSha1": "74cf4b0e031dd921a7d9d94bb1ff577f2dfc5d00",
+        "bytes": 740640,
+        "computedSha256": "b5309b854729566efcc444db029458bd4193ed18e6c83199e164ca8cb3fb2b76",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 12,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "life-map-memory-star-v1",
+        "filename": "life-map-memory-star-v1.glb",
+        "gitBlobSha1": "d05f68a501306907686f6f276a5cb64ace966a9d",
+        "bytes": 373236,
+        "computedSha256": "ae4a70d2964a69025e246e7c09394b674a3c9f7b4b44a014cde6e1bffe7e9efa",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 11,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "focus-memory-chamber-v1",
+        "filename": "focus-memory-chamber-v1.glb",
+        "gitBlobSha1": "0f5d5d6fdd87d5b1b4b26ff067b88c4efea4f820",
+        "bytes": 622516,
+        "computedSha256": "d0e8a2105927f5fc610f68edc907cbd100b8570253fab3ba942171136d54b79d",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 13,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "replay-memory-environment-v1",
+        "filename": "replay-memory-environment-v1.glb",
+        "gitBlobSha1": "2e406ba7a2dd676a2d25ad8af6a5eb1790d31662",
+        "bytes": 435544,
+        "computedSha256": "fbc58c40c3b7ee18025e605aee72dfd97988747d169b923f690b363a409362b3",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 7,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "urai-orb-avatar-v1",
+        "filename": "urai-orb-avatar-v1.glb",
+        "gitBlobSha1": "2427984ce9c4c1203f9c6153afd09e94df02cac6",
+        "bytes": 403220,
+        "computedSha256": "06b21ff93a2221a6367fb8b8e305a0453cb151d3a92194445d72e4d48d6c7708",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 8,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      },
+      {
+        "modelId": "passport-status-room-v1",
+        "filename": "passport-status-room-v1.glb",
+        "gitBlobSha1": "e05fd8451147488e9b321b44a25cd033a5211605",
+        "bytes": 347512,
+        "computedSha256": "15f1f7634389994715e4f263eecf67731b52a8e9ef62a22eae889b6054213257",
+        "receiptCompressionStatus": "meshopt",
+        "requiredCompression": "draco-or-meshopt",
+        "actualEmbeddedDracoPrimitiveCount": 0,
+        "actualEmbeddedMeshoptBufferViewCount": 0,
+        "extensionsUsed": [
+          "KHR_materials_clearcoat",
+          "KHR_materials_emissive_strength",
+          "KHR_materials_transmission"
+        ],
+        "extensionsRequired": [],
+        "meshPrimitiveCount": 7,
+        "receiptReleaseState": "candidate-not-production-ready",
+        "evidenceScope": "direct GLB JSON and matched SHA-256, not GPU/render acceptance"
+      }
+    ]
+  },
+  "releaseArchitecture": {
+    "assetManifestReadyModelCount": 8,
+    "launchRegistryPendingFinalReviewModelCount": 22,
+    "governedPromotionScriptExists": true,
+    "governedPromotionWorkflowExists": true,
+    "aaaAssetGovernanceScriptExists": true,
+    "promotionGateRequiresActualFileBytesAndSha256": true,
+    "releaseStateChecksRunInPromotionAndGovernanceScripts": true,
+    "runtimeResolutionHasDirectReleaseStateCheck": false,
+    "currentProductionReadyModelAssetCertifiedByMain": false,
+    "liveDeploymentStateInspected": false
+  },
+  "stillUnverified": {
+    "rawHomeEntryCurrent": true,
+    "rawSevenV4Humans": true,
+    "officialGlTFValidator": true,
+    "fullCI": true,
+    "liveRendering": true,
+    "deviceAcceptance": true,
+    "rightsIndependentAttestation": true,
+    "StudioJobsPrivacyReplayEndToEnd": true
+  },
+  "releaseDecision": "HOLD",
+  "nonAction": "Historical approved receipt retained, not deleted or overwritten; current source not modified; no paid compute or deployment"
+}
