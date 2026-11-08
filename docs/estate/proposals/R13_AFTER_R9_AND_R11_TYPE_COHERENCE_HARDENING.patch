@@ -1,0 +1,22 @@
+--- a/scripts/verify-governed-asset-promotion.mjs
++++ b/scripts/verify-governed-asset-promotion.mjs
+@@ -140,6 +140,9 @@
+       requireCondition(Number.isInteger(decision.bytes) && decision.bytes === buffer.length, `byte mismatch expected=${decision.bytes} actual=${buffer.length}`)
+       requireCondition(/^[0-9a-f]{64}$/.test(String(decision.sha256 || '')), 'decision SHA-256 is invalid')
+       requireCondition(decision.sha256 === sha256(buffer), 'decision SHA-256 does not match asset bytes')
++      if (decision.mode === 'promotion' && asset?.fixedPath?.endsWith('.glb') && asset?.kind !== 'model') {
++        requireCondition(false, 'promoted GLB path requires model asset kind')
++      }
+       if (decision.mode === 'promotion' && asset?.kind === 'model') {
+         try {
+           const model = validatePromotableGlb(buffer)
+--- a/.github/workflows/governed-asset-promotion.yml
++++ b/.github/workflows/governed-asset-promotion.yml
+@@ -129,6 +129,7 @@
+           const asset = manifest.assets.find(item => item.id === decision.assetId)
+           if (!asset || (decision.mode !== 'promotion' && decision.mode !== 'rehearsal')) process.exit(1)
+           if (decision.mode === 'promotion' && decision.canonicalPath !== asset.fixedPath) process.exit(1)
++          if (decision.mode === 'promotion' && asset.fixedPath.endsWith('.glb') && asset.kind !== 'model') process.exit(1)
+           const safe = p => typeof p === 'string' && /^[A-Za-z0-9_./-]+$/.test(p) && !p.startsWith('/') && !p.split('/').includes('..') && path.posix.normalize(p) === p
+           if (!safe(asset.fixedPath)) process.exit(1)
+           process.stdout.write([decision.mode, asset.kind, asset.fixedPath].join('\t'))
