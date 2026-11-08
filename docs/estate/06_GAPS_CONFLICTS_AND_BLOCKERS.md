@@ -1,0 +1,25 @@
+# Asset Factory — blockers, rights and task ledger R1
+
+**P0-A binary custody:** The 278,133,223-byte generic world archive is represented by `staging-summary.json`, not in Git or located Drive; prove actual authorized byte accessibility, ZIP SHA256, 657 member hash/path safety and 96 GLB integrity, without overwriting historical artifacts. 26 saved GLBs externally preserved in Nov 4 historical audit are not necessarily provider-only and overlap Spatial; do not count them twice. Git `model_forge/runs/` is intentionally empty of promoted files.
+**P0-B provider ephemeral data:** Meshy support reported API output retention 3 days; without authenticated account/task enumeration, specific lost/unexported output count and expiry remain **UNKNOWN**, not zero or universally expired. Support-reported Premium ends Nov 25, 2026, not an API-output expiry. Execute bounded **read-only** task enumeration and licensed retrieval only with existing permission; no generation or credential bypass. Runway 12 task identities/PR #339 do not supply actual currently hash-verified input bytes. Tripo deprecated V2 model/segmentation end Dec 1 per dated migration record; main still V2 code; #421 V3 migration unmerged.
+**P0-C quality/art/provenance:** 213 canonical image identities historically reported in Spatial but exact current visual acceptance, provenance and third-party rights cannot be inferred from file existence or past CI. Home hybrid splat lacks source-byte admission, Gaussian QA, navigation, mobile and XR performance. Digital human 12 families are `prepared-no-spend`, full character identity/rig/animation/voice and likeness consent not certified. Film manifests include no final authorized master.
+**P0-D CI/release security:** Current #421/#494 GitHub jobs inspected with `runner_id:0`, `steps:0`. Original GitHub Actions host billing lock issue #4889576 remains applicable; don't claim source test failures or bypass. Current exact #494 composite is draft/unmerged and lacks native full matrix and independent review. Dedicated Factory Firebase/Storage IAM, JWT issuer and tenant isolation, spend-signing, queue/DLQ, Stripe, custom-domain parity, privacy, rollback and positive private-media boundaries are HOLD under issue #63.
+**P1-E cross-repo misclassification:** Studio/Storytime may hold adapters and manifests but no model binaries; Storytime generation hard-off unless explicitly enabled. Content currently contains two zero-byte PNG assets. Spatial main holds real model and image files, so Factory-only scan undercounts actual creative work. Some `assetfactory-studio` proof output is minimal synthetic geometry/audio, not hero-quality media.
+**P1-F rights/quality:** Repo `LICENSE` covers licensed source contributions but does NOT automatically attest to all third-party images, photographs, voices, source memories or provider rights. Original authored procedural candidates may have a source-author declaration; Poly Haven assets need verified per-asset CC0 reference, not license assumed by name. Founder likeness, human voice, family media and biometrics need explicit identity/consent/owner-safe policy. Provider commercial terms and attribution require per-task reconciliation.
+
+## Conflicts to retain, not silently flatten
+
+- `image_asset_generator/manifest.json` 47 prompted entries versus historical canonical 213 and actual Spatial WebPs: **different stages/registries**. Resolve by exact output-ID and source-binary crosswalk.
+- `main` Tripo V2 versus owner #421 V3: **branch divergence**, not necessarily provider regression in deployed product. Current deployed revision unknown.
+- `generic-worlds` says generated archived GLBs; no GLBs in Factory Git: **external artifact store**, not grounds to deny historical creation or claim live retrieval.
+- 26 separately saved GLBs vs 24 Spatial GLBs: **overlap**, do not sum as distinct assets. Reconcile SHA256 to actual bytes when permitted.
+- Historic `PRODUCTION-SMOKED` Firebase API slice vs `NOT LOCKED` full Asset Factory: narrower previous proof, not conflicting production GO.
+
+## Minimal safe remediation order
+
+1. Re-read heads of Factory #421/#493/#494/#495; preserve concurrent work. Use this pack as a public **metadata/source** review lane only.
+2. Resolve existing external artifact location and read-only access: stage a checksum inventory and validated schema without exposure or billable regeneration.
+3. Validate current Spatial canonical image/3D exact identities against Factory manifests, source and per-asset rights; generate a SHA256 crosswalk for bytes actually read and retain excluded paths.
+4. Run no-spend source test matrix on an exact frozen candidate when original runners/authorized free local environment work; never substitute old green or use paid GPU without explicit authority.
+5. Prove private C6 consent / owner/tenant storage isolation / revocation / deletion across final approved Factory/Studio/Jobs/Spatial runtime; then visual and physical mobile/XR acceptance.
+6. Only after independent review, protected CI, legal/provider checks and owner GO can issue #63 `NOT LOCKED` be reconsidered.
