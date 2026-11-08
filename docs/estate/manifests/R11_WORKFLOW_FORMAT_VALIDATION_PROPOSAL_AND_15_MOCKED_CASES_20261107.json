@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r11-workflow-validator-proposal-v1",
+  "observedDate": "2026-11-07 America/Chicago",
+  "auditPR": 496,
+  "auditPriorHead": "9a60f866262455968e3f9b5929bc85491b3c1330",
+  "source": {
+    "spatialRepo": "LifeLoggerAI/urai-spatial",
+    "spatialMainCommit": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+    "governedAssetPromotionWorkflowBlobSha1": "5e983e7ef216da4e3ebf139bf53bd29abbc5ae4d",
+    "governedAssetPromotionWorkflowBytes": 4254,
+    "ownerFactoryPR": 421,
+    "ownerFactoryPRHead": "e7d23952bcaa21209ff2d964c81c533f905863ca"
+  },
+  "proposal": {
+    "kind": "not-applied owner-review patch to existing governed-asset-promotion.yml",
+    "localPath": "/mnt/data/urai_r11_ci_hardening/proposals/R11_PROPOSED_OFFICIAL_GLTF_PROMOTION_VALIDATION.patch",
+    "localProposedWorkflow": "/mnt/data/urai_r11_ci_hardening/proposals/R11_OWNER_PROPOSED_governed-asset-promotion.yml",
+    "patchBytes": 3940,
+    "patchSha256": "658292c512f45e51800603d9028d7128c6ab3e45c486a574d05ae3cc527d159f",
+    "patchGitBlobSha1": "eeb8d5cc1d27a20fc70bbf3e5e5a66fb087f9040",
+    "resultingWorkflowBytes": 7591,
+    "resultingWorkflowGitBlobSha1": "0e1b392c77c17b7114c106386bfa9cfbebd58dc0",
+    "resultingWorkflowSha256": "9eba8cf198f9cc5ef9b2311d70cbf1fce4efc6d983e4e6efe639328d4d8a4cc6",
+    "cleanApplyVerified": true,
+    "parsedAsYAML": true,
+    "bashSyntaxCheckPassed": true,
+    "publishPatchInGithub": false,
+    "patchPublicationReason": "Byte-exact connector transfer unverified; local artifact retained; no executable source changed",
+    "workflowOnlyDoesNotFixReceiptVerifier": true
+  },
+  "offlineControlFlowTests": {
+    "count": 15,
+    "passed": 15,
+    "failed": 0,
+    "method": "exact proposed YAML run block extracted; original bash run in isolated generated Git repo roots with mocked npx to prove dispatch/PR selection, format command sequencing and fail closed on synthetic exits",
+    "nativeOriginalGitHubCIExecuted": false,
+    "realGltfValidatorInstalled": false,
+    "realCodecDecodeExecuted": false,
+    "kind": "mocked control-flow tests, not semantic model acceptance",
+    "cases": [
+      "dispatch_promoted_valid_model_mock_success",
+      "dispatch_validator_rejects_original",
+      "dispatch_codec_decoder_failure",
+      "dispatch_validator_rejects_decoded",
+      "dispatch_missing_model_rejected",
+      "dispatch_path_noncanonical_rejected",
+      "dispatch_receipt_rehearsal_skips_decoder",
+      "dispatch_nonmodel_promotion_skips_gltf",
+      "dispatch_invalid_mode_rejected",
+      "dispatch_unknown_asset_id_rejected",
+      "dispatch_symlinked_decision_rejected",
+      "pr_changed_promotion_invokes_validator",
+      "pr_unchanged_decision_skips",
+      "pr_changed_rehearsal_skips",
+      "pr_changed_promotion_validator_failure"
+    ]
+  },
+  "newGateProposed": [
+    "A promotion-model-only validation step for changed PR decisions and manually dispatched decision",
+    "Original and decoded GLB CLI validate, codec read/write via copy, refusal on nonzero exit or empty decoded artifact",
+    "Clean exact-head working tree assertion preserved",
+    "Synthetic nonmodel and rehearsal paths bypass unnecessary model decoding"
+  ],
+  "knownUnresolved": [
+    "Do not assume glTF-Transform CLI copy implies every compression payload and GPU path is validated; must confirm with real codec/error test",
+    "npx --yes @gltf-transform/cli@4.2.1 may fetch at runtime; owner must freeze installation and dependency digest before production CI",
+    "Full Khronos glTF Validator behavior and return codes were not executed in this environment",
+    "The PR path triggers require branch protection confirmation and independent original source validators",
+    "R9 receipt patch must be separately approved and reviewed, not combined silently",
+    "Eight larger current Spatial GLBs remain raw-uninspected",
+    "Current Home receipt stale relative to current candidate; other seven model receipt compression claims conflict with GLBs"
+  ],
+  "release": "HOLD"
+}

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r13-ci-and-type-coherence-v1",
+  "observedDateCentral": "2026-11-07",
+  "auditPR": 496,
+  "preR13AuditHead": "ec97990f64108612a34cc916c343626372a5eb61",
+  "spatialSource": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "ownerFactoryPR421": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "ci": {
+    "spatialBranchProtection": "403 Resource not accessible by integration; cannot establish rules",
+    "spatialRulesetsList": [],
+    "factoryRulesetsList": [],
+    "rulesetsCaveat": "Empty accessible list does not prove absence of all protection, administration permissions unavailable",
+    "auditR12": {
+      "runId": 42446443906,
+      "runConclusion": "failure",
+      "jobId": 128626262031,
+      "jobConclusion": "failure",
+      "stepCountVisible": 0,
+      "logs": "404 BlobNotFound",
+      "head": "ec97990f64108612a34cc916c343626372a5eb61"
+    },
+    "factoryBootstrap": {
+      "runId": 42339906710,
+      "runConclusion": "failure",
+      "jobId": 128305067133,
+      "jobConclusion": "failure",
+      "stepCountVisible": 0,
+      "logs": "404 BlobNotFound"
+    },
+    "spatialRecent": {
+      "runId": 42434050473,
+      "runConclusion": "failure",
+      "jobId": 128588960531,
+      "jobConclusion": "failure",
+      "stepCountVisible": 0,
+      "head": "df19b28c9a75b5201d06ee859de89b3b3bebc967"
+    },
+    "interpretation": "No exact-head CI PASS; failure root cause not attributable from missing steps/logs"
+  },
+  "runtime": {
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "realGltfTransformInstalled": false,
+    "gltfValidatorInstalled": false,
+    "meshoptimizerInstalled": false,
+    "blenderInstalled": false,
+    "npmCacheForValidator": false,
+    "npmRegistryDNS": false,
+    "realCodecRun": false
+  },
+  "sourceRead": {
+    "spatialLaunchRegisterBlobSha1": "9e7030543fe7468a74edaecca5f3492405e3bae7",
+    "launchAssetCount": 26,
+    "kindCounts": {
+      "model": 22,
+      "texture": 1,
+      "material-pack": 1,
+      "loading-sequence": 1,
+      "audio": 1
+    },
+    "currentGlbKindMismatches": 0,
+    "spatialArtifactAuditorBlobSha1": "eeb8d633d6989a61e423c62b94f59d021bf43e8b",
+    "artifactAuditorCompressionBehavior": "productionReady model missing Draco/Meshopt extension -> error; pending model -> warning. It does not prove extension payload decoding."
+  },
+  "syntheticCrossGate": {
+    "testFile": "/mnt/data/urai_r13_gate_parity/test_r13_gate_parity.py",
+    "testFileSha256": "9a374492e3fdd3760a7d3082e33ba8412b0e2d963323395cd2af07d63ddd1c62",
+    "localResultsSha256": "3442cdc313adaa4aa7a19668803cb10c9418dd0671257058269f7f46c2f7b947",
+    "cases": 4,
+    "allExpectedAssertionsPassed": true,
+    "misclassifiedGLBSyntheticCases": 2,
+    "oldPromoterAcceptedThoseCases": 2,
+    "originalAAAAlsoAccepted": 2,
+    "proposedR9Accepted": 2,
+    "proposedR11WithMockedValidatorAccepted": 2,
+    "locallyTypeGuardedR9Rejected": 2,
+    "locallyTypeGuardedR11Rejected": 2,
+    "goodModelAcceptedByOriginalAndR9AndMockedR11": true,
+    "invalidModelRejectedByR9": true,
+    "scope": "isolated exact source scripts and mocked npx, synthetic fixture only, not real deployment"
+  },
+  "proposal": {
+    "path": "docs/estate/proposals/R13_AFTER_R9_AND_R11_TYPE_COHERENCE_HARDENING.patch",
+    "gitBlobSha1": "8d15523ac538cad7e80174ccecfa41b40a880fd6",
+    "sha256": "ac0f565d2f92cc53a59dfb32dc6d315fc8dac90a00dfc5e7a15578fd78c7f503",
+    "bytes": 1700,
+    "appliesTo": "separately proposed R9 promoter and R11 workflow, not original main",
+    "gitApplyCheck": true,
+    "nodeCheck": true,
+    "yamlParse": true,
+    "ownerReviewRequired": true,
+    "productionCodeChanged": false
+  },
+  "release": "HOLD"
+}

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r5-saved-glb-native-custody-public-summary-v1",
+  "dateLocal": "2026-11-07 America/Chicago",
+  "factoryAuditPR": 496,
+  "factoryOwnerSourcePR": 421,
+  "factoryOwnerSourceHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "spatialImmutableMain": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "repoVisibility": "public",
+  "privacy": "Aggregate sanitized results only. Private Library model names, model content, individual asset SHA-256 hashes, cloud IDs, geometry, and likeness details deliberately omitted.",
+  "savedModelRawCustody": {
+    "source": "2026-11-04 existing Meshy preservation report; original raw bytes re-read in R4/R5",
+    "driveGlbsReadAndSHA256MatchedInR4": 17,
+    "driveGlbBytes": 16543164,
+    "privateLibraryGlbsReadAndSHA256MatchedInR5": 9,
+    "privateLibraryGlbBytes": 51551136,
+    "totalSavedGlbsReadAndSHA256Matched": 26,
+    "totalSavedGlbBytes": 68094300,
+    "hashMismatches": 0,
+    "byteMismatches": 0,
+    "partialStructuralErrors": 0,
+    "CPUSceneImportFailures": 0
+  },
+  "nativeExactSourceValidation": {
+    "sourceModules": [
+      {
+        "path": "model_forge/glb-container.mjs",
+        "gitBlobSha1": "0c01290d89730fec92e5af4c0a350e4d4807cfd2"
+      },
+      {
+        "path": "model_forge/triangle-budget.mjs",
+        "gitBlobSha1": "0f3b1383f8420b36181f71d9071ffc6eb811a38b"
+      },
+      {
+        "path": "model_forge/validate-glb.mjs",
+        "gitBlobSha1": "a91538dc260d237870a7dbc0159dafd7f7be27cd"
+      }
+    ],
+    "node": "v22.16.0",
+    "runMode": "recovered exact text of three source files, git hash-object matched to PR #421, Node CLI executed against local raw saved files, offline and no spend",
+    "filesPassed": 26,
+    "filesFailed": 0,
+    "negativeBudgetReject": 1,
+    "negativeCorruptMagicReject": 1,
+    "maxTriangleBudgetApplied": 2000000,
+    "verdict": "structurally-valid-candidate-not-visual-authority"
+  },
+  "privateAvatarLodStructuralSummary": {
+    "levels": 4,
+    "triangles": [
+      140535,
+      80982,
+      37744,
+      17552
+    ],
+    "jointCounts": [
+      61,
+      61,
+      61,
+      61
+    ],
+    "animationClips": [
+      15,
+      15,
+      15,
+      15
+    ],
+    "embeddedImages": [
+      16,
+      16,
+      16,
+      16
+    ],
+    "crossLodJointNamesIdentical": true,
+    "crossLodAnimationClipNamesIdentical": true,
+    "crossLodClipChannelCountsIdentical": true,
+    "crossLodGpuAnimationsVerified": false,
+    "crossLodVisualAcceptanceVerified": false
+  },
+  "spatialScopeSeparate": {
+    "mainTrackedGlbPaths": 24,
+    "rawVerifiedSpatialGlbPathsAfterR4": 16,
+    "unreadSpatialGlbs": 8,
+    "unreadMakeHumanV4": 7,
+    "unreadHomeEntryChamber": 1
+  },
+  "unverified": {
+    "officialKhronosGlTFValidator": true,
+    "completeOriginalRepoNodeTestSuite": true,
+    "Blender": true,
+    "deviceRuntimePlayback": true,
+    "artAndLikenessApproval": true,
+    "assetRightsAndLicenses": true,
+    "meshTaskEnumeration": true,
+    "productionAuthority": true
+  },
+  "githubActionsContext": {
+    "ownerCommitModelForgeGlbRunId": 41792983520,
+    "runConclusion": "failure",
+    "jobId": 126450425336,
+    "jobStepsReturned": 0,
+    "jobLogRead": "404 BlobNotFound",
+    "notProofOfCodeRegression": true
+  },
+  "release": "HOLD"
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r12-upstream-validator-source-and-workflow-patch-verification-v1",
+  "observedDateLocal": "2026-11-07 America/Chicago",
+  "auditPR": 496,
+  "auditHeadBeforeR12": "4522f553637dab34ce8a6df43340d40e33c38473",
+  "spatialSource": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "factoryOwnerHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "R11WorkflowProposal": {
+    "path": "docs/estate/proposals/R11_PROPOSED_OFFICIAL_GLTF_PROMOTION_VALIDATION.patch",
+    "bytes": 3940,
+    "gitBlobSha1": "eeb8d5cc1d27a20fc70bbf3e5e5a66fb087f9040",
+    "sha256": "658292c512f45e51800603d9028d7128c6ab3e45c486a574d05ae3cc527d159f",
+    "originalSpatialWorkflowBlobSha1": "5e983e7ef216da4e3f139bf53bd29abbc5ae4d",
+    "resultingProposedWorkflowBlobSha1": "0e1b392c77c17b7114c106386bfa9cfbebd58dc0",
+    "status": "GitHub document-only exact byte match; not implemented in Spatial"
+  },
+  "validationUpstream": {
+    "repo": "donmccurdy/glTF-Transform",
+    "releaseTag": "v4.2.1",
+    "sourceFiles": [
+      {
+        "path": "packages/cli/src/validate.ts",
+        "gitBlobSha1": "b22eae5da0dc6dbbfdf6c4f59599ebc4747e7f0f"
+      },
+      {
+        "path": "packages/cli/src/session.ts",
+        "gitBlobSha1": "eae5e77738da8bef0c188e6b9f4e90947ffb3fab"
+      },
+      {
+        "path": "packages/cli/src/config.ts",
+        "gitBlobSha1": "0c29e1faf2ef9af34dd4afcd0eff9a7d964bf91a"
+      },
+      {
+        "path": "packages/cli/package.json",
+        "gitBlobSha1": "fef0aac6147d362ab6f0019e825f6fb75524a06e"
+      }
+    ],
+    "validate": "CLI imports gltf-validator validateBytes and throws when severity-0 error exists; warnings alone do not necessarily fail",
+    "copy": "Session.transform io.read -> removes Draco and Meshopt compression extensions -> io.write; config has draco and meshopt decoders",
+    "caveats": [
+      "source semantics are not an installed-package execution",
+      "copy read/write is not GPU render or full visual acceptance",
+      "CLI warnings do not necessarily fail"
+    ]
+  },
+  "dependencies": {
+    "node": "v22.16.0",
+    "gltfTransformCLIInstalled": false,
+    "gltfValidatorInstalled": false,
+    "meshoptimizerInstalled": false,
+    "npmCachedCLI": false,
+    "npmRegistryProbe": "EAI_AGAIN DNS resolution; no package downloaded",
+    "paidCalls": 0
+  },
+  "offlineGates": {
+    "R11SyntheticRerunCount": 15,
+    "passed": 15,
+    "failed": 0,
+    "validator": "mock npx only; no actual Khronos validation",
+    "patchSha256Confirmed": true,
+    "patchGitSha1Confirmed": true
+  },
+  "releaseGaps": [
+    "Use frozen locked CLI package and digest in CI",
+    "Run actual validate/copy/validate with good invalid and compressed specimens",
+    "Verify protected required checks on actual PRs",
+    "Enforce real compression rather than a receipt claim",
+    "Inspect remaining eight larger Spatial GLBs and accept physical devices",
+    "Maintain production HOLD"
+  ],
+  "status": "HOLD"
+}

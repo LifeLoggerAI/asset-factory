@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r9-local-proposal-and-regression-handoff-v1",
+  "observedDate": "2026-11-07 America/Chicago",
+  "auditPr": 496,
+  "preR9AuditHead": "08f88cd94aaf3f825aa5bd56667f93acebe44062",
+  "source": {
+    "spatialRepository": "LifeLoggerAI/urai-spatial",
+    "spatialMainCommit": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+    "promotionVerifierGitBlobSha1": "5d818de78f4ea3f2c7dc77e42dca9c505de2e73b",
+    "sourceLengthBytes": 8403,
+    "ownerFactoryPR": 421,
+    "ownerFactoryHead": "e7d23952bcaa21209ff2d964c81c533f905863ca"
+  },
+  "patch": {
+    "scope": "scratch-only proposed changes to scripts/verify-governed-asset-promotion.mjs; not applied to Spatial, not merged or approved",
+    "localExactPatchFile": "/mnt/data/urai_r9_proposal/patches/R9_proposed_receipt_and_glb_release_preflight.patch",
+    "patchLengthBytes": 8940,
+    "patchGitBlobSha1": "5f18ed27733873a11d6a6553b46f6d3c3bf15888",
+    "patchSha256": "4367ae5780f71b46ca525c91fef9942512937cf86f3c3faa8e81fca4bb2a17f9",
+    "candidateFullScriptGitBlobSha1": "386049b5f587bcbcb1a52d09046381138209207c",
+    "candidateFullScriptLengthBytes": 14748,
+    "gitApplyCheckPassed": true,
+    "gitApplyPassed": true,
+    "resultingScriptMatchesLocallyValidatedScript": true,
+    "nodeCheckPassed": true,
+    "repoPublication": "NOT uploaded as a GitHub patch because byte-identical transfer verification failed; local sandbox artifact only"
+  },
+  "regressions": {
+    "nodeVersion": "v22.16.0",
+    "syntheticCaseCount": 34,
+    "expectedBehaviorMatched": 34,
+    "baselineGreenCount": 28,
+    "proposedGreenCount": 5,
+    "proposedRedCount": 29,
+    "originalGreenToProposedRedCount": 23,
+    "preservedValidRehearsal": true,
+    "preservedValidAliasRehearsal": true,
+    "preservedNonmodelFixture": true,
+    "retainedSavedGlbsRetested": 26,
+    "retainedSavedGlbsPassed": 26,
+    "retainedSavedGlbsFailed": 0,
+    "privateAssetDetailsUploaded": false
+  },
+  "specificImprovements": [
+    "Production receipt path must equal canonical operations/assets/production-receipts/<asset-id>.json",
+    "Receipt must be a regular file, not a symlink",
+    "Receipt JSON asset ID, fixedPath, SHA256, byte count, and production-ready state must bind to decision and asset",
+    "For promoted models, bounded GLB2 JSON/BIN/accessor/POSITION checks reject arbitrary renamed bytes",
+    "Unknown required extensions rejected in preflight",
+    "Required Draco/Meshopt detects extension-backed geometry metadata rather than trusting compressionStatus string"
+  ],
+  "remainingGaps": [
+    "Fake Meshopt extension metadata can still pass preflight; independent decoder/full Khronos validator must remain mandatory",
+    "Proposal is scratch-only and not adopted by source owner",
+    "Canonical receipt filename policy requires owner review for all existing historical assets",
+    "Cross-system provenance and approval evidence still need independent verification",
+    "8 larger Spatial GLB binaries still raw-uninspected",
+    "CI and branch protection enforcement not confirmed",
+    "No actual production runtime or devices tested"
+  ],
+  "securityDisposition": "HOLD"
+}
