@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "one-urai-genesis-r8-governance-gate-adversarial-exact-source-v1",
+  "dateCentral": "2026-11-07",
+  "factoryAuditRepo": "LifeLoggerAI/asset-factory",
+  "factoryAuditPR": 496,
+  "factoryAuditPriorCommit": "2b86cf4b559c1adcf125854df5275672c22c6cbd",
+  "factoryOwnerPR": 421,
+  "factoryOwnerHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "spatialRepo": "LifeLoggerAI/urai-spatial",
+  "spatialMain": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "sourceBlobs": {
+    "governedPromotion": {
+      "path": "scripts/verify-governed-asset-promotion.mjs",
+      "sha1": "5d818de78f4ea3f2c7dc77e42dca9c505de2e73b",
+      "bytes": 8403
+    },
+    "aaaGovernance": {
+      "path": "scripts/verify-aaa-asset-governance.mjs",
+      "sha1": "d7c9dc38d5674b2df76f5dc36e472ce7020e24ef",
+      "bytes": 7738
+    },
+    "governedWorkflow": {
+      "path": ".github/workflows/governed-asset-promotion.yml",
+      "sha1": "5e983e7ef216da4e3ebf139bf53bd29abbc5ae4d"
+    },
+    "aaaWorkflow": {
+      "path": ".github/workflows/aaa-asset-governance.yml",
+      "sha1": "312421f152e1fef0de354c946e96e4b8c4598275"
+    },
+    "forgeWorkflow": {
+      "path": ".github/workflows/launch-critical-asset-forge.yml",
+      "sha1": "2981ef949d304996cb4cd6d08399842c7eb054c9"
+    },
+    "formatAuditor": {
+      "path": "scripts/audit-launch-critical-artifact.mjs",
+      "sha1": "eeb8d633d6989a61e423c62b94f59d021bf43e8b"
+    }
+  },
+  "localMethod": {
+    "nodeVersion": "v22.16.0",
+    "isolatedSyntheticFixturePerCase": true,
+    "syntheticGLBControl": "GLB v2 with embedded buffer and one triangle",
+    "privateOwnerMediaUsed": false,
+    "realProductionAssetModified": false,
+    "providerRequests": false,
+    "scriptGitHashObjectMatched": true,
+    "filesFromRealRepoLoadedInFreshTemporaryCwd": true,
+    "originalScriptReconstructionMethod": "exact source bytes recovered through authenticated GitHub connector and verified to stored blob SHA1"
+  },
+  "results": {
+    "caseCount": 11,
+    "observedResultsAsPredicted": 11,
+    "originalPromotionGreenCount": 5,
+    "originalPromotionRedCount": 6,
+    "aaaGreenCount": 6,
+    "aaaRedCount": 5,
+    "combinedGreenCount": 2,
+    "combinedRedCount": 9,
+    "unsafeCombinedAcceptedFormatCount": 1,
+    "receiptValidationFailOpenCountStandalone": 3,
+    "receiptHardenedPrototypeStandaloneGreenCount": 2,
+    "receiptHardenedPrototypeStandaloneRedCount": 9,
+    "prototypedNoProductionMutation": true,
+    "originalTestLogSha256": "e5bdef0f3959ee662c9f632356d5742be43e4121f84a3d7308ceb950e4e1b87e"
+  },
+  "cases": [
+    {
+      "scenario": "structurally valid synthetic GLB and matching receipt",
+      "originalPromotion": "GREEN",
+      "aaaGovernance": "GREEN",
+      "bothGates": "GREEN",
+      "receiptHardenedPrototypePromotion": "GREEN"
+    },
+    {
+      "scenario": "production receipt malformed JSON",
+      "originalPromotion": "GREEN",
+      "aaaGovernance": "RED",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "production receipt references another binary",
+      "originalPromotion": "GREEN",
+      "aaaGovernance": "RED",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "receiptPath references an unrelated existing manifest",
+      "originalPromotion": "GREEN",
+      "aaaGovernance": "RED",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "receiptPath missing",
+      "originalPromotion": "RED",
+      "aaaGovernance": "RED",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "decision hash differs from actual candidate bytes",
+      "originalPromotion": "RED",
+      "aaaGovernance": "GREEN",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "decision byte count differs from candidate bytes",
+      "originalPromotion": "RED",
+      "aaaGovernance": "GREEN",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "producer and reviewer fields identical",
+      "originalPromotion": "RED",
+      "aaaGovernance": "GREEN",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "manifest asset still pending-final-review",
+      "originalPromotion": "RED",
+      "aaaGovernance": "GREEN",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "visualProofVerified false",
+      "originalPromotion": "RED",
+      "aaaGovernance": "RED",
+      "bothGates": "RED",
+      "receiptHardenedPrototypePromotion": "RED"
+    },
+    {
+      "scenario": "arbitrary text bytes renamed GLB, declared bytes/hash matching",
+      "originalPromotion": "GREEN",
+      "aaaGovernance": "GREEN",
+      "bothGates": "GREEN",
+      "receiptHardenedPrototypePromotion": "GREEN"
+    }
+  ],
+  "observations": [
+    "Standalone promotion verifier checks matching physical bytes and hash of candidate, but only existence of receiptPath.",
+    "Separate AAA script checks parsed production receipt path/hash/bytes/state against decision, but does not read candidate geometry.",
+    "Original standalone promoter and AAA governance both GREEN for arbitrary text bytes named .glb when decision and receipt are self-consistent.",
+    "A scratch-only 692-byte addendum checking parsed receipt identity made three formerly standalone false-GREEN receipt fixtures RED; invalid-GLB fixture remained GREEN.",
+    "Generic GLB-format auditor exists as another script, but source-level promotion workflow did not show universal model-format validation on every promoted GLB.",
+    "AAA workflow triggers on operations/assets/** for PRs; successful execution and branch-protection requirement were not verified.",
+    "Production safety needs enforceable combined checks, not just existence of multiple workflows."
+  ],
+  "prototype": {
+    "path": "scripts/verify-governed-asset-promotion.mjs",
+    "scratchOnly": true,
+    "prototypeGitBlobSha1": "e29bcb81c2afb0e2799c3c9ec53b6fdb2a431f82",
+    "sourceBaseGitBlobSha1": "5d818de78f4ea3f2c7dc77e42dca9c505de2e73b",
+    "introduced": "parse receipt JSON and require fixedPath, sha256, bytes, releaseState=production-ready",
+    "testCaseCount": 11,
+    "standaloneGreensAfter": 2,
+    "provenance": "isolated local prototype; NOT pushed as executable source, NOT merged, and not claimed full fix"
+  },
+  "limitations": {
+    "fullSpatialRepoCheckout": false,
+    "exactHeadGithubActions": false,
+    "branchProtectionRequirementsVerified": false,
+    "fullKhronosValidation": false,
+    "liveDeployment": false,
+    "allModelsFormatApproved": false,
+    "remainingSpatialRawBytesUninspected": 8
+  },
+  "releaseDecision": "HOLD"
+}
