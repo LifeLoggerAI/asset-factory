@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r10-patch-verified-and-adversarial-glb-probes-v1",
+  "observedAt": "2026-11-07 America/Chicago",
+  "auditPR": 496,
+  "auditRefBeforeR10": "4ba482b527d8cf084c42ce2d96a1114bc8aac12e",
+  "spatialImmutableCommit": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+  "factoryOwnerPR": 421,
+  "factoryOwnerHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+  "gitHubVerifiedPatch": {
+    "path": "docs/estate/proposals/R9_PROPOSED_OWNER_PROMOTION_RECEIPT_GLB_PREFLIGHT.patch",
+    "bytes": 8940,
+    "gitBlobSha1": "5f18ed27733873a11d6a6553b46f6d3c3bf15888",
+    "sha256IndependentlyRecheckedInContainer": "4367ae5780f71b46ca525c91fef9942512937cf86f3c3faa8e81fca4bb2a17f9",
+    "sourceOriginalGitBlobSha1": "5d818de78f4ea3f2c7dc77e42dca9c505de2e73b",
+    "resultProposedGitBlobSha1": "386049b5f587bcbcb1a52d09046381138209207c",
+    "status": "available as exact original tested patch, NOT applied to Spatial source"
+  },
+  "retestedR9": {
+    "cases": 34,
+    "expected": 34,
+    "originalGreen": 28,
+    "proposalGreen": 5,
+    "proposalRed": 29,
+    "convertedGreenToRed": 23,
+    "execution": "local Node v22.16.0 isolated synthetic fixture suite"
+  },
+  "r10Probes": {
+    "cases": 8,
+    "green": 7,
+    "red": 1,
+    "source": "eight new isolated synthetic glTF variants, not complete official glTF validation",
+    "results": [
+      {
+        "caseId": "undersized_accessor_payload",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "Accessor view describes fewer bytes than its VEC3 FLOAT count requires"
+      },
+      {
+        "caseId": "POSITION_not_float",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "POSITION accessor componentType uses UNSIGNED_SHORT without quantization extension"
+      },
+      {
+        "caseId": "indexed_primitive_float_index_type",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "Indices accessor uses FLOAT instead of permitted unsigned integer component type"
+      },
+      {
+        "caseId": "misaligned_accessor_offset",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "VEC3 FLOAT accessor view offset is not 4-byte aligned"
+      },
+      {
+        "caseId": "POSITION_minmax_absent",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "POSITION min/max omitted; invalid for uncompressed POSITION by core glTF rules"
+      },
+      {
+        "caseId": "invalid_actual_indices_not_checked",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "Indexed triangle is not decoded; cannot independently verify index range"
+      },
+      {
+        "caseId": "triangle_budget_from_accessor_count",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "RED",
+        "aaa": "GREEN",
+        "observation": "R9 bound correctly rejects claimed triangle count exceeding configured ceiling"
+      },
+      {
+        "caseId": "fake_meshopt_compression_metadata",
+        "originalPromotion": "GREEN",
+        "r9Proposal": "GREEN",
+        "aaa": "GREEN",
+        "observation": "Model falsely advertises compressed extension structure without decoding its payload"
+      }
+    ],
+    "allObservedAsPredicted": true,
+    "commands": "python /mnt/data/urai_r9_proposal/tests/run_r10_extended_probes.py",
+    "localResultSha256": "2982335121b1560787f9b8f59992b0bd925d53bd95f1279108f40941b534389b"
+  },
+  "conclusion": {
+    "boundedPreflightIsNotOfficialValidator": true,
+    "needsGlTFSpecValidation": true,
+    "needsMeshoptOrDracoDecoder": true,
+    "needsActualBinaryGeometryIndexChecks": true,
+    "promotionMustFailWithoutExternalValidator": true,
+    "ownerSourceRemainsUnchanged": true
+  },
+  "remainingReleaseBlockers": [
+    "Current Home Entry candidate has no current-binary approval and is raw-uninspected via GitHub",
+    "Seven final models have SHA256-matching receipts falsely describing Meshopt compression",
+    "Six canonical Council V4 are preview candidates; all seven V4 GLBs still lack raw read",
+    "Eight Spatial GLB paths have no new raw-byte read",
+    "Exact-head complete CI, rendered visual and mobile/XR acceptance, protected media/consent/deletion proof remain HOLD"
+  ],
+  "visibility": "Only synthetic case IDs and source checksums; no saved private library model paths, identities, or binary data",
+  "status": "HOLD"
+}
