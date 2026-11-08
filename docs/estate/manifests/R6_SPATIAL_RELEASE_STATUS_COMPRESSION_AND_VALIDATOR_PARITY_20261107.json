@@ -1,0 +1,301 @@
+{
+  "schemaVersion": "one-urai-genesis-asset-factory-r6-parity-v1",
+  "localDate": "2026-11-07",
+  "source": {
+    "spatialRepo": "LifeLoggerAI/urai-spatial",
+    "pinnedCommit": "da94837c2457b0a7590e26a7a644cd728de8afb8",
+    "spatialFiles": {
+      "launchCriticalAssets": "9e7030543fe7468a74edaecca5f3492405e3bae7",
+      "assetManifest": "6de0e9308bebf6ea75a3c1ab18c1a6aa8ef935f5",
+      "councilRealm": "f98f22d426c61acdc2c8a570c37ba192c53ba546",
+      "homeCompositionSelection": "158768f468963745578a8949a4137f52c8d973ec",
+      "homeProductionPolished": "e3769bb52c9c969fa7ab2bd4b0d5526068b1fcb6"
+    },
+    "factoryOwnerPR": 421,
+    "factoryOwnerHead": "e7d23952bcaa21209ff2d964c81c533f905863ca",
+    "factoryForgeSourceGitBlob": "e01440825c739e937e2f2b48d2bd2168e3d7b467",
+    "auditPR": 496,
+    "auditHeadBeforeR6": "9511d8d987d79fe01144af480d91ab4205eee482"
+  },
+  "releasePolicy": {
+    "candidateAssetsMayShip": false,
+    "readyModelsRequireCompression": true,
+    "readyAssetsRequireSha256": true,
+    "readyAssetsRequireLicenseRecord": true,
+    "fallbackRequired": true
+  },
+  "counts": {
+    "declaredLaunchModels": 22,
+    "declaredLaunchModelPendingFinalReview": 22,
+    "runtimeFinalGlbReady": 8,
+    "runtimeReadyVsReleasePendingOverlaps": 8,
+    "rawInspectedOfFinal8": 7,
+    "inspectedFinal8WithoutDracoOrMeshopt": 7,
+    "uninspectedFinal8": 1,
+    "v4ReceiptsCandidateNotProductionReady": 7,
+    "canonicalCouncilV4Loads": 6,
+    "canonicalCouncilDirectV3Loads": 0,
+    "spatialGlbPaths": 24,
+    "rawIdentityCheckedViaR3R4": 16,
+    "rawUninspectedSpatialGlbs": 8,
+    "localEdgeTests": 35,
+    "localEdgeTestsPassed": 35
+  },
+  "finalCrosswalk": [
+    {
+      "file": "home-entry-chamber-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "raw-uninspected"
+    },
+    {
+      "file": "portal-ring-master-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "ground-world-terrain-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "life-map-memory-star-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "focus-memory-chamber-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "replay-memory-environment-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "urai-orb-avatar-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    },
+    {
+      "file": "passport-status-room-v1.glb",
+      "runtimeAssetManifestStatus": "ready",
+      "launchCriticalReleaseState": "pending-final-review",
+      "requiredCompression": "draco-or-meshopt",
+      "compressionRawStatus": "absent-in-read-glb"
+    }
+  ],
+  "sevenRawFinalCompressionChecks": [
+    {
+      "file": "ground-world-terrain-v1.glb",
+      "bytes": 740640,
+      "primitiveCount": 12,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "life-map-memory-star-v1.glb",
+      "bytes": 373236,
+      "primitiveCount": 11,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "focus-memory-chamber-v1.glb",
+      "bytes": 622516,
+      "primitiveCount": 13,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "replay-memory-environment-v1.glb",
+      "bytes": 435544,
+      "primitiveCount": 7,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "urai-orb-avatar-v1.glb",
+      "bytes": 403220,
+      "primitiveCount": 8,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "portal-ring-master-v1.glb",
+      "bytes": 242072,
+      "primitiveCount": 6,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    },
+    {
+      "file": "passport-status-room-v1.glb",
+      "bytes": 347512,
+      "primitiveCount": 7,
+      "dracoPrimitiveCount": 0,
+      "meshoptPrimitiveCount": 0,
+      "extensionsRequired": [],
+      "extensionsUsed": [
+        "KHR_materials_clearcoat",
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
+      ]
+    }
+  ],
+  "v4CandidateReceipts": [
+    {
+      "id": "home-human-makehuman-v4",
+      "file": "home-human-makehuman-v4.glb",
+      "bytes": 1708856,
+      "receiptGitSha": "a69f2bd1ccc7e3c8613c0d372f2a9e150f6640c2",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-guide-human-makehuman-v4",
+      "file": "council-guide-human-makehuman-v4.glb",
+      "bytes": 1708924,
+      "receiptGitSha": "0e1943fbe1854b28d622225b248564e03e268c27",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-archivist-human-makehuman-v4",
+      "file": "council-archivist-human-makehuman-v4.glb",
+      "bytes": 1708944,
+      "receiptGitSha": "ab13e140370b05c2ab76cc233104106a2ae267ee",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-guardian-human-makehuman-v4",
+      "file": "council-guardian-human-makehuman-v4.glb",
+      "bytes": 1708672,
+      "receiptGitSha": "a76466724d30c8fb6e40d35b38d515c385e82ab8",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-builder-human-makehuman-v4",
+      "file": "council-builder-human-makehuman-v4.glb",
+      "bytes": 1709412,
+      "receiptGitSha": "264f543d1b1506e7031687afe1432008f7b85c49",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-mirror-human-makehuman-v4",
+      "file": "council-mirror-human-makehuman-v4.glb",
+      "bytes": 1708872,
+      "receiptGitSha": "95880cf1ab6107823f12dbc3584324fc6a9a18c9",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    },
+    {
+      "id": "council-trickster-human-makehuman-v4",
+      "file": "council-trickster-human-makehuman-v4.glb",
+      "bytes": 1708876,
+      "receiptGitSha": "88a974f700f5a2208963c3b45879cfc00a342f1e",
+      "releaseState": "candidate-not-production-ready",
+      "requiredCompression": "draco-or-meshopt",
+      "actualRawBlobInspected": false
+    }
+  ],
+  "routeSourceBindings": {
+    "councilModelFiles": [
+      "council-guide-human-makehuman-v4.glb",
+      "council-archivist-human-makehuman-v4.glb",
+      "council-guardian-human-makehuman-v4.glb",
+      "council-builder-human-makehuman-v4.glb",
+      "council-mirror-human-makehuman-v4.glb",
+      "council-trickster-human-makehuman-v4.glb"
+    ],
+    "councilFailure": "semantic accessible CouncilFallback; V3 binary fallback not selected by canonical Council source",
+    "homeComposition": "HomeWorldProductionPolished",
+    "homeDirectModels": [
+      "home-entry-chamber-v1.glb",
+      "urai-orb-avatar-v1.glb",
+      "polyhaven-fern-02-geometry-v1.glb"
+    ],
+    "homeDirectHumanV4": false,
+    "scope": "source-level, not live runtime playback"
+  },
+  "standaloneValidatorDivergence": {
+    "sourceModuleGitSha1": {
+      "glbContainer": "0c01290d89730fec92e5af4c0a350e4d4807cfd2",
+      "triangleBudget": "0f3b1383f8420b36181f71d9071ffc6eb811a38b",
+      "standalone": "a91538dc260d237870a7dbc0159dafd7f7be27cd"
+    },
+    "exactStandaloneCliSyntheticUnknownRequiredExtension": "accepted-with-exit-code-0",
+    "forgeStructuralCandidateReportSource": "checks allowlist and rejects unknown extensions",
+    "localNodeVersion": "v22.16.0",
+    "authoredLocalTestCount": 35,
+    "authoredAssertionsPassed": 35,
+    "warning": "35 passing assertions include one confirming an acceptance defect; no release certification"
+  },
+  "unavailable": {
+    "eightSpatialRawGlbBytes": "GitHub binary connector limit; no matching Drive raw assets; container cannot resolve raw.githubusercontent.com",
+    "fullFrozenSourceCI": "not executed here",
+    "officialKhronosGlTFValidator": "not run",
+    "liveRenderingAndDevice": "not run",
+    "producerToConsumerPrivacy": "not tested"
+  },
+  "interpretation": "Runtime file readiness may mean loadable asset, not GO to ship; separate release register forbids candidate shipping. Do not treat ready state as deployment certification.",
+  "release": "HOLD"
+}
