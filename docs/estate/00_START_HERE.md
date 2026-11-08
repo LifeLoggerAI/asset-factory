@@ -19,6 +19,14 @@
 - [MANIFEST.json](MANIFEST.json): machine-readable full Git tracked paths/declared bytes/modes/blob SHA-1 for FIVE exact trees (8,105 repeated per-snapshot file rows). All file-level SHA256 values are **null**; no blanket byte reading.
 - [BRANCH_REFS.json](BRANCH_REFS.json): 476 accessible GitHub branch head names/SHAs at capture, not full 476 branch-tree/history inspection.
 
+
+## R2 independent reconciliation — 2026-11-07
+
+- [R2 findings — canonical images, GLB custody, generic worlds and Meshy correction](R2_CANONICAL_ASSET_CUSTODY_AND_PROVIDER_CORRECTIONS_20261107.md)
+- [R2 full 213-entry machine image crosswalk](manifests/R2_CANONICAL_SPATIAL_IMAGE_CROSSWALK_20261107.json)
+
+**Upgraded evidence:** reconstructed every one of the canonical 213 image identities from the current source definitions and matched all **213/213** to present, nonempty Spatial main Git assets at `da94837c2457b0a7590e26a7a644cd728de8afb8`, **76,938,180 declared bytes**. Not final visual/license/device/deployment certification. Revalidated current metadata presence and byte-size agreement for **17/17** previously saved Drive GLBs; the external 278MB generic world ZIP remains unrecovered; seven of the 17 match Spatial GLB names/sizes but their hashes were not independently recrosschecked. Meshy November 4 support corrected Free-tier model download status: possible with monthly limits, API retention three days for Premium and fourteen days for Studio, and no plan extension. Source PRs remain unmerged; production HOLD.
+
 ## Critical reality checks
 
 Factory owner tree has 36 PNG/WebP/GLTF proof objects and **no tracked production GLBs**; `urai-spatial/main` has **24 real tracked GLBs** and numerous images/audio files. A prior 2026-11-04 preservation report independently read/hashed 26 GLBs externally, overlapping Spatial. Generic World 1.0.2 metadata describes a 278MB external archive that was NOT materialized this session. The canonical image contract has 213 identity slots; 47 local prompt records are `prompted` rather than claimed as finished images, but historical paid images and Spatial source binaries **do exist**. A provider task/URL is not retained media, and retained media alone is not rights clearance, art acceptance or deployed runtime.
