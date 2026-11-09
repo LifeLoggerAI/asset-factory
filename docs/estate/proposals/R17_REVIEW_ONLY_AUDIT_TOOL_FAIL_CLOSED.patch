@@ -1,0 +1,38 @@
+--- a/urai_asset_forensic_inspector.py
++++ b/urai_asset_forensic_inspector.py
+@@ -299,6 +299,12 @@
+     args = p.parse_args()
+     if args.max_blob_mib < 0:
+         p.error("--max-blob-mib must be nonnegative")
++    # The tool promises a read-only source audit. Resolve aliases/symlinks before
++    # creating directories or writing output to prevent self-modification.
++    source_root = pathlib.Path(args.repo).resolve()
++    output_real = pathlib.Path(args.out).resolve()
++    if output_real == source_root or source_root in output_real.parents:
++        p.error("--out must resolve outside the audited repository")
+     result = audit(args.repo, args.ref, args.max_blob_mib * 1_048_576)
+     out = pathlib.Path(args.out)
+     out.parent.mkdir(parents=True, exist_ok=True)
+--- a/r15_manifest_path_guard.py
++++ b/r15_manifest_path_guard.py
+@@ -119,6 +119,7 @@
+         'rows': rows,
+     }
+     report['tree_path_gate_pass'] = (
++        bool(rows) and  # An empty contract is not successful asset coverage.
+         counts.get('nonempty_git_blob_unvalidated', 0) == len(rows) and
+         not duplicates and not group_unlisted and not asset_ungrouped
+     )
+@@ -134,6 +135,13 @@
+     ap.add_argument('--out', default=None, help='Optional JSON outside the source repo')
+     ap.add_argument('--strict', action='store_true', help='Nonzero exit on unfulfilled source paths')
+     args = ap.parse_args()
++    if args.out:
++        # Use resolved locations rather than lexical commonpath: an external
++        # symlink into the repo is still an in-repository mutation.
++        repo_real = pathlib.Path(args.repo).resolve()
++        output_real = pathlib.Path(args.out).resolve()
++        if output_real == repo_real or repo_real in output_real.parents:
++            raise ValueError('--out must resolve outside the source repository')
+     result = inspect(args.repo, args.ref, args.manifest, args.public_root)
+     data = json.dumps(result, indent=2, sort_keys=True) + '\n'
