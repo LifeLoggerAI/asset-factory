@@ -59,7 +59,7 @@
  const report = {
    ok: errors.length === 0,
 -  candidateOnly: results.length === manifest.assets.length && results.every((result) => result.manifestReleaseState !== 'production-ready'),
-+  candidateOnly: manifest.assets.length > 0 && results.length === manifest.assets.length && results.every((result) => result.manifestReleaseState !== 'production-ready'),
++  candidateOnly: results.length === manifest.assets.length && manifest.assets.length > 0 && results.every((result) => result.manifestReleaseState !== 'production-ready'),
    manifestId: manifest.manifestId,
    checkedAt: new Date().toISOString(),
    checkedAssets: results.length,
