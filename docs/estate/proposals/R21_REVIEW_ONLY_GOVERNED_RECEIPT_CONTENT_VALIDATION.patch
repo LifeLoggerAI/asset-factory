@@ -1,0 +1,56 @@
+--- a/scripts/verify-governed-asset-promotion.mjs
++++ b/scripts/verify-governed-asset-promotion.mjs
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ import { createHash } from 'node:crypto'
+-import { existsSync, lstatSync, readFileSync } from 'node:fs'
++import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
+ import path from 'node:path'
+ 
+ const root = process.cwd()
+@@ -103,7 +103,44 @@
+   requireCondition(decision.visualProofVerified === true, 'promotion requires verified visual proof')
+   requireCondition(typeof decision.receiptPath === 'string' && safePath(decision.receiptPath), 'promotion receiptPath must be safe')
+   if (typeof decision.receiptPath === 'string' && safePath(decision.receiptPath)) {
+-    requireCondition(existsSync(path.resolve(root, decision.receiptPath)), `promotion receipt missing: ${decision.receiptPath}`)
++    // The promotion receipt is the proof for this specific asset, not an arbitrary
++    // path or just a file that happens to exist. For the present canonical
++    // launch-asset schema, receipt.id is the manifest ID; receipt.assetId is
++    // the separate runtime resolver ID and must not be conflated with it.
++    const requiredReceipt = asset && `operations/assets/production-receipts/${asset.id}.json`
++    requireCondition(decision.receiptPath === requiredReceipt, 'promotion receipt must have canonical asset-specific path')
++    const receiptAbsolute = path.resolve(root, decision.receiptPath)
++    requireCondition(existsSync(receiptAbsolute), `promotion receipt missing: ${decision.receiptPath}`)
++    if (asset && decision.receiptPath === requiredReceipt && existsSync(receiptAbsolute)) {
++      const stat = lstatSync(receiptAbsolute)
++      const resolved = realpathSync(receiptAbsolute)
++      requireCondition(resolved.startsWith(`${path.resolve(root)}${path.sep}`), 'promotion receipt escapes source repository')
++      requireCondition(stat.isFile() && !stat.isSymbolicLink(), 'promotion receipt must be a regular non-symlink file')
++      if (resolved.startsWith(`${path.resolve(root)}${path.sep}`) && stat.isFile() && !stat.isSymbolicLink()) {
++        let receipt = null
++        try {
++          receipt = JSON.parse(readFileSync(receiptAbsolute, 'utf8'))
++        } catch {
++          failures.push('promotion receipt must be valid JSON')
++        }
++        requireCondition(Boolean(receipt) && typeof receipt === 'object' && !Array.isArray(receipt), 'promotion receipt must be a JSON object')
++        if (receipt && typeof receipt === 'object' && !Array.isArray(receipt)) {
++          for (const [field, expected] of [
++            ['id', asset.id],
++            ['fixedPath', decision.canonicalPath],
++            ['sha256', decision.sha256],
++            ['bytes', decision.bytes],
++            ['source', decision.source],
++            ['license', decision.license],
++            ['releaseState', 'production-ready'],
++          ]) {
++            requireCondition(receipt[field] === expected, `promotion receipt ${field} does not match the approved asset`)
++          }
++          requireCondition(receipt.visualAcceptance?.accepted === true, 'production receipt must record accepted visual proof')
++          requireCondition(receipt.deploymentAuthorized === true, 'production receipt must record deployment authorization')
++        }
++      }
++    }
+   }
+ }
+ 

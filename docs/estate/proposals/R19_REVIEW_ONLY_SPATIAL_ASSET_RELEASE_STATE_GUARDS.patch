@@ -1,0 +1,65 @@
+--- a/scripts/verify-launch-critical-assets.mjs
++++ b/scripts/verify-launch-critical-assets.mjs
+@@ -7,6 +7,9 @@
+ const manifestPath = path.join(root, 'operations/assets/launch-critical-assets.json')
+ const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+ const errors = []
++if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) {
++  errors.push('launch-critical manifest must contain at least one asset')
++}
+ const results = []
+ 
+ for (const asset of manifest.assets) {
+@@ -38,6 +41,15 @@
+   const receiptReleaseState = String(receipt.releaseState || '').trim()
+   const receiptCompressionStatus = String(receipt.compressionStatus || '').trim()
+   if (!receiptReleaseState) errors.push(`${asset.id}: receipt release state is required`)
++  if (asset.releaseState !== 'pending-final-review' && asset.releaseState !== 'production-ready') {
++    errors.push(`${asset.id}: unsupported manifest releaseState ${asset.releaseState}`)
++  }
++  if (asset.releaseState === 'production-ready' && receiptReleaseState !== 'production-ready') {
++    errors.push(`${asset.id}: production-ready manifest requires production-ready receipt`)
++  }
++  if (asset.releaseState !== 'production-ready' && receiptReleaseState === 'production-ready') {
++    errors.push(`${asset.id}: receipt cannot claim production-ready while manifest remains a candidate`)
++  }
+   if (!receiptCompressionStatus) errors.push(`${asset.id}: receipt compression status is required`)
+   if (receiptReleaseState === 'production-ready' && receiptCompressionStatus.includes('candidate')) {
+     errors.push(`${asset.id}: receipt cannot be production-ready with candidate compression status`)
+--- a/scripts/audit-launch-critical-artifact.mjs
++++ b/scripts/audit-launch-critical-artifact.mjs
+@@ -7,6 +7,9 @@
+ const manifestPath = path.join(root, 'operations/assets/launch-critical-assets.json')
+ const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+ const errors = []
++if (!Array.isArray(manifest.assets) || manifest.assets.length === 0) {
++  errors.push('launch-critical manifest must contain at least one asset')
++}
+ const warnings = []
+ const results = []
+ const ids = new Set()
+@@ -41,6 +44,15 @@
+   const productionReady = asset.releaseState === 'production-ready'
+ 
+   if (!receiptReleaseState) errors.push(`${asset.id}: receipt releaseState is required`)
++  if (asset.releaseState !== 'pending-final-review' && asset.releaseState !== 'production-ready') {
++    errors.push(`${asset.id}: unsupported manifest releaseState ${asset.releaseState}`)
++  }
++  if (asset.releaseState === 'production-ready' && receiptReleaseState !== 'production-ready') {
++    errors.push(`${asset.id}: production-ready manifest requires production-ready receipt`)
++  }
++  if (asset.releaseState !== 'production-ready' && receiptReleaseState === 'production-ready') {
++    errors.push(`${asset.id}: receipt cannot claim production-ready while manifest remains a candidate`)
++  }
+   if (receiptReleaseState === 'production-ready' && compressionStatus.includes('candidate')) {
+     errors.push(`${asset.id}: receipt cannot be production-ready with candidate compression status`)
+   }
+@@ -132,7 +144,7 @@
+ 
+ const report = {
+   ok: errors.length === 0,
+-  candidateOnly: results.length === manifest.assets.length && results.every((result) => result.manifestReleaseState !== 'production-ready'),
++  candidateOnly: results.length === manifest.assets.length && manifest.assets.length > 0 && results.every((result) => result.manifestReleaseState !== 'production-ready'),
+   manifestId: manifest.manifestId,
+   checkedAt: new Date().toISOString(),
+   checkedAssets: results.length,
