@@ -1,0 +1,48 @@
+--- a/.github/workflows/governed-asset-promotion.yml
++++ b/.github/workflows/governed-asset-promotion.yml
+@@ -10,6 +10,8 @@
+       - 'operations/assets/production-receipts/**'
+       - 'urai-tier1/public/assets/urai/generated/**'
+       - 'scripts/verify-governed-asset-promotion.mjs'
++      - 'scripts/verify-launch-critical-assets.mjs'
++      - 'scripts/audit-launch-critical-artifact.mjs'
+       - '.github/workflows/governed-asset-promotion.yml'
+   workflow_dispatch:
+     inputs:
+@@ -73,6 +75,17 @@
+ 
+           for decision in "${decisions[@]}"; do
+             URAI_ASSET_PROMOTION_DECISION="$decision" node scripts/verify-governed-asset-promotion.mjs
++            mode="$(node -e "const fs=require('node:fs');const v=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(v.mode||''))" "$decision")"
++            if [[ "$mode" == 'promotion' ]]; then
++              # Promotion must cross all independent evidence gates; checking the
++              # decision alone does not prove generated receipts or GLB validity.
++              node scripts/verify-launch-critical-assets.mjs
++              node scripts/audit-launch-critical-artifact.mjs
++              canonical="$(node -e "const fs=require('node:fs');const v=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(v.canonicalPath||''))" "$decision")"
++              if [[ "$canonical" == *.glb || "$canonical" == *.gltf ]]; then
++                npx --yes @gltf-transform/cli@4.2.1 validate "$canonical"
++              fi
++            fi
+           done
+ 
+           for asset in "${assets[@]}"; do
+@@ -93,4 +106,17 @@
+         if: github.event_name == 'workflow_dispatch'
+         env:
+           URAI_ASSET_PROMOTION_DECISION: ${{ inputs.decision_path }}
+-        run: node scripts/verify-governed-asset-promotion.mjs
++        shell: bash
++        run: |
++          set -euo pipefail
++          node scripts/verify-governed-asset-promotion.mjs
++          decision="$URAI_ASSET_PROMOTION_DECISION"
++          mode="$(node -e "const fs=require('node:fs');const v=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(v.mode||''))" "$decision")"
++          if [[ "$mode" == 'promotion' ]]; then
++            node scripts/verify-launch-critical-assets.mjs
++            node scripts/audit-launch-critical-artifact.mjs
++            canonical="$(node -e "const fs=require('node:fs');const v=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write(String(v.canonicalPath||''))" "$decision")"
++            if [[ "$canonical" == *.glb || "$canonical" == *.gltf ]]; then
++              npx --yes @gltf-transform/cli@4.2.1 validate "$canonical"
++            fi
++          fi
