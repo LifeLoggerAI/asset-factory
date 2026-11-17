@@ -12,6 +12,9 @@ import { getJson, providerChecks, providerPreflight } from '../model_forge/provi
 // Synthetic responses exercise the actual producer. They are never provider,
 // credential, account, price, budget, approval, or runtime acceptance evidence.
 const source = fs.readFileSync(new URL('../model_forge/forge.mjs', import.meta.url), 'utf8');
+const texturePolicy = source.match(/^const TRIPO_STABLE_TEXTURE_VERSION = '(v\d\.\d-\d{8})';$/m);
+assert.ok(texturePolicy, 'Tripo must define an explicit, source-bound texture version');
+assert.equal(texturePolicy[1], 'v3.0-20250812', 'retain pre-November-16 baseline until independently approved');
 function section(first, last) {
   const start = source.indexOf(first), end = source.indexOf(last, start);
   assert.ok(start >= 0 && end > start, `missing actual producer section: ${first}`);
@@ -30,7 +33,7 @@ function fixture({ model, polls = [goodTask()], created = { code: 0, data: { tas
   let admissions = 0;
   const context = vm.createContext({ URL, Response, TextDecoder, Uint8Array, AbortSignal, Date,
     process: { env: { TRIPO_API_KEY: 'SYNTHETIC-NOT-A-CREDENTIAL', ...(model ? { URAI_TRIPO_MODEL: model } : {}) } },
-    TRIPO_STABLE_MODEL: 'v3.1-20260211', fail: message => { throw Error(message); }, timeoutMs: () => 1000, sleep: async () => {},
+    TRIPO_STABLE_MODEL: 'v3.1-20260211', TRIPO_STABLE_TEXTURE_VERSION: texturePolicy[1], fail: message => { throw Error(message); }, timeoutMs: () => 1000, sleep: async () => {},
     fetch: async (url, init) => { reads.push({ url, init }); if (response) return response(); const value = polls.shift(); assert.ok(value, 'unexpected metadata retry'); return new Response(JSON.stringify(value)); },
   });
   vm.runInContext(actual, context);
@@ -51,15 +54,42 @@ for (const entry of [
   const request = f.paid[0];
   assert.equal(request.url, `https://openapi.tripo3d.ai/v3/generation/${entry.operation}`);
   assert.equal(request.model, 'v3.1-20260211'); assert.equal(request.init.method, 'POST');
-  assert.deepEqual(JSON.parse(request.init.body), { ...entry.expected, model: 'v3.1-20260211', texture: true, pbr: true, texture_quality: 'extreme', geometry_quality: 'detailed', face_limit: 1000, auto_size: true, model_seed: 17, texture_seed: 17 });
+  assert.deepEqual(JSON.parse(request.init.body), { ...entry.expected, model: 'v3.1-20260211', texture: true, texture_version: 'v3.0-20250812', pbr: true, texture_quality: 'extreme', geometry_quality: 'detailed', face_limit: 1000, auto_size: true, model_seed: 17, texture_seed: 17 });
   assert.equal(f.reads[0].url, `https://openapi.tripo3d.ai/v3/tasks/${taskId}`);
   assert.equal(f.reads[0].init.headers.Authorization, 'Bearer SYNTHETIC-NOT-A-CREDENTIAL'); assert.equal(f.reads[0].init.redirect, 'error');
   assert.equal(result.url, modelUrl); assert.equal(result.creditsConsumed, 40.25); assert.equal(result.taskId, taskId);
+  assert.equal(result.textureVersion, 'v3.0-20250812');
   assert.equal('provider_call_authorized' in result, false); assert.equal('reconciliation_complete' in result, false);
 });
 test('retained compatible H model is honored without silently selecting another model or price', async () => {
   const f = fixture({ model: 'v3.0-20250812' }); await f.run({ generation: { seed: null } });
-  const body = JSON.parse(f.paid[0].init.body); assert.equal(body.model, 'v3.0-20250812'); assert.equal('model_seed' in body, false);
+  const body = JSON.parse(f.paid[0].init.body); assert.equal(body.model, 'v3.0-20250812'); assert.equal(body.texture_version, 'v3.0-20250812'); assert.equal('model_seed' in body, false);
+});
+test('4k PBR and seedless Tripo requests preserve the exact texture baseline', async () => {
+  const f = fixture();
+  await f.run({ target: { ...f.spec.target, textureResolution: '4k' }, generation: { seed: null } });
+  const body = JSON.parse(f.paid[0].init.body);
+  assert.equal(body.texture_version, 'v3.0-20250812');
+  assert.equal(body.texture_quality, 'detailed');
+  assert.equal(body.texture, true); assert.equal(body.pbr, true);
+  assert.equal('model_seed' in body, false); assert.equal('texture_seed' in body, false);
+  assert.equal('delight' in body, false);
+});
+test('texture-version pin changes protected request hashes versus implicit and V3.5 defaults', async () => {
+  const f = fixture(); await f.run();
+  const { url, init } = f.paid[0];
+  const { texture_version: pinnedVersion, ...withoutTextureVersion } = JSON.parse(init.body);
+  assert.equal(pinnedVersion, 'v3.0-20250812');
+  const stable = await freezeRequest(url, init, 'tripo');
+  const implicit = await freezeRequest(url, { ...init, body: JSON.stringify(withoutTextureVersion) }, 'tripo');
+  const v35 = await freezeRequest(url, { ...init, body: JSON.stringify({ ...withoutTextureVersion, texture_version: 'v3.5-20260815' }) }, 'tripo');
+  assert.notEqual(stable.request_sha256, implicit.request_sha256);
+  assert.notEqual(stable.request_sha256, v35.request_sha256);
+  assert.notEqual(implicit.request_sha256, v35.request_sha256);
+});
+test('provenance includes effective Tripo texture model without granting promotion', () => {
+  assert.match(source, /providerModel: result\.model,\s*\.\.\.\(result\.textureVersion \? \{ providerTextureVersion: result\.textureVersion \} : \{\}\)/);
+  assert.match(source, /productionAuthority: false,\s*promotionAllowed: false/);
 });
 for (const model of ['v2.5-20250123', 'v1.0-20250506', 'unknown-v3']) test(`unadmitted Tripo model cannot dispatch a paid leaf: ${JSON.stringify(model)}`, async () => {
   const f = fixture({ model }); await assert.rejects(f.run(), /not admitted/); assert.equal(f.paid.length, 0); assert.equal(f.reads.length, 0);
