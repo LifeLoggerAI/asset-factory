@@ -13,6 +13,8 @@ const DEFAULT_TIMEOUT_MS = 20 * 60 * 1000;
 const DEFAULT_MAX_BYTES = 250 * 1024 * 1024;
 const SUPPORTED_PROVIDERS = new Set(['meshy', 'tripo', 'rodin', 'replicate']);
 const TRIPO_STABLE_MODEL = 'v3.1-20260211';
+// Preserve the pre-2026-11-16 texture default until a separately approved V3.5 review.
+const TRIPO_STABLE_TEXTURE_VERSION = 'v3.0-20250812';
 const DEFAULT_MAX_PROVIDER_ATTEMPTS = 1;
 const MAX_PROVIDER_ATTEMPTS = 3;
 
@@ -448,6 +450,7 @@ async function generateTripo(spec, spend) {
   const common = {
     model,
     texture: true,
+    texture_version: TRIPO_STABLE_TEXTURE_VERSION,
     pbr: spec.target.pbr,
     texture_quality: spec.target.textureResolution === '8k' ? 'extreme' : 'detailed',
     geometry_quality: 'detailed',
@@ -505,7 +508,7 @@ async function generateTripo(spec, spend) {
   if (parsed.username || parsed.password || parsed.hash) fail('Tripo V3 model URL is invalid');
   // This is only provider-reported usage. The protected gateway retains its hold
   // until independently authenticated charge reconciliation; it never authorizes retries.
-  return { url: parsed.toString(), taskId, model, creditsConsumed: task.credits_consumed ?? null, raw: task };
+  return { url: parsed.toString(), taskId, model, textureVersion: TRIPO_STABLE_TEXTURE_VERSION, creditsConsumed: task.credits_consumed ?? null, raw: task };
 }
 
 function mimeFor(file) {
@@ -745,6 +748,7 @@ async function main() {
           assetId: spec.id,
           provider,
           providerModel: result.model,
+          ...(result.textureVersion ? { providerTextureVersion: result.textureVersion } : {}),
           taskId: result.taskId,
           attempt,
           startedAt,
