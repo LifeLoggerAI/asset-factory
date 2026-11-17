@@ -7,6 +7,37 @@ read-only account metadata uses `/v3/account/balance`. The existing default
 `v3.0-20250812` H model can be selected explicitly. Other models require a
 deliberate schema and price review rather than silent substitution.
 
+## November 16, 2026 texture-default compatibility (source-only review)
+
+Tripo notified the account on November 12 that the implicit generation texture
+version changes from `v3.0-20250812` to `v3.5-20260815` on November 16.
+Geometry `model` and `texture_quality` do not separately pin the texture model.
+The existing protected H3.1 V3 adapter now explicitly sets
+`texture_version: 'v3.0-20250812'` on its shared request for text, image and
+named multiview generation, preserving the former baseline. The effective
+version is recorded as `providerTextureVersion` in candidate provenance.
+A separate `/v3/models/texture` operation is not implemented in this adapter;
+its version selector would be `model`, not `texture_version`.
+
+This is a stability pin, not proof that V3.0 is visually superior to V3.5.
+Delight, which requires V3.5, remains absent; no implicit texture upgrade,
+`fast` quality change, new model, or provider-price authorization is admitted.
+The synthetic V3 test suite checks all three request modes, 4K/8K quality,
+seeds, version/provenance fields and the distinct protected request fingerprints.
+Every new request/source fingerprint must obtain fresh independently bounded
+approval and account/price evidence. Prior V2 or unpinned V3 approvals do not
+carry over. No provider execution, new assets, deployment, CI certification or
+production acceptance follows from this patch. Existing AAA, GLB, rights,
+performance, literal-scene-pixel and independent approval gates remain HOLD.
+
+The November 11 provider retention notice separately warns that from
+December 1 API task assets may expire after seven days. Preserve downloaded
+assets and hashes in approved custody; provider task IDs alone are not archival.
+Official generation contracts:
+https://developers.tripo3d.ai/en/docs/generation-text-to-model/standard
+https://developers.tripo3d.ai/en/docs/generation-image-to-model/standard
+https://developers.tripo3d.ai/en/docs/generation-multiview-to-model/standard
+
 The [official migration guide](https://developers.tripo3d.ai/en/docs/migration-v2-to-v3)
 documents the V3 origin and endpoint mappings. The October 8 migration record's
 V2 endpoint retirement dates are historical and separate from the November 2,
