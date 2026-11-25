@@ -1,3 +1,4 @@
+import { bindCreatorProvenance } from '@/lib/server/assetCreatorProvenance';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   addJob,
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
     const definition = resolveAssetType(request.type);
 
     const job = {
-      ...request,
+      ...bindCreatorProvenance(request, currentAuth),
       tenantId,
       type: definition.canonicalType,
       requestedType: request.type,

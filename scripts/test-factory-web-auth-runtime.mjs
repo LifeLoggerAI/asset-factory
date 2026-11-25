@@ -31,6 +31,7 @@ function compile(relative) {
 }
 const code = {
   auth: compile('lib/server/assetAuth.ts'),
+  provenance: compile('lib/server/assetCreatorProvenance.ts'),
   key: compile('lib/server/apiAuth.ts'),
   generate: compile('app/api/generate/route.ts'),
   jobs: compile('app/api/jobs/route.ts'),
@@ -64,6 +65,7 @@ function fixture(overrides = {}, quotaHook = null, readHook = null) {
   const writes = [];
   let quotaCalls = 0;
   const dependencies = {
+    '@/lib/server/assetCreatorProvenance': instantiate(code.provenance, env, clock, {}),
     '@/lib/server/assetAuth': auth, '@/lib/server/apiAuth': key,
     '@/lib/server/assetFactoryStore': { readJobs: async () => {
       if (readHook) await readHook({ env, clock, writes });
@@ -195,6 +197,22 @@ test('actual Generate POST retains authenticated creator behavior', async () => 
   const response = await f.generate.POST(f.request());
   assert.equal(response.status, 202); assert.equal(f.quotaCalls(), 1); assert.equal(f.writes.length, 1);
   assert.equal(f.writes[0].tenantId, 'fixture-tenant');
+});
+
+for (const route of ['generate', 'jobs']) test(`${route} derives creator from verified auth, never body ownership`, async () => {
+  const f = fixture();
+  const original = f.request();
+  const body = { ...await original.json(), ownerId: 'foreign', userId: 'foreign', subjectIds: ['foreign'],
+    creatorProvenance: { state: 'verified-auth-creator', creatorUserId: 'foreign' }, consumerDeletionEligible: true };
+  const req = new next.NextRequest(original.url, { method: 'POST', headers: original.headers, body: JSON.stringify(body) });
+  const response = await f[route].POST(req);
+  assert.ok(response.status >= 200 && response.status < 300);
+  const job = f.writes[0];
+  assert.equal(job.creatorProvenance.creatorUserId, 'fixture-actor');
+  assert.equal(job.creatorProvenance.tenantId, 'fixture-tenant');
+  assert.equal(job.creatorProvenance.subjectResolution, 'unknown');
+  assert.equal(job.creatorProvenance.consumerDeletionEligible, false);
+  for (const key of ['ownerId', 'userId', 'subjectIds', 'consumerDeletionEligible']) assert.equal(Object.hasOwn(job, key), false);
 });
 test('actual Generate POST rejects expiration during quota await', async () => {
   const f = fixture({}, ({ clock }) => { clock.value += 3600_000; });

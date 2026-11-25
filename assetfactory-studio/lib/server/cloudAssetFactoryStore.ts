@@ -1,6 +1,7 @@
 import { getAdminBucket, getAdminDb } from './firebaseAdmin';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
+import { assertImmutableCreatorIdentity, deriveAssetCreator } from './assetCreatorProvenance';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -30,16 +31,19 @@ function stripUndefined<T extends GenericRecord>(record: T): T {
 export async function cloudAddJob(job: GenericRecord) {
   const db = dbOrThrow();
   const jobId = String(job.jobId);
-  await db.collection(collections.jobs).doc(jobId).set(stripUndefined(job), { merge: true });
-  await db.collection(collections.queue).doc(jobId).set(stripUndefined({
-    jobId,
-    tenantId: job.tenantId ?? 'default',
-    type: job.canonicalType ?? job.type,
-    status: 'queued',
-    queueStatus: job.queueStatus ?? 'pending-materialization',
-    createdAt: job.createdAt ?? new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }), { merge: true });
+  await db.runTransaction(async transaction => {
+    transaction.create(db.collection(collections.jobs).doc(jobId), stripUndefined(job));
+    transaction.create(db.collection(collections.queue).doc(jobId), stripUndefined({
+      jobId,
+      tenantId: job.tenantId ?? 'default',
+      creatorProvenance: job.creatorProvenance,
+      type: job.canonicalType ?? job.type,
+      status: 'queued',
+      queueStatus: job.queueStatus ?? 'pending-materialization',
+      createdAt: job.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+  });
   return job;
 }
 
@@ -56,20 +60,25 @@ export async function cloudFindJob(jobId: string) {
 export async function cloudUpdateJob(jobId: string, patch: GenericRecord) {
   const db = dbOrThrow();
   const ref = db.collection(collections.jobs).doc(jobId);
-  const doc = await ref.get();
-  if (!doc.exists) return null;
-  const updated: GenericRecord = stripUndefined({ ...patch, updatedAt: new Date().toISOString() });
-  await ref.set(updated, { merge: true });
-  await db.collection(collections.queue).doc(jobId).set(stripUndefined({
-    jobId,
-    status: updated.status,
-    queueStatus: updated.queueStatus,
-    updatedAt: updated.updatedAt,
-    renderStartedAt: updated.renderStartedAt,
-    renderCompletedAt: updated.renderCompletedAt,
-    failureReason: updated.failureReason,
-  }), { merge: true });
-  return { ...doc.data(), ...updated };
+  return db.runTransaction(async transaction => {
+    const doc = await transaction.get(ref);
+    if (!doc.exists) return null;
+    assertImmutableCreatorIdentity(doc.data()!, patch);
+    const updated: GenericRecord = stripUndefined({ ...patch, updatedAt: new Date().toISOString() });
+    transaction.set(ref, updated, { merge: true });
+    transaction.set(db.collection(collections.queue).doc(jobId), stripUndefined({
+      jobId,
+      tenantId: doc.get('tenantId'),
+      creatorProvenance: doc.get('creatorProvenance'),
+      status: updated.status,
+      queueStatus: updated.queueStatus,
+      updatedAt: updated.updatedAt,
+      renderStartedAt: updated.renderStartedAt,
+      renderCompletedAt: updated.renderCompletedAt,
+      failureReason: updated.failureReason,
+    }), { merge: true });
+    return { ...doc.data(), ...updated };
+  });
 }
 
 export async function cloudListAssets() {
@@ -84,8 +93,17 @@ export async function cloudFindAsset(jobId: string) {
 
 export async function cloudUpsertAsset(asset: GenericRecord) {
   const db = dbOrThrow();
-  await db.collection(collections.assets).doc(String(asset.jobId)).set(stripUndefined(asset), { merge: true });
-  return asset;
+  return db.runTransaction(async transaction => {
+    const ref = db.collection(collections.assets).doc(String(asset.jobId));
+    const [job, existing] = await Promise.all([
+      transaction.get(db.collection(collections.jobs).doc(String(asset.jobId))), transaction.get(ref),
+    ]);
+    if (!job.exists) throw new Error('Asset parent job is required');
+    const derived = deriveAssetCreator(asset, job.data()!);
+    if (existing.exists) assertImmutableCreatorIdentity(existing.data()!, derived);
+    transaction.set(ref, stripUndefined(derived), { merge: true });
+    return derived;
+  });
 }
 
 export async function cloudRecordUsage(event: GenericRecord) {
