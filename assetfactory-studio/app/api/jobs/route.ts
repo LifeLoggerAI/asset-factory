@@ -1,3 +1,4 @@
+import { bindCreatorProvenance } from '@/lib/server/assetCreatorProvenance';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { addJob, readJobs } from '@/lib/server/assetFactoryStore';
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     const definition = resolveAssetType(request.type);
 
     const job: AssetFactoryJob = {
-      ...request,
+      ...bindCreatorProvenance(request, currentAuth),
       tenantId,
       type: definition.canonicalType,
       requestedType: request.type,

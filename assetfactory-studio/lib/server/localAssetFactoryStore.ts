@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { assertImmutableCreatorIdentity, deriveAssetCreator } from './assetCreatorProvenance';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -44,6 +45,7 @@ async function writeDb(db: Db) {
 
 export async function localAddJob(job: GenericRecord) {
   const db = await readDb();
+  if (db.jobs[String(job.jobId)]) throw new Error('Asset job already exists');
   db.jobs[String(job.jobId)] = job;
   await writeDb(db);
 
@@ -64,6 +66,7 @@ export async function localUpdateJob(jobId: string, patch: GenericRecord) {
   if (!db.jobs[jobId]) {
     return null;
   }
+  assertImmutableCreatorIdentity(db.jobs[jobId], patch);
 
   db.jobs[jobId] = {
     ...db.jobs[jobId],
@@ -86,10 +89,15 @@ export async function localFindAsset(jobId: string) {
 
 export async function localUpsertAsset(asset: GenericRecord) {
   const db = await readDb();
-  db.assets[String(asset.jobId)] = asset;
+  const job = db.jobs[String(asset.jobId)];
+  if (!job) throw new Error('Asset parent job is required');
+  const derived = deriveAssetCreator(asset, job);
+  const existing = db.assets[String(asset.jobId)];
+  if (existing) assertImmutableCreatorIdentity(existing, derived);
+  db.assets[String(asset.jobId)] = derived;
   await writeDb(db);
 
-  return asset;
+  return derived;
 }
 
 export async function localRecordUsage(event: GenericRecord) {

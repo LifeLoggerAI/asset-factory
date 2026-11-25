@@ -43,6 +43,11 @@ async function actualModule(name, mocks, context = vm.createContext({ Buffer, co
   const source = stripTypeScriptTypes(readFileSync(resolve(server, `${name}.ts`), 'utf8'), { mode: 'transform' });
   const module = new vm.SourceTextModule(source, { context });
   await module.link(async specifier => {
+    if (specifier === './assetCreatorProvenance') {
+      const helper = new vm.SourceTextModule(stripTypeScriptTypes(readFileSync(resolve(server, 'assetCreatorProvenance.ts'), 'utf8'), { mode: 'transform' }), { context });
+      await helper.link(() => { throw new Error('Unexpected provenance dependency'); });
+      return helper;
+    }
     const exports = mocks[specifier] ?? (specifier === 'node:perf_hooks' ? { performance } : undefined);
     assert.ok(exports, `Missing synthetic import ${specifier}`);
     return new vm.SyntheticModule(Object.keys(exports), function () {

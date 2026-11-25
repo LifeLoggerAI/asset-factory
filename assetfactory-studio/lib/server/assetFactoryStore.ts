@@ -52,6 +52,7 @@ export async function addJob(job: GenericRecord) {
 
   await recordUsage({
     action: 'job.created',
+    creatorProvenance: saved.creatorProvenance,
     tenantId: job.tenantId ?? 'default',
     jobId: job.jobId,
     assetType: job.canonicalType ?? job.type,
@@ -156,6 +157,7 @@ export async function materializeAsset(jobId: string) {
 
     const asset = {
       jobId,
+      creatorProvenance: job.creatorProvenance,
       tenantId: String(job.tenantId ?? 'default'),
       fileName: rendered.assetFileName,
       manifestFile,
